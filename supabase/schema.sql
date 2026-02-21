@@ -1,13 +1,15 @@
 -- ============================================
--- COSMOFFICE DATABASE SCHEMA
+-- COSMOFFICE DATABASE SCHEMA - CORRETTO
 -- ============================================
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================
--- PROFILES (Users)
+-- STEP 1: CREAZIONE TUTTE LE TABELLE (senza policy)
 -- ============================================
+
+-- PROFILES (Users)
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE NOT NULL,
@@ -19,21 +21,7 @@ CREATE TABLE profiles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- RLS Policies for profiles
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Public profiles are viewable by everyone"
-  ON profiles FOR SELECT USING (true);
-
-CREATE POLICY "Users can insert their own profile"
-  ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
-
-CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE USING (auth.uid() = id);
-
--- ============================================
 -- ORGANIZATIONS
--- ============================================
 CREATE TABLE organizations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
@@ -45,20 +33,7 @@ CREATE TABLE organizations (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Organizations viewable by members"
-  ON organizations FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.org_id = organizations.id
-      AND organization_members.user_id = auth.uid()
-    )
-  );
-
--- ============================================
 -- ORGANIZATION MEMBERS
--- ============================================
 CREATE TABLE organization_members (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
@@ -68,20 +43,7 @@ CREATE TABLE organization_members (
   UNIQUE(org_id, user_id)
 );
 
-ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Members viewable by organization members"
-  ON organization_members FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM organization_members om
-      WHERE om.org_id = organization_members.org_id
-      AND om.user_id = auth.uid()
-    )
-  );
-
--- ============================================
 -- SPACES (Virtual Offices)
--- ============================================
 CREATE TABLE spaces (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
@@ -93,20 +55,7 @@ CREATE TABLE spaces (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE spaces ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Spaces viewable by organization members"
-  ON spaces FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.org_id = spaces.org_id
-      AND organization_members.user_id = auth.uid()
-    )
-  );
-
--- ============================================
 -- ROOMS
--- ============================================
 CREATE TABLE rooms (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   space_id UUID REFERENCES spaces(id) ON DELETE CASCADE,
@@ -121,21 +70,7 @@ CREATE TABLE rooms (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Rooms viewable by space members"
-  ON rooms FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM spaces
-      JOIN organization_members ON organization_members.org_id = spaces.org_id
-      WHERE spaces.id = rooms.space_id
-      AND organization_members.user_id = auth.uid()
-    )
-  );
-
--- ============================================
 -- PARTICIPANTS (Active users in rooms)
--- ============================================
 CREATE TABLE participants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
@@ -151,8 +86,138 @@ CREATE TABLE participants (
   UNIQUE(room_id, user_id)
 );
 
-ALTER TABLE participants ENABLE ROW LEVEL SECURITY;
+-- CONVERSATIONS
+CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  type TEXT DEFAULT 'room' CHECK (type IN ('room', 'direct', 'channel')),
+  room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
+-- MESSAGES
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  type TEXT DEFAULT 'text' CHECK (type IN ('text', 'image', 'file', 'system')),
+  reply_to UUID REFERENCES messages(id),
+  edited_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- AI AGENTS
+CREATE TABLE ai_agents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  personality TEXT,
+  capabilities JSONB DEFAULT '[]',
+  system_prompt TEXT,
+  avatar_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================
+-- STEP 2: ABILITA RLS SU TUTTE LE TABELLE
+-- ============================================
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE spaces ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_agents ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- STEP 3: CREA TUTTE LE POLICY (dopo che tutte le tabelle esistono)
+-- ============================================
+
+-- PROFILES POLICIES
+CREATE POLICY "Public profiles are viewable by everyone"
+  ON profiles FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert their own profile"
+  ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile"
+  ON profiles FOR UPDATE USING (auth.uid() = id);
+
+-- ORGANIZATIONS POLICIES
+CREATE POLICY "Organizations viewable by members"
+  ON organizations FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.org_id = organizations.id
+      AND organization_members.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can create organizations"
+  ON organizations FOR INSERT WITH CHECK (true);
+
+-- ORGANIZATION MEMBERS POLICIES
+CREATE POLICY "Members viewable by organization members"
+  ON organization_members FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM organization_members om
+      WHERE om.org_id = organization_members.org_id
+      AND om.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can join organizations"
+  ON organization_members FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- SPACES POLICIES
+CREATE POLICY "Spaces viewable by organization members"
+  ON spaces FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.org_id = spaces.org_id
+      AND organization_members.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Admins can create spaces"
+  ON spaces FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.org_id = spaces.org_id
+      AND organization_members.user_id = auth.uid()
+      AND organization_members.role IN ('owner', 'admin')
+    )
+  );
+
+-- ROOMS POLICIES
+CREATE POLICY "Rooms viewable by space members"
+  ON rooms FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM spaces
+      JOIN organization_members ON organization_members.org_id = spaces.org_id
+      WHERE spaces.id = rooms.space_id
+      AND organization_members.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Admins can create rooms"
+  ON rooms FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM spaces
+      JOIN organization_members ON organization_members.org_id = spaces.org_id
+      WHERE spaces.id = rooms.space_id
+      AND organization_members.user_id = auth.uid()
+      AND organization_members.role IN ('owner', 'admin')
+    )
+  );
+
+-- PARTICIPANTS POLICIES
 CREATE POLICY "Participants viewable by room members"
   ON participants FOR SELECT USING (
     EXISTS (
@@ -167,29 +232,7 @@ CREATE POLICY "Participants viewable by room members"
 CREATE POLICY "Users can manage their own participation"
   ON participants FOR ALL USING (auth.uid() = user_id);
 
--- ============================================
--- MESSAGES
--- ============================================
-CREATE TABLE conversations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  type TEXT DEFAULT 'room' CHECK (type IN ('room', 'direct', 'channel')),
-  room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE TABLE messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
-  sender_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  type TEXT DEFAULT 'text' CHECK (type IN ('text', 'image', 'file', 'system')),
-  reply_to UUID REFERENCES messages(id),
-  edited_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-
+-- MESSAGES POLICIES
 CREATE POLICY "Messages viewable by conversation participants"
   ON messages FOR SELECT USING (
     EXISTS (
@@ -205,15 +248,38 @@ CREATE POLICY "Messages viewable by conversation participants"
 CREATE POLICY "Users can send messages"
   ON messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
 
--- ============================================
--- REALTIME SETUP
--- ============================================
-ALTER PUBLICATION supabase_realtime ADD TABLE participants;
-ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+-- AI AGENTS POLICIES
+CREATE POLICY "AI agents viewable by organization members"
+  ON ai_agents FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.org_id = ai_agents.org_id
+      AND organization_members.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Admins can manage AI agents"
+  ON ai_agents FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.org_id = ai_agents.org_id
+      AND organization_members.user_id = auth.uid()
+      AND organization_members.role IN ('owner', 'admin')
+    )
+  );
 
 -- ============================================
--- FUNCTIONS
+-- STEP 4: REALTIME SETUP
 -- ============================================
+
+ALTER PUBLICATION supabase_realtime ADD TABLE participants;
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
+
+-- ============================================
+-- STEP 5: FUNCTIONS & TRIGGERS
+-- ============================================
+
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -222,6 +288,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Triggers
 CREATE TRIGGER profiles_updated_at
   BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -233,3 +300,29 @@ CREATE TRIGGER organizations_updated_at
 CREATE TRIGGER spaces_updated_at
   BEFORE UPDATE ON spaces
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER ai_agents_updated_at
+  BEFORE UPDATE ON ai_agents
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================
+-- STEP 6: INDEXES FOR PERFORMANCE
+-- ============================================
+
+CREATE INDEX idx_profiles_email ON profiles(email);
+CREATE INDEX idx_profiles_status ON profiles(status);
+CREATE INDEX idx_org_members_org ON organization_members(org_id);
+CREATE INDEX idx_org_members_user ON organization_members(user_id);
+CREATE INDEX idx_spaces_org ON spaces(org_id);
+CREATE INDEX idx_rooms_space ON rooms(space_id);
+CREATE INDEX idx_participants_room ON participants(room_id);
+CREATE INDEX idx_participants_user ON participants(user_id);
+CREATE INDEX idx_messages_conversation ON messages(conversation_id);
+CREATE INDEX idx_messages_created ON messages(created_at);
+
+-- ============================================
+-- STEP 7: SEED DATA (optional)
+-- ============================================
+
+-- Crea organizzazione demo (opzionale)
+-- INSERT INTO organizations (name, slug) VALUES ('Demo Org', 'demo-org');
