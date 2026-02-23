@@ -101,7 +101,7 @@ export function KonvaOffice() {
                             <Circle
                                 key={`dot-${i}-${j}`}
                                 x={i * 100}
-                                j={j * 100}
+                                y={j * 100}
                                 radius={1}
                                 fill="#334155"
                                 opacity={0.5}
