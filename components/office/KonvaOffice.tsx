@@ -4,14 +4,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Circle, Text, Group } from 'react-konva';
 import { useOfficeStore } from '@/stores/useOfficeStore';
 import { usePresence } from '@/hooks/usePresence';
+import { useSpatialAudio } from '@/hooks/useSpatialAudio';
 
 export function KonvaOffice() {
     const { myPosition, setMyPosition, peers, rooms, zoom, setZoom, setMyRoom } = useOfficeStore();
     const stageRef = useRef<any>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-    // Initialize presence
+    // Initialize presence and spatial audio
     usePresence();
+    useSpatialAudio();
 
     useEffect(() => {
         const updateDimensions = () => {
