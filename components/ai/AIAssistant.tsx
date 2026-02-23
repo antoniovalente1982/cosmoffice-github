@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, MessageSquare, CheckSquare, BrainCircuit, Play, Pause } from 'lucide-react';
-import { useOfficeStore } from '@/stores/useOfficeStore';
+import { useOfficeStore } from '../../stores/useOfficeStore';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 

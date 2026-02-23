@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
-import { createClient } from '@/utils/supabase/client';
-import { useOfficeStore } from '@/stores/useOfficeStore';
+import { createClient } from '../utils/supabase/client';
+import { useOfficeStore } from '../stores/useOfficeStore';
 
 export function usePresence() {
     const supabase = createClient();

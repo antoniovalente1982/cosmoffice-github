@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useOfficeStore } from '@/stores/useOfficeStore';
+import { useOfficeStore } from '../stores/useOfficeStore';
 
 export function useSpatialAudio() {
     const { myPosition, myRoomId, peers } = useOfficeStore();
