@@ -54,7 +54,17 @@ export async function middleware(request: NextRequest) {
         }
     )
 
-    const { data: { user } } = await supabase.auth.getUser()
+    let user = null
+    try {
+        const { data: { user: authUser }, error } = await supabase.auth.getUser()
+        if (!error) {
+            user = authUser
+        }
+    } catch (e) {
+        console.error('Middleware: Error getting user from Supabase:', e)
+        // If Supabase is down or keys are invalid, we treat as not logged in
+        // instead of crashing the whole request
+    }
 
     // Protection for /office route
     if (request.nextUrl.pathname.startsWith('/office')) {

@@ -102,116 +102,118 @@ export function KonvaOffice() {
 
     return (
         <div className="w-full h-full bg-[#0f172a] overflow-hidden">
-            <Stage
-                width={dimensions.width}
-                height={dimensions.height}
-                ref={stageRef}
-                onWheel={handleWheel}
-                draggable
-            >
-                <Layer>
-                    {/* Background Grid (Dots) */}
-                    {Array.from({ length: 20 }).map((_, i) =>
-                        Array.from({ length: 20 }).map((_, j) => (
-                            <Circle
-                                key={`dot-${i}-${j}`}
-                                x={i * 100}
-                                y={j * 100}
-                                radius={1}
-                                fill="#334155"
-                                opacity={0.5}
-                            />
-                        ))
-                    )}
+            {dimensions.width > 0 && dimensions.height > 0 && (
+                <Stage
+                    width={dimensions.width}
+                    height={dimensions.height}
+                    ref={stageRef}
+                    onWheel={handleWheel}
+                    draggable
+                >
+                    <Layer>
+                        {/* Background Grid (Dots) */}
+                        {Array.from({ length: 20 }).map((_, i) =>
+                            Array.from({ length: 20 }).map((_, j) => (
+                                <Circle
+                                    key={`dot-${i}-${j}`}
+                                    x={i * 100}
+                                    y={j * 100}
+                                    radius={1}
+                                    fill="#334155"
+                                    opacity={0.5}
+                                />
+                            ))
+                        )}
 
-                    {/* Rooms */}
-                    {rooms.map((room) => (
-                        <Group key={room.id} x={room.x} y={room.y}>
-                            <Rect
-                                width={room.width}
-                                height={room.height}
-                                fill={room.color}
-                                opacity={0.3}
-                                cornerRadius={12}
-                                stroke="#334155"
-                                strokeWidth={1}
+                        {/* Rooms */}
+                        {rooms.map((room) => (
+                            <Group key={room.id} x={room.x} y={room.y}>
+                                <Rect
+                                    width={room.width}
+                                    height={room.height}
+                                    fill={room.color}
+                                    opacity={0.3}
+                                    cornerRadius={12}
+                                    stroke="#334155"
+                                    strokeWidth={1}
+                                />
+                                <Text
+                                    text={room.name || ''}
+                                    fontSize={14}
+                                    fill="#94a3b8"
+                                    x={10}
+                                    y={-20}
+                                    fontStyle="bold"
+                                />
+                            </Group>
+                        ))}
+
+                        {/* Peers */}
+                        {Object.values(peers).map((peer) => {
+                            const distance = Math.sqrt(
+                                Math.pow(myPosition.x - peer.position.x, 2) +
+                                Math.pow(myPosition.y - peer.position.y, 2)
+                            );
+                            const isClose = distance < 400;
+                            const bounce = Math.sin(animPhase) * 3;
+
+                            return (
+                                <Group
+                                    key={peer.id}
+                                    x={peer.position.x}
+                                    y={peer.position.y + bounce}
+                                    opacity={isClose ? 1 : 0.5}
+                                >
+                                    <Circle
+                                        radius={20}
+                                        fill={isClose ? "#475569" : "#1e293b"}
+                                        stroke={isClose ? "#334155" : "#0f172a"}
+                                        strokeWidth={2}
+                                        shadowBlur={isClose ? 10 : 0}
+                                        shadowOpacity={0.5}
+                                    />
+                                    <Text
+                                        text={peer.full_name?.[0] || peer.email?.[0] || '?'}
+                                        x={-5}
+                                        y={-5}
+                                        fill={isClose ? "white" : "#475569"}
+                                        fontStyle="bold"
+                                    />
+                                    {isClose && (
+                                        <Text
+                                            text={peer.full_name || peer.email || ''}
+                                            x={-30}
+                                            y={25}
+                                            fill="#94a3b8"
+                                            fontSize={10}
+                                        />
+                                    )}
+                                </Group>
+                            );
+                        })}
+
+                        {/* Me */}
+                        <Group x={myPosition.x} y={myPosition.y + Math.sin(animPhase + 0.5) * 3}>
+                            <Circle
+                                radius={22}
+                                fill="#6366f1"
+                                stroke="#4f46e5"
+                                strokeWidth={3}
+                                shadowBlur={15}
+                                shadowColor="#6366f1"
+                                shadowOpacity={0.5}
                             />
                             <Text
-                                text={room.name || ''}
-                                fontSize={14}
-                                fill="#94a3b8"
-                                x={10}
-                                y={-20}
+                                text="ME"
+                                x={-8}
+                                y={-5}
+                                fill="white"
                                 fontStyle="bold"
                             />
                         </Group>
-                    ))}
-
-                    {/* Peers */}
-                    {Object.values(peers).map((peer) => {
-                        const distance = Math.sqrt(
-                            Math.pow(myPosition.x - peer.position.x, 2) +
-                            Math.pow(myPosition.y - peer.position.y, 2)
-                        );
-                        const isClose = distance < 400;
-                        const bounce = Math.sin(animPhase) * 3;
-
-                        return (
-                            <Group
-                                key={peer.id}
-                                x={peer.position.x}
-                                y={peer.position.y + bounce}
-                                opacity={isClose ? 1 : 0.5}
-                            >
-                                <Circle
-                                    radius={20}
-                                    fill={isClose ? "#475569" : "#1e293b"}
-                                    stroke={isClose ? "#334155" : "#0f172a"}
-                                    strokeWidth={2}
-                                    shadowBlur={isClose ? 10 : 0}
-                                    shadowOpacity={0.5}
-                                />
-                                <Text
-                                    text={peer.full_name?.[0] || peer.email?.[0] || '?'}
-                                    x={-5}
-                                    y={-5}
-                                    fill={isClose ? "white" : "#475569"}
-                                    fontStyle="bold"
-                                />
-                                {isClose && (
-                                    <Text
-                                        text={peer.full_name || peer.email || ''}
-                                        x={-30}
-                                        y={25}
-                                        fill="#94a3b8"
-                                        fontSize={10}
-                                    />
-                                )}
-                            </Group>
-                        );
-                    })}
-
-                    {/* Me */}
-                    <Group x={myPosition.x} y={myPosition.y + Math.sin(animPhase + 0.5) * 3}>
-                        <Circle
-                            radius={22}
-                            fill="#6366f1"
-                            stroke="#4f46e5"
-                            strokeWidth={3}
-                            shadowBlur={15}
-                            shadowColor="#6366f1"
-                            shadowOpacity={0.5}
-                        />
-                        <Text
-                            text="ME"
-                            x={-8}
-                            y={-5}
-                            fill="white"
-                            fontStyle="bold"
-                        />
-                    </Group>
-                </Layer>
-            </Stage>
+                    </Layer>
+                </Stage>
+            )}
         </div>
     );
 }
