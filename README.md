@@ -53,7 +53,7 @@ cosmoffice/
 
 ## 🗄️ Database Setup
 
-1. Create a new project on [Supabase](https://supabase.com)
+1. Create a new project on [Supabase](https://sucpabase.com)
 2. Go to SQL Editor
 3. Copy and run the content of `supabase/schema.sql`
 4. Get your API keys from Settings → API

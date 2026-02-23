@@ -1,24 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Mail, Lock, ArrowLeft, Sparkles } from 'lucide-react';
+import { Mail, Lock, ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
+import { login } from './actions';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      alert('Login functionality coming soon! This is a demo.');
-    }, 1000);
+    setErrorMsg('');
+    const formData = new FormData(e.currentTarget);
+
+    startTransition(async () => {
+      const result = await login(formData);
+      if (result?.error) {
+        setErrorMsg(result.error);
+      }
+    });
   };
 
   return (
@@ -54,8 +58,7 @@ export default function LoginPage() {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  name="email"
                   className="w-full pl-10 pr-4 py-3 bg-dark-surface border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="you@company.com"
                   required
@@ -69,8 +72,7 @@ export default function LoginPage() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  name="password"
                   className="w-full pl-10 pr-4 py-3 bg-dark-surface border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="••••••••"
                   required
@@ -78,15 +80,22 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-              {isLoading ? 'Signing in...' : 'Sign In'}
+            {errorMsg && (
+              <div className="flex items-center gap-2 text-red-400 text-sm mt-2 bg-red-400/10 p-3 rounded-md border border-red-400/20">
+                <AlertCircle className="w-4 h-4" />
+                <p>{errorMsg}</p>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full" size="lg" disabled={isPending}>
+              {isPending ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-400">
               Don't have an account?{' '}
-              <button className="text-primary-400 hover:text-primary-300 font-medium">Sign up</button>
+              <Link href="/signup" className="text-primary-400 hover:text-primary-300 font-medium">Sign up</Link>
             </p>
           </div>
         </Card>
