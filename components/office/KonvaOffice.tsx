@@ -2,9 +2,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Circle, Text, Group } from 'react-konva';
-import { useOfficeStore } from '@/stores/useOfficeStore';
-import { usePresence } from '@/hooks/usePresence';
-import { useSpatialAudio } from '@/hooks/useSpatialAudio';
+import { useOfficeStore } from '../../stores/useOfficeStore';
+import { usePresence } from '../../hooks/usePresence';
+import { useSpatialAudio } from '../../hooks/useSpatialAudio';
 
 export function KonvaOffice() {
     const { myPosition, setMyPosition, peers, rooms, zoom, setZoom, setMyRoom } = useOfficeStore();

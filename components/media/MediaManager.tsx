@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Peer from 'simple-peer';
-import { useOfficeStore } from '@/stores/useOfficeStore';
-import { createClient } from '@/utils/supabase/client';
+import { useOfficeStore } from '../../stores/useOfficeStore';
+import { createClient } from '../../utils/supabase/client';
 
 export function MediaManager() {
     const { peers, updatePeer } = useOfficeStore();
