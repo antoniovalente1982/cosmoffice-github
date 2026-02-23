@@ -10,6 +10,7 @@ export function KonvaOffice() {
     const { myPosition, setMyPosition, peers, rooms, zoom, setZoom, setMyRoom } = useOfficeStore();
     const stageRef = useRef<any>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+    const [animPhase, setAnimPhase] = useState(0);
 
     // Initialize presence and spatial audio
     usePresence();
@@ -24,7 +25,19 @@ export function KonvaOffice() {
         };
         updateDimensions();
         window.addEventListener('resize', updateDimensions);
-        return () => window.removeEventListener('resize', updateDimensions);
+
+        // Animation loop for avatars
+        let frame: number;
+        const animate = () => {
+            setAnimPhase(p => (p + 0.1) % (Math.PI * 2));
+            frame = requestAnimationFrame(animate);
+        };
+        frame = requestAnimationFrame(animate);
+
+        return () => {
+            window.removeEventListener('resize', updateDimensions);
+            cancelAnimationFrame(frame);
+        };
     }, []);
 
     // Handle movement
@@ -135,35 +148,51 @@ export function KonvaOffice() {
                     ))}
 
                     {/* Peers */}
-                    {Object.values(peers).map((peer) => (
-                        <Group key={peer.id} x={peer.position.x} y={peer.position.y}>
-                            <Circle
-                                radius={20}
-                                fill="#475569"
-                                stroke="#1e293b"
-                                strokeWidth={2}
-                                shadowBlur={10}
-                                shadowOpacity={0.5}
-                            />
-                            <Text
-                                text={peer.full_name?.[0] || peer.email?.[0] || '?'}
-                                x={-5}
-                                y={-5}
-                                fill="white"
-                                fontStyle="bold"
-                            />
-                            <Text
-                                text={peer.full_name || peer.email}
-                                x={-30}
-                                y={25}
-                                fill="#94a3b8"
-                                fontSize={10}
-                            />
-                        </Group>
-                    ))}
+                    {Object.values(peers).map((peer) => {
+                        const distance = Math.sqrt(
+                            Math.pow(myPosition.x - peer.position.x, 2) +
+                            Math.pow(myPosition.y - peer.position.y, 2)
+                        );
+                        const isClose = distance < 400;
+                        const bounce = Math.sin(animPhase) * 3;
+
+                        return (
+                            <Group
+                                key={peer.id}
+                                x={peer.position.x}
+                                y={peer.position.y + bounce}
+                                opacity={isClose ? 1 : 0.5}
+                            >
+                                <Circle
+                                    radius={20}
+                                    fill={isClose ? "#475569" : "#1e293b"}
+                                    stroke={isClose ? "#334155" : "#0f172a"}
+                                    strokeWidth={2}
+                                    shadowBlur={isClose ? 10 : 0}
+                                    shadowOpacity={0.5}
+                                />
+                                <Text
+                                    text={peer.full_name?.[0] || peer.email?.[0] || '?'}
+                                    x={-5}
+                                    y={-5}
+                                    fill={isClose ? "white" : "#475569"}
+                                    fontStyle="bold"
+                                />
+                                {isClose && (
+                                    <Text
+                                        text={peer.full_name || peer.email}
+                                        x={-30}
+                                        y={25}
+                                        fill="#94a3b8"
+                                        fontSize={10}
+                                    />
+                                )}
+                            </Group>
+                        );
+                    })}
 
                     {/* Me */}
-                    <Group x={myPosition.x} y={myPosition.y}>
+                    <Group x={myPosition.x} y={myPosition.y + Math.sin(animPhase + 0.5) * 3}>
                         <Circle
                             radius={22}
                             fill="#6366f1"
