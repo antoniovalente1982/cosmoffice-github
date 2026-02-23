@@ -3,10 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, X, MessageSquare, User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { createClient } from '@/utils/supabase/client';
-import { useOfficeStore } from '@/stores/useOfficeStore';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { createClient } from '../../utils/supabase/client';
+import { useOfficeStore } from '../../stores/useOfficeStore';
 
 interface Message {
     id: string;

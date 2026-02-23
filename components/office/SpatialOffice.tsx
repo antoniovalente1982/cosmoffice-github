@@ -2,8 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useOfficeStore } from '@/stores/useOfficeStore';
-import { usePresence } from '@/hooks/usePresence';
+import { useOfficeStore } from '../../stores/useOfficeStore';
+import { usePresence } from '../../hooks/usePresence';
 import { UserAvatar } from './UserAvatar';
 
 export function SpatialOffice() {

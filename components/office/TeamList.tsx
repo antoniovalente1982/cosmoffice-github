@@ -1,6 +1,6 @@
 'use client';
 
-import { useOfficeStore } from '@/stores/useOfficeStore';
+import { useOfficeStore } from '../../stores/useOfficeStore';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function TeamList() {
