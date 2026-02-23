@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { SpatialOffice } from '@/components/office/SpatialOffice';
 
 export default function OfficePage() {
     const supabase = createClient();
