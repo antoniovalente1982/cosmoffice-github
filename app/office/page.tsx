@@ -21,6 +21,7 @@ import { Card } from '@/components/ui/card';
 import { SpatialOffice } from '@/components/office/SpatialOffice';
 import { VideoGrid } from '@/components/media/VideoGrid';
 import { ChatWindow } from '@/components/chat/ChatWindow';
+import { TeamList } from '@/components/office/TeamList';
 import { useOfficeStore } from '@/stores/useOfficeStore';
 
 export default function OfficePage() {
@@ -83,6 +84,8 @@ export default function OfficePage() {
                     >
                         <MessageSquare className="w-5 h-5" /> Chat
                     </Button>
+
+                    <TeamList />
                 </nav>
 
                 <div className="p-4 border-t border-slate-700/50">

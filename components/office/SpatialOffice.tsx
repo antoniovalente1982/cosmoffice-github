@@ -110,6 +110,22 @@ export function SpatialOffice() {
             <div className="absolute bottom-6 left-6 z-40 bg-slate-900/60 backdrop-blur text-xs px-3 py-2 rounded-lg border border-slate-700/50 text-slate-400">
                 Use WASD or Arrows to move • Position: {Math.round(myPosition.x)}, {Math.round(myPosition.y)}
             </div>
+
+            {/* Zoom Controls */}
+            <div className="absolute top-6 left-6 z-40 flex flex-col gap-2">
+                <button
+                    onClick={() => useOfficeStore.getState().setZoom(Math.min(2, zoom + 0.1))}
+                    className="w-10 h-10 bg-slate-900/60 backdrop-blur rounded-lg border border-slate-700/50 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+                >
+                    +
+                </button>
+                <button
+                    onClick={() => useOfficeStore.getState().setZoom(Math.max(0.5, zoom - 0.1))}
+                    className="w-10 h-10 bg-slate-900/60 backdrop-blur rounded-lg border border-slate-700/50 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+                >
+                    -
+                </button>
+            </div>
         </div>
     );
 }
