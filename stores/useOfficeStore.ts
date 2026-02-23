@@ -46,6 +46,11 @@ interface OfficeState {
     activeTab: 'office' | 'analytics' | 'badges';
     zoom: number;
 
+    // Media State
+    isMicEnabled: boolean;
+    isVideoEnabled: boolean;
+    isScreenSharing: boolean;
+
     // Actions
     setMyPosition: (position: UserPosition) => void;
     setMyStatus: (status: 'online' | 'away' | 'busy' | 'offline') => void;
@@ -56,6 +61,9 @@ interface OfficeState {
     toggleSettings: () => void;
     toggleAIPanel: () => void;
     setActiveTab: (tab: 'office' | 'analytics' | 'badges') => void;
+    toggleMic: () => void;
+    toggleVideo: () => void;
+    toggleScreenShare: () => void;
     setZoom: (zoom: number) => void;
 }
 
@@ -74,6 +82,9 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     isAIPanelOpen: false,
     activeTab: 'office',
     zoom: 1,
+    isMicEnabled: true,
+    isVideoEnabled: true,
+    isScreenSharing: false,
 
     setMyPosition: (position) => set({ myPosition: position }),
     setMyStatus: (status) => set({ myStatus: status }),
@@ -104,5 +115,8 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen, isChatOpen: false, isAIPanelOpen: false })),
     toggleAIPanel: () => set((state) => ({ isAIPanelOpen: !state.isAIPanelOpen, isChatOpen: false, isSettingsOpen: false })),
     setActiveTab: (tab) => set({ activeTab: tab, isChatOpen: false, isSettingsOpen: false, isAIPanelOpen: false }),
+    toggleMic: () => set((state) => ({ isMicEnabled: !state.isMicEnabled })),
+    toggleVideo: () => set((state) => ({ isVideoEnabled: !state.isVideoEnabled })),
+    toggleScreenShare: () => set((state) => ({ isScreenSharing: !state.isScreenSharing })),
     setZoom: (zoom) => set({ zoom }),
 }));

@@ -8,6 +8,7 @@ import { createClient } from '@/utils/supabase/client';
 export function MediaManager() {
     const { peers, updatePeer } = useOfficeStore();
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
     const peersRef = useRef<Record<string, Peer.Instance>>({});
     const supabase = createClient();
 
@@ -68,6 +69,22 @@ export function MediaManager() {
             localStream.getTracks().forEach(track => track.stop());
         };
     }, [localStream, supabase, updatePeer]);
+
+    const toggleScreenShare = async () => {
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => track.stop());
+            setScreenStream(null);
+            // In a real app, we'd notify peers to switch back to video
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                setScreenStream(stream);
+                // In a real app, we'd replace the video track in all active peer connections
+            } catch (err) {
+                console.error('Failed to get display media', err);
+            }
+        }
+    };
 
     return null; // This is a headless manager
 }

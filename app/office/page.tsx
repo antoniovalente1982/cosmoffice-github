@@ -10,7 +10,9 @@ import {
     Settings,
     LogOut,
     Mic,
+    MicOff,
     Video,
+    VideoOff,
     Monitor,
     Map as MapIcon,
     Bell,
@@ -34,7 +36,11 @@ import { useOfficeStore } from '@/stores/useOfficeStore';
 export default function OfficePage() {
     const supabase = createClient();
     const router = useRouter();
-    const { toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab } = useOfficeStore();
+    const {
+        toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab,
+        isMicEnabled, isVideoEnabled, isScreenSharing,
+        toggleMic, toggleVideo, toggleScreenShare
+    } = useOfficeStore();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -181,11 +187,32 @@ export default function OfficePage() {
                     {/* Bottom Controls */}
                     {activeTab === 'office' && (
                         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-4 rounded-full glass border border-slate-700/50 shadow-2xl z-50">
-                            <Button variant="secondary" size="icon" className="rounded-full w-12 h-12"><Mic className="w-5 h-5" /></Button>
-                            <Button variant="secondary" size="icon" className="rounded-full w-12 h-12"><Video className="w-5 h-5" /></Button>
-                            <Button variant="secondary" size="icon" className="rounded-full w-12 h-12 text-primary-400"><Monitor className="w-5 h-5" /></Button>
+                            <Button
+                                variant={isMicEnabled ? "secondary" : "default"}
+                                size="icon"
+                                className={`rounded-full w-12 h-12 ${!isMicEnabled && 'bg-red-500 hover:bg-red-600'}`}
+                                onClick={toggleMic}
+                            >
+                                {isMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                            </Button>
+                            <Button
+                                variant={isVideoEnabled ? "secondary" : "default"}
+                                size="icon"
+                                className={`rounded-full w-12 h-12 ${!isVideoEnabled && 'bg-red-500 hover:bg-red-600'}`}
+                                onClick={toggleVideo}
+                            >
+                                {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                className={`rounded-full w-12 h-12 ${isScreenSharing ? 'text-primary-400 bg-primary-500/10' : 'text-slate-400'}`}
+                                onClick={toggleScreenShare}
+                            >
+                                <Monitor className="w-5 h-5" />
+                            </Button>
                             <div className="w-px h-8 bg-slate-700 mx-2"></div>
-                            <Button className="rounded-full px-6 bg-red-500 hover:bg-red-600" onClick={handleSignOut}>Leave Room</Button>
+                            <Button className="rounded-full px-6 bg-red-400/10 text-red-400 border border-red-400/20 hover:bg-red-400/20" onClick={handleSignOut}>Leave Room</Button>
                         </div>
                     )}
                 </div>
