@@ -19,10 +19,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SpatialOffice } from '@/components/office/SpatialOffice';
+import { VideoGrid } from '@/components/media/VideoGrid';
+import { ChatWindow } from '@/components/chat/ChatWindow';
+import { useOfficeStore } from '@/stores/useOfficeStore';
 
 export default function OfficePage() {
     const supabase = createClient();
     const router = useRouter();
+    const { toggleChat } = useOfficeStore();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -72,7 +76,11 @@ export default function OfficePage() {
                     <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-slate-100">
                         <Users className="w-5 h-5" /> Team members
                     </Button>
-                    <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-slate-100">
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-3 text-slate-400 hover:text-slate-100"
+                        onClick={toggleChat}
+                    >
                         <MessageSquare className="w-5 h-5" /> Chat
                     </Button>
                 </nav>
@@ -116,6 +124,7 @@ export default function OfficePage() {
                 {/* Office Stage (Spatial Environment) */}
                 <div className="flex-1 relative bg-dark-surface overflow-hidden">
                     <SpatialOffice />
+                    <VideoGrid />
 
                     {/* Bottom Controls */}
                     <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-4 rounded-full glass border border-slate-700/50 shadow-2xl z-50">
@@ -126,6 +135,7 @@ export default function OfficePage() {
                         <Button className="rounded-full px-6 bg-red-500 hover:bg-red-600" onClick={handleSignOut}>Leave Room</Button>
                     </div>
                 </div>
+                <ChatWindow />
             </main>
         </div>
     );
