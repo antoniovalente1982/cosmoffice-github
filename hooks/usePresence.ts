@@ -4,9 +4,9 @@ import { useOfficeStore } from '@/stores/useOfficeStore';
 
 export function usePresence() {
     const supabase = createClient();
-    const { myPosition, myStatus, updatePeer, removePeer } = useOfficeStore();
+    const { myPosition, myStatus, myRoomId, updatePeer, removePeer } = useOfficeStore();
 
-    const syncPosition = useCallback(async (userId: string, position: { x: number, y: number }) => {
+    const syncPosition = useCallback(async (userId: string) => {
         const channel = supabase.channel('office_presence', {
             config: {
                 presence: {
@@ -41,6 +41,7 @@ export function usePresence() {
                     await channel.track({
                         position: myPosition,
                         status: myStatus,
+                        roomId: myRoomId,
                         online_at: new Date().toISOString(),
                     });
                 }
@@ -49,7 +50,7 @@ export function usePresence() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [supabase, updatePeer, removePeer, myPosition, myStatus]);
+    }, [supabase, updatePeer, removePeer, myPosition, myStatus, myRoomId]);
 
     useEffect(() => {
         let cleanup: (() => void) | undefined;
@@ -57,7 +58,7 @@ export function usePresence() {
         const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                cleanup = await syncPosition(user.id, myPosition);
+                cleanup = await syncPosition(user.id);
             }
         };
 
@@ -77,10 +78,11 @@ export function usePresence() {
                 await channel.track({
                     position: myPosition,
                     status: myStatus,
+                    roomId: myRoomId,
                     online_at: new Date().toISOString(),
                 });
             }
         };
         updatePresence();
-    }, [myPosition, myStatus, supabase]);
+    }, [myPosition, myStatus, myRoomId, supabase]);
 }

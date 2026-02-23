@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { SpatialOffice } from '@/components/office/SpatialOffice';
+import { KonvaOffice } from '@/components/office/KonvaOffice';
 import { VideoGrid } from '@/components/media/VideoGrid';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { TeamList } from '@/components/office/TeamList';
@@ -124,9 +124,9 @@ export default function OfficePage() {
                     </div>
                 </header>
 
-                {/* Office Stage (Spatial Environment) */}
-                <div className="flex-1 relative bg-dark-surface overflow-hidden">
-                    <SpatialOffice />
+                {/* Office Stage (Konva Environment) */}
+                <div className="flex-1 relative bg-dark-bg overflow-hidden flex items-center justify-center">
+                    <KonvaOffice />
                     <VideoGrid />
 
                     {/* Bottom Controls */}

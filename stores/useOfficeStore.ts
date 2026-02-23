@@ -13,15 +13,31 @@ interface Peer {
     position: UserPosition;
     status: 'online' | 'away' | 'busy' | 'offline';
     last_seen: string;
+    roomId?: string;
+}
+
+interface Room {
+    id: string;
+    name: string;
+    type: 'open_space' | 'meeting' | 'focus' | 'social';
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    color: string;
 }
 
 interface OfficeState {
     // Current user state
     myPosition: UserPosition;
     myStatus: 'online' | 'away' | 'busy' | 'offline';
+    myRoomId?: string;
 
     // Peers state
     peers: Record<string, Peer>;
+
+    // Rooms
+    rooms: Room[];
 
     // UI State
     isChatOpen: boolean;
@@ -31,6 +47,7 @@ interface OfficeState {
     // Actions
     setMyPosition: (position: UserPosition) => void;
     setMyStatus: (status: 'online' | 'away' | 'busy' | 'offline') => void;
+    setMyRoom: (roomId?: string) => void;
     updatePeer: (id: string, data: Partial<Peer>) => void;
     removePeer: (id: string) => void;
     toggleChat: () => void;
@@ -41,13 +58,20 @@ interface OfficeState {
 export const useOfficeStore = create<OfficeState>((set) => ({
     myPosition: { x: 500, y: 500 }, // Default center
     myStatus: 'online',
+    myRoomId: 'open-space',
     peers: {},
+    rooms: [
+        { id: 'open-space', name: 'Open Space', type: 'open_space', x: 100, y: 100, width: 800, height: 600, color: '#1e293b' },
+        { id: 'meeting-1', name: 'Meeting Room A', type: 'meeting', x: 1000, y: 100, width: 400, height: 300, color: '#1e3a8a' },
+        { id: 'focus-zone', name: 'Focus Zone', type: 'focus', x: 1000, y: 500, width: 400, height: 400, color: '#312e81' },
+    ],
     isChatOpen: false,
     isSettingsOpen: false,
     zoom: 1,
 
     setMyPosition: (position) => set({ myPosition: position }),
     setMyStatus: (status) => set({ myStatus: status }),
+    setMyRoom: (roomId) => set({ myRoomId: roomId }),
 
     updatePeer: (id, data) => set((state) => ({
         peers: {
