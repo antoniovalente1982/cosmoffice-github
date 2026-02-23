@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Mail, Lock, ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
+import { Mail, Lock, User, ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 import { signup } from './actions';
 
 export default function SignupPage() {
@@ -52,6 +52,20 @@ export default function SignupPage() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                            <div className="relative">
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                                <input
+                                    type="text"
+                                    name="full_name"
+                                    className="w-full pl-10 pr-4 py-3 bg-dark-surface border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                    placeholder="John Doe"
+                                    required
+                                />
+                            </div>
+                        </div>
+
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
                             <div className="relative">
