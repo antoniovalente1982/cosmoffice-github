@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Users, Video, MessageSquare, Map, Zap, Shield, Globe, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 
+import { useState, useEffect } from 'react';
+import { createClient } from '@/utils/supabase/client';
+
 const features = [
   { icon: <Map className="w-6 h-6" />, title: 'Virtual Office Space', description: 'Navigate a 2D office map just like a real workspace.' },
   { icon: <Video className="w-6 h-6" />, title: 'Seamless Video Calls', description: 'High-quality video and audio with screen sharing.' },
@@ -22,6 +25,17 @@ const pricingPlans = [
 ];
 
 export default function LandingPage() {
+  const [user, setUser] = useState<any>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    checkUser();
+  }, [supabase]);
+
   return (
     <div className="min-h-screen">
       {/* Navigation */}
@@ -39,8 +53,14 @@ export default function LandingPage() {
               <a href="#pricing" className="text-sm text-slate-400 hover:text-slate-100 transition-colors">Pricing</a>
             </div>
             <div className="flex items-center gap-3">
-              <Link href="/login"><Button variant="ghost" size="sm">Sign In</Button></Link>
-              <Link href="/login"><Button size="sm">Get Started</Button></Link>
+              {user ? (
+                <Link href="/office"><Button size="sm">Go to Office</Button></Link>
+              ) : (
+                <>
+                  <Link href="/login"><Button variant="ghost" size="sm">Sign In</Button></Link>
+                  <Link href="/signup"><Button size="sm">Get Started</Button></Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -54,18 +74,24 @@ export default function LandingPage() {
               <Sparkles className="w-4 h-4" />Now in Public Beta
             </span>
           </motion.div>
-          
+
           <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6">
             <span className="text-gradient">Virtual Office</span><br /><span className="text-slate-100">for Remote Teams</span>
           </motion.h1>
-          
+
           <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="text-xl text-slate-400 max-w-2xl mx-auto mb-10">
             Bring your team together in a virtual workspace that feels like a real office.
           </motion.p>
-          
+
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/login"><Button size="lg" className="gap-2">Get Started Free<ArrowRight className="w-4 h-4" /></Button></Link>
-            <Link href="/login"><Button variant="secondary" size="lg">Watch Demo</Button></Link>
+            {user ? (
+              <Link href="/office"><Button size="lg" className="gap-2">Go to your Office<ArrowRight className="w-4 h-4" /></Button></Link>
+            ) : (
+              <>
+                <Link href="/signup"><Button size="lg" className="gap-2">Get Started Free<ArrowRight className="w-4 h-4" /></Button></Link>
+                <Link href="/login"><Button variant="secondary" size="lg">Watch Demo</Button></Link>
+              </>
+            )}
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.4 }} className="mt-16 relative">
