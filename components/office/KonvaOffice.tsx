@@ -137,7 +137,7 @@ export function KonvaOffice() {
                                 strokeWidth={1}
                             />
                             <Text
-                                text={room.name}
+                                text={room.name || ''}
                                 fontSize={14}
                                 fill="#94a3b8"
                                 x={10}
@@ -180,7 +180,7 @@ export function KonvaOffice() {
                                 />
                                 {isClose && (
                                     <Text
-                                        text={peer.full_name || peer.email}
+                                        text={peer.full_name || peer.email || ''}
                                         x={-30}
                                         y={25}
                                         fill="#94a3b8"

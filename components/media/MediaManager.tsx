@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Peer from 'simple-peer';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { createClient } from '../../utils/supabase/client';
 
@@ -29,6 +28,14 @@ export function MediaManager() {
     // This is a partial implementation for now
     useEffect(() => {
         if (!localStream) return;
+
+        let Peer: any;
+        try {
+            Peer = require('simple-peer');
+        } catch (e) {
+            console.error('simple-peer require failed', e);
+            return;
+        }
 
         const channel = supabase.channel('office_signaling')
             .on('broadcast', { event: 'signal' }, ({ payload }) => {
@@ -66,7 +73,9 @@ export function MediaManager() {
 
         return () => {
             supabase.removeChannel(channel);
-            localStream.getTracks().forEach(track => track.stop());
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
         };
     }, [localStream, supabase, updatePeer]);
 
