@@ -57,13 +57,20 @@ export function VideoGrid() {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
     useEffect(() => {
+        let stream: MediaStream | null = null;
+
         // Access local media
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then(setLocalStream)
+            .then(s => {
+                stream = s;
+                setLocalStream(s);
+            })
             .catch(console.error);
 
         return () => {
-            localStream?.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+            if (stream) {
+                stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+            }
         };
     }, []);
 
