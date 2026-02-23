@@ -42,6 +42,8 @@ interface OfficeState {
     // UI State
     isChatOpen: boolean;
     isSettingsOpen: boolean;
+    isAIPanelOpen: boolean;
+    activeTab: 'office' | 'analytics' | 'badges';
     zoom: number;
 
     // Actions
@@ -52,6 +54,8 @@ interface OfficeState {
     removePeer: (id: string) => void;
     toggleChat: () => void;
     toggleSettings: () => void;
+    toggleAIPanel: () => void;
+    setActiveTab: (tab: 'office' | 'analytics' | 'badges') => void;
     setZoom: (zoom: number) => void;
 }
 
@@ -67,6 +71,8 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     ],
     isChatOpen: false,
     isSettingsOpen: false,
+    isAIPanelOpen: false,
+    activeTab: 'office',
     zoom: 1,
 
     setMyPosition: (position) => set({ myPosition: position }),
@@ -94,7 +100,9 @@ export const useOfficeStore = create<OfficeState>((set) => ({
         return { peers: rest };
     }),
 
-    toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
-    toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen })),
+    toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen, isSettingsOpen: false, isAIPanelOpen: false })),
+    toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen, isChatOpen: false, isAIPanelOpen: false })),
+    toggleAIPanel: () => set((state) => ({ isAIPanelOpen: !state.isAIPanelOpen, isChatOpen: false, isSettingsOpen: false })),
+    setActiveTab: (tab) => set({ activeTab: tab, isChatOpen: false, isSettingsOpen: false, isAIPanelOpen: false }),
     setZoom: (zoom) => set({ zoom }),
 }));

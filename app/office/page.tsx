@@ -14,7 +14,10 @@ import {
     Monitor,
     Map as MapIcon,
     Bell,
-    Search
+    Search,
+    Sparkles,
+    BarChart3,
+    Trophy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -22,13 +25,16 @@ import { KonvaOffice } from '@/components/office/KonvaOffice';
 import { VideoGrid } from '@/components/media/VideoGrid';
 import { MediaManager } from '@/components/media/MediaManager';
 import { ChatWindow } from '@/components/chat/ChatWindow';
+import { AIAssistant } from '@/components/ai/AIAssistant';
+import { OfficeAnalytics } from '@/components/office/OfficeAnalytics';
+import { GamificationSystem } from '@/components/office/GamificationSystem';
 import { TeamList } from '@/components/office/TeamList';
 import { useOfficeStore } from '@/stores/useOfficeStore';
 
 export default function OfficePage() {
     const supabase = createClient();
     const router = useRouter();
-    const { toggleChat } = useOfficeStore();
+    const { toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab } = useOfficeStore();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -72,7 +78,11 @@ export default function OfficePage() {
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2">
-                    <Button variant="ghost" className="w-full justify-start gap-3 bg-primary-500/10 text-primary-400">
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start gap-3 transition-colors ${activeTab === 'office' ? 'bg-primary-500/10 text-primary-400' : 'text-slate-400 hover:text-slate-100'}`}
+                        onClick={() => setActiveTab('office')}
+                    >
                         <MapIcon className="w-5 h-5" /> Virtual Office
                     </Button>
                     <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-slate-100">
@@ -84,6 +94,27 @@ export default function OfficePage() {
                         onClick={toggleChat}
                     >
                         <MessageSquare className="w-5 h-5" /> Chat
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start gap-3 transition-colors ${isAIPanelOpen ? 'bg-primary-500/10 text-primary-400' : 'text-slate-400 hover:text-slate-100'}`}
+                        onClick={toggleAIPanel}
+                    >
+                        <Sparkles className="w-5 h-5" /> AI Assistant
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start gap-3 transition-colors ${activeTab === 'analytics' ? 'bg-primary-500/10 text-primary-400' : 'text-slate-400 hover:text-slate-100'}`}
+                        onClick={() => setActiveTab('analytics')}
+                    >
+                        <BarChart3 className="w-5 h-5" /> Analytics
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start gap-3 transition-colors ${activeTab === 'badges' ? 'bg-primary-500/10 text-primary-400' : 'text-slate-400 hover:text-slate-100'}`}
+                        onClick={() => setActiveTab('badges')}
+                    >
+                        <Trophy className="w-5 h-5" /> Badges
                     </Button>
 
                     <TeamList />
@@ -127,20 +158,39 @@ export default function OfficePage() {
 
                 {/* Office Stage (Konva Environment) */}
                 <div className="flex-1 relative bg-dark-bg overflow-hidden flex items-center justify-center">
-                    <KonvaOffice />
-                    <MediaManager />
-                    <VideoGrid />
+                    {activeTab === 'office' && (
+                        <>
+                            <KonvaOffice />
+                            <MediaManager />
+                            <VideoGrid />
+                        </>
+                    )}
+
+                    {activeTab === 'analytics' && (
+                        <div className="flex-1 w-full h-full overflow-y-auto">
+                            <OfficeAnalytics />
+                        </div>
+                    )}
+
+                    {activeTab === 'badges' && (
+                        <div className="flex-1 w-full h-full overflow-y-auto">
+                            <GamificationSystem />
+                        </div>
+                    )}
 
                     {/* Bottom Controls */}
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-4 rounded-full glass border border-slate-700/50 shadow-2xl z-50">
-                        <Button variant="secondary" size="icon" className="rounded-full w-12 h-12"><Mic className="w-5 h-5" /></Button>
-                        <Button variant="secondary" size="icon" className="rounded-full w-12 h-12"><Video className="w-5 h-5" /></Button>
-                        <Button variant="secondary" size="icon" className="rounded-full w-12 h-12 text-primary-400"><Monitor className="w-5 h-5" /></Button>
-                        <div className="w-px h-8 bg-slate-700 mx-2"></div>
-                        <Button className="rounded-full px-6 bg-red-500 hover:bg-red-600" onClick={handleSignOut}>Leave Room</Button>
-                    </div>
+                    {activeTab === 'office' && (
+                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-4 rounded-full glass border border-slate-700/50 shadow-2xl z-50">
+                            <Button variant="secondary" size="icon" className="rounded-full w-12 h-12"><Mic className="w-5 h-5" /></Button>
+                            <Button variant="secondary" size="icon" className="rounded-full w-12 h-12"><Video className="w-5 h-5" /></Button>
+                            <Button variant="secondary" size="icon" className="rounded-full w-12 h-12 text-primary-400"><Monitor className="w-5 h-5" /></Button>
+                            <div className="w-px h-8 bg-slate-700 mx-2"></div>
+                            <Button className="rounded-full px-6 bg-red-500 hover:bg-red-600" onClick={handleSignOut}>Leave Room</Button>
+                        </div>
+                    )}
                 </div>
                 <ChatWindow />
+                <AIAssistant />
             </main>
         </div>
     );
