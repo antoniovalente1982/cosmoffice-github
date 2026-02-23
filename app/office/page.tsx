@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -23,14 +24,16 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
-import { KonvaOffice } from '../../components/office/KonvaOffice';
-import { VideoGrid } from '../../components/media/VideoGrid';
-import { MediaManager } from '../../components/media/MediaManager';
-import { ChatWindow } from '../../components/chat/ChatWindow';
-import { AIAssistant } from '../../components/ai/AIAssistant';
-import { OfficeAnalytics } from '../../components/office/OfficeAnalytics';
-import { GamificationSystem } from '../../components/office/GamificationSystem';
-import { TeamList } from '../../components/office/TeamList';
+// Dynamically import client-heavy components with SSR disabled
+const KonvaOffice = dynamic(() => import('../../components/office/KonvaOffice').then(mod => mod.KonvaOffice), { ssr: false });
+const VideoGrid = dynamic(() => import('../../components/media/VideoGrid').then(mod => mod.VideoGrid), { ssr: false });
+const MediaManager = dynamic(() => import('../../components/media/MediaManager').then(mod => mod.MediaManager), { ssr: false });
+const ChatWindow = dynamic(() => import('../../components/chat/ChatWindow').then(mod => mod.ChatWindow), { ssr: false });
+const AIAssistant = dynamic(() => import('../../components/ai/AIAssistant').then(mod => mod.AIAssistant), { ssr: false });
+const OfficeAnalytics = dynamic(() => import('../../components/office/OfficeAnalytics').then(mod => mod.OfficeAnalytics), { ssr: false });
+const GamificationSystem = dynamic(() => import('../../components/office/GamificationSystem').then(mod => mod.GamificationSystem), { ssr: false });
+const TeamList = dynamic(() => import('../../components/office/TeamList').then(mod => mod.TeamList), { ssr: false });
+
 import { useOfficeStore } from '../../stores/useOfficeStore';
 
 export default function OfficePage() {
