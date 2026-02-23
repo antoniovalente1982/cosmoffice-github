@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, Settings } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -62,7 +63,7 @@ export function VideoGrid() {
             .catch(console.error);
 
         return () => {
-            localStream?.getTracks().forEach(t => t.stop());
+            localStream?.getTracks().forEach((t: MediaStreamTrack) => t.stop());
         };
     }, []);
 
