@@ -8,7 +8,7 @@ export function MediaManager() {
     const { peers, updatePeer } = useOfficeStore();
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
-    const peersRef = useRef<Record<string, Peer.Instance>>({});
+    const peersRef = useRef<Record<string, any>>({});
     const supabase = createClient();
 
     useEffect(() => {
@@ -50,7 +50,7 @@ export function MediaManager() {
                         stream: localStream,
                     });
 
-                    p.on('signal', data => {
+                    p.on('signal', (data: any) => {
                         supabase.channel('office_signaling').send({
                             type: 'broadcast',
                             event: 'signal',
@@ -58,7 +58,7 @@ export function MediaManager() {
                         });
                     });
 
-                    p.on('stream', stream => {
+                    p.on('stream', (stream: MediaStream) => {
                         updatePeer(from, {
                             // In a real app we'd store the stream ID or similar
                             // For simplicity, we assume VideoGrid will handle this
