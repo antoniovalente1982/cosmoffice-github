@@ -53,10 +53,21 @@ function VideoTile({ stream, fullName, isMe, audioEnabled }: VideoTileProps) {
 }
 
 export function VideoGrid() {
-    // This will eventually consume the media store
+    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+
+    useEffect(() => {
+        // Access local media
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(setLocalStream)
+            .catch(console.error);
+
+        return () => {
+            localStream?.getTracks().forEach(t => t.stop());
+        };
+    }, []);
+
     const participants = [
-        { id: 'me', fullName: 'Antonio Valente', isMe: true, audioEnabled: true },
-        // Dummy data for visual layout
+        { id: 'me', fullName: 'You', isMe: true, audioEnabled: true, stream: localStream || undefined },
         { id: '2', fullName: 'AI Assistant', isMe: false, audioEnabled: false },
     ];
 

@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { KonvaOffice } from '@/components/office/KonvaOffice';
 import { VideoGrid } from '@/components/media/VideoGrid';
+import { MediaManager } from '@/components/media/MediaManager';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { TeamList } from '@/components/office/TeamList';
 import { useOfficeStore } from '@/stores/useOfficeStore';
@@ -127,6 +128,7 @@ export default function OfficePage() {
                 {/* Office Stage (Konva Environment) */}
                 <div className="flex-1 relative bg-dark-bg overflow-hidden flex items-center justify-center">
                     <KonvaOffice />
+                    <MediaManager />
                     <VideoGrid />
 
                     {/* Bottom Controls */}
