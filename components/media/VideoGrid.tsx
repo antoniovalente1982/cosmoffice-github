@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, Settings } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Card } from '../ui/card';
 
 interface VideoTileProps {
     id: string;
