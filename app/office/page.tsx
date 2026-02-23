@@ -113,35 +113,17 @@ export default function OfficePage() {
                     </div>
                 </header>
 
-                {/* Office Stage (Canvas placeholder) */}
+                {/* Office Stage (Spatial Environment) */}
                 <div className="flex-1 relative bg-dark-surface overflow-hidden">
-                    <div className="absolute inset-0 grid-bg opacity-10"></div>
-
-                    {/* Placeholder for 2D Map */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="text-center"
-                        >
-                            <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-primary-500/20 flex items-center justify-center border border-primary-500/30">
-                                <MapIcon className="w-12 h-12 text-primary-400" />
-                            </div>
-                            <h2 className="text-2xl font-bold mb-2">Welcome to your Office</h2>
-                            <p className="text-slate-400 max-w-md">
-                                This is where your virtual workspace will live.
-                                We're preparing the 2D environment for your team.
-                            </p>
-                        </motion.div>
-                    </div>
+                    <SpatialOffice />
 
                     {/* Bottom Controls */}
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-4 rounded-full glass border border-slate-700/50 shadow-2xl">
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-4 rounded-full glass border border-slate-700/50 shadow-2xl z-50">
                         <Button variant="secondary" size="icon" className="rounded-full w-12 h-12"><Mic className="w-5 h-5" /></Button>
                         <Button variant="secondary" size="icon" className="rounded-full w-12 h-12"><Video className="w-5 h-5" /></Button>
                         <Button variant="secondary" size="icon" className="rounded-full w-12 h-12 text-primary-400"><Monitor className="w-5 h-5" /></Button>
                         <div className="w-px h-8 bg-slate-700 mx-2"></div>
-                        <Button className="rounded-full px-6 bg-red-500 hover:bg-red-600">Leave Room</Button>
+                        <Button className="rounded-full px-6 bg-red-500 hover:bg-red-600" onClick={handleSignOut}>Leave Room</Button>
                     </div>
                 </div>
             </main>
