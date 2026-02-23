@@ -21,17 +21,17 @@ import {
     BarChart3,
     Trophy
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { KonvaOffice } from '@/components/office/KonvaOffice';
-import { VideoGrid } from '@/components/media/VideoGrid';
-import { MediaManager } from '@/components/media/MediaManager';
-import { ChatWindow } from '@/components/chat/ChatWindow';
-import { AIAssistant } from '@/components/ai/AIAssistant';
-import { OfficeAnalytics } from '@/components/office/OfficeAnalytics';
-import { GamificationSystem } from '@/components/office/GamificationSystem';
-import { TeamList } from '@/components/office/TeamList';
-import { useOfficeStore } from '@/stores/useOfficeStore';
+import { Button } from '../../components/ui/button';
+import { Card } from '../../components/ui/card';
+import { KonvaOffice } from '../../components/office/KonvaOffice';
+import { VideoGrid } from '../../components/media/VideoGrid';
+import { MediaManager } from '../../components/media/MediaManager';
+import { ChatWindow } from '../../components/chat/ChatWindow';
+import { AIAssistant } from '../../components/ai/AIAssistant';
+import { OfficeAnalytics } from '../../components/office/OfficeAnalytics';
+import { GamificationSystem } from '../../components/office/GamificationSystem';
+import { TeamList } from '../../components/office/TeamList';
+import { useOfficeStore } from '../../stores/useOfficeStore';
 
 export default function OfficePage() {
     const supabase = createClient();
