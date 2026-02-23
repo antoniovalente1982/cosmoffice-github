@@ -31,7 +31,7 @@ function VideoTile({ stream, fullName, isMe, audioEnabled }: VideoTileProps) {
                 />
             ) : (
                 <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 font-bold text-2xl uppercase">
-                    {fullName[0]}
+                    {fullName?.[0] || '?'}
                 </div>
             )}
 
