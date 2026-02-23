@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button } from '../components/ui/button';
+import { Card } from '../components/ui/card';
 import { Users, Video, MessageSquare, Map, Zap, Shield, Globe, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '../utils/supabase/client';
 
 const features = [
   { icon: <Map className="w-6 h-6" />, title: 'Virtual Office Space', description: 'Navigate a 2D office map just like a real workspace.' },

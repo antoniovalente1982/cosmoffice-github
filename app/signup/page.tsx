@@ -3,8 +3,8 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Card } from '../../components/ui/card';
 import { Mail, Lock, User, ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 import { signup } from './actions';
 
