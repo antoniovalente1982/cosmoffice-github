@@ -8,22 +8,69 @@
   * { @apply border-dark-border; }
   html { @apply antialiased scroll-smooth; }
   body { 
-    @apply bg-dark-bg text-slate-50 font-sans min-h-screen;
-    background-image: 
-      radial-gradient(ellipse at top, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at bottom right, rgba(236, 72, 153, 0.05) 0%, transparent 40%);
-    background-attachment: fixed;
+    @apply bg-dark-bg text-slate-50 font-sans min-h-screen relative overflow-x-hidden;
+    /* Adding subtle noise or texture can also help, but we'll stick to css blobs */
   }
+  
+  /* Animated background elements */
+  body::before, body::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    z-index: -1;
+    opacity: 0.15;
+    animation: drift 20s infinite alternate ease-in-out;
+  }
+  
+  body::before {
+    top: -10%; left: -10%;
+    width: 60vw; height: 60vw;
+    background: radial-gradient(circle, theme('colors.primary.500'), transparent);
+    animation-delay: -5s;
+  }
+  
+  body::after {
+    bottom: -10%; right: -10%;
+    width: 50vw; height: 50vw;
+    background: radial-gradient(circle, theme('colors.secondary.500'), transparent);
+  }
+
+  /* Keyframes for ambient background drift */
+  @keyframes drift {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(10%, 10%) scale(1.1); }
+  }
+
   ::selection { @apply bg-primary-500/30 text-white; }
   :focus-visible { @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-dark-bg; }
 }
 
 @layer components {
   .text-gradient {
-    @apply bg-gradient-to-r from-primary-500 via-secondary-500 to-pink-500 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary-400 via-secondary-400 to-pink-400 bg-clip-text text-transparent;
   }
   .glass {
-    @apply bg-dark-surface/60 backdrop-blur-xl border border-white/10 rounded-2xl;
+    @apply bg-dark-surface/40 backdrop-blur-2xl border border-white/5 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.36)];
+  }
+  .glass-dark {
+    @apply bg-slate-900/50 backdrop-blur-2xl border border-white/5 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)];
+  }
+  .glow-button {
+    @apply relative overflow-hidden transition-all duration-300;
+  }
+  .glow-button::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    transition: left 0.5s ease;
+  }
+  .glow-button:hover::before {
+    left: 100%;
+  }
+  .glow-primary {
+    @apply shadow-[0_0_15px_rgba(99,102,241,0.5)] hover:shadow-[0_0_25px_rgba(99,102,241,0.7)];
   }
 }
 
