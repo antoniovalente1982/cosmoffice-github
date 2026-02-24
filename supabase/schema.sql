@@ -211,35 +211,19 @@ CREATE POLICY "Spaces viewable by organization members"
 
 CREATE POLICY "Admins can create spaces"
   ON spaces FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.org_id = spaces.org_id
-      AND organization_members.user_id = auth.uid()
-      AND organization_members.role IN ('owner', 'admin')
-    )
+    public.is_org_admin(org_id)
   );
 
 -- ROOMS POLICIES
 CREATE POLICY "Rooms viewable by space members"
   ON rooms FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM spaces
-      JOIN organization_members ON organization_members.org_id = spaces.org_id
-      WHERE spaces.id = rooms.space_id
-      AND organization_members.user_id = auth.uid()
-      AND (rooms.is_secret = false OR organization_members.role IN ('owner', 'admin'))
-    )
+    public.is_org_member(space_id := space_id) OR
+    public.is_space_admin(space_id)
   );
 
 CREATE POLICY "Admins can create rooms"
   ON rooms FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM spaces
-      JOIN organization_members ON organization_members.org_id = spaces.org_id
-      WHERE spaces.id = rooms.space_id
-      AND organization_members.user_id = auth.uid()
-      AND organization_members.role IN ('owner', 'admin')
-    )
+    public.is_space_admin(space_id)
   );
 
 -- PARTICIPANTS POLICIES
@@ -276,65 +260,40 @@ CREATE POLICY "Users can send messages"
 -- AI AGENTS POLICIES
 CREATE POLICY "AI agents viewable by organization members"
   ON ai_agents FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.org_id = ai_agents.org_id
-      AND organization_members.user_id = auth.uid()
-    )
+    public.is_org_member(org_id)
   );
 
 CREATE POLICY "Admins can manage AI agents"
   ON ai_agents FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.org_id = ai_agents.org_id
-      AND organization_members.user_id = auth.uid()
-      AND organization_members.role IN ('owner', 'admin')
-    )
+    public.is_org_admin(org_id)
   );
 
 -- ROOM CONNECTIONS POLICIES
 CREATE POLICY "Room connections viewable by space members"
   ON room_connections FOR SELECT USING (
+    public.is_space_admin(space_id) OR
     EXISTS (
-      SELECT 1 FROM spaces
-      JOIN organization_members ON organization_members.org_id = spaces.org_id
-      WHERE spaces.id = room_connections.space_id
-      AND organization_members.user_id = auth.uid()
+      SELECT 1 FROM public.rooms r
+      WHERE (r.id = room_a_id OR r.id = room_b_id)
+      AND NOT r.is_secret
     )
   );
 
 CREATE POLICY "Admins can manage room connections"
   ON room_connections FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM spaces
-      JOIN organization_members ON organization_members.org_id = spaces.org_id
-      WHERE spaces.id = room_connections.space_id
-      AND organization_members.user_id = auth.uid()
-      AND organization_members.role IN ('owner', 'admin')
-    )
+    public.is_space_admin(space_id)
   );
 
 -- INVITATIONS POLICIES
 CREATE POLICY "Invitations viewable by organizers"
   ON invitations FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.org_id = invitations.org_id
-      AND organization_members.user_id = auth.uid()
-      AND organization_members.role IN ('owner', 'admin')
-    )
-    OR email = (SELECT email FROM profiles WHERE id = auth.uid())
+    public.is_org_admin(org_id) OR
+    email = (SELECT email FROM public.profiles WHERE id = auth.uid())
   );
 
 CREATE POLICY "Admins can create invitations"
   ON invitations FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.org_id = invitations.org_id
-      AND organization_members.user_id = auth.uid()
-      AND organization_members.role IN ('owner', 'admin')
-    )
+    public.is_org_admin(org_id)
   );
 
 -- ============================================
@@ -419,6 +378,31 @@ CREATE TRIGGER spaces_updated_at
 CREATE TRIGGER ai_agents_updated_at
   BEFORE UPDATE ON ai_agents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Helper function to check admin status without recursion
+CREATE OR REPLACE FUNCTION public.is_org_admin(check_org_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.organization_members
+    WHERE org_id = check_org_id 
+    AND user_id = auth.uid() 
+    AND role IN ('owner', 'admin')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Helper function to check space admin status
+CREATE OR REPLACE FUNCTION public.is_space_admin(check_space_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.spaces s
+    WHERE s.id = check_space_id 
+    AND public.is_org_admin(s.org_id)
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
 -- STEP 6: INDEXES FOR PERFORMANCE
