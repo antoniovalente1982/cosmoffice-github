@@ -187,11 +187,7 @@ CREATE POLICY "Users can update own profile"
 CREATE POLICY "Organizations viewable by members"
   ON organizations FOR SELECT USING (
     auth.uid() = created_by OR
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.org_id = organizations.id
-      AND organization_members.user_id = auth.uid()
-    )
+    public.is_org_member(id)
   );
 
 CREATE POLICY "Users can create organizations"
@@ -200,11 +196,8 @@ CREATE POLICY "Users can create organizations"
 -- ORGANIZATION MEMBERS POLICIES
 CREATE POLICY "Members viewable by organization members"
   ON organization_members FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM organization_members om
-      WHERE om.org_id = organization_members.org_id
-      AND om.user_id = auth.uid()
-    )
+    user_id = auth.uid() OR
+    public.is_org_member(org_id)
   );
 
 CREATE POLICY "Users can join organizations"
@@ -213,11 +206,7 @@ CREATE POLICY "Users can join organizations"
 -- SPACES POLICIES
 CREATE POLICY "Spaces viewable by organization members"
   ON spaces FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.org_id = spaces.org_id
-      AND organization_members.user_id = auth.uid()
-    )
+    public.is_org_member(org_id)
   );
 
 CREATE POLICY "Admins can create spaces"
@@ -384,10 +373,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger for new user
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Helper function to check membership without recursion (SECURITY DEFINER bypasses RLS)
+CREATE OR REPLACE FUNCTION public.is_org_member(check_org_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.organization_members
+    WHERE org_id = check_org_id AND user_id = auth.uid()
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Triggers
 CREATE TRIGGER profiles_updated_at
