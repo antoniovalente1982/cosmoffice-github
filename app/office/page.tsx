@@ -27,6 +27,8 @@ export default function DashboardPage() {
     const [spaces, setSpaces] = useState<any[]>([]);
     const [isCreatingOrg, setIsCreatingOrg] = useState(false);
     const [newOrgName, setNewOrgName] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const initDashboard = async () => {
@@ -63,33 +65,53 @@ export default function DashboardPage() {
     }, [supabase, router]);
 
     const handleCreateOrg = async () => {
-        if (!newOrgName || !user) return;
+        if (!newOrgName || !user || isSubmitting) return;
 
-        const slug = newOrgName.toLowerCase().replace(/ /g, '-');
-        const { data: org, error } = await supabase
-            .from('organizations')
-            .insert({ name: newOrgName, slug })
-            .select()
-            .single();
+        setIsSubmitting(true);
+        setError(null);
 
-        if (org) {
-            // Join as owner
-            await supabase.from('organization_members').insert({
-                org_id: org.id,
-                user_id: user.id,
-                role: 'owner'
-            });
+        const slug = newOrgName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-            // Create default space
-            const { data: space } = await supabase.from('spaces').insert({
-                org_id: org.id,
-                name: 'General Office'
-            }).select().single();
+        try {
+            // STEP 1: Create Organization
+            const { data: org, error: orgError } = await supabase
+                .from('organizations')
+                .insert({
+                    name: newOrgName,
+                    slug,
+                    created_by: user.id
+                })
+                .select()
+                .single();
 
-            setOrganizations([...organizations, org]);
-            if (space) setSpaces([...spaces, space]);
+            if (orgError) throw orgError;
+            if (!org) throw new Error('Failed to create organization');
+
+            // STEP 2: Create default space
+            const { data: space, error: spaceError } = await supabase
+                .from('spaces')
+                .insert({
+                    org_id: org.id,
+                    name: 'General Office'
+                })
+                .select()
+                .single();
+
+            if (spaceError) throw spaceError;
+
+            // Update local state
+            setOrganizations(prev => [...prev, org]);
+            if (space) setSpaces(prev => [...prev, space]);
+
             setIsCreatingOrg(false);
             setNewOrgName('');
+        } catch (err: any) {
+            console.error('Error creating organization:', err);
+            // If it's a Supabase error, show the details
+            const message = err.details || err.message || 'An unexpected error occurred';
+            setError(`Creation failed: ${message}`);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -144,9 +166,16 @@ export default function DashboardPage() {
                             value={newOrgName}
                             onChange={(e) => setNewOrgName(e.target.value)}
                         />
+                        {error && (
+                            <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                                {error}
+                            </div>
+                        )}
                         <div className="flex gap-2">
-                            <Button className="flex-1" onClick={handleCreateOrg}>Create</Button>
-                            <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingOrg(false)}>Cancel</Button>
+                            <Button className="flex-1" onClick={handleCreateOrg} disabled={isSubmitting}>
+                                {isSubmitting ? 'Creating...' : 'Create'}
+                            </Button>
+                            <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingOrg(false)} disabled={isSubmitting}>Cancel</Button>
                         </div>
                     </motion.div>
                 )}

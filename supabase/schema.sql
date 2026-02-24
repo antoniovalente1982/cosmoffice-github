@@ -30,7 +30,8 @@ CREATE TABLE organizations (
   plan TEXT DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'enterprise')),
   settings JSONB DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL
 );
 
 -- ORGANIZATION MEMBERS
@@ -185,6 +186,7 @@ CREATE POLICY "Users can update own profile"
 -- ORGANIZATIONS POLICIES
 CREATE POLICY "Organizations viewable by members"
   ON organizations FOR SELECT USING (
+    auth.uid() = created_by OR
     EXISTS (
       SELECT 1 FROM organization_members
       WHERE organization_members.org_id = organizations.id
@@ -193,7 +195,7 @@ CREATE POLICY "Organizations viewable by members"
   );
 
 CREATE POLICY "Users can create organizations"
-  ON organizations FOR INSERT WITH CHECK (true);
+  ON organizations FOR INSERT WITH CHECK (auth.uid() = created_by);
 
 -- ORGANIZATION MEMBERS POLICIES
 CREATE POLICY "Members viewable by organization members"
@@ -395,6 +397,21 @@ CREATE TRIGGER profiles_updated_at
 CREATE TRIGGER organizations_updated_at
   BEFORE UPDATE ON organizations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Function to handle organization ownership on creation
+CREATE OR REPLACE FUNCTION public.handle_new_organization()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.organization_members (org_id, user_id, role)
+  VALUES (NEW.id, NEW.created_by, 'owner');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger for organization owner
+CREATE OR REPLACE TRIGGER on_organization_created
+  AFTER INSERT ON organizations
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_organization();
 
 CREATE TRIGGER spaces_updated_at
   BEFORE UPDATE ON spaces
