@@ -4,10 +4,12 @@ import { useOfficeStore } from '../stores/useOfficeStore';
 
 export function usePresence() {
     const supabase = createClient();
-    const { myPosition, myStatus, myRoomId, updatePeer, removePeer } = useOfficeStore();
+    const { myPosition, myStatus, myRoomId, activeSpaceId, updatePeer, removePeer } = useOfficeStore();
 
     const syncPosition = useCallback(async (userId: string) => {
-        const channel = supabase.channel('office_presence', {
+        if (!activeSpaceId) return;
+
+        const channel = supabase.channel(`office_presence_${activeSpaceId}`, {
             config: {
                 presence: {
                     key: userId,
@@ -50,7 +52,7 @@ export function usePresence() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [supabase, updatePeer, removePeer, myPosition, myStatus, myRoomId]);
+    }, [supabase, updatePeer, removePeer, myPosition, myStatus, myRoomId, activeSpaceId]);
 
     useEffect(() => {
         let cleanup: (() => void) | undefined;
@@ -73,16 +75,17 @@ export function usePresence() {
     useEffect(() => {
         const updatePresence = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const channel = supabase.channel('office_presence');
+            if (user && activeSpaceId) {
+                const channel = supabase.channel(`office_presence_${activeSpaceId}`);
                 await channel.track({
                     position: myPosition,
                     status: myStatus,
                     roomId: myRoomId,
+                    spaceId: activeSpaceId,
                     online_at: new Date().toISOString(),
                 });
             }
         };
         updatePresence();
-    }, [myPosition, myStatus, myRoomId, supabase]);
+    }, [myPosition, myStatus, myRoomId, activeSpaceId, supabase]);
 }

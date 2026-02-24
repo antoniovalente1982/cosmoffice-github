@@ -18,13 +18,28 @@ interface Peer {
 
 interface Room {
     id: string;
+    space_id: string;
     name: string;
-    type: 'open_space' | 'meeting' | 'focus' | 'social';
+    type: string;
     x: number;
     y: number;
     width: number;
     height: number;
-    color: string;
+    is_secret: boolean;
+    settings: any;
+}
+
+interface RoomConnection {
+    id: string;
+    space_id: string;
+    room_a_id: string;
+    room_b_id: string;
+    type: 'portal' | 'door';
+    x_a: number;
+    y_a: number;
+    x_b: number;
+    y_b: number;
+    settings: any;
 }
 
 interface OfficeState {
@@ -36,8 +51,10 @@ interface OfficeState {
     // Peers state
     peers: Record<string, Peer>;
 
-    // Rooms
+    // Rooms and Connections
+    activeSpaceId?: string;
     rooms: Room[];
+    roomConnections: RoomConnection[];
 
     // UI State
     isChatOpen: boolean;
@@ -65,18 +82,19 @@ interface OfficeState {
     toggleVideo: () => void;
     toggleScreenShare: () => void;
     setZoom: (zoom: number) => void;
+    setActiveSpace: (spaceId: string) => void;
+    setRooms: (rooms: Room[]) => void;
+    setRoomConnections: (connections: RoomConnection[]) => void;
 }
 
 export const useOfficeStore = create<OfficeState>((set) => ({
     myPosition: { x: 500, y: 500 }, // Default center
     myStatus: 'online',
-    myRoomId: 'open-space',
+    myRoomId: undefined,
     peers: {},
-    rooms: [
-        { id: 'open-space', name: 'Open Space', type: 'open_space', x: 100, y: 100, width: 800, height: 600, color: '#1e293b' },
-        { id: 'meeting-1', name: 'Meeting Room A', type: 'meeting', x: 1000, y: 100, width: 400, height: 300, color: '#1e3a8a' },
-        { id: 'focus-zone', name: 'Focus Zone', type: 'focus', x: 1000, y: 500, width: 400, height: 400, color: '#312e81' },
-    ],
+    activeSpaceId: undefined,
+    rooms: [],
+    roomConnections: [],
     isChatOpen: false,
     isSettingsOpen: false,
     isAIPanelOpen: false,
@@ -119,4 +137,7 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     toggleVideo: () => set((state) => ({ isVideoEnabled: !state.isVideoEnabled })),
     toggleScreenShare: () => set((state) => ({ isScreenSharing: !state.isScreenSharing })),
     setZoom: (zoom) => set({ zoom }),
+    setActiveSpace: (activeSpaceId) => set({ activeSpaceId }),
+    setRooms: (rooms) => set({ rooms }),
+    setRoomConnections: (roomConnections) => set({ roomConnections }),
 }));

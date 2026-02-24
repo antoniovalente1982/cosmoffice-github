@@ -66,8 +66,39 @@ CREATE TABLE rooms (
   width INTEGER DEFAULT 200,
   height INTEGER DEFAULT 150,
   capacity INTEGER DEFAULT 10,
+  is_secret BOOLEAN DEFAULT false,
   settings JSONB DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ROOM CONNECTIONS (Portals/Doors)
+CREATE TABLE room_connections (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id UUID REFERENCES spaces(id) ON DELETE CASCADE,
+  room_a_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
+  room_b_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
+  type TEXT DEFAULT 'portal' CHECK (type IN ('portal', 'door')),
+  x_a INTEGER DEFAULT 0,
+  y_a INTEGER DEFAULT 0,
+  x_b INTEGER DEFAULT 0,
+  y_b INTEGER DEFAULT 0,
+  settings JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(room_a_id, room_b_id)
+);
+
+-- INVITATIONS
+CREATE TABLE invitations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  space_id UUID REFERENCES spaces(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+  token TEXT UNIQUE NOT NULL DEFAULT uuid_generate_v4()::text,
+  invited_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  accepted_at TIMESTAMP WITH TIME ZONE
 );
 
 -- PARTICIPANTS (Active users in rooms)
@@ -134,6 +165,8 @@ ALTER TABLE participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_agents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE room_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- STEP 3: CREA TUTTE LE POLICY (dopo che tutte le tabelle esistono)
@@ -203,6 +236,7 @@ CREATE POLICY "Rooms viewable by space members"
       JOIN organization_members ON organization_members.org_id = spaces.org_id
       WHERE spaces.id = rooms.space_id
       AND organization_members.user_id = auth.uid()
+      AND (rooms.is_secret = false OR organization_members.role IN ('owner', 'admin'))
     )
   );
 
@@ -268,6 +302,50 @@ CREATE POLICY "Admins can manage AI agents"
     )
   );
 
+-- ROOM CONNECTIONS POLICIES
+CREATE POLICY "Room connections viewable by space members"
+  ON room_connections FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM spaces
+      JOIN organization_members ON organization_members.org_id = spaces.org_id
+      WHERE spaces.id = room_connections.space_id
+      AND organization_members.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Admins can manage room connections"
+  ON room_connections FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM spaces
+      JOIN organization_members ON organization_members.org_id = spaces.org_id
+      WHERE spaces.id = room_connections.space_id
+      AND organization_members.user_id = auth.uid()
+      AND organization_members.role IN ('owner', 'admin')
+    )
+  );
+
+-- INVITATIONS POLICIES
+CREATE POLICY "Invitations viewable by organizers"
+  ON invitations FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.org_id = invitations.org_id
+      AND organization_members.user_id = auth.uid()
+      AND organization_members.role IN ('owner', 'admin')
+    )
+    OR email = (SELECT email FROM profiles WHERE id = auth.uid())
+  );
+
+CREATE POLICY "Admins can create invitations"
+  ON invitations FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.org_id = invitations.org_id
+      AND organization_members.user_id = auth.uid()
+      AND organization_members.role IN ('owner', 'admin')
+    )
+  );
+
 -- ============================================
 -- STEP 4: REALTIME SETUP
 -- ============================================
@@ -275,6 +353,7 @@ CREATE POLICY "Admins can manage AI agents"
 ALTER PUBLICATION supabase_realtime ADD TABLE participants;
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
+ALTER PUBLICATION supabase_realtime ADD TABLE room_connections;
 
 -- ============================================
 -- STEP 5: FUNCTIONS & TRIGGERS
@@ -339,6 +418,10 @@ CREATE INDEX idx_participants_room ON participants(room_id);
 CREATE INDEX idx_participants_user ON participants(user_id);
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_messages_created ON messages(created_at);
+CREATE INDEX idx_room_connections_space ON room_connections(space_id);
+CREATE INDEX idx_invitations_org ON invitations(org_id);
+CREATE INDEX idx_invitations_email ON invitations(email);
+CREATE INDEX idx_invitations_token ON invitations(token);
 
 -- ============================================
 -- STEP 7: SEED DATA (optional)

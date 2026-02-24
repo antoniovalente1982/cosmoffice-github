@@ -7,7 +7,7 @@ import { usePresence } from '../../hooks/usePresence';
 import { useSpatialAudio } from '../../hooks/useSpatialAudio';
 
 export function KonvaOffice() {
-    const { myPosition, setMyPosition, peers, rooms, zoom, setZoom, setMyRoom } = useOfficeStore();
+    const { myPosition, setMyPosition, peers, rooms, roomConnections, zoom, setZoom, setMyRoom } = useOfficeStore();
     const stageRef = useRef<any>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const [animPhase, setAnimPhase] = useState(0);
@@ -69,6 +69,18 @@ export function KonvaOffice() {
 
             setMyPosition(newPos);
             setMyRoom(currentRoomId);
+
+            // Check portal collision
+            roomConnections.forEach(conn => {
+                const distA = Math.sqrt(Math.pow(newPos.x - conn.x_a, 2) + Math.pow(newPos.y - conn.y_a, 2));
+                const distB = Math.sqrt(Math.pow(newPos.x - conn.x_b, 2) + Math.pow(newPos.y - conn.y_b, 2));
+
+                if (distA < 20) {
+                    setMyPosition({ x: conn.x_b + 40, y: conn.y_b }); // Warp to B
+                } else if (distB < 20) {
+                    setMyPosition({ x: conn.x_a + 40, y: conn.y_a }); // Warp to A
+                }
+            });
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -131,20 +143,46 @@ export function KonvaOffice() {
                                 <Rect
                                     width={room.width}
                                     height={room.height}
-                                    fill={room.color}
+                                    fill={
+                                        room.type === 'meeting' ? '#1e3a8a' :
+                                            room.type === 'focus' ? '#312e81' :
+                                                room.type === 'break' ? '#065f46' :
+                                                    room.type === 'reception' ? '#831843' :
+                                                        '#1e293b'
+                                    }
                                     opacity={0.3}
                                     cornerRadius={12}
-                                    stroke="#334155"
-                                    strokeWidth={1}
+                                    stroke={room.is_secret ? "#f59e0b" : "#334155"}
+                                    strokeWidth={room.is_secret ? 2 : 1}
+                                    dash={room.is_secret ? [5, 5] : undefined}
                                 />
                                 <Text
                                     text={room.name || ''}
                                     fontSize={14}
-                                    fill="#94a3b8"
+                                    fill={room.is_secret ? "#fbbf24" : "#94a3b8"}
                                     x={10}
                                     y={-20}
                                     fontStyle="bold"
                                 />
+                                {room.is_secret && (
+                                    <Text
+                                        x={10}
+                                        y={30}
+                                        text="🔒 Secret"
+                                        fontSize={10}
+                                        fill="#fbbf24"
+                                    />
+                                )}
+                            </Group>
+                        ))}
+
+                        {/* Room Connections (Portals) */}
+                        {roomConnections.map((conn) => (
+                            <Group key={conn.id}>
+                                <Circle x={conn.x_a} y={conn.y_a} radius={15} fill="#6366f1" opacity={0.6} shadowBlur={10} shadowColor="#6366f1" />
+                                <Circle x={conn.x_b} y={conn.y_b} radius={15} fill="#6366f1" opacity={0.6} shadowBlur={10} shadowColor="#6366f1" />
+                                <Text text="Portal" x={conn.x_a - 15} y={conn.y_a - 25} fill="#818cf8" fontSize={10} />
+                                <Text text="Portal" x={conn.x_b - 15} y={conn.y_b - 25} fill="#818cf8" fontSize={10} />
                             </Group>
                         ))}
 

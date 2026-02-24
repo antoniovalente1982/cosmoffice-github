@@ -1,64 +1,97 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-    Users,
-    MessageSquare,
+    Plus,
     Settings,
     LogOut,
-    Mic,
-    MicOff,
-    Video,
-    VideoOff,
-    Monitor,
-    Map as MapIcon,
-    Bell,
+    Globe,
+    PlusCircle,
+    ArrowRight,
     Search,
-    Sparkles,
-    BarChart3,
-    Trophy
+    Building2,
+    Users
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
-// Dynamically import client-heavy components with SSR disabled
-const KonvaOffice = dynamic(() => import('../../components/office/KonvaOffice').then(mod => mod.KonvaOffice), { ssr: false });
-const VideoGrid = dynamic(() => import('../../components/media/VideoGrid').then(mod => mod.VideoGrid), { ssr: false });
-const MediaManager = dynamic(() => import('../../components/media/MediaManager').then(mod => mod.MediaManager), { ssr: false });
-const ChatWindow = dynamic(() => import('../../components/chat/ChatWindow').then(mod => mod.ChatWindow), { ssr: false });
-const AIAssistant = dynamic(() => import('../../components/ai/AIAssistant').then(mod => mod.AIAssistant), { ssr: false });
-const OfficeAnalytics = dynamic(() => import('../../components/office/OfficeAnalytics').then(mod => mod.OfficeAnalytics), { ssr: false });
-const GamificationSystem = dynamic(() => import('../../components/office/GamificationSystem').then(mod => mod.GamificationSystem), { ssr: false });
-const TeamList = dynamic(() => import('../../components/office/TeamList').then(mod => mod.TeamList), { ssr: false });
 
-import { useOfficeStore } from '../../stores/useOfficeStore';
-
-export default function OfficePage() {
+export default function DashboardPage() {
     const supabase = createClient();
     const router = useRouter();
-    const {
-        toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab,
-        isMicEnabled, isVideoEnabled, isScreenSharing,
-        toggleMic, toggleVideo, toggleScreenShare
-    } = useOfficeStore();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [organizations, setOrganizations] = useState<any[]>([]);
+    const [spaces, setSpaces] = useState<any[]>([]);
+    const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+    const [newOrgName, setNewOrgName] = useState('');
 
     useEffect(() => {
-        const getUser = async () => {
+        const initDashboard = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
                 router.push('/login');
-            } else {
-                setUser(user);
+                return;
+            }
+            setUser(user);
+
+            // Fetch organizations user belongs to
+            const { data: orgMembers } = await supabase
+                .from('organization_members')
+                .select('org_id, organizations(*)')
+                .eq('user_id', user.id);
+
+            if (orgMembers && orgMembers.length > 0) {
+                const orgs = orgMembers.map(m => m.organizations).filter(Boolean);
+                setOrganizations(orgs);
+
+                // Fetch spaces for these organizations
+                const orgIds = orgs.map((o: any) => o.id);
+                if (orgIds.length > 0) {
+                    const { data: activeSpaces } = await supabase
+                        .from('spaces')
+                        .select('*')
+                        .in('org_id', orgIds);
+                    setSpaces(activeSpaces || []);
+                }
             }
             setLoading(false);
         };
-        getUser();
+        initDashboard();
     }, [supabase, router]);
+
+    const handleCreateOrg = async () => {
+        if (!newOrgName || !user) return;
+
+        const slug = newOrgName.toLowerCase().replace(/ /g, '-');
+        const { data: org, error } = await supabase
+            .from('organizations')
+            .insert({ name: newOrgName, slug })
+            .select()
+            .single();
+
+        if (org) {
+            // Join as owner
+            await supabase.from('organization_members').insert({
+                org_id: org.id,
+                user_id: user.id,
+                role: 'owner'
+            });
+
+            // Create default space
+            const { data: space } = await supabase.from('spaces').insert({
+                org_id: org.id,
+                name: 'General Office'
+            }).select().single();
+
+            setOrganizations([...organizations, org]);
+            if (space) setSpaces([...spaces, space]);
+            setIsCreatingOrg(false);
+            setNewOrgName('');
+        }
+    };
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -74,174 +107,104 @@ export default function OfficePage() {
     }
 
     return (
-        <div className="flex h-screen bg-transparent overflow-hidden text-slate-100 p-4 gap-4">
-            {/* Sidebar */}
-            <motion.aside
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="w-64 shrink-0 flex flex-col glass z-20 overflow-hidden shadow-2xl"
-            >
-                <div className="p-6 border-b border-white/5">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-pink-500 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                            <span className="text-white font-bold text-sm">C</span>
-                        </div>
-                        <span className="text-lg font-bold text-gradient">Cosmoffice</span>
-                    </div>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 ${activeTab === 'office' ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'}`}
-                        onClick={() => setActiveTab('office')}
-                    >
-                        <MapIcon className="w-5 h-5" /> Virtual Office
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors">
-                        <Users className="w-5 h-5" /> Team members
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-3 text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors"
-                        onClick={toggleChat}
-                    >
-                        <MessageSquare className="w-5 h-5" /> Chat
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 ${isAIPanelOpen ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'}`}
-                        onClick={toggleAIPanel}
-                    >
-                        <Sparkles className="w-5 h-5" /> AI Assistant
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 ${activeTab === 'analytics' ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'}`}
-                        onClick={() => setActiveTab('analytics')}
-                    >
-                        <BarChart3 className="w-5 h-5" /> Analytics
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 ${activeTab === 'badges' ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'}`}
-                        onClick={() => setActiveTab('badges')}
-                    >
-                        <Trophy className="w-5 h-5" /> Badges
-                    </Button>
-
-                    <TeamList />
-                </nav>
-
-                <div className="p-4 border-t border-white/5 bg-black/10">
-                    <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors group">
-                        <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold uppercase ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all">
-                            {user?.email?.[0] || 'U'}
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <p className="text-sm font-medium truncate text-slate-200">{user?.user_metadata?.full_name || 'Anonymous'}</p>
-                            <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-                        </div>
-                        <button onClick={handleSignOut} className="text-slate-500 hover:text-red-400 transition-colors">
-                            <LogOut className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            </motion.aside>
-
-            {/* Main Content */}
-            <main className="flex-1 relative flex flex-col gap-4 min-w-0">
-                {/* Top Header */}
-                <motion.header
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-                    className="h-16 flex items-center justify-between px-6 glass-dark z-10 shrink-0"
-                >
-                    <div className="flex items-center gap-4 flex-1 max-w-xl">
-                        <div className="relative w-full group">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary-400 transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Search office..."
-                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all text-slate-200 placeholder:text-slate-500"
-                            />
-                        </div>
-                    </div>
+        <div className="min-h-screen bg-transparent text-slate-100 p-8">
+            <div className="max-w-7xl mx-auto space-y-8">
+                {/* Header */}
+                <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary-300 hover:bg-primary-500/10 transition-colors rounded-full glow-button"><Bell className="w-5 h-5" /></Button>
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary-300 hover:bg-primary-500/10 transition-colors rounded-full glow-button"><Settings className="w-5 h-5" /></Button>
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-pink-500 flex items-center justify-center shadow-lg">
+                            <span className="text-white font-bold">C</span>
+                        </div>
+                        <h1 className="text-2xl font-bold text-gradient">My Workspaces</h1>
                     </div>
-                </motion.header>
-
-                {/* Office Stage (Konva Environment) */}
-                <motion.div
-                    initial={{ scale: 0.98, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-                    className="flex-1 relative bg-slate-900/30 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden flex items-center justify-center shadow-2xl"
-                >
-                    {activeTab === 'office' && (
-                        <>
-                            <KonvaOffice />
-                            <MediaManager />
-                            <VideoGrid />
-                        </>
-                    )}
-
-                    {activeTab === 'analytics' && (
-                        <div className="flex-1 w-full h-full overflow-y-auto">
-                            <OfficeAnalytics />
+                    <div className="flex items-center gap-4">
+                        <Button variant="outline" className="gap-2" onClick={() => setIsCreatingOrg(true)}>
+                            <Plus className="w-4 h-4" /> New Organization
+                        </Button>
+                        <div className="w-px h-6 bg-white/10 mx-2"></div>
+                        <div className="flex items-center gap-3">
+                            <div className="text-right">
+                                <p className="text-sm font-medium">{user?.user_metadata?.full_name || 'User'}</p>
+                                <p className="text-xs text-slate-500">{user?.email}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-slate-500 hover:text-red-400">
+                                <LogOut className="w-5 h-5" />
+                            </Button>
                         </div>
-                    )}
+                    </div>
+                </div>
 
-                    {activeTab === 'badges' && (
-                        <div className="flex-1 w-full h-full overflow-y-auto">
-                            <GamificationSystem />
+                {isCreatingOrg && (
+                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="glass p-6 rounded-2xl border border-primary-500/20 max-w-md mx-auto">
+                        <h2 className="text-lg font-semibold mb-4">Create New Organization</h2>
+                        <input
+                            type="text"
+                            placeholder="Org Name (e.g. Acme Corp)"
+                            className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2 mb-4 focus:border-primary-500 outline-none"
+                            value={newOrgName}
+                            onChange={(e) => setNewOrgName(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                            <Button className="flex-1" onClick={handleCreateOrg}>Create</Button>
+                            <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingOrg(false)}>Cancel</Button>
                         </div>
-                    )}
+                    </motion.div>
+                )}
 
-                    {/* Bottom Controls */}
-                    {activeTab === 'office' && (
-                        <motion.div
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
-                            className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-full glass border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50"
-                        >
-                            <Button
-                                variant={isMicEnabled ? "secondary" : "default"}
-                                size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isMicEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
-                                onClick={toggleMic}
-                            >
-                                {isMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-                            </Button>
-                            <Button
-                                variant={isVideoEnabled ? "secondary" : "default"}
-                                size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isVideoEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
-                                onClick={toggleVideo}
-                            >
-                                {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/20 text-primary-400 glow-primary' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                onClick={toggleScreenShare}
-                            >
-                                <Monitor className="w-5 h-5" />
-                            </Button>
-                            <div className="w-px h-8 bg-white/10 mx-2"></div>
-                            <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleSignOut}>Leave Room</Button>
-                        </motion.div>
-                    )}
-                </motion.div>
-                <ChatWindow />
-                <AIAssistant />
-            </main>
+                {/* Organizations & Spaces */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {spaces.map((space) => {
+                        const org = organizations.find(o => o.id === space.org_id);
+                        return (
+                            <motion.div key={space.id} whileHover={{ y: -5 }} transition={{ duration: 0.2 }}>
+                                <Card className="p-6 h-full flex flex-col justify-between group cursor-pointer hover:border-primary-500/50 transition-all border-white/5 bg-slate-900/40 backdrop-blur-xl" onClick={() => router.push(`/office/${space.id}`)}>
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-400">
+                                                <Building2 className="w-6 h-6" />
+                                            </div>
+                                            <div className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">
+                                                Active
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-bold text-slate-100 group-hover:text-primary-400 transition-colors">{space.name}</h3>
+                                            <p className="text-slate-400 text-sm flex items-center gap-1 mt-1">
+                                                <Globe className="w-3 h-3" /> {org?.name}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-8 flex items-center justify-between pt-4 border-t border-white/5">
+                                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                                            <Users className="w-4 h-4" /> Team Active
+                                        </div>
+                                        <div className="text-primary-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
+                                            <ArrowRight className="w-5 h-5" />
+                                        </div>
+                                    </div>
+                                </Card>
+                            </motion.div>
+                        );
+                    })}
+
+                    <motion.div whileHover={{ scale: 1.02 }}>
+                        <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-white/10 bg-white/5 hover:bg-white/10 transition-all min-h-[220px] group cursor-pointer" onClick={() => setIsCreatingOrg(true)}>
+                            <PlusCircle className="w-12 h-12 text-slate-500 group-hover:text-primary-400 transition-colors mb-4" />
+                            <p className="text-slate-400 font-medium group-hover:text-slate-200">New Space</p>
+                        </Card>
+                    </motion.div>
+                </div>
+
+                {organizations.length === 0 && !loading && (
+                    <div className="text-center py-20 glass rounded-3xl border-white/5">
+                        <Building2 className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+                        <h2 className="text-xl font-bold text-slate-200">No organizations found</h2>
+                        <p className="text-slate-500 mb-8">Create your first organization to start your virtual office</p>
+                        <Button size="lg" onClick={() => setIsCreatingOrg(true)}>Get Started</Button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
+
