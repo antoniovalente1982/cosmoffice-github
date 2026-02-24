@@ -211,14 +211,21 @@ CREATE POLICY "Spaces viewable by organization members"
 
 CREATE POLICY "Admins can create spaces"
   ON spaces FOR INSERT WITH CHECK (
-    public.is_org_admin(org_id)
+    public.is_org_admin(org_id) OR
+    EXISTS (
+      SELECT 1 FROM public.organizations o
+      WHERE o.id = org_id AND o.created_by = auth.uid()
+    )
   );
 
 -- ROOMS POLICIES
 CREATE POLICY "Rooms viewable by space members"
   ON rooms FOR SELECT USING (
-    public.is_org_member(space_id := space_id) OR
-    public.is_space_admin(space_id)
+    public.is_space_admin(space_id) OR
+    EXISTS (
+      SELECT 1 FROM public.spaces s
+      WHERE s.id = space_id AND public.is_org_member(s.org_id)
+    )
   );
 
 CREATE POLICY "Admins can create rooms"
@@ -398,8 +405,9 @@ RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.spaces s
+    JOIN public.organizations o ON o.id = s.org_id
     WHERE s.id = check_space_id 
-    AND public.is_org_admin(s.org_id)
+    AND (o.created_by = auth.uid() OR public.is_org_admin(s.org_id))
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
