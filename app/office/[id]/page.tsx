@@ -273,6 +273,17 @@ export default function OfficePage() {
                             transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
                             className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-full glass border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50"
                         >
+                            {/* Toggle Remote Audio - hear others or focus mode */}
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]'}`}
+                                onClick={toggleRemoteAudio}
+                                title={isRemoteAudioEnabled ? 'Audio in entrata attivo - Clicca per silenziare gli altri' : 'Modalità Focus - Audio degli altri disattivato'}
+                            >
+                                {isRemoteAudioEnabled ? <Headphones className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                            </Button>
+                            
                             <Button
                                 variant={isMicEnabled ? "secondary" : "default"}
                                 size="icon"
@@ -290,24 +301,13 @@ export default function OfficePage() {
                                 {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
                             </Button>
                             <Button
-                                variant="secondary"
+                                variant={isScreenSharing ? "default" : "secondary"}
                                 size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/20 text-primary-400 glow-primary' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                 onClick={isScreenSharing ? stopScreenShare : startScreenShare}
                                 title={isScreenSharing ? 'Stop condivisione schermo' : 'Condividi schermo'}
                             >
                                 {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
-                            </Button>
-                            
-                            {/* Toggle Remote Audio - hear others or focus mode */}
-                            <Button
-                                variant="secondary"
-                                size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]'}`}
-                                onClick={toggleRemoteAudio}
-                                title={isRemoteAudioEnabled ? 'Audio in entrata attivo - Clicca per silenziare gli altri' : 'Modalità Focus - Audio degli altri disattivato'}
-                            >
-                                {isRemoteAudioEnabled ? <Headphones className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
                             </Button>
                             
                             <div className="w-px h-8 bg-white/10 mx-2"></div>
