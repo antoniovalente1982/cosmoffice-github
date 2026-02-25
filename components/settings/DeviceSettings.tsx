@@ -48,8 +48,10 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         setHasCompletedDeviceSetup,
         isMicEnabled,
         isVideoEnabled,
+        isRemoteAudioEnabled,
         toggleMic,
-        toggleVideo
+        toggleVideo,
+        toggleRemoteAudio
     } = useOfficeStore();
 
     const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -341,29 +343,77 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedAudioInput, selectedVideoInput]);
 
-    // Assegna lo stream al video element - FORZA IL PLAY
+    // Assegna lo stream al video element - FORZA IL PLAY con retry automatico
     useEffect(() => {
-        const playVideo = async () => {
-            if (videoRef.current && previewStream) {
-                videoRef.current.srcObject = previewStream;
-                try {
-                    await videoRef.current.play();
-                } catch (err) {
-                    console.warn('Video play failed:', err);
-                    // Riprova dopo un breve delay
-                    setTimeout(async () => {
-                        if (videoRef.current) {
-                            try {
-                                await videoRef.current.play();
-                            } catch (e) {
-                                console.warn('Video play retry failed:', e);
-                            }
-                        }
-                    }, 500);
+        const video = videoRef.current;
+        if (!video || !previewStream) return;
+
+        let playAttempts = 0;
+        const maxAttempts = 5;
+        let retryTimeout: NodeJS.Timeout;
+
+        const tryPlay = async () => {
+            if (!video || !previewStream) return;
+            
+            // Assicurati che srcObject sia impostato
+            if (video.srcObject !== previewStream) {
+                video.srcObject = previewStream;
+            }
+
+            // Verifica che il video track sia attivo
+            const videoTrack = previewStream.getVideoTracks()[0];
+            if (!videoTrack || videoTrack.readyState !== 'live') {
+                console.log('Video track not ready yet, waiting...');
+                if (playAttempts < maxAttempts) {
+                    playAttempts++;
+                    retryTimeout = setTimeout(tryPlay, 300);
+                }
+                return;
+            }
+
+            try {
+                // Forza il video a essere visibile
+                video.style.opacity = '1';
+                await video.play();
+                console.log('Video playing successfully');
+                playAttempts = 0;
+            } catch (err: any) {
+                console.warn(`Video play attempt ${playAttempts + 1} failed:`, err);
+                if (playAttempts < maxAttempts) {
+                    playAttempts++;
+                    retryTimeout = setTimeout(tryPlay, 300);
                 }
             }
         };
-        playVideo();
+
+        // Inizia immediatamente
+        tryPlay();
+
+        // Aggiungi listener per loadedmetadata come backup
+        const handleLoadedMetadata = () => {
+            console.log('Video metadata loaded, attempting play');
+            tryPlay();
+        };
+
+        // Aggiungi listener per when video track becomes unmuted
+        const videoTrack = previewStream.getVideoTracks()[0];
+        const handleUnmute = () => {
+            console.log('Video track unmuted, attempting play');
+            tryPlay();
+        };
+
+        video.addEventListener('loadedmetadata', handleLoadedMetadata);
+        videoTrack?.addEventListener('unmute', handleUnmute);
+
+        // Forza un retry dopo un breve delay iniziale
+        const initialRetry = setTimeout(tryPlay, 100);
+
+        return () => {
+            clearTimeout(retryTimeout);
+            clearTimeout(initialRetry);
+            video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+            videoTrack?.removeEventListener('unmute', handleUnmute);
+        };
     }, [previewStream]);
     
     // Monitora lo stato del video track per rilevare problemi
@@ -406,6 +456,26 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
             clearInterval(interval);
         };
     }, [previewStream]);
+
+    // Quando la telecamera viene disattivata, disattiva anche microfono e audio in entrata
+    useEffect(() => {
+        if (!isOpen) return;
+        
+        if (!isVideoEnabled) {
+            // Disattiva microfono se attivo
+            if (isMicEnabled && previewStream) {
+                const audioTrack = previewStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = false;
+                }
+                toggleMic();
+            }
+            // Disattiva audio in entrata se attivo
+            if (isRemoteAudioEnabled) {
+                toggleRemoteAudio();
+            }
+        }
+    }, [isVideoEnabled, isOpen, isMicEnabled, isRemoteAudioEnabled, toggleMic, toggleRemoteAudio, previewStream]);
 
     // Monitoraggio livello audio - OTTIMIZZATO per maggiore reattività
     const startAudioMonitoring = (stream: MediaStream) => {
