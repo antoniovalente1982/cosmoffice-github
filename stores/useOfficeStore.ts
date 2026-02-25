@@ -214,9 +214,15 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
                     isMicEnabled: true,
                     hasCompletedDeviceSetup: true 
                 });
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Failed to initialize microphone:', err);
-                alert('Impossibile accedere al microfono. Verifica i permessi.');
+                let msg = 'Impossibile accedere al microfono.';
+                if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    msg = 'Il microfono è in uso da un\'altra applicazione.';
+                } else if (err.name === 'NotAllowedError') {
+                    msg = 'Permesso negato. Verifica le impostazioni del browser.';
+                }
+                alert(msg);
             }
         } else if (state.localStream) {
             // Se c'è già uno stream, semplicemente toggle lo stato
@@ -237,22 +243,64 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
         // Se stiamo attivando il video e non c'è uno stream locale, inizializzalo
         if (newVideoEnabled && !state.localStream) {
             try {
-                const constraints: MediaStreamConstraints = {
-                    video: state.selectedVideoInput && state.selectedVideoInput !== 'default' 
-                        ? { deviceId: { exact: state.selectedVideoInput } }
-                        : true,
-                    audio: state.selectedAudioInput && state.selectedAudioInput !== 'default'
-                        ? { deviceId: { exact: state.selectedAudioInput } }
-                        : true
-                };
+                // Prova con constraint specifici per Insta360 e altre webcam USB
+                const videoConstraints: MediaStreamConstraints['video'] = state.selectedVideoInput && state.selectedVideoInput !== 'default' 
+                    ? { 
+                        deviceId: { exact: state.selectedVideoInput },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                      }
+                    : { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                      };
+                      
+                const audioConstraints = state.selectedAudioInput && state.selectedAudioInput !== 'default'
+                    ? { deviceId: { exact: state.selectedAudioInput } }
+                    : true;
+                    
+                let stream: MediaStream;
                 
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: videoConstraints,
+                        audio: audioConstraints
+                    });
+                } catch (err) {
+                    // Fallback a risoluzione più bassa
+                    console.log('Retrying with lower resolution...');
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: state.selectedVideoInput && state.selectedVideoInput !== 'default'
+                            ? { 
+                                deviceId: { exact: state.selectedVideoInput },
+                                width: { ideal: 640 },
+                                height: { ideal: 480 },
+                                frameRate: { ideal: 15 }
+                              }
+                            : { 
+                                width: { ideal: 640 },
+                                height: { ideal: 480 },
+                                frameRate: { ideal: 15 }
+                              },
+                        audio: audioConstraints
+                    });
+                }
                 
-                // Disabilita il video track se l'utente non ha ancora attivato il video
-                // (ma in questo caso vogliamo attivarlo)
+                // Verifica che il video track sia effettivamente attivo
                 const videoTrack = stream.getVideoTracks()[0];
                 if (videoTrack) {
+                    console.log('Video track initialized:', {
+                        label: videoTrack.label,
+                        readyState: videoTrack.readyState,
+                        muted: videoTrack.muted,
+                        enabled: videoTrack.enabled
+                    });
                     videoTrack.enabled = true;
+                    
+                    // Se il track è muted, potrebbe essere in uso da un'altra app
+                    if (videoTrack.muted) {
+                        console.warn('Video track is muted - camera may be in use by another application');
+                    }
                 }
                 
                 // Disabilita l'audio track se il microfono è spento
@@ -266,10 +314,17 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
                     isVideoEnabled: true,
                     hasCompletedDeviceSetup: true 
                 });
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Failed to initialize video:', err);
-                // Non cambiare lo stato se fallisce
-                alert('Impossibile accedere alla telecamera. Verifica i permessi.');
+                let msg = 'Impossibile accedere alla telecamera.';
+                if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    msg = 'La telecamera è in uso da un\'altra applicazione (Skype, Zoom, Teams, ecc.). Chiudi le altre app e riprova.';
+                } else if (err.name === 'NotAllowedError') {
+                    msg = 'Permesso negato. Verifica le impostazioni del browser.';
+                } else if (err.name === 'NotFoundError') {
+                    msg = 'Telecamera non trovata. Verifica che sia collegata.';
+                }
+                alert(msg);
             }
         } else if (state.localStream) {
             // Se c'è già uno stream, semplicemente toggle lo stato

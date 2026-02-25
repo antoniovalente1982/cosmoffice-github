@@ -60,6 +60,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
     const [activeTab, setActiveTab] = useState<'input' | 'output' | 'video'>('input');
     const [error, setError] = useState<string | null>(null);
     const [permissionGranted, setPermissionGranted] = useState(false);
+    const [videoWarning, setVideoWarning] = useState<string | null>(null);
     
     const videoRef = useRef<HTMLVideoElement>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -68,6 +69,8 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
     const testAudioElementRef = useRef<HTMLAudioElement | null>(null);
     const hasInitialized = useRef(false);
     const streamInitializedRef = useRef(false);
+    const videoRetryCountRef = useRef(0);
+    const maxVideoRetries = 3;
 
     // Filtra i dispositivi per tipo e aggiungi opzione "Default"
     const audioInputs = [
@@ -135,6 +138,72 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         }
     }, [setSelectedAudioInput, setSelectedAudioOutput, setSelectedVideoInput]);
 
+    // Funzione per ottenere video stream con retry e fallback
+    const getVideoStreamWithRetry = async (deviceId: string | null, includeAudio: boolean): Promise<MediaStream> => {
+        const videoConstraints = deviceId && deviceId !== 'default' 
+            ? { deviceId: { exact: deviceId } }
+            : true;
+            
+        const audioConstraints = includeAudio 
+            ? (selectedAudioInput && selectedAudioInput !== 'default' 
+                ? { deviceId: { exact: selectedAudioInput } } 
+                : true)
+            : false;
+
+        // Prima prova: constraint base
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: videoConstraints,
+                audio: audioConstraints
+            });
+            
+            // Verifica che il video track sia effettivamente attivo
+            const videoTrack = stream.getVideoTracks()[0];
+            if (videoTrack && videoTrack.readyState === 'live') {
+                videoRetryCountRef.current = 0;
+                return stream;
+            }
+            
+            // Se il track esiste ma non è live, fermiamo e riproviamo
+            stream.getTracks().forEach(t => t.stop());
+            throw new Error('Video track not live');
+            
+        } catch (err) {
+            if (videoRetryCountRef.current < maxVideoRetries) {
+                videoRetryCountRef.current++;
+                console.log(`Video retry attempt ${videoRetryCountRef.current}/${maxVideoRetries}`);
+                
+                // Piccolo delay prima di riprovare
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return getVideoStreamWithRetry(deviceId, includeAudio);
+            }
+            
+            // Fallback: prova con risoluzione più bassa
+            try {
+                console.log('Trying with lower resolution...');
+                const lowResConstraints = deviceId && deviceId !== 'default'
+                    ? { 
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 15 }
+                      }
+                    : { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 15 }
+                      };
+                      
+                return await navigator.mediaDevices.getUserMedia({
+                    video: lowResConstraints,
+                    audio: audioConstraints
+                });
+            } catch (fallbackErr) {
+                throw err; // Rilancia l'errore originale
+            }
+        }
+    };
+
     // Funzione helper per label di default
     const getDefaultLabel = (device: MediaDeviceInfo): string => {
         const index = device.kind === 'audioinput' ? 
@@ -183,25 +252,28 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         // Avvia la preview con i dispositivi correnti
         const startPreview = async () => {
             setIsLoading(true);
+            videoRetryCountRef.current = 0;
             
             try {
-                const constraints: MediaStreamConstraints = {};
-                
-                if (selectedAudioInput && selectedAudioInput !== 'default') {
-                    constraints.audio = { deviceId: { exact: selectedAudioInput } };
-                } else {
-                    constraints.audio = true; // default
-                }
-                
-                if (selectedVideoInput && selectedVideoInput !== 'default') {
-                    constraints.video = { deviceId: { exact: selectedVideoInput } };
-                } else {
-                    constraints.video = true; // default
-                }
-                
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await getVideoStreamWithRetry(selectedVideoInput, true);
                 setPreviewStream(stream);
                 streamInitializedRef.current = true;
+                
+                // Verifica che il video sia effettivamente funzionante
+                const videoTrack = stream.getVideoTracks()[0];
+                if (videoTrack) {
+                    console.log('Video track info:', {
+                        label: videoTrack.label,
+                        readyState: videoTrack.readyState,
+                        muted: videoTrack.muted,
+                        enabled: videoTrack.enabled
+                    });
+                    
+                    // Se il track è muted, potrebbe essere in uso da un'altra app
+                    if (videoTrack.muted) {
+                        setError('La telecamera potrebbe essere in uso da un\'altra applicazione. Chiudi altre app e riprova.');
+                    }
+                }
                 
                 // Inizia il monitoring dell'audio
                 if (stream.getAudioTracks().length > 0) {
@@ -210,7 +282,19 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                 
             } catch (err: any) {
                 console.error('Preview error:', err);
-                setError(`Errore nell'accesso al dispositivo: ${err.message}`);
+                let errorMsg = `Errore nell'accesso al dispositivo: ${err.message}`;
+                
+                if (err.name === 'NotAllowedError') {
+                    errorMsg = 'Permesso negato. Verifica che il browser possa accedere alla telecamera.';
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    errorMsg = 'La telecamera è in uso da un\'altra applicazione. Chiudi Skype, Zoom, Teams, o altre app che usano la webcam.';
+                } else if (err.name === 'OverconstrainedError') {
+                    errorMsg = 'La telecamera non supporta le impostazioni richieste. Prova a selezionare "Default di sistema".';
+                } else if (err.name === 'NotFoundError') {
+                    errorMsg = 'Telecamera non trovata. Verifica che sia collegata correttamente.';
+                }
+                
+                setError(errorMsg);
             } finally {
                 setIsLoading(false);
             }
@@ -227,6 +311,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         
         const updatePreview = async () => {
             setIsLoading(true);
+            videoRetryCountRef.current = 0;
             
             try {
                 // Ferma lo stream precedente
@@ -235,21 +320,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                 }
                 stopAudioMonitoring();
                 
-                const constraints: MediaStreamConstraints = {};
-                
-                if (selectedAudioInput && selectedAudioInput !== 'default') {
-                    constraints.audio = { deviceId: { exact: selectedAudioInput } };
-                } else {
-                    constraints.audio = true;
-                }
-                
-                if (selectedVideoInput && selectedVideoInput !== 'default') {
-                    constraints.video = { deviceId: { exact: selectedVideoInput } };
-                } else {
-                    constraints.video = true;
-                }
-                
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await getVideoStreamWithRetry(selectedVideoInput, true);
                 setPreviewStream(stream);
                 
                 // Inizia il monitoring dell'audio
@@ -293,6 +364,47 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
             }
         };
         playVideo();
+    }, [previewStream]);
+    
+    // Monitora lo stato del video track per rilevare problemi
+    useEffect(() => {
+        if (!previewStream) {
+            setVideoWarning(null);
+            return;
+        }
+        
+        const videoTrack = previewStream.getVideoTracks()[0];
+        if (!videoTrack) {
+            setVideoWarning('Nessun video track trovato');
+            return;
+        }
+        
+        const checkVideoState = () => {
+            if (videoTrack.muted) {
+                setVideoWarning('La telecamera potrebbe essere in uso da un\'altra applicazione');
+            } else if (videoTrack.readyState !== 'live') {
+                setVideoWarning('La telecamera non è attiva');
+            } else {
+                setVideoWarning(null);
+            }
+        };
+        
+        checkVideoState();
+        
+        // Ascolta gli eventi del track
+        videoTrack.addEventListener('mute', checkVideoState);
+        videoTrack.addEventListener('unmute', checkVideoState);
+        videoTrack.addEventListener('ended', checkVideoState);
+        
+        // Controlla periodicamente
+        const interval = setInterval(checkVideoState, 1000);
+        
+        return () => {
+            videoTrack.removeEventListener('mute', checkVideoState);
+            videoTrack.removeEventListener('unmute', checkVideoState);
+            videoTrack.removeEventListener('ended', checkVideoState);
+            clearInterval(interval);
+        };
     }, [previewStream]);
 
     // Monitoraggio livello audio - OTTIMIZZATO per maggiore reattività
@@ -920,8 +1032,14 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                         )}
                                         
                                         {previewStream && previewStream.getVideoTracks().length > 0 && (
-                                            <div className="absolute top-3 left-3 px-2 py-1 bg-emerald-500/80 rounded text-xs text-white font-medium">
-                                                Preview attiva
+                                            <div className={`absolute top-3 left-3 px-2 py-1 rounded text-xs text-white font-medium ${videoWarning ? 'bg-amber-500/80' : 'bg-emerald-500/80'}`}>
+                                                {videoWarning ? '⚠️ Problema rilevato' : 'Preview attiva'}
+                                            </div>
+                                        )}
+                                        
+                                        {videoWarning && (
+                                            <div className="absolute bottom-3 left-3 right-3 p-3 bg-amber-500/90 rounded-lg text-xs text-white text-center">
+                                                {videoWarning}
                                             </div>
                                         )}
                                     </div>
