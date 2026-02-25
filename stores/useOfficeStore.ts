@@ -75,6 +75,13 @@ interface OfficeState {
     localStream: MediaStream | null;
     screenStreams: MediaStream[];  // Supporto per multipli schermi
     
+    // Device Selection
+    selectedAudioInput: string | null;  // deviceId del microfono
+    selectedAudioOutput: string | null;  // deviceId dell'audio in uscita
+    selectedVideoInput: string | null;  // deviceId della webcam
+    availableDevices: MediaDeviceInfo[];
+    hasCompletedDeviceSetup: boolean;  // Se l'utente ha completato la configurazione iniziale
+    
     // Audio State
     isRemoteAudioEnabled: boolean;  // Mute/unmute audio from other users
 
@@ -96,6 +103,14 @@ interface OfficeState {
     addScreenStream: (stream: MediaStream) => void;
     removeScreenStream: (streamId: string) => void;
     clearAllScreenStreams: () => void;
+    
+    // Device Actions
+    setSelectedAudioInput: (deviceId: string | null) => void;
+    setSelectedAudioOutput: (deviceId: string | null) => void;
+    setSelectedVideoInput: (deviceId: string | null) => void;
+    setAvailableDevices: (devices: MediaDeviceInfo[]) => void;
+    refreshDevices: () => Promise<void>;
+    setHasCompletedDeviceSetup: (completed: boolean) => void;
     setSpeaking: (isSpeaking: boolean) => void;
     setLocalStream: (stream: MediaStream | null) => void;
     setZoom: (zoom: number) => void;
@@ -125,6 +140,13 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     isSpeaking: false,
     localStream: null,
     screenStreams: [],
+    
+    // Device defaults (verranno impostati dopo il setup)
+    selectedAudioInput: null,
+    selectedAudioOutput: null,
+    selectedVideoInput: null,
+    availableDevices: [],
+    hasCompletedDeviceSetup: false,
     isRemoteAudioEnabled: true,  // Default: hear others (can be muted for focus mode)
 
     setMyPosition: (position) => set({ myPosition: position }),
@@ -178,6 +200,21 @@ export const useOfficeStore = create<OfficeState>((set) => ({
         });
         return { screenStreams: [], isScreenSharing: false };
     }),
+    
+    // Device Actions
+    setSelectedAudioInput: (deviceId) => set({ selectedAudioInput: deviceId }),
+    setSelectedAudioOutput: (deviceId) => set({ selectedAudioOutput: deviceId }),
+    setSelectedVideoInput: (deviceId) => set({ selectedVideoInput: deviceId }),
+    setAvailableDevices: (devices) => set({ availableDevices: devices }),
+    refreshDevices: async () => {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            set({ availableDevices: devices });
+        } catch (err) {
+            console.error('Failed to enumerate devices:', err);
+        }
+    },
+    setHasCompletedDeviceSetup: (completed) => set({ hasCompletedDeviceSetup: completed }),
     setSpeaking: (isSpeaking) => set({ isSpeaking }),
     setLocalStream: (localStream) => set({ localStream }),
     setZoom: (zoom) => set({ zoom }),

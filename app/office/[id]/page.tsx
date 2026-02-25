@@ -37,6 +37,7 @@ const OfficeAnalytics = dynamic(() => import('../../../components/office/OfficeA
 const GamificationSystem = dynamic(() => import('../../../components/office/GamificationSystem').then(mod => mod.GamificationSystem), { ssr: false });
 const TeamList = dynamic(() => import('../../../components/office/TeamList').then(mod => mod.TeamList), { ssr: false });
 const OfficeManagement = dynamic(() => import('../../../components/office/OfficeManagement'), { ssr: false });
+const DeviceSettings = dynamic(() => import('../../../components/settings/DeviceSettings').then(mod => mod.DeviceSettings), { ssr: false });
 
 import { useOfficeStore } from '../../../stores/useOfficeStore';
 import { useOffice } from '../../../hooks/useOffice';
@@ -47,7 +48,8 @@ export default function OfficePage() {
     const {
         toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab,
         isMicEnabled, isVideoEnabled, isScreenSharing, isRemoteAudioEnabled, screenStreams,
-        toggleMic, toggleVideo, toggleRemoteAudio, setActiveSpace, addScreenStream, clearAllScreenStreams,
+        hasCompletedDeviceSetup, toggleMic, toggleVideo, toggleRemoteAudio, 
+        setActiveSpace, addScreenStream, clearAllScreenStreams,
     } = useOfficeStore();
     const params = useParams();
     const spaceId = params.id as string;
@@ -57,6 +59,8 @@ export default function OfficePage() {
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isManagementOpen, setIsManagementOpen] = useState(false);
+    const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
+    const [showInitialSetup, setShowInitialSetup] = useState(false);
 
     // Screen sharing functions - supporta multipli schermi
     const startScreenShare = useCallback(async () => {
@@ -98,6 +102,12 @@ export default function OfficePage() {
 
                 if (profile) {
                     useOfficeStore.getState().setMyProfile(profile);
+                }
+                
+                // Controlla se l'utente ha già completato il setup dispositivi
+                const hasSetup = useOfficeStore.getState().hasCompletedDeviceSetup;
+                if (!hasSetup) {
+                    setShowInitialSetup(true);
                 }
             }
             setLoading(false);
@@ -323,6 +333,20 @@ export default function OfficePage() {
                     )}
                 </motion.div>
                 {isManagementOpen && <OfficeManagement spaceId={spaceId} onClose={() => setIsManagementOpen(false)} />}
+                
+                {/* Cabina di Regia - Accessibile durante la sessione */}
+                <DeviceSettings 
+                    isOpen={isDeviceSettingsOpen} 
+                    onClose={() => setIsDeviceSettingsOpen(false)} 
+                />
+                
+                {/* Setup Iniziale - Appare solo all'ingresso */}
+                <DeviceSettings 
+                    isOpen={showInitialSetup} 
+                    onClose={() => setShowInitialSetup(false)}
+                    isInitialSetup={true}
+                />
+                
                 <ChatWindow />
                 <AIAssistant />
             </main>

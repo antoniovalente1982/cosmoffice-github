@@ -10,6 +10,7 @@ const screenContainersMap = new Map<string, HTMLDivElement>();
 export function MediaManager() {
     const {
         isMicEnabled, isVideoEnabled, isScreenSharing, screenStreams, isSpeaking,
+        selectedAudioInput, selectedVideoInput, hasCompletedDeviceSetup,
         localStream, setLocalStream,
         setSpeaking, removeScreenStream, clearAllScreenStreams
     } = useOfficeStore();
@@ -18,6 +19,7 @@ export function MediaManager() {
     const initializedRef = useRef(false);
     const videoTrackRef = useRef<MediaStreamTrack | null>(null);
     const audioTrackRef = useRef<MediaStreamTrack | null>(null);
+    const lastDeviceSetupRef = useRef(false);
     const supabase = createClient();
 
     // Rimuovi un singolo schermo
@@ -32,46 +34,84 @@ export function MediaManager() {
 
     // Stop tutti gli schermi
     const stopAllScreens = useCallback(() => {
-        screenContainersMap.forEach((container, streamId) => {
+        screenContainersMap.forEach((container) => {
             container.remove();
         });
         screenContainersMap.clear();
         clearAllScreenStreams();
     }, [clearAllScreenStreams]);
 
-    // Initialize camera/mic on first mount - get tracks separately
-    useEffect(() => {
-        if (initializedRef.current) return;
-        initializedRef.current = true;
-        
-        const initMedia = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: true
-                });
-                
-                const videoTrack = stream.getVideoTracks()[0];
-                const audioTrack = stream.getAudioTracks()[0];
-                
-                if (videoTrack) videoTrackRef.current = videoTrack;
-                if (audioTrack) audioTrackRef.current = audioTrack;
-                
-                setLocalStream(stream);
-            } catch (err) {
-                console.error('Failed to initialize media:', err);
+    // Inizializza o aggiorna lo stream con i dispositivi selezionati
+    const initOrUpdateMedia = useCallback(async () => {
+        // Se l'utente non ha completato il setup, non inizializzare automaticamente
+        if (!hasCompletedDeviceSetup) {
+            return;
+        }
+
+        try {
+            // Costruisci i constraints in base ai dispositivi selezionati
+            const constraints: MediaStreamConstraints = {};
+            
+            if (selectedAudioInput) {
+                constraints.audio = { deviceId: { exact: selectedAudioInput } };
+            } else {
+                constraints.audio = true; // default
             }
-        };
+            
+            if (selectedVideoInput) {
+                constraints.video = { deviceId: { exact: selectedVideoInput } };
+            } else {
+                constraints.video = true; // default
+            }
+
+            // Ferma lo stream precedente
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            const videoTrack = stream.getVideoTracks()[0];
+            const audioTrack = stream.getAudioTracks()[0];
+            
+            if (videoTrack) {
+                videoTrack.enabled = isVideoEnabled;
+                videoTrackRef.current = videoTrack;
+            }
+            if (audioTrack) {
+                audioTrack.enabled = isMicEnabled;
+                audioTrackRef.current = audioTrack;
+            }
+            
+            setLocalStream(stream);
+        } catch (err) {
+            console.error('Failed to initialize/update media:', err);
+        }
+    }, [hasCompletedDeviceSetup, selectedAudioInput, selectedVideoInput, isMicEnabled, isVideoEnabled, localStream, setLocalStream]);
+
+    // Effect per inizializzare/aggiornare quando cambiano i dispositivi selezionati
+    // o quando l'utente completa il setup iniziale
+    useEffect(() => {
+        const setupCompleted = hasCompletedDeviceSetup && !lastDeviceSetupRef.current;
         
-        initMedia();
+        if (setupCompleted || (hasCompletedDeviceSetup && initializedRef.current)) {
+            initOrUpdateMedia();
+        }
         
+        lastDeviceSetupRef.current = hasCompletedDeviceSetup;
+        if (hasCompletedDeviceSetup) {
+            initializedRef.current = true;
+        }
+    }, [hasCompletedDeviceSetup, selectedAudioInput, selectedVideoInput, initOrUpdateMedia]);
+
+    // Cleanup on unmount
+    useEffect(() => {
         return () => {
             const currentStream = useOfficeStore.getState().localStream;
             if (currentStream) {
                 currentStream.getTracks().forEach(t => t.stop());
             }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Handle video toggle - enable/disable track instead of removing
