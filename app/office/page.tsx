@@ -70,11 +70,12 @@ export default function DashboardPage() {
         setIsSubmitting(true);
         setError(null);
 
-        const slug = newOrgName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const baseSlug = newOrgName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        let slug = baseSlug || 'org';
 
         try {
             // STEP 1: Create Organization
-            const { data: org, error: orgError } = await supabase
+            let { data: org, error: orgError } = await supabase
                 .from('organizations')
                 .insert({
                     name: newOrgName,
@@ -83,6 +84,25 @@ export default function DashboardPage() {
                 })
                 .select()
                 .single();
+
+            // If it's a duplicate slug error, try once more with a random suffix
+            if (orgError && orgError.code === '23505' && orgError.message.includes('slug')) {
+                const randomSuffix = Math.random().toString(36).substring(2, 6);
+                slug = `${baseSlug}-${randomSuffix}`;
+                
+                const { data: retryOrg, error: retryError } = await supabase
+                    .from('organizations')
+                    .insert({
+                        name: newOrgName,
+                        slug,
+                        created_by: user.id
+                    })
+                    .select()
+                    .single();
+                
+                org = retryOrg;
+                orgError = retryError;
+            }
 
             if (orgError) throw orgError;
             if (!org) throw new Error('Failed to create organization');
@@ -107,8 +127,11 @@ export default function DashboardPage() {
             setNewOrgName('');
         } catch (err: any) {
             console.error('Error creating organization:', err);
-            // If it's a Supabase error, show the details
-            const message = err.details || err.message || 'An unexpected error occurred';
+            // If it's still a duplicate error or another error, show a more user-friendly message
+            let message = err.message || 'An unexpected error occurred';
+            if (err.code === '23505') {
+                message = 'An organization with this slug already exists. Please try a different name.';
+            }
             setError(`Creation failed: ${message}`);
         } finally {
             setIsSubmitting(false);
