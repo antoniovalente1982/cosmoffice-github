@@ -1,22 +1,22 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { createClient } from '../../utils/supabase/client';
 
 export function MediaManager() {
     const {
-        isMicEnabled, isVideoEnabled,
+        isMicEnabled, isVideoEnabled, isScreenSharing, screenStream,
         localStream, setLocalStream,
         setSpeaking, peers, updatePeer
     } = useOfficeStore();
-    const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
     const peersRef = useRef<Record<string, any>>({});
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyzerRef = useRef<AnalyserNode | null>(null);
+    const screenVideoRef = useRef<HTMLVideoElement | null>(null);
     const supabase = createClient();
 
-    // Local stream management
+    // Local stream management (mic + camera)
     useEffect(() => {
         const updateMedia = async () => {
             try {
@@ -69,16 +69,61 @@ export function MediaManager() {
             }
         };
         updateMedia();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isMicEnabled, isVideoEnabled]);
 
-    // Volume detection for speaking circle
+    // Screen sharing stream management
+    useEffect(() => {
+        // Create or update screen sharing video element
+        if (isScreenSharing && screenStream) {
+            if (!screenVideoRef.current) {
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.playsInline = true;
+                video.muted = true; // Mute to avoid feedback
+                video.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 320px;
+                    width: 320px;
+                    height: 180px;
+                    object-fit: contain;
+                    border-radius: 12px;
+                    background: #0f172a;
+                    border: 2px solid #6366f1;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                    z-index: 100;
+                `;
+                document.body.appendChild(video);
+                screenVideoRef.current = video;
+            }
+            screenVideoRef.current.srcObject = screenStream;
+        } else {
+            // Clean up screen sharing video element
+            if (screenVideoRef.current) {
+                screenVideoRef.current.remove();
+                screenVideoRef.current = null;
+            }
+        }
+
+        return () => {
+            if (screenVideoRef.current) {
+                screenVideoRef.current.remove();
+                screenVideoRef.current = null;
+            }
+        };
+    }, [isScreenSharing, screenStream]);
+
+    // Volume detection for speaking circle (from mic only, not screen audio)
     useEffect(() => {
         let animationFrame: number;
         let audioContext: AudioContext | null = null;
 
         const startDetection = async () => {
             try {
-                if (!localStream || !isMicEnabled || localStream.getAudioTracks().length === 0) {
+                // Only detect speaking from microphone, not from screen share audio
+                const micStream = localStream;
+                if (!micStream || !isMicEnabled || micStream.getAudioTracks().length === 0) {
                     setSpeaking(false);
                     return;
                 }
@@ -89,7 +134,7 @@ export function MediaManager() {
                 }
 
                 const analyzer = audioContext.createAnalyser();
-                const source = audioContext.createMediaStreamSource(localStream);
+                const source = audioContext.createMediaStreamSource(micStream);
                 source.connect(analyzer);
                 analyzer.fftSize = 256;
 
@@ -138,13 +183,13 @@ export function MediaManager() {
         };
     }, [localStream, isMicEnabled, setSpeaking]);
 
-    // Signaling logic
+    // Signaling logic placeholder
     useEffect(() => {
         if (!localStream) return;
 
-        // Note: Simple peer and signaling logic omitted for brevity as per original, 
-        // but now it has access to a properly managed localStream from store
-    }, [localStream]);
+        // Note: Simple peer and signaling logic would go here
+        // Now it has access to both localStream and screenStream from store
+    }, [localStream, screenStream]);
 
     return null;
 }

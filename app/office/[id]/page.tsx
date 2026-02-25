@@ -15,6 +15,9 @@ import {
     Video,
     VideoOff,
     Monitor,
+    MonitorStop,
+    Volume2,
+    VolumeX,
     Map as MapIcon,
     Bell,
     Search,
@@ -43,8 +46,8 @@ export default function OfficePage() {
     const router = useRouter();
     const {
         toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab,
-        isMicEnabled, isVideoEnabled, isScreenSharing,
-        toggleMic, toggleVideo, toggleScreenShare,
+        isMicEnabled, isVideoEnabled, isScreenSharing, isSystemAudioEnabled,
+        toggleMic, toggleVideo, startScreenShare, stopScreenShare, toggleSystemAudio,
         setActiveSpace
     } = useOfficeStore();
     const params = useParams();
@@ -265,10 +268,25 @@ export default function OfficePage() {
                                 variant="secondary"
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/20 text-primary-400 glow-primary' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                onClick={toggleScreenShare}
+                                onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+                                title={isScreenSharing ? 'Stop condivisione schermo' : 'Condividi schermo'}
                             >
-                                <Monitor className="w-5 h-5" />
+                                {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                             </Button>
+                            
+                            {/* Toggle Audio Sistema - visibile solo durante screen share */}
+                            {isScreenSharing && (
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className={`rounded-full w-10 h-10 transition-all glow-button ${isSystemAudioEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                    onClick={toggleSystemAudio}
+                                    title={isSystemAudioEnabled ? 'Audio sistema attivo' : 'Audio sistema disattivato'}
+                                >
+                                    {isSystemAudioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                                </Button>
+                            )}
+                            
                             <div className="w-px h-8 bg-white/10 mx-2"></div>
                             <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
                         </motion.div>
