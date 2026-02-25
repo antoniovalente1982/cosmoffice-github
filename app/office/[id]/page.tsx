@@ -18,6 +18,7 @@ import {
     MonitorStop,
     Volume2,
     VolumeX,
+    Headphones,
     Map as MapIcon,
     Bell,
     Search,
@@ -45,8 +46,8 @@ export default function OfficePage() {
     const router = useRouter();
     const {
         toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab,
-        isMicEnabled, isVideoEnabled, isScreenSharing, isSystemAudioEnabled,
-        toggleMic, toggleVideo, toggleSystemAudio, setActiveSpace, setScreenSharing, setScreenStream,
+        isMicEnabled, isVideoEnabled, isScreenSharing, isRemoteAudioEnabled,
+        toggleMic, toggleVideo, toggleRemoteAudio, setActiveSpace, setScreenSharing, setScreenStream,
     } = useOfficeStore();
     const params = useParams();
     const spaceId = params.id as string;
@@ -57,12 +58,12 @@ export default function OfficePage() {
     const [loading, setLoading] = useState(true);
     const [isManagementOpen, setIsManagementOpen] = useState(false);
 
-    // Screen sharing functions
+    // Screen sharing functions - no system audio, just screen
     const startScreenShare = useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
-                audio: isSystemAudioEnabled
+                audio: false  // No system audio - user uses mic to speak
             });
             
             setScreenSharing(true);
@@ -70,7 +71,7 @@ export default function OfficePage() {
         } catch (err) {
             console.error('Failed to start screen sharing:', err);
         }
-    }, [isSystemAudioEnabled, setScreenSharing, setScreenStream]);
+    }, [setScreenSharing, setScreenStream]);
 
     const stopScreenShare = useCallback(() => {
         const currentStream = useOfficeStore.getState().screenStream;
@@ -81,19 +82,7 @@ export default function OfficePage() {
         setScreenStream(null);
     }, [setScreenSharing, setScreenStream]);
 
-    // Restart screen share with new audio setting
-    const toggleScreenAudio = useCallback(() => {
-        const wasSharing = useOfficeStore.getState().isScreenSharing;
-        if (wasSharing) {
-            stopScreenShare();
-            setTimeout(() => {
-                toggleSystemAudio();
-                startScreenShare();
-            }, 100);
-        } else {
-            toggleSystemAudio();
-        }
-    }, [stopScreenShare, startScreenShare, toggleSystemAudio]);
+
 
     useEffect(() => {
         const getUser = async () => {
@@ -310,18 +299,16 @@ export default function OfficePage() {
                                 {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                             </Button>
                             
-                            {/* Toggle Audio Sistema - visibile solo durante screen share */}
-                            {isScreenSharing && (
-                                <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    className={`rounded-full w-10 h-10 transition-all glow-button ${isSystemAudioEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                    onClick={toggleScreenAudio}
-                                    title={isSystemAudioEnabled ? 'Audio sistema attivo - Clicca per disattivare' : 'Audio sistema disattivato - Clicca per attivare'}
-                                >
-                                    {isSystemAudioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                                </Button>
-                            )}
+                            {/* Toggle Remote Audio - hear others or focus mode */}
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]'}`}
+                                onClick={toggleRemoteAudio}
+                                title={isRemoteAudioEnabled ? 'Audio in entrata attivo - Clicca per silenziare gli altri' : 'Modalità Focus - Audio degli altri disattivato'}
+                            >
+                                {isRemoteAudioEnabled ? <Headphones className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                            </Button>
                             
                             <div className="w-px h-8 bg-white/10 mx-2"></div>
                             <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>

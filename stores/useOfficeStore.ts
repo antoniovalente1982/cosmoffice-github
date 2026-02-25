@@ -71,10 +71,12 @@ interface OfficeState {
     isMicEnabled: boolean;
     isVideoEnabled: boolean;
     isScreenSharing: boolean;
-    isSystemAudioEnabled: boolean;
     isSpeaking: boolean;
     localStream: MediaStream | null;
     screenStream: MediaStream | null;
+    
+    // Audio State
+    isRemoteAudioEnabled: boolean;  // Mute/unmute audio from other users
 
     // Actions
     setMyPosition: (position: UserPosition) => void;
@@ -89,8 +91,8 @@ interface OfficeState {
     setActiveTab: (tab: 'office' | 'analytics' | 'badges') => void;
     toggleMic: () => void;
     toggleVideo: () => void;
-    toggleSystemAudio: () => void;
     setScreenSharing: (isSharing: boolean) => void;
+    toggleRemoteAudio: () => void;  // Toggle hearing other users
     setScreenStream: (stream: MediaStream | null) => void;
     setSpeaking: (isSpeaking: boolean) => void;
     setLocalStream: (stream: MediaStream | null) => void;
@@ -117,10 +119,10 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     isMicEnabled: true,
     isVideoEnabled: true,
     isScreenSharing: false,
-    isSystemAudioEnabled: true,
     isSpeaking: false,
     localStream: null,
     screenStream: null,
+    isRemoteAudioEnabled: true,
 
     setMyPosition: (position) => set({ myPosition: position }),
     setMyStatus: (status) => set({ myStatus: status }),
@@ -154,8 +156,8 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     setActiveTab: (tab) => set({ activeTab: tab, isChatOpen: false, isSettingsOpen: false, isAIPanelOpen: false }),
     toggleMic: () => set((state) => ({ isMicEnabled: !state.isMicEnabled })),
     toggleVideo: () => set((state) => ({ isVideoEnabled: !state.isVideoEnabled })),
-    toggleSystemAudio: () => set((state) => ({ isSystemAudioEnabled: !state.isSystemAudioEnabled })),
     setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
+    toggleRemoteAudio: () => set((state) => ({ isRemoteAudioEnabled: !state.isRemoteAudioEnabled })),
     setScreenStream: (screenStream) => set({ screenStream }),
     setSpeaking: (isSpeaking) => set({ isSpeaking }),
     setLocalStream: (localStream) => set({ localStream }),

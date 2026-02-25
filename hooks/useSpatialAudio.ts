@@ -2,11 +2,20 @@ import { useEffect } from 'react';
 import { useOfficeStore } from '../stores/useOfficeStore';
 
 export function useSpatialAudio() {
-    const { myPosition, myRoomId, peers } = useOfficeStore();
+    const { myPosition, myRoomId, peers, isRemoteAudioEnabled } = useOfficeStore();
 
     useEffect(() => {
         const calculateVolume = () => {
             Object.values(peers).forEach(peer => {
+                // If remote audio is disabled (focus mode), mute all peers
+                if (!isRemoteAudioEnabled) {
+                    const audioElement = document.getElementById(`audio-${peer.id}`) as HTMLAudioElement;
+                    if (audioElement) {
+                        audioElement.volume = 0;
+                    }
+                    return;
+                }
+
                 const distance = Math.sqrt(
                     Math.pow(myPosition.x - peer.position.x, 2) +
                     Math.pow(myPosition.y - peer.position.y, 2)
@@ -32,5 +41,5 @@ export function useSpatialAudio() {
 
         const interval = setInterval(calculateVolume, 100);
         return () => clearInterval(interval);
-    }, [myPosition, myRoomId, peers]);
+    }, [myPosition, myRoomId, peers, isRemoteAudioEnabled]);
 }
