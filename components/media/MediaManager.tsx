@@ -94,15 +94,32 @@ export function MediaManager() {
     useEffect(() => {
         const setupCompleted = hasCompletedDeviceSetup && !lastDeviceSetupRef.current;
         
-        if (setupCompleted || (hasCompletedDeviceSetup && initializedRef.current)) {
+        // Se il setup è completato appena ora, NON ricreare lo stream 
+        // perché è già stato impostato dalla DeviceSettings
+        if (setupCompleted) {
+            // Solo aggiorna i track refs dallo stream esistente
+            const currentStream = useOfficeStore.getState().localStream;
+            if (currentStream) {
+                const videoTrack = currentStream.getVideoTracks()[0];
+                const audioTrack = currentStream.getAudioTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = isVideoEnabled;
+                    videoTrackRef.current = videoTrack;
+                }
+                if (audioTrack) {
+                    audioTrack.enabled = isMicEnabled;
+                    audioTrackRef.current = audioTrack;
+                }
+            }
+            initializedRef.current = true;
+        } else if (hasCompletedDeviceSetup && initializedRef.current) {
+            // Solo se i dispositivi selezionati cambiano DOPO l'inizializzazione
+            // allora ricrea lo stream
             initOrUpdateMedia();
         }
         
         lastDeviceSetupRef.current = hasCompletedDeviceSetup;
-        if (hasCompletedDeviceSetup) {
-            initializedRef.current = true;
-        }
-    }, [hasCompletedDeviceSetup, selectedAudioInput, selectedVideoInput, initOrUpdateMedia]);
+    }, [hasCompletedDeviceSetup, selectedAudioInput, selectedVideoInput, initOrUpdateMedia, isMicEnabled, isVideoEnabled]);
 
     // Cleanup on unmount
     useEffect(() => {

@@ -7,13 +7,13 @@ import {
     Video, 
     VideoOff, 
     Volume2, 
-    VolumeX,
     MonitorSpeaker,
     Check,
     Settings,
     X,
     RefreshCw,
-    Headphones
+    Headphones,
+    AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOfficeStore } from '../../stores/useOfficeStore';
@@ -29,121 +29,184 @@ interface AudioLevel {
     peak: number;
 }
 
+interface DeviceInfo {
+    deviceId: string;
+    label: string;
+    kind: MediaDeviceKind;
+}
+
 export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: DeviceSettingsProps) {
     const {
         selectedAudioInput,
         selectedAudioOutput,
         selectedVideoInput,
-        availableDevices,
         setSelectedAudioInput,
         setSelectedAudioOutput,
         setSelectedVideoInput,
-        refreshDevices,
         setLocalStream,
         setHasCompletedDeviceSetup,
+        isMicEnabled,
+        isVideoEnabled,
+        toggleMic,
+        toggleVideo
     } = useOfficeStore();
 
+    const [devices, setDevices] = useState<DeviceInfo[]>([]);
     const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
     const [testAudioLevel, setTestAudioLevel] = useState<AudioLevel>({ value: 0, peak: 0 });
     const [isLoading, setIsLoading] = useState(false);
+    const [isRequestingPermission, setIsRequestingPermission] = useState(false);
     const [activeTab, setActiveTab] = useState<'input' | 'output' | 'video'>('input');
     const [error, setError] = useState<string | null>(null);
-    const [hasAutoSelectedDefaults, setHasAutoSelectedDefaults] = useState(false);
+    const [permissionGranted, setPermissionGranted] = useState(false);
     
     const videoRef = useRef<HTMLVideoElement>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const testAudioElementRef = useRef<HTMLAudioElement | null>(null);
+    const hasInitialized = useRef(false);
 
     // Filtra i dispositivi per tipo
-    const audioInputs = availableDevices.filter(d => d.kind === 'audioinput');
-    const audioOutputs = availableDevices.filter(d => d.kind === 'audiooutput');
-    const videoInputs = availableDevices.filter(d => d.kind === 'videoinput');
+    const audioInputs = devices.filter(d => d.kind === 'audioinput');
+    const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+    const videoInputs = devices.filter(d => d.kind === 'videoinput');
 
-    // Inizializza e aggiorna i dispositivi disponibili + auto-seleziona default
-    useEffect(() => {
-        if (isOpen) {
-            const loadDevices = async () => {
-                await refreshDevices();
-            };
-            loadDevices();
+    // Funzione per ottenere i dispositivi con permessi
+    const requestPermissionsAndGetDevices = useCallback(async () => {
+        setIsRequestingPermission(true);
+        setError(null);
+        
+        try {
+            // Step 1: Richiedi permessi con getUserMedia
+            // Questo è necessario per ottenere i label dei dispositivi
+            const tempStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: true, 
+                video: true 
+            });
+            
+            // Step 2: Ora possiamo enumerare i dispositivi con i nomi
+            const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+            
+            // Step 3: Ferma lo stream temporaneo
+            tempStream.getTracks().forEach(track => track.stop());
+            
+            // Step 4: Processa i dispositivi
+            const processedDevices: DeviceInfo[] = mediaDevices.map(device => ({
+                deviceId: device.deviceId,
+                label: device.label || getDefaultLabel(device),
+                kind: device.kind
+            }));
+            
+            setDevices(processedDevices);
+            setPermissionGranted(true);
+            
+            // Step 5: Seleziona i default se non già selezionati
+            const store = useOfficeStore.getState();
+            
+            if (!store.selectedAudioInput) {
+                const defaultAudio = processedDevices.find(d => 
+                    d.kind === 'audioinput' && (
+                        d.label.toLowerCase().includes('default') ||
+                        d.deviceId === 'default'
+                    )
+                ) || processedDevices.find(d => d.kind === 'audioinput');
+                
+                if (defaultAudio) {
+                    setSelectedAudioInput(defaultAudio.deviceId);
+                }
+            }
+            
+            if (!store.selectedAudioOutput) {
+                const defaultOutput = processedDevices.find(d => 
+                    d.kind === 'audiooutput' && (
+                        d.label.toLowerCase().includes('default') ||
+                        d.deviceId === 'default'
+                    )
+                ) || processedDevices.find(d => d.kind === 'audiooutput');
+                
+                if (defaultOutput) {
+                    setSelectedAudioOutput(defaultOutput.deviceId);
+                }
+            }
+            
+            if (!store.selectedVideoInput) {
+                const defaultVideo = processedDevices.find(d => 
+                    d.kind === 'videoinput' && (
+                        d.label.toLowerCase().includes('default') ||
+                        d.label.toLowerCase().includes('built-in') ||
+                        d.deviceId === 'default'
+                    )
+                ) || processedDevices.find(d => d.kind === 'videoinput');
+                
+                if (defaultVideo) {
+                    setSelectedVideoInput(defaultVideo.deviceId);
+                }
+            }
+            
+        } catch (err: any) {
+            console.error('Permission denied:', err);
+            setError('Permessi negati. Per favore consenti l\'accesso a microfono e webcam.');
+            setPermissionGranted(false);
+        } finally {
+            setIsRequestingPermission(false);
         }
-    }, [isOpen, refreshDevices]);
+    }, [setSelectedAudioInput, setSelectedAudioOutput, setSelectedVideoInput]);
 
-    // Auto-seleziona i dispositivi di default quando vengono caricati
-    useEffect(() => {
-        if (!hasAutoSelectedDefaults && availableDevices.length > 0) {
-            // Seleziona il primo dispositivo di ogni tipo (di solito il default del sistema)
-            if (!selectedAudioInput && audioInputs.length > 0) {
-                // Cerca il dispositivo default (solitamente label contiene "default" o è il primo)
-                const defaultDevice = audioInputs.find(d => 
-                    d.label.toLowerCase().includes('default') || 
-                    d.deviceId === 'default'
-                ) || audioInputs[0];
-                setSelectedAudioInput(defaultDevice.deviceId);
-            }
-            
-            if (!selectedAudioOutput && audioOutputs.length > 0) {
-                const defaultDevice = audioOutputs.find(d => 
-                    d.label.toLowerCase().includes('default') || 
-                    d.deviceId === 'default'
-                ) || audioOutputs[0];
-                setSelectedAudioOutput(defaultDevice.deviceId);
-            }
-            
-            if (!selectedVideoInput && videoInputs.length > 0) {
-                const defaultDevice = videoInputs.find(d => 
-                    d.label.toLowerCase().includes('default') || 
-                    d.deviceId === 'default'
-                ) || videoInputs[0];
-                setSelectedVideoInput(defaultDevice.deviceId);
-            }
-            
-            setHasAutoSelectedDefaults(true);
+    // Funzione helper per label di default
+    const getDefaultLabel = (device: MediaDeviceInfo): string => {
+        const index = device.kind === 'audioinput' ? 
+            devices.filter(d => d.kind === 'audioinput').length + 1 :
+            device.kind === 'videoinput' ?
+                devices.filter(d => d.kind === 'videoinput').length + 1 :
+                devices.filter(d => d.kind === 'audiooutput').length + 1;
+        
+        switch (device.kind) {
+            case 'audioinput':
+                return `Microfono ${index}`;
+            case 'videoinput':
+                return `Camera ${index}`;
+            case 'audiooutput':
+                return `Altoparlanti ${index}`;
+            default:
+                return `Dispositivo ${index}`;
         }
-    }, [availableDevices, hasAutoSelectedDefaults, selectedAudioInput, selectedAudioOutput, selectedVideoInput, 
-        setSelectedAudioInput, setSelectedAudioOutput, setSelectedVideoInput, audioInputs, audioOutputs, videoInputs]);
+    };
 
-    // Resetta il flag quando chiudi il modal
+    // Inizializza quando si apre il modal
     useEffect(() => {
+        if (isOpen && !hasInitialized.current) {
+            hasInitialized.current = true;
+            requestPermissionsAndGetDevices();
+        }
+        
         if (!isOpen) {
-            setHasAutoSelectedDefaults(false);
+            hasInitialized.current = false;
+            // Cleanup solo se non abbiamo applicato (non c'è localStream)
+            const currentLocalStream = useOfficeStore.getState().localStream;
+            if (previewStream && previewStream !== currentLocalStream) {
+                previewStream.getTracks().forEach(t => t.stop());
+                setPreviewStream(null);
+            }
+            stopAudioMonitoring();
         }
-    }, [isOpen]);
+    }, [isOpen, requestPermissionsAndGetDevices]);
 
-    // Ascolta i cambiamenti dei dispositivi (quando si collega/scollega)
+    // Aggiorna la preview quando cambiano i dispositivi selezionati
     useEffect(() => {
-        const handleDeviceChange = () => {
-            refreshDevices();
-        };
+        if (!isOpen || !permissionGranted) return;
         
-        navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
-        return () => {
-            navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
-        };
-    }, [refreshDevices]);
-
-    // Crea lo stream di preview quando cambiano i dispositivi selezionati
-    useEffect(() => {
-        if (!isOpen) return;
-        
-        const initPreview = async () => {
+        const updatePreview = async () => {
+            if (!selectedAudioInput && !selectedVideoInput) return;
+            
             setIsLoading(true);
-            setError(null);
             
             try {
                 // Ferma lo stream precedente
                 if (previewStream) {
                     previewStream.getTracks().forEach(t => t.stop());
                 }
-
-                // Attendi che i dispositivi siano selezionati
-                if (!selectedAudioInput && !selectedVideoInput) {
-                    setIsLoading(false);
-                    return;
-                }
-
+                
                 const constraints: MediaStreamConstraints = {};
                 
                 if (selectedAudioInput) {
@@ -153,65 +216,43 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                 if (selectedVideoInput) {
                     constraints.video = { deviceId: { exact: selectedVideoInput } };
                 }
-
-                // Se nessun constraint è stato impostato, non fare nulla
+                
                 if (!constraints.audio && !constraints.video) {
                     setIsLoading(false);
                     return;
                 }
-
+                
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 setPreviewStream(stream);
                 
-                // Inizia il monitoring dell'audio se c'è un audio track
+                // Inizia il monitoring dell'audio
                 if (stream.getAudioTracks().length > 0) {
                     startAudioMonitoring(stream);
                 }
                 
             } catch (err: any) {
-                console.error('Failed to get preview stream:', err);
-                setError(err.message || 'Impossibile accedere ai dispositivi');
+                console.error('Preview error:', err);
+                setError(`Errore nell'accesso al dispositivo: ${err.message}`);
             } finally {
                 setIsLoading(false);
             }
         };
-
-        initPreview();
-
-        return () => {
-            stopAudioMonitoring();
-        };
+        
+        // Debounce per evitare troppe chiamate
+        const timeout = setTimeout(updatePreview, 300);
+        return () => clearTimeout(timeout);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, selectedAudioInput, selectedVideoInput]);
+    }, [isOpen, selectedAudioInput, selectedVideoInput, permissionGranted]);
 
-    // Assegna lo stream al video element quando cambia
+    // Assegna lo stream al video element
     useEffect(() => {
         if (videoRef.current && previewStream) {
             videoRef.current.srcObject = previewStream;
-            // Forza il play
             videoRef.current.play().catch(err => {
-                console.warn('Autoplay prevented:', err);
+                console.warn('Video play failed:', err);
             });
         }
     }, [previewStream]);
-
-    // Aggiorna lo stream locale quando si confermano le impostazioni
-    const applySettings = useCallback(() => {
-        if (previewStream) {
-            // Ferma lo stream locale precedente
-            const currentStream = useOfficeStore.getState().localStream;
-            if (currentStream) {
-                currentStream.getTracks().forEach(t => t.stop());
-            }
-            
-            // Crea un nuovo stream dai track del preview
-            const newStream = new MediaStream(previewStream.getTracks().map(t => t.clone()));
-            setLocalStream(newStream);
-        }
-        
-        setHasCompletedDeviceSetup(true);
-        onClose();
-    }, [previewStream, setLocalStream, setHasCompletedDeviceSetup, onClose]);
 
     // Monitoraggio livello audio
     const startAudioMonitoring = (stream: MediaStream) => {
@@ -242,7 +283,6 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                 const average = sum / dataArray.length;
                 const normalized = Math.min(100, (average / 128) * 100);
                 
-                // Decay del peak
                 peakDecay = Math.max(peakDecay - 2, 0);
                 const peak = Math.max(normalized, peakDecay);
                 peakDecay = peak;
@@ -270,89 +310,74 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         setTestAudioLevel({ value: 0, peak: 0 });
     };
 
-    // Test audio output - usando elemento audio HTML per supportare setSinkId
+    // Test audio output
     const testAudioOutput = async () => {
         try {
-            // Crea un elemento audio se non esiste
             if (!testAudioElementRef.current) {
                 testAudioElementRef.current = new Audio();
             }
             
             const audio = testAudioElementRef.current;
             
-            // Crea un beep usando Web Audio API e convertilo in blob per l'elemento audio
+            // Crea un beep
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             const sampleRate = audioContext.sampleRate;
             const duration = 0.5;
             const numberOfSamples = duration * sampleRate;
             
-            // Crea un buffer per il suono
             const buffer = audioContext.createBuffer(1, numberOfSamples, sampleRate);
             const data = buffer.getChannelData(0);
             
-            // Genera un tono sinusoidale a 440Hz con fade out
             for (let i = 0; i < numberOfSamples; i++) {
                 const t = i / sampleRate;
-                const envelope = Math.exp(-3 * t); // fade out esponenziale
+                const envelope = Math.exp(-3 * t);
                 data[i] = Math.sin(2 * Math.PI * 440 * t) * 0.3 * envelope;
             }
             
-            // Converti il buffer in WAV blob
             const wavBlob = bufferToWave(buffer, numberOfSamples);
             const url = URL.createObjectURL(wavBlob);
             
             audio.src = url;
             audio.loop = false;
             
-            // Imposta il dispositivo di uscita se supportato (Chrome/Edge)
+            // Prova a impostare il sink
             if (selectedAudioOutput) {
-                // @ts-ignore - setSinkId è supportato in Chrome/Edge
+                // @ts-ignore
                 if (audio.setSinkId) {
                     try {
                         // @ts-ignore
                         await audio.setSinkId(selectedAudioOutput);
-                        console.log('Audio output set to:', selectedAudioOutput);
                     } catch (err) {
                         console.warn('setSinkId failed:', err);
                     }
-                } else {
-                    console.warn('setSinkId not supported in this browser');
                 }
             }
             
-            // Riproduci il suono
             await audio.play();
             
-            // Cleanup dopo la riproduzione
-            setTimeout(() => {
-                URL.revokeObjectURL(url);
-            }, 1000);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
             
         } catch (err) {
             console.error('Audio test failed:', err);
-            // Fallback: emetti un beep usando l'audio di sistema
-            try {
-                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = 440;
-                oscillator.type = 'sine';
-                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
-            } catch (fallbackErr) {
-                console.error('Fallback audio test also failed:', fallbackErr);
-            }
+            // Fallback
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 440;
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
         }
     };
 
-    // Funzione per convertire AudioBuffer in WAV blob
+    // Helper per convertire buffer in WAV
     function bufferToWave(abuffer: AudioBuffer, len: number) {
         let numOfChan = abuffer.numberOfChannels,
             length = len * numOfChan * 2 + 44,
@@ -364,30 +389,28 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
             offset = 0,
             pos = 0;
 
-        // scrivi l'header WAV
-        setUint32(0x46464952); // "RIFF"
-        setUint32(length - 8); // file length - 8
-        setUint32(0x45564157); // "WAVE"
-        setUint32(0x20746d66); // "fmt " chunk
-        setUint32(16); // length = 16
-        setUint16(1); // PCM (uncompressed)
+        setUint32(0x46464952);
+        setUint32(length - 8);
+        setUint32(0x45564157);
+        setUint32(0x20746d66);
+        setUint32(16);
+        setUint16(1);
         setUint16(numOfChan);
         setUint32(abuffer.sampleRate);
-        setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-        setUint16(numOfChan * 2); // block-align
-        setUint16(16); // 16-bit (hardcoded in this example)
-        setUint32(0x61746164); // "data" - chunk
-        setUint32(length - pos - 4); // chunk length
+        setUint32(abuffer.sampleRate * 2 * numOfChan);
+        setUint16(numOfChan * 2);
+        setUint16(16);
+        setUint32(0x61746164);
+        setUint32(length - pos - 4);
 
-        // scrivi i dati
         for(i = 0; i < abuffer.numberOfChannels; i++)
             channels.push(abuffer.getChannelData(i));
 
         while(pos < length) {
             for(i = 0; i < numOfChan; i++) {
-                sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
-                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0; // scale to 16-bit signed int
-                view.setInt16(pos, sample, true); // write 16-bit sample
+                sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0;
+                view.setInt16(pos, sample, true);
                 pos += 2;
             }
             offset++;
@@ -406,21 +429,136 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         }
     }
 
-    // Cleanup
+    // Applica le impostazioni
+    const applySettings = useCallback(() => {
+        // Ferma lo stream precedente se esiste
+        const currentStream = useOfficeStore.getState().localStream;
+        if (currentStream) {
+            currentStream.getTracks().forEach(t => t.stop());
+        }
+        
+        // Se abbiamo uno stream di preview, usiamo quello come stream locale
+        if (previewStream) {
+            // Non cloniamo, usiamo direttamente lo stream di preview
+            // ma dobbiamo fermare il monitoring prima
+            stopAudioMonitoring();
+            setLocalStream(previewStream);
+            setPreviewStream(null); // Resetta il ref locale
+        }
+        
+        // Abilita mic e video di default quando entri
+        const state = useOfficeStore.getState();
+        if (!state.isMicEnabled && selectedAudioInput) {
+            // Il mic sarà gestito dal MediaManager
+        }
+        if (!state.isVideoEnabled && selectedVideoInput) {
+            // Il video sarà gestito dal MediaManager
+        }
+        
+        setHasCompletedDeviceSetup(true);
+        onClose();
+    }, [previewStream, setLocalStream, setHasCompletedDeviceSetup, onClose, selectedAudioInput, selectedVideoInput]);
+
+    // Cleanup quando il componente si smonta o si chiude
     useEffect(() => {
         return () => {
             stopAudioMonitoring();
-            if (previewStream) {
-                previewStream.getTracks().forEach(t => t.stop());
-            }
-            if (testAudioElementRef.current) {
-                testAudioElementRef.current.pause();
-                testAudioElementRef.current = null;
+            // Non fermare previewStream qui se è stato già assegnato come localStream
+            // Lo facciamo gestire solo quando si chiude senza applicare
+        };
+    }, []);
+
+    // Aggiorna dispositivi quando si ricollega qualcosa
+    useEffect(() => {
+        const handleDeviceChange = () => {
+            if (permissionGranted) {
+                requestPermissionsAndGetDevices();
             }
         };
-    }, [previewStream]);
+        
+        navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+        return () => {
+            navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+        };
+    }, [permissionGranted, requestPermissionsAndGetDevices]);
 
     if (!isOpen) return null;
+
+    // Schermata di richiesta permessi
+    if (!permissionGranted && !isRequestingPermission) {
+        return (
+            <AnimatePresence>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+                >
+                    <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
+                        className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-8 text-center shadow-2xl"
+                    >
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mx-auto mb-6">
+                            <Settings className="w-8 h-8 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-2">Configura i tuoi dispositivi</h2>
+                        <p className="text-slate-400 mb-6">
+                            Per accedere all&apos;ufficio virtuale, abbiamo bisogno del tuo permesso per utilizzare microfono e webcam.
+                        </p>
+                        
+                        {error && (
+                            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm">
+                                <AlertCircle className="w-4 h-4 inline mr-2" />
+                                {error}
+                            </div>
+                        )}
+                        
+                        <div className="flex items-center justify-center gap-4 text-slate-500 mb-8">
+                            <Mic className="w-6 h-6" />
+                            <Video className="w-6 h-6" />
+                            <Headphones className="w-6 h-6" />
+                        </div>
+                        
+                        <button
+                            onClick={requestPermissionsAndGetDevices}
+                            className="w-full px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/25"
+                        >
+                            Consenti accesso ai dispositivi
+                        </button>
+                    </motion.div>
+                </motion.div>
+            </AnimatePresence>
+        );
+    }
+
+    // Loading state
+    if (isRequestingPermission) {
+        return (
+            <AnimatePresence>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+                >
+                    <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
+                        className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-8 text-center shadow-2xl"
+                    >
+                        <RefreshCw className="w-12 h-12 text-indigo-400 animate-spin mx-auto mb-4" />
+                        <h2 className="text-xl font-bold text-white mb-2">Accesso ai dispositivi...</h2>
+                        <p className="text-slate-400">
+                            Attendi mentre richiediamo l&apos;accesso a microfono e webcam
+                        </p>
+                    </motion.div>
+                </motion.div>
+            </AnimatePresence>
+        );
+    }
 
     return (
         <AnimatePresence>
@@ -434,7 +572,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl"
+                    className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl"
                 >
                     {/* Header */}
                     <div className="flex items-center justify-between p-6 border-b border-slate-800">
@@ -444,12 +582,10 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             </div>
                             <div>
                                 <h2 className="text-xl font-bold text-white">
-                                    {isInitialSetup ? 'Benvenuto! Configura i tuoi dispositivi' : 'Cabina di Regia'}
+                                    {isInitialSetup ? 'Configura i tuoi dispositivi' : 'Cabina di Regia'}
                                 </h2>
                                 <p className="text-sm text-slate-400">
-                                    {isInitialSetup 
-                                        ? 'I dispositivi di sistema sono già selezionati. Puoi modificarli se vuoi.' 
-                                        : 'Gestisci i tuoi dispositivi audio e video'}
+                                    Seleziona e testa i dispositivi che vuoi usare
                                 </p>
                             </div>
                         </div>
@@ -463,9 +599,9 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                         )}
                     </div>
 
-                    <div className="flex h-[60vh]">
+                    <div className="flex h-[65vh]">
                         {/* Sidebar Tabs */}
-                        <div className="w-64 bg-slate-950/50 border-r border-slate-800 p-4 space-y-2">
+                        <div className="w-72 bg-slate-950/50 border-r border-slate-800 p-4 space-y-2">
                             <button
                                 onClick={() => setActiveTab('input')}
                                 className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
@@ -475,8 +611,13 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 }`}
                             >
                                 <Mic className="w-5 h-5" />
-                                <span className="font-medium">Microfono</span>
-                                {selectedAudioInput && <Check className="w-4 h-4 ml-auto text-emerald-400" />}
+                                <div className="flex-1 text-left">
+                                    <span className="font-medium">Microfono</span>
+                                    <p className="text-xs text-slate-500 truncate">
+                                        {audioInputs.find(d => d.deviceId === selectedAudioInput)?.label || 'Non selezionato'}
+                                    </p>
+                                </div>
+                                {selectedAudioInput && <Check className="w-4 h-4 text-emerald-400" />}
                             </button>
                             
                             <button
@@ -488,8 +629,13 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 }`}
                             >
                                 <Headphones className="w-5 h-5" />
-                                <span className="font-medium">Audio Uscita</span>
-                                {selectedAudioOutput && <Check className="w-4 h-4 ml-auto text-emerald-400" />}
+                                <div className="flex-1 text-left">
+                                    <span className="font-medium">Audio Uscita</span>
+                                    <p className="text-xs text-slate-500 truncate">
+                                        {audioOutputs.find(d => d.deviceId === selectedAudioOutput)?.label || 'Default di sistema'}
+                                    </p>
+                                </div>
+                                {selectedAudioOutput && <Check className="w-4 h-4 text-emerald-400" />}
                             </button>
                             
                             <button
@@ -501,13 +647,18 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 }`}
                             >
                                 <Video className="w-5 h-5" />
-                                <span className="font-medium">Webcam</span>
-                                {selectedVideoInput && <Check className="w-4 h-4 ml-auto text-emerald-400" />}
+                                <div className="flex-1 text-left">
+                                    <span className="font-medium">Webcam</span>
+                                    <p className="text-xs text-slate-500 truncate">
+                                        {videoInputs.find(d => d.deviceId === selectedVideoInput)?.label || 'Non selezionata'}
+                                    </p>
+                                </div>
+                                {selectedVideoInput && <Check className="w-4 h-4 text-emerald-400" />}
                             </button>
 
                             <div className="pt-4 mt-4 border-t border-slate-800">
                                 <button
-                                    onClick={() => refreshDevices()}
+                                    onClick={() => requestPermissionsAndGetDevices()}
                                     className="w-full flex items-center gap-2 p-2 text-sm text-slate-500 hover:text-slate-300 transition-colors"
                                 >
                                     <RefreshCw className="w-4 h-4" />
@@ -520,7 +671,8 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                         <div className="flex-1 p-6 overflow-y-auto">
                             {error && (
                                 <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm">
-                                    ⚠️ {error}
+                                    <AlertCircle className="w-4 h-4 inline mr-2" />
+                                    {error}
                                 </div>
                             )}
 
@@ -528,45 +680,39 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             {activeTab === 'input' && (
                                 <div className="space-y-6">
                                     <div>
-                                        <h3 className="text-lg font-semibold text-white mb-2">Seleziona Microfono</h3>
-                                        <p className="text-slate-400 text-sm mb-4">
-                                            Dispositivo selezionato: <span className="text-indigo-300">
-                                                {audioInputs.find(d => d.deviceId === selectedAudioInput)?.label || 'Default'}
-                                            </span>
-                                        </p>
+                                        <h3 className="text-lg font-semibold text-white mb-4">Seleziona Microfono</h3>
                                     </div>
 
-                                    {/* Lista dispositivi */}
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 max-h-64 overflow-y-auto">
                                         {audioInputs.map((device) => (
                                             <button
                                                 key={device.deviceId}
                                                 onClick={() => setSelectedAudioInput(device.deviceId)}
-                                                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                                                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
                                                     selectedAudioInput === device.deviceId
                                                         ? 'bg-indigo-500/10 border-indigo-500/50'
                                                         : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
                                                 }`}
                                             >
-                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                                     selectedAudioInput === device.deviceId
                                                         ? 'bg-indigo-500 text-white'
                                                         : 'bg-slate-700 text-slate-400'
                                                 }`}>
                                                     <Mic className="w-5 h-5" />
                                                 </div>
-                                                <div className="flex-1 text-left">
-                                                    <p className={`font-medium ${
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`font-medium truncate ${
                                                         selectedAudioInput === device.deviceId ? 'text-white' : 'text-slate-300'
                                                     }`}>
-                                                        {device.label || `Microfono ${audioInputs.indexOf(device) + 1}`}
+                                                        {device.label}
                                                     </p>
-                                                    {selectedAudioInput === device.deviceId && (
-                                                        <p className="text-xs text-indigo-400">Selezionato</p>
-                                                    )}
+                                                    <p className="text-xs text-slate-500">
+                                                        {device.deviceId === 'default' ? 'Dispositivo di default' : 'Dispositivo audio'}
+                                                    </p>
                                                 </div>
                                                 {selectedAudioInput === device.deviceId && (
-                                                    <Check className="w-5 h-5 text-indigo-400" />
+                                                    <Check className="w-5 h-5 text-indigo-400 flex-shrink-0" />
                                                 )}
                                             </button>
                                         ))}
@@ -584,19 +730,18 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                             <div className="flex items-center justify-between mb-2">
                                                 <span className="text-sm text-slate-400">Livello Audio</span>
                                                 <span className="text-xs text-slate-500">
-                                                    {testAudioLevel.value > 0 ? 'Rilevato audio!' : 'Parla per testare'}
+                                                    {testAudioLevel.value > 5 ? 'Rilevato audio!' : 'Parla per testare'}
                                                 </span>
                                             </div>
-                                            <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+                                            <div className="h-4 bg-slate-700 rounded-full overflow-hidden">
                                                 <div 
-                                                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-75"
+                                                    className="h-full bg-gradient-to-r from-emerald-500 via-yellow-500 to-red-500 transition-all duration-75"
                                                     style={{ width: `${testAudioLevel.value}%` }}
                                                 />
                                             </div>
-                                            {/* Peak indicator */}
                                             <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden relative">
                                                 <div 
-                                                    className="absolute h-full w-1 bg-amber-400 transition-all"
+                                                    className="absolute h-full w-1 bg-white transition-all"
                                                     style={{ left: `${testAudioLevel.peak}%` }}
                                                 />
                                             </div>
@@ -610,69 +755,73 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 <div className="space-y-6">
                                     <div>
                                         <h3 className="text-lg font-semibold text-white mb-2">Seleziona Dispositivo Uscita</h3>
-                                        <p className="text-slate-400 text-sm mb-4">
-                                            Dispositivo selezionato: <span className="text-indigo-300">
-                                                {audioOutputs.find(d => d.deviceId === selectedAudioOutput)?.label || 'Default di sistema'}
-                                            </span>
-                                        </p>
-                                        <p className="text-xs text-amber-400 mb-4">
-                                            Nota: Il test audio usa il dispositivo di default se il browser non supporta la selezione.
+                                        <p className="text-sm text-slate-400 mb-4">
+                                            Scegli dove vuoi ascoltare l&apos;audio. Il test emetterà un suono dal dispositivo selezionato.
                                         </p>
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 max-h-64 overflow-y-auto">
                                         {audioOutputs.map((device) => (
                                             <button
                                                 key={device.deviceId}
                                                 onClick={() => setSelectedAudioOutput(device.deviceId)}
-                                                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                                                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
                                                     selectedAudioOutput === device.deviceId
                                                         ? 'bg-indigo-500/10 border-indigo-500/50'
                                                         : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
                                                 }`}
                                             >
-                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                                     selectedAudioOutput === device.deviceId
                                                         ? 'bg-indigo-500 text-white'
                                                         : 'bg-slate-700 text-slate-400'
                                                 }`}>
                                                     {device.label.toLowerCase().includes('cuffia') || 
-                                                     device.label.toLowerCase().includes('headphone')
+                                                     device.label.toLowerCase().includes('headphone') ||
+                                                     device.label.toLowerCase().includes('airpod') ||
+                                                     device.label.toLowerCase().includes('earbud')
                                                         ? <Headphones className="w-5 h-5" />
                                                         : <MonitorSpeaker className="w-5 h-5" />
                                                     }
                                                 </div>
-                                                <div className="flex-1 text-left">
-                                                    <p className={`font-medium ${
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`font-medium truncate ${
                                                         selectedAudioOutput === device.deviceId ? 'text-white' : 'text-slate-300'
                                                     }`}>
-                                                        {device.label || `Dispositivo ${audioOutputs.indexOf(device) + 1}`}
+                                                        {device.label}
                                                     </p>
-                                                    {selectedAudioOutput === device.deviceId && (
-                                                        <p className="text-xs text-indigo-400">Selezionato</p>
-                                                    )}
+                                                    <p className="text-xs text-slate-500">
+                                                        {device.deviceId === 'default' ? 'Default di sistema' : 'Dispositivo audio'}
+                                                    </p>
                                                 </div>
                                                 {selectedAudioOutput === device.deviceId && (
-                                                    <Check className="w-5 h-5 text-indigo-400" />
+                                                    <Check className="w-5 h-5 text-indigo-400 flex-shrink-0" />
                                                 )}
                                             </button>
                                         ))}
                                         
                                         {audioOutputs.length === 0 && (
-                                            <p className="text-slate-500 text-center py-8">
-                                                Usa il dispositivo di default del sistema
-                                            </p>
+                                            <div className="p-4 bg-slate-800/50 rounded-xl text-center">
+                                                <p className="text-slate-400">
+                                                    Verrà usato il dispositivo di default del sistema
+                                                </p>
+                                            </div>
                                         )}
                                     </div>
 
                                     {/* Test Audio */}
                                     <button
                                         onClick={testAudioOutput}
-                                        className="w-full mt-4 p-4 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 rounded-xl text-indigo-300 font-medium transition-all flex items-center justify-center gap-2"
+                                        disabled={!selectedAudioOutput}
+                                        className="w-full mt-4 p-4 bg-indigo-500/20 hover:bg-indigo-500/30 disabled:bg-slate-800 disabled:text-slate-500 border border-indigo-500/30 disabled:border-slate-700 rounded-xl text-indigo-300 font-medium transition-all flex items-center justify-center gap-2"
                                     >
                                         <Volume2 className="w-5 h-5" />
-                                        Test Audio (Suono di prova)
+                                        Test Audio
                                     </button>
+                                    
+                                    <p className="text-xs text-slate-500 text-center">
+                                        Nota: Chrome/Edge supportano la selezione audio. Altri browser useranno il default.
+                                    </p>
                                 </div>
                             )}
 
@@ -680,16 +829,11 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             {activeTab === 'video' && (
                                 <div className="space-y-6">
                                     <div>
-                                        <h3 className="text-lg font-semibold text-white mb-2">Seleziona Webcam</h3>
-                                        <p className="text-slate-400 text-sm mb-4">
-                                            Dispositivo selezionato: <span className="text-indigo-300">
-                                                {videoInputs.find(d => d.deviceId === selectedVideoInput)?.label || 'Default'}
-                                            </span>
-                                        </p>
+                                        <h3 className="text-lg font-semibold text-white mb-4">Seleziona Webcam</h3>
                                     </div>
 
                                     {/* Preview Video */}
-                                    <div className="relative aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-700">
+                                    <div className="relative aspect-video bg-slate-950 rounded-xl overflow-hidden border-2 border-slate-700">
                                         {isLoading ? (
                                             <div className="absolute inset-0 flex items-center justify-center">
                                                 <RefreshCw className="w-8 h-8 text-slate-500 animate-spin" />
@@ -706,51 +850,50 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                         ) : (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                                 <VideoOff className="w-12 h-12 text-slate-600 mb-2" />
-                                                <p className="text-slate-500 text-sm">
-                                                    {selectedVideoInput ? 'Caricamento...' : 'Nessuna webcam selezionata'}
+                                                <p className="text-slate-500">
+                                                    {selectedVideoInput ? 'Caricamento preview...' : 'Seleziona una webcam'}
                                                 </p>
                                             </div>
                                         )}
                                         
-                                        {/* Overlay info */}
                                         {previewStream && previewStream.getVideoTracks().length > 0 && (
-                                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                                                <p className="text-white text-sm font-medium">Anteprima attiva</p>
+                                            <div className="absolute top-3 left-3 px-2 py-1 bg-emerald-500/80 rounded text-xs text-white font-medium">
+                                                Preview attiva
                                             </div>
                                         )}
                                     </div>
 
                                     {/* Lista webcam */}
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 max-h-48 overflow-y-auto">
                                         {videoInputs.map((device) => (
                                             <button
                                                 key={device.deviceId}
                                                 onClick={() => setSelectedVideoInput(device.deviceId)}
-                                                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                                                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
                                                     selectedVideoInput === device.deviceId
                                                         ? 'bg-indigo-500/10 border-indigo-500/50'
                                                         : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
                                                 }`}
                                             >
-                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                                     selectedVideoInput === device.deviceId
                                                         ? 'bg-indigo-500 text-white'
                                                         : 'bg-slate-700 text-slate-400'
                                                 }`}>
                                                     <Video className="w-5 h-5" />
                                                 </div>
-                                                <div className="flex-1 text-left">
-                                                    <p className={`font-medium ${
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`font-medium truncate ${
                                                         selectedVideoInput === device.deviceId ? 'text-white' : 'text-slate-300'
                                                     }`}>
-                                                        {device.label || `Camera ${videoInputs.indexOf(device) + 1}`}
+                                                        {device.label}
                                                     </p>
-                                                    {selectedVideoInput === device.deviceId && (
-                                                        <p className="text-xs text-indigo-400">Selezionata</p>
-                                                    )}
+                                                    <p className="text-xs text-slate-500">
+                                                        {device.deviceId === 'default' ? 'Camera di default' : 'Camera USB'}
+                                                    </p>
                                                 </div>
                                                 {selectedVideoInput === device.deviceId && (
-                                                    <Check className="w-5 h-5 text-indigo-400" />
+                                                    <Check className="w-5 h-5 text-indigo-400 flex-shrink-0" />
                                                 )}
                                             </button>
                                         ))}
@@ -775,7 +918,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 ) : (
                                     <MicOff className="w-4 h-4 text-slate-600" />
                                 )}
-                                <span>Mic</span>
+                                <span>Mic OK</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 {selectedVideoInput ? (
@@ -783,7 +926,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 ) : (
                                     <VideoOff className="w-4 h-4 text-slate-600" />
                                 )}
-                                <span>Cam</span>
+                                <span>Cam OK</span>
                             </div>
                         </div>
                         
@@ -798,7 +941,8 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             )}
                             <button
                                 onClick={applySettings}
-                                className="px-8 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/25"
+                                disabled={!selectedAudioInput && !selectedVideoInput}
+                                className="px-8 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/25"
                             >
                                 {isInitialSetup ? 'Entra nell\'Office' : 'Applica'}
                             </button>
