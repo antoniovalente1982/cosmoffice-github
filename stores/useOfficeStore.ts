@@ -116,13 +116,14 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     isAIPanelOpen: false,
     activeTab: 'office',
     zoom: 1,
-    isMicEnabled: true,
-    isVideoEnabled: true,
+    // Default: all media OFF when entering - user must enable manually
+    isMicEnabled: false,
+    isVideoEnabled: false,
     isScreenSharing: false,
     isSpeaking: false,
     localStream: null,
     screenStream: null,
-    isRemoteAudioEnabled: true,
+    isRemoteAudioEnabled: true,  // Default: hear others (can be muted for focus mode)
 
     setMyPosition: (position) => set({ myPosition: position }),
     setMyStatus: (status) => set({ myStatus: status }),
