@@ -293,7 +293,7 @@ export default function OfficePage() {
                                 variant={isMicEnabled ? "secondary" : "default"}
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isMicEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
-                                onClick={toggleMic}
+                                onClick={async () => await toggleMic()}
                             >
                                 {isMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
                             </Button>
@@ -301,7 +301,7 @@ export default function OfficePage() {
                                 variant={isVideoEnabled ? "secondary" : "default"}
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isVideoEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
-                                onClick={toggleVideo}
+                                onClick={async () => await toggleVideo()}
                             >
                                 {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
                             </Button>

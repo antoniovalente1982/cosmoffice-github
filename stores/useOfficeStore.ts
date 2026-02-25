@@ -96,8 +96,8 @@ interface OfficeState {
     toggleSettings: () => void;
     toggleAIPanel: () => void;
     setActiveTab: (tab: 'office' | 'analytics' | 'badges') => void;
-    toggleMic: () => void;
-    toggleVideo: () => void;
+    toggleMic: () => Promise<void>;
+    toggleVideo: () => Promise<void>;
     setScreenSharing: (isSharing: boolean) => void;
     toggleRemoteAudio: () => void;  // Toggle hearing other users
     addScreenStream: (stream: MediaStream) => void;
@@ -119,7 +119,7 @@ interface OfficeState {
     setRoomConnections: (connections: RoomConnection[]) => void;
 }
 
-export const useOfficeStore = create<OfficeState>((set) => ({
+export const useOfficeStore = create<OfficeState>((set, get) => ({
     myPosition: { x: 500, y: 500 }, // Default center
     myStatus: 'online',
     myRoomId: undefined,
@@ -179,8 +179,110 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen, isChatOpen: false, isAIPanelOpen: false })),
     toggleAIPanel: () => set((state) => ({ isAIPanelOpen: !state.isAIPanelOpen, isChatOpen: false, isSettingsOpen: false })),
     setActiveTab: (tab) => set({ activeTab: tab, isChatOpen: false, isSettingsOpen: false, isAIPanelOpen: false }),
-    toggleMic: () => set((state) => ({ isMicEnabled: !state.isMicEnabled })),
-    toggleVideo: () => set((state) => ({ isVideoEnabled: !state.isVideoEnabled })),
+    toggleMic: async () => {
+        const state = get();
+        const newMicEnabled = !state.isMicEnabled;
+        
+        // Se stiamo attivando il microfono e non c'è uno stream locale, inizializzalo
+        if (newMicEnabled && !state.localStream) {
+            try {
+                const constraints: MediaStreamConstraints = {
+                    audio: state.selectedAudioInput && state.selectedAudioInput !== 'default'
+                        ? { deviceId: { exact: state.selectedAudioInput } }
+                        : true,
+                    video: state.selectedVideoInput && state.selectedVideoInput !== 'default'
+                        ? { deviceId: { exact: state.selectedVideoInput } }
+                        : state.isVideoEnabled // Solo se il video è attivo
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // Abilita l'audio track
+                const audioTrack = stream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = true;
+                }
+                
+                // Disabilita il video track se il video è spento
+                const videoTrack = stream.getVideoTracks()[0];
+                if (videoTrack && !state.isVideoEnabled) {
+                    videoTrack.enabled = false;
+                }
+                
+                set({ 
+                    localStream: stream, 
+                    isMicEnabled: true,
+                    hasCompletedDeviceSetup: true 
+                });
+            } catch (err) {
+                console.error('Failed to initialize microphone:', err);
+                alert('Impossibile accedere al microfono. Verifica i permessi.');
+            }
+        } else if (state.localStream) {
+            // Se c'è già uno stream, semplicemente toggle lo stato
+            const audioTrack = state.localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = newMicEnabled;
+            }
+            set({ isMicEnabled: newMicEnabled });
+        } else {
+            // Stiamo disattivando il microfono e non c'è stream
+            set({ isMicEnabled: newMicEnabled });
+        }
+    },
+    toggleVideo: async () => {
+        const state = get();
+        const newVideoEnabled = !state.isVideoEnabled;
+        
+        // Se stiamo attivando il video e non c'è uno stream locale, inizializzalo
+        if (newVideoEnabled && !state.localStream) {
+            try {
+                const constraints: MediaStreamConstraints = {
+                    video: state.selectedVideoInput && state.selectedVideoInput !== 'default' 
+                        ? { deviceId: { exact: state.selectedVideoInput } }
+                        : true,
+                    audio: state.selectedAudioInput && state.selectedAudioInput !== 'default'
+                        ? { deviceId: { exact: state.selectedAudioInput } }
+                        : true
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // Disabilita il video track se l'utente non ha ancora attivato il video
+                // (ma in questo caso vogliamo attivarlo)
+                const videoTrack = stream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = true;
+                }
+                
+                // Disabilita l'audio track se il microfono è spento
+                const audioTrack = stream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = state.isMicEnabled;
+                }
+                
+                set({ 
+                    localStream: stream, 
+                    isVideoEnabled: true,
+                    hasCompletedDeviceSetup: true 
+                });
+            } catch (err) {
+                console.error('Failed to initialize video:', err);
+                // Non cambiare lo stato se fallisce
+                alert('Impossibile accedere alla telecamera. Verifica i permessi.');
+            }
+        } else if (state.localStream) {
+            // Se c'è già uno stream, semplicemente toggle lo stato
+            const videoTrack = state.localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = newVideoEnabled;
+            }
+            set({ isVideoEnabled: newVideoEnabled });
+        } else {
+            // Stiamo disattivando il video e non c'è stream
+            set({ isVideoEnabled: newVideoEnabled });
+        }
+    },
     setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
     toggleRemoteAudio: () => set((state) => ({ isRemoteAudioEnabled: !state.isRemoteAudioEnabled })),
     addScreenStream: (stream) => set((state) => ({ 
