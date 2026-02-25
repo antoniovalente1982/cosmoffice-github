@@ -94,12 +94,15 @@ export function VideoGrid() {
         localStream, isMicEnabled, isVideoEnabled, isSpeaking, peers, myProfile
     } = useOfficeStore();
 
-    // Only show "me" tile when video is enabled
+    // Check if my video should be shown
     const videoTrack = localStream?.getVideoTracks()[0];
-    const showMyVideo = isVideoEnabled && localStream && videoTrack && videoTrack.enabled;
+    const showMyVideo = isVideoEnabled && localStream && videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
 
-    const participants = [
-        ...(showMyVideo ? [{
+    // Build participants list - only include myself if video is on
+    const participants: VideoTileProps[] = [];
+    
+    if (showMyVideo) {
+        participants.push({
             id: 'me',
             fullName: myProfile?.full_name || 'You',
             isMe: true,
@@ -107,20 +110,26 @@ export function VideoGrid() {
             videoEnabled: isVideoEnabled,
             isSpeaking: isSpeaking,
             stream: localStream
-        }] : []),
-        ...Object.values(peers).map(peer => ({
+        });
+    }
+    
+    // Add peers (they will show their tiles when they have video)
+    Object.values(peers).forEach(peer => {
+        participants.push({
             id: peer.id,
             fullName: peer.full_name || peer.email,
             isMe: false,
             audioEnabled: peer.audioEnabled,
             videoEnabled: peer.videoEnabled,
             isSpeaking: peer.isSpeaking,
-            stream: null
-        }))
-    ];
+            stream: null // Remote streams would come from WebRTC
+        });
+    });
 
-    // Don't render the container if no participants to show
-    if (participants.length === 0) return null;
+    // If no participants to show, return null (don't render the container)
+    if (participants.length === 0) {
+        return null;
+    }
 
     return (
         <div className="absolute top-6 right-6 w-72 space-y-4 pointer-events-auto z-40">

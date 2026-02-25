@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Mic, MicOff, Video, VideoOff } from 'lucide-react';
+import { MicOff, VideoOff } from 'lucide-react';
 
 interface UserAvatarProps {
     id: string;
@@ -28,14 +29,18 @@ export function UserAvatar({
     stream
 }: UserAvatarProps) {
     const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
+    const videoRef = useRef<HTMLVideoElement | null>(null);
     
     // Check if video track exists and is enabled
     const videoTrack = stream?.getVideoTracks()[0];
     const hasVideo = videoEnabled && stream && videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
     
-    const videoRef = (el: HTMLVideoElement | null) => {
-        if (el && stream) el.srcObject = stream;
-    };
+    // Set video srcObject when stream changes
+    useEffect(() => {
+        if (videoRef.current && stream) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [stream]);
 
     const statusColors = {
         online: 'bg-emerald-500',
@@ -66,13 +71,13 @@ export function UserAvatar({
                 {/* Avatar Container */}
                 <div className={`
                     w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl
-                    transition-all duration-300 relative
+                    transition-all duration-300 relative overflow-hidden
                     ${isSpeaking ? 'ring-4 ring-emerald-400 ring-offset-2 ring-offset-[#0f172a] shadow-[0_0_20px_rgba(52,211,153,0.4)] scale-110' :
                         isMe ? 'ring-4 ring-primary-500/50 ring-offset-2 ring-offset-[#0f172a]' : 'ring-2 ring-slate-700'}
-                    bg-gradient-to-br from-slate-700 to-slate-900 shadow-2xl overflow-hidden
+                    bg-gradient-to-br from-slate-700 to-slate-900 shadow-2xl
                 `}>
                     {/* Video Overlay - show when video is enabled */}
-                    {hasVideo && (
+                    {hasVideo ? (
                         <video
                             ref={videoRef}
                             autoPlay
@@ -80,10 +85,8 @@ export function UserAvatar({
                             muted
                             className={`absolute inset-0 w-full h-full object-cover ${isMe ? 'scale-x-[-1]' : ''}`}
                         />
-                    )}
-
-                    {/* Image / Initials - show when video is disabled */}
-                    {!hasVideo && (
+                    ) : (
+                        /* Image / Initials - show when video is disabled */
                         avatarUrl ? (
                             <img src={avatarUrl} alt={fullName} className="w-full h-full object-cover" />
                         ) : (
