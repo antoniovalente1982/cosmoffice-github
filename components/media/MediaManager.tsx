@@ -59,65 +59,69 @@ export function MediaManager() {
         try {
             // Costruisci i constraints in base ai dispositivi selezionati
             const constraints: MediaStreamConstraints = {};
-            
+
             if (selectedAudioInput) {
                 constraints.audio = { deviceId: { exact: selectedAudioInput } };
             } else {
                 constraints.audio = true; // default
             }
-            
+
             if (selectedVideoInput) {
                 constraints.video = { deviceId: { exact: selectedVideoInput } };
             } else {
                 constraints.video = true; // default
             }
 
-            // Ferma lo stream precedente solo se stiamo ricreando con nuovi dispositivi
-            // e non è lo stesso stream che già abbiamo
-            if (localStream) {
-                localStream.getTracks().forEach(t => t.stop());
+            // Ferma lo stream precedente
+            const currentStream = useOfficeStore.getState().localStream;
+            if (currentStream) {
+                currentStream.getTracks().forEach(t => t.stop());
             }
 
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            
+
             const videoTrack = stream.getVideoTracks()[0];
             const audioTrack = stream.getAudioTracks()[0];
-            
+
+            // Read current toggle state directly from store (not from closure)
+            const { isMicEnabled: micOn, isVideoEnabled: vidOn } = useOfficeStore.getState();
             if (videoTrack) {
-                videoTrack.enabled = isVideoEnabled;
+                videoTrack.enabled = vidOn;
                 videoTrackRef.current = videoTrack;
             }
             if (audioTrack) {
-                audioTrack.enabled = isMicEnabled;
+                audioTrack.enabled = micOn;
                 audioTrackRef.current = audioTrack;
             }
-            
+
             setLocalStream(stream);
         } catch (err) {
             console.error('Failed to initialize/update media:', err);
         } finally {
             isInitializingRef.current = false;
         }
-    }, [hasCompletedDeviceSetup, selectedAudioInput, selectedVideoInput, isMicEnabled, isVideoEnabled, localStream, setLocalStream]);
+        // Only re-create when device selection or setup state changes, NOT on mic/video toggle
+    }, [hasCompletedDeviceSetup, selectedAudioInput, selectedVideoInput, setLocalStream]);
 
     // Effect per inizializzare/aggiornare quando cambiano i dispositivi selezionati
     // o quando l'utente completa il setup iniziale
     useEffect(() => {
         const setupCompleted = hasCompletedDeviceSetup && !lastDeviceSetupRef.current;
-        
+
         if (setupCompleted) {
             // Il setup è appena stato completato - verifica se c'è già uno stream valido
             const currentStream = useOfficeStore.getState().localStream;
             if (currentStream) {
                 // Usa lo stream esistente, aggiorna solo i track refs
+                const { isMicEnabled: micOn, isVideoEnabled: vidOn } = useOfficeStore.getState();
                 const videoTrack = currentStream.getVideoTracks()[0];
                 const audioTrack = currentStream.getAudioTracks()[0];
                 if (videoTrack) {
-                    videoTrack.enabled = isVideoEnabled;
+                    videoTrack.enabled = vidOn;
                     videoTrackRef.current = videoTrack;
                 }
                 if (audioTrack) {
-                    audioTrack.enabled = isMicEnabled;
+                    audioTrack.enabled = micOn;
                     audioTrackRef.current = audioTrack;
                 }
             } else {
@@ -125,16 +129,12 @@ export function MediaManager() {
                 initOrUpdateMedia();
             }
             initializedRef.current = true;
-        } else if (hasCompletedDeviceSetup && initializedRef.current) {
-            // Solo se i dispositivi selezionati cambiano DOPO l'inizializzazione
-            // allora ricrea lo stream
-            if (selectedAudioInput !== undefined || selectedVideoInput !== undefined) {
-                initOrUpdateMedia();
-            }
         }
-        
+
         lastDeviceSetupRef.current = hasCompletedDeviceSetup;
-    }, [hasCompletedDeviceSetup, selectedAudioInput, selectedVideoInput, initOrUpdateMedia, isMicEnabled, isVideoEnabled]);
+        // Only run on setup completion or device selection change — NOT on mic/video toggle
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasCompletedDeviceSetup, selectedAudioInput, selectedVideoInput, initOrUpdateMedia]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -191,15 +191,15 @@ export function MediaManager() {
     // Crea o aggiorna container per uno schermo
     const createScreenContainer = useCallback((stream: MediaStream, index: number) => {
         const streamId = stream.id;
-        
+
         // Se il container esiste già, aggiorna solo il video
         let container = screenContainersMap.get(streamId);
-        
+
         if (!container) {
             // Calcola posizione in base all'indice (a cascata)
             const baseLeft = 280 + (index * 40);
             const baseTop = 100 + (index * 40);
-            
+
             container = document.createElement('div');
             container.id = `screen-share-container-${streamId}`;
             container.style.cssText = `
@@ -212,12 +212,12 @@ export function MediaManager() {
                 pointer-events: auto;
                 user-select: none;
             `;
-            
+
             // Drag and resize state
             let isDragging = false;
             let isResizing = false;
             let startX = 0, startY = 0, startWidth = 0, startHeight = 0, startLeft = 0, startTop = 0;
-            
+
             // Wrapper with border
             const wrapper = document.createElement('div');
             wrapper.style.cssText = `
@@ -232,7 +232,7 @@ export function MediaManager() {
                 display: flex;
                 flex-direction: column;
             `;
-            
+
             // Toolbar
             const toolbar = document.createElement('div');
             toolbar.style.cssText = `
@@ -245,7 +245,7 @@ export function MediaManager() {
                 cursor: grab;
                 flex-shrink: 0;
             `;
-            
+
             // Label con numero schermo
             const label = document.createElement('div');
             label.id = `screen-share-label-${streamId}`;
@@ -256,7 +256,7 @@ export function MediaManager() {
                 font-weight: 600;
                 pointer-events: none;
             `;
-            
+
             // Close button
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '✕';
@@ -287,7 +287,7 @@ export function MediaManager() {
                 stream.getTracks().forEach(track => track.stop());
                 removeScreenContainer(streamId);
             };
-            
+
             // Add "+" button per aggiungere altri schermi
             const addBtn = document.createElement('button');
             addBtn.innerHTML = '+';
@@ -326,11 +326,11 @@ export function MediaManager() {
                     console.error('Failed to add screen:', err);
                 }
             };
-            
+
             toolbar.appendChild(label);
             toolbar.appendChild(addBtn);
             toolbar.appendChild(closeBtn);
-            
+
             // Drag handlers for toolbar
             toolbar.addEventListener('mousedown', (e) => {
                 isDragging = true;
@@ -342,7 +342,7 @@ export function MediaManager() {
                 startTop = rect.top;
                 e.preventDefault();
             });
-            
+
             // Video container
             const videoContainer = document.createElement('div');
             videoContainer.style.cssText = `
@@ -352,7 +352,7 @@ export function MediaManager() {
                 cursor: grab;
                 overflow: hidden;
             `;
-            
+
             // Video
             const video = document.createElement('video');
             video.id = `screen-share-video-${streamId}`;
@@ -364,7 +364,7 @@ export function MediaManager() {
                 height: 100%;
                 object-fit: contain;
             `;
-            
+
             // Drag handlers for video container too
             videoContainer.addEventListener('mousedown', (e) => {
                 isDragging = true;
@@ -377,9 +377,9 @@ export function MediaManager() {
                 startTop = rect.top;
                 e.preventDefault();
             });
-            
+
             videoContainer.appendChild(video);
-            
+
             // Resize handle
             const resizeHandle = document.createElement('div');
             resizeHandle.innerHTML = '◢';
@@ -412,7 +412,7 @@ export function MediaManager() {
                 resizeHandle.style.background = 'linear-gradient(135deg, transparent 40%, rgba(99, 102, 241, 0.9) 40%)';
                 resizeHandle.style.transform = 'scale(1)';
             };
-            
+
             resizeHandle.addEventListener('mousedown', (e) => {
                 isResizing = true;
                 startX = e.clientX;
@@ -422,7 +422,7 @@ export function MediaManager() {
                 e.preventDefault();
                 e.stopPropagation();
             });
-            
+
             // Global mouse events
             const handleMouseMove = (e: MouseEvent) => {
                 if (isDragging) {
@@ -440,46 +440,46 @@ export function MediaManager() {
                     container!.style.height = `${Math.max(180, startHeight + dy)}px`;
                 }
             };
-            
+
             const handleMouseUp = () => {
                 isDragging = false;
                 isResizing = false;
                 toolbar.style.cursor = 'grab';
                 videoContainer.style.cursor = 'grab';
             };
-            
+
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
-            
+
             // Cleanup on remove
             container.addEventListener('remove', () => {
                 document.removeEventListener('mousemove', handleMouseMove);
                 document.removeEventListener('mouseup', handleMouseUp);
             });
-            
+
             wrapper.appendChild(toolbar);
             wrapper.appendChild(videoContainer);
             wrapper.appendChild(resizeHandle);
             container.appendChild(wrapper);
             document.body.appendChild(container);
             screenContainersMap.set(streamId, container);
-            
+
             // Imposta lo stream video
             video.srcObject = stream;
-            
+
             // Ascolta quando il track finisce (utente ferma condivisione dal browser)
             const handleTrackEnded = () => {
                 removeScreenContainer(streamId);
             };
             stream.getVideoTracks()[0]?.addEventListener('ended', handleTrackEnded);
-            
+
         } else {
             // Container esistente - aggiorna label se necessario
             const label = document.getElementById(`screen-share-label-${streamId}`);
             if (label) {
                 label.innerHTML = `🔴 Schermo ${index + 1}`;
             }
-            
+
             // Assicurati che il video abbia lo stream corretto
             const video = document.getElementById(`screen-share-video-${streamId}`) as HTMLVideoElement;
             if (video && video.srcObject !== stream) {
@@ -494,7 +494,7 @@ export function MediaManager() {
         screenStreams.forEach((stream, index) => {
             createScreenContainer(stream, index);
         });
-        
+
         // Rimuovi container per schermi che non esistono più
         const currentStreamIds = new Set(screenStreams.map(s => s.id));
         screenContainersMap.forEach((container, streamId) => {
@@ -503,7 +503,7 @@ export function MediaManager() {
                 screenContainersMap.delete(streamId);
             }
         });
-        
+
     }, [screenStreams, createScreenContainer]);
 
     // Cleanup on unmount
@@ -546,7 +546,7 @@ export function MediaManager() {
 
                 const checkVolume = (timestamp: number) => {
                     if (!audioContext || audioContext.state === 'closed') return;
-                    
+
                     // Limita gli aggiornamenti a ~30fps per evitare sovraccarico
                     if (timestamp - lastUpdateTime < 33) {
                         animationFrame = requestAnimationFrame(checkVolume);
@@ -555,7 +555,7 @@ export function MediaManager() {
                     lastUpdateTime = timestamp;
 
                     analyzer.getByteFrequencyData(dataArray);
-                    
+
                     // Calcolo ottimizzato della media
                     let total = 0;
                     // Campiona solo metà dei dati per performance
