@@ -40,13 +40,11 @@ export function MediaManager() {
         
         const initMedia = async () => {
             try {
-                // Get video and audio separately to have more control
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: true,
                     audio: true
                 });
                 
-                // Store references to tracks
                 const videoTrack = stream.getVideoTracks()[0];
                 const audioTrack = stream.getAudioTracks()[0];
                 
@@ -75,7 +73,6 @@ export function MediaManager() {
         if (videoTrackRef.current) {
             videoTrackRef.current.enabled = isVideoEnabled;
         }
-        // Force a re-render by creating a new stream with same tracks
         if (localStream) {
             setLocalStream(new MediaStream(localStream.getTracks()));
         }
@@ -87,7 +84,6 @@ export function MediaManager() {
         if (audioTrackRef.current) {
             audioTrackRef.current.enabled = isMicEnabled;
         }
-        // Force a re-render
         if (localStream) {
             setLocalStream(new MediaStream(localStream.getTracks()));
         }
@@ -104,7 +100,7 @@ export function MediaManager() {
         }
     }, [localStream]);
 
-    // Screen sharing effect with drag/resize support
+    // Screen sharing effect with improved drag/resize/fullscreen support
     useEffect(() => {
         if (!isScreenSharing || !screenStream) return;
         
@@ -115,37 +111,138 @@ export function MediaManager() {
                 position: fixed;
                 bottom: 100px;
                 left: 280px;
-                width: 320px;
-                height: 180px;
+                width: 360px;
+                height: 220px;
                 z-index: 9999;
                 pointer-events: auto;
                 user-select: none;
             `;
             
-            // Make draggable and resizable
+            // Drag and resize state
             let isDragging = false;
             let isResizing = false;
             let startX = 0, startY = 0, startWidth = 0, startHeight = 0, startLeft = 0, startTop = 0;
             
-            const header = document.createElement('div');
-            header.style.cssText = `
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 24px;
-                background: rgba(99, 102, 241, 0.9);
-                border-radius: 16px 16px 0 0;
-                cursor: move;
-                z-index: 10001;
+            // Wrapper with border
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = `
+                width: 100%;
+                height: 100%;
+                background: #0f172a;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px ${isSpeaking ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.5)'};
+                border: 3px solid ${isSpeaking ? '#10b981' : '#6366f1'};
+                transition: border-color 0.3s, box-shadow 0.3s;
+                display: flex;
+                flex-direction: column;
+            `;
+            
+            // Toolbar
+            const toolbar = document.createElement('div');
+            toolbar.style.cssText = `
+                height: 36px;
+                background: linear-gradient(90deg, #1e1b4b 0%, #312e81 100%);
                 display: flex;
                 align-items: center;
-                padding: 0 10px;
+                justify-content: space-between;
+                padding: 0 12px;
+                cursor: grab;
+                flex-shrink: 0;
+            `;
+            
+            // Label
+            const label = document.createElement('div');
+            label.id = 'screen-share-label';
+            label.innerHTML = isSpeaking ? '🔴 Stai condividendo (parlando)' : '🔴 Stai condividendo';
+            label.style.cssText = `
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                pointer-events: none;
+            `;
+            
+            // Buttons container
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.style.cssText = `
+                display: flex;
                 gap: 8px;
             `;
             
-            header.addEventListener('mousedown', (e) => {
+            // Fullscreen button
+            const fullscreenBtn = document.createElement('button');
+            fullscreenBtn.innerHTML = '⛶';
+            fullscreenBtn.title = 'Schermo intero';
+            fullscreenBtn.style.cssText = `
+                width: 26px;
+                height: 26px;
+                border-radius: 6px;
+                background: rgba(255,255,255,0.15);
+                color: white;
+                border: none;
+                cursor: pointer;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+            `;
+            fullscreenBtn.onmouseenter = () => {
+                fullscreenBtn.style.background = 'rgba(255,255,255,0.3)';
+                fullscreenBtn.style.transform = 'scale(1.05)';
+            };
+            fullscreenBtn.onmouseleave = () => {
+                fullscreenBtn.style.background = 'rgba(255,255,255,0.15)';
+                fullscreenBtn.style.transform = 'scale(1)';
+            };
+            fullscreenBtn.onclick = () => {
+                const video = document.getElementById('screen-share-video') as HTMLVideoElement;
+                if (video) {
+                    if (video.requestFullscreen) {
+                        video.requestFullscreen();
+                    } else if ((video as any).webkitRequestFullscreen) {
+                        (video as any).webkitRequestFullscreen();
+                    }
+                }
+            };
+            
+            // Close button
+            const closeBtn = document.createElement('button');
+            closeBtn.innerHTML = '✕';
+            closeBtn.title = 'Chiudi';
+            closeBtn.style.cssText = `
+                width: 26px;
+                height: 26px;
+                border-radius: 6px;
+                background: rgba(239, 68, 68, 0.8);
+                color: white;
+                border: none;
+                cursor: pointer;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+            `;
+            closeBtn.onmouseenter = () => {
+                closeBtn.style.background = 'rgba(239, 68, 68, 1)';
+                closeBtn.style.transform = 'scale(1.05)';
+            };
+            closeBtn.onmouseleave = () => {
+                closeBtn.style.background = 'rgba(239, 68, 68, 0.8)';
+                closeBtn.style.transform = 'scale(1)';
+            };
+            closeBtn.onclick = () => stopScreenShare();
+            
+            buttonsDiv.appendChild(fullscreenBtn);
+            buttonsDiv.appendChild(closeBtn);
+            toolbar.appendChild(label);
+            toolbar.appendChild(buttonsDiv);
+            
+            // Drag handlers for toolbar
+            toolbar.addEventListener('mousedown', (e) => {
                 isDragging = true;
+                toolbar.style.cursor = 'grabbing';
                 startX = e.clientX;
                 startY = e.clientY;
                 const rect = container.getBoundingClientRect();
@@ -154,18 +251,75 @@ export function MediaManager() {
                 e.preventDefault();
             });
             
+            // Video container (also draggable)
+            const videoContainer = document.createElement('div');
+            videoContainer.style.cssText = `
+                flex: 1;
+                position: relative;
+                background: #000;
+                cursor: grab;
+                overflow: hidden;
+            `;
+            
+            // Video
+            const video = document.createElement('video');
+            video.id = 'screen-share-video';
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = true;
+            video.style.cssText = `
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            `;
+            
+            // Drag handlers for video container too
+            videoContainer.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                videoContainer.style.cursor = 'grabbing';
+                toolbar.style.cursor = 'grabbing';
+                startX = e.clientX;
+                startY = e.clientY;
+                const rect = container.getBoundingClientRect();
+                startLeft = rect.left;
+                startTop = rect.top;
+                e.preventDefault();
+            });
+            
+            videoContainer.appendChild(video);
+            
+            // Resize handle - MORE VISIBLE
             const resizeHandle = document.createElement('div');
+            resizeHandle.innerHTML = '◢';
+            resizeHandle.title = 'Trascina per ridimensionare';
             resizeHandle.style.cssText = `
                 position: absolute;
-                bottom: 0;
-                right: 0;
-                width: 20px;
-                height: 20px;
+                bottom: 4px;
+                right: 4px;
+                width: 32px;
+                height: 32px;
                 cursor: se-resize;
-                z-index: 10002;
-                background: linear-gradient(135deg, transparent 50%, rgba(99, 102, 241, 0.8) 50%);
-                border-radius: 0 0 16px 0;
+                z-index: 10010;
+                background: linear-gradient(135deg, transparent 40%, rgba(99, 102, 241, 0.9) 40%);
+                border-radius: 8px 0 8px 0;
+                color: white;
+                font-size: 12px;
+                display: flex;
+                align-items: flex-end;
+                justify-content: flex-end;
+                padding: 4px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                transition: all 0.2s;
+                pointer-events: auto;
             `;
+            resizeHandle.onmouseenter = () => {
+                resizeHandle.style.background = 'linear-gradient(135deg, transparent 40%, rgba(129, 140, 248, 1) 40%)';
+                resizeHandle.style.transform = 'scale(1.1)';
+            };
+            resizeHandle.onmouseleave = () => {
+                resizeHandle.style.background = 'linear-gradient(135deg, transparent 40%, rgba(99, 102, 241, 0.9) 40%)';
+                resizeHandle.style.transform = 'scale(1)';
+            };
             
             resizeHandle.addEventListener('mousedown', (e) => {
                 isResizing = true;
@@ -177,109 +331,57 @@ export function MediaManager() {
                 e.stopPropagation();
             });
             
-            document.addEventListener('mousemove', (e) => {
+            // Global mouse events
+            const handleMouseMove = (e: MouseEvent) => {
                 if (isDragging) {
                     const dx = e.clientX - startX;
                     const dy = e.clientY - startY;
                     container.style.left = `${startLeft + dx}px`;
                     container.style.top = `${startTop + dy}px`;
                     container.style.bottom = 'auto';
+                    container.style.right = 'auto';
                 }
                 if (isResizing) {
                     const dx = e.clientX - startX;
                     const dy = e.clientY - startY;
-                    container.style.width = `${Math.max(200, startWidth + dx)}px`;
-                    container.style.height = `${Math.max(150, startHeight + dy)}px`;
+                    container.style.width = `${Math.max(280, startWidth + dx)}px`;
+                    container.style.height = `${Math.max(180, startHeight + dy)}px`;
                 }
-            });
+            };
             
-            document.addEventListener('mouseup', () => {
+            const handleMouseUp = () => {
                 isDragging = false;
                 isResizing = false;
+                toolbar.style.cursor = 'grab';
+                videoContainer.style.cursor = 'grab';
+            };
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            
+            // Cleanup on remove
+            container.addEventListener('remove', () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
             });
             
-            const videoContainer = document.createElement('div');
-            videoContainer.style.cssText = `
-                width: 100%;
-                height: 100%;
-                position: relative;
-                border-radius: 16px;
-                overflow: hidden;
-            `;
-            
-            const video = document.createElement('video');
-            video.id = 'screen-share-video';
-            video.autoplay = true;
-            video.playsInline = true;
-            video.muted = true;
-            video.style.cssText = `
-                width: 100%;
-                height: 100%;
-                object-fit: contain;
-                background: #0f172a;
-                border: 3px solid ${isSpeaking ? '#10b981' : '#6366f1'};
-                border-radius: 16px;
-                box-shadow: 0 10px 50px rgba(0,0,0,0.9), 0 0 30px ${isSpeaking ? 'rgba(16,185,129,0.6)' : 'rgba(99,102,241,0.6)'};
-                transition: border-color 0.2s, box-shadow 0.2s;
-            `;
-            
-            const closeBtn = document.createElement('button');
-            closeBtn.innerHTML = '✕';
-            closeBtn.style.cssText = `
-                position: absolute;
-                top: 2px;
-                right: 8px;
-                width: 20px;
-                height: 20px;
-                border-radius: 50%;
-                background: #ef4444;
-                color: white;
-                border: none;
-                cursor: pointer;
-                font-size: 12px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10003;
-            `;
-            closeBtn.onclick = () => stopScreenShare();
-            
-            const label = document.createElement('div');
-            label.id = 'screen-share-label';
-            label.innerHTML = isSpeaking ? '🔴 Stai condividendo (parlando)' : '🔴 Stai condividendo';
-            label.style.cssText = `
-                position: absolute;
-                top: 28px;
-                left: 8px;
-                background: ${isSpeaking ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)'};
-                color: white;
-                padding: 4px 10px;
-                border-radius: 20px;
-                font-size: 11px;
-                font-weight: 600;
-                z-index: 10000;
-                transition: background 0.2s;
-            `;
-            
-            header.appendChild(label);
-            header.appendChild(closeBtn);
-            videoContainer.appendChild(video);
-            container.appendChild(header);
-            container.appendChild(videoContainer);
-            container.appendChild(resizeHandle);
+            wrapper.appendChild(toolbar);
+            wrapper.appendChild(videoContainer);
+            wrapper.appendChild(resizeHandle);
+            container.appendChild(wrapper);
             document.body.appendChild(container);
             screenContainerRef.current = container;
+            
         } else {
-            // Update border color based on speaking state
-            const video = document.getElementById('screen-share-video') as HTMLVideoElement;
+            // Update existing container styles
+            const wrapper = screenContainerRef.current.querySelector('div') as HTMLDivElement;
             const label = document.getElementById('screen-share-label');
-            if (video) {
-                video.style.borderColor = isSpeaking ? '#10b981' : '#6366f1';
-                video.style.boxShadow = `0 10px 50px rgba(0,0,0,0.9), 0 0 30px ${isSpeaking ? 'rgba(16,185,129,0.6)' : 'rgba(99,102,241,0.6)'}`;
+            if (wrapper) {
+                wrapper.style.borderColor = isSpeaking ? '#10b981' : '#6366f1';
+                wrapper.style.boxShadow = `0 20px 60px rgba(0,0,0,0.9), 0 0 30px ${isSpeaking ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.5)'}`;
             }
             if (label) {
                 label.innerHTML = isSpeaking ? '🔴 Stai condividendo (parlando)' : '🔴 Stai condividendo';
-                label.style.background = isSpeaking ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)';
             }
         }
         
