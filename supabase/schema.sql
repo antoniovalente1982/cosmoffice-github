@@ -211,11 +211,7 @@ CREATE POLICY "Spaces viewable by organization members"
 
 CREATE POLICY "Admins can create spaces"
   ON spaces FOR INSERT WITH CHECK (
-    public.is_org_admin(org_id) OR
-    EXISTS (
-      SELECT 1 FROM public.organizations o
-      WHERE o.id = org_id AND o.created_by = auth.uid()
-    )
+    public.is_org_admin(org_id)
   );
 
 -- ROOMS POLICIES
@@ -350,6 +346,9 @@ BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.organization_members
     WHERE org_id = check_org_id AND user_id = auth.uid()
+  ) OR EXISTS (
+    SELECT 1 FROM public.organizations
+    WHERE id = check_org_id AND created_by = auth.uid()
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -395,6 +394,9 @@ BEGIN
     WHERE org_id = check_org_id 
     AND user_id = auth.uid() 
     AND role IN ('owner', 'admin')
+  ) OR EXISTS (
+    SELECT 1 FROM public.organizations
+    WHERE id = check_org_id AND created_by = auth.uid()
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
