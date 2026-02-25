@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '../../../utils/supabase/client';
 import { useRouter, useParams } from 'next/navigation';
@@ -46,9 +46,8 @@ export default function OfficePage() {
     const router = useRouter();
     const {
         toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab,
-        isMicEnabled, isVideoEnabled, isScreenSharing, isSystemAudioEnabled,
-        toggleMic, toggleVideo, startScreenShare, stopScreenShare, toggleSystemAudio,
-        setActiveSpace
+        isMicEnabled, isVideoEnabled, isScreenSharing, isSystemAudioEnabled, screenStream,
+        toggleMic, toggleVideo, toggleSystemAudio, setActiveSpace, setScreenSharing, setScreenStream,
     } = useOfficeStore();
     const params = useParams();
     const spaceId = params.id as string;
@@ -58,6 +57,80 @@ export default function OfficePage() {
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isManagementOpen, setIsManagementOpen] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
+    const screenVideoRef = useRef<HTMLVideoElement | null>(null);
+
+    // Screen sharing logic
+    const startScreenShare = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: isSystemAudioEnabled
+            });
+            
+            // Handle user clicking "Stop sharing" in browser UI
+            stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+                stopScreenShare();
+            });
+            
+            setScreenSharing(true);
+            setScreenStream(stream);
+            setIsSharing(true);
+            
+            // Create preview video element
+            if (!screenVideoRef.current) {
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.playsInline = true;
+                video.muted = true;
+                video.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 320px;
+                    width: 320px;
+                    height: 180px;
+                    object-fit: contain;
+                    border-radius: 12px;
+                    background: #0f172a;
+                    border: 2px solid #6366f1;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                    z-index: 100;
+                `;
+                document.body.appendChild(video);
+                screenVideoRef.current = video;
+            }
+            screenVideoRef.current.srcObject = stream;
+        } catch (err) {
+            console.error('Failed to start screen sharing:', err);
+            setScreenSharing(false);
+            setScreenStream(null);
+            setIsSharing(false);
+        }
+    };
+
+    const stopScreenShare = () => {
+        const currentStream = useOfficeStore.getState().screenStream;
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+        useOfficeStore.setState({ isScreenSharing: false, screenStream: null });
+        setIsSharing(false);
+        
+        if (screenVideoRef.current) {
+            screenVideoRef.current.remove();
+            screenVideoRef.current = null;
+        }
+    };
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (screenVideoRef.current) {
+                screenVideoRef.current.remove();
+                screenVideoRef.current = null;
+            }
+        };
+    }, []);
 
     useEffect(() => {
         const getUser = async () => {
@@ -267,21 +340,34 @@ export default function OfficePage() {
                             <Button
                                 variant="secondary"
                                 size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/20 text-primary-400 glow-primary' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                onClick={isScreenSharing ? stopScreenShare : startScreenShare}
-                                title={isScreenSharing ? 'Stop condivisione schermo' : 'Condividi schermo'}
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing || isSharing ? 'bg-primary-500/20 text-primary-400 glow-primary' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                onClick={() => {
+                                    if (isScreenSharing || isSharing) {
+                                        stopScreenShare();
+                                    } else {
+                                        startScreenShare();
+                                    }
+                                }}
+                                title={isScreenSharing || isSharing ? 'Stop condivisione schermo' : 'Condividi schermo'}
                             >
-                                {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                                {isScreenSharing || isSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                             </Button>
                             
                             {/* Toggle Audio Sistema - visibile solo durante screen share */}
-                            {isScreenSharing && (
+                            {(isScreenSharing || isSharing) && (
                                 <Button
                                     variant="secondary"
                                     size="icon"
                                     className={`rounded-full w-10 h-10 transition-all glow-button ${isSystemAudioEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                    onClick={toggleSystemAudio}
-                                    title={isSystemAudioEnabled ? 'Audio sistema attivo' : 'Audio sistema disattivato'}
+                                    onClick={() => {
+                                        // Stop current share and restart with new audio setting
+                                        stopScreenShare();
+                                        setTimeout(() => {
+                                            toggleSystemAudio();
+                                            startScreenShare();
+                                        }, 100);
+                                    }}
+                                    title={isSystemAudioEnabled ? 'Audio sistema attivo - Clicca per disattivare' : 'Audio sistema disattivato - Clicca per attivare'}
                                 >
                                     {isSystemAudioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                                 </Button>

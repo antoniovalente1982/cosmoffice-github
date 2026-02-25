@@ -89,9 +89,9 @@ interface OfficeState {
     setActiveTab: (tab: 'office' | 'analytics' | 'badges') => void;
     toggleMic: () => void;
     toggleVideo: () => void;
-    startScreenShare: () => Promise<void>;
-    stopScreenShare: () => void;
     toggleSystemAudio: () => void;
+    setScreenSharing: (isSharing: boolean) => void;
+    setScreenStream: (stream: MediaStream | null) => void;
     setSpeaking: (isSpeaking: boolean) => void;
     setLocalStream: (stream: MediaStream | null) => void;
     setZoom: (zoom: number) => void;
@@ -154,42 +154,9 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     setActiveTab: (tab) => set({ activeTab: tab, isChatOpen: false, isSettingsOpen: false, isAIPanelOpen: false }),
     toggleMic: () => set((state) => ({ isMicEnabled: !state.isMicEnabled })),
     toggleVideo: () => set((state) => ({ isVideoEnabled: !state.isVideoEnabled })),
-    startScreenShare: async () => {
-        try {
-            const state = useOfficeStore.getState();
-            const screenStream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
-                audio: state.isSystemAudioEnabled
-            });
-            
-            // Handle user clicking "Stop sharing" in browser UI
-            screenStream.getVideoTracks()[0]?.addEventListener('ended', () => {
-                set({ isScreenSharing: false, screenStream: null });
-            });
-            
-            set({ isScreenSharing: true, screenStream });
-        } catch (err) {
-            console.error('Failed to start screen sharing:', err);
-            set({ isScreenSharing: false, screenStream: null });
-        }
-    },
-    stopScreenShare: () => set((state) => {
-        if (state.screenStream) {
-            state.screenStream.getTracks().forEach(track => track.stop());
-        }
-        return { isScreenSharing: false, screenStream: null };
-    }),
-    toggleSystemAudio: () => set((state) => {
-        // If screen sharing is active, restart with new audio setting
-        if (state.isScreenSharing && state.screenStream) {
-            state.screenStream.getTracks().forEach(track => track.stop());
-            // Will need to restart screen share with new audio setting
-            setTimeout(() => {
-                useOfficeStore.getState().startScreenShare();
-            }, 0);
-        }
-        return { isSystemAudioEnabled: !state.isSystemAudioEnabled };
-    }),
+    toggleSystemAudio: () => set((state) => ({ isSystemAudioEnabled: !state.isSystemAudioEnabled })),
+    setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
+    setScreenStream: (screenStream) => set({ screenStream }),
     setSpeaking: (isSpeaking) => set({ isSpeaking }),
     setLocalStream: (localStream) => set({ localStream }),
     setZoom: (zoom) => set({ zoom }),
