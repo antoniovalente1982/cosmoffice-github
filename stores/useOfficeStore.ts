@@ -73,7 +73,7 @@ interface OfficeState {
     isScreenSharing: boolean;
     isSpeaking: boolean;
     localStream: MediaStream | null;
-    screenStream: MediaStream | null;
+    screenStreams: MediaStream[];  // Supporto per multipli schermi
     
     // Audio State
     isRemoteAudioEnabled: boolean;  // Mute/unmute audio from other users
@@ -93,7 +93,9 @@ interface OfficeState {
     toggleVideo: () => void;
     setScreenSharing: (isSharing: boolean) => void;
     toggleRemoteAudio: () => void;  // Toggle hearing other users
-    setScreenStream: (stream: MediaStream | null) => void;
+    addScreenStream: (stream: MediaStream) => void;
+    removeScreenStream: (streamId: string) => void;
+    clearAllScreenStreams: () => void;
     setSpeaking: (isSpeaking: boolean) => void;
     setLocalStream: (stream: MediaStream | null) => void;
     setZoom: (zoom: number) => void;
@@ -122,7 +124,7 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     isScreenSharing: false,
     isSpeaking: false,
     localStream: null,
-    screenStream: null,
+    screenStreams: [],
     isRemoteAudioEnabled: true,  // Default: hear others (can be muted for focus mode)
 
     setMyPosition: (position) => set({ myPosition: position }),
@@ -159,7 +161,23 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     toggleVideo: () => set((state) => ({ isVideoEnabled: !state.isVideoEnabled })),
     setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
     toggleRemoteAudio: () => set((state) => ({ isRemoteAudioEnabled: !state.isRemoteAudioEnabled })),
-    setScreenStream: (screenStream) => set({ screenStream }),
+    addScreenStream: (stream) => set((state) => ({ 
+        screenStreams: [...state.screenStreams, stream],
+        isScreenSharing: true 
+    })),
+    removeScreenStream: (streamId) => set((state) => {
+        const newStreams = state.screenStreams.filter(s => s.id !== streamId);
+        return { 
+            screenStreams: newStreams,
+            isScreenSharing: newStreams.length > 0
+        };
+    }),
+    clearAllScreenStreams: () => set((state) => {
+        state.screenStreams.forEach(stream => {
+            stream.getTracks().forEach(track => track.stop());
+        });
+        return { screenStreams: [], isScreenSharing: false };
+    }),
     setSpeaking: (isSpeaking) => set({ isSpeaking }),
     setLocalStream: (localStream) => set({ localStream }),
     setZoom: (zoom) => set({ zoom }),

@@ -46,8 +46,8 @@ export default function OfficePage() {
     const router = useRouter();
     const {
         toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab,
-        isMicEnabled, isVideoEnabled, isScreenSharing, isRemoteAudioEnabled,
-        toggleMic, toggleVideo, toggleRemoteAudio, setActiveSpace, setScreenSharing, setScreenStream,
+        isMicEnabled, isVideoEnabled, isScreenSharing, isRemoteAudioEnabled, screenStreams,
+        toggleMic, toggleVideo, toggleRemoteAudio, setActiveSpace, addScreenStream, clearAllScreenStreams,
     } = useOfficeStore();
     const params = useParams();
     const spaceId = params.id as string;
@@ -58,7 +58,7 @@ export default function OfficePage() {
     const [loading, setLoading] = useState(true);
     const [isManagementOpen, setIsManagementOpen] = useState(false);
 
-    // Screen sharing functions - no system audio, just screen
+    // Screen sharing functions - supporta multipli schermi
     const startScreenShare = useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -66,21 +66,15 @@ export default function OfficePage() {
                 audio: false  // No system audio - user uses mic to speak
             });
             
-            setScreenSharing(true);
-            setScreenStream(stream);
+            addScreenStream(stream);
         } catch (err) {
             console.error('Failed to start screen sharing:', err);
         }
-    }, [setScreenSharing, setScreenStream]);
+    }, [addScreenStream]);
 
-    const stopScreenShare = useCallback(() => {
-        const currentStream = useOfficeStore.getState().screenStream;
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-        }
-        setScreenSharing(false);
-        setScreenStream(null);
-    }, [setScreenSharing, setScreenStream]);
+    const stopAllScreens = useCallback(() => {
+        clearAllScreenStreams();
+    }, [clearAllScreenStreams]);
 
 
 
@@ -304,11 +298,24 @@ export default function OfficePage() {
                                 variant={isScreenSharing ? "default" : "secondary"}
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                onClick={isScreenSharing ? stopScreenShare : startScreenShare}
-                                title={isScreenSharing ? 'Stop condivisione schermo' : 'Condividi schermo'}
+                                onClick={isScreenSharing ? stopAllScreens : startScreenShare}
+                                title={isScreenSharing ? `Stop tutti gli schermi (${screenStreams.length})` : 'Condividi schermo'}
                             >
                                 {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                             </Button>
+                            
+                            {/* Pulsante + per aggiungere altri schermi quando già ne stai condividendo */}
+                            {isScreenSharing && (
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="rounded-full w-10 h-12 bg-emerald-500/80 hover:bg-emerald-500 text-white transition-all glow-button"
+                                    onClick={startScreenShare}
+                                    title="Aggiungi altro schermo"
+                                >
+                                    <span className="text-lg font-bold">+</span>
+                                </Button>
+                            )}
                             
                             <div className="w-px h-8 bg-white/10 mx-2"></div>
                             <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>

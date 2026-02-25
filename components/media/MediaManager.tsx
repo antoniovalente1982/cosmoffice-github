@@ -1,37 +1,43 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { createClient } from '../../utils/supabase/client';
 
+// Map per tracciare i container degli schermi condivisi
+const screenContainersMap = new Map<string, HTMLDivElement>();
+
 export function MediaManager() {
     const {
-        isMicEnabled, isVideoEnabled, isScreenSharing, screenStream, isSpeaking,
+        isMicEnabled, isVideoEnabled, isScreenSharing, screenStreams, isSpeaking,
         localStream, setLocalStream,
-        setSpeaking, peers, updatePeer, setScreenSharing, setScreenStream
+        setSpeaking, removeScreenStream, clearAllScreenStreams
     } = useOfficeStore();
-    const peersRef = useRef<Record<string, any>>({});
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyzerRef = useRef<AnalyserNode | null>(null);
-    const screenContainerRef = useRef<HTMLDivElement | null>(null);
     const initializedRef = useRef(false);
     const videoTrackRef = useRef<MediaStreamTrack | null>(null);
     const audioTrackRef = useRef<MediaStreamTrack | null>(null);
     const supabase = createClient();
 
-    // Stop screen share function
-    const stopScreenShare = useCallback(() => {
-        if (screenContainerRef.current) {
-            screenContainerRef.current.remove();
-            screenContainerRef.current = null;
+    // Rimuovi un singolo schermo
+    const removeScreenContainer = useCallback((streamId: string) => {
+        const container = screenContainersMap.get(streamId);
+        if (container) {
+            container.remove();
+            screenContainersMap.delete(streamId);
         }
-        const currentStream = useOfficeStore.getState().screenStream;
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-        }
-        setScreenSharing(false);
-        setScreenStream(null);
-    }, [setScreenSharing, setScreenStream]);
+        removeScreenStream(streamId);
+    }, [removeScreenStream]);
+
+    // Stop tutti gli schermi
+    const stopAllScreens = useCallback(() => {
+        screenContainersMap.forEach((container, streamId) => {
+            container.remove();
+        });
+        screenContainersMap.clear();
+        clearAllScreenStreams();
+    }, [clearAllScreenStreams]);
 
     // Initialize camera/mic on first mount - get tracks separately
     useEffect(() => {
@@ -100,20 +106,27 @@ export function MediaManager() {
         }
     }, [localStream]);
 
-    // Screen sharing effect with improved drag/resize/fullscreen support
-    useEffect(() => {
-        if (!isScreenSharing || !screenStream) return;
+    // Crea o aggiorna container per uno schermo
+    const createScreenContainer = useCallback((stream: MediaStream, index: number) => {
+        const streamId = stream.id;
         
-        if (!screenContainerRef.current) {
-            const container = document.createElement('div');
-            container.id = 'screen-share-container';
+        // Se il container esiste già, aggiorna solo il video
+        let container = screenContainersMap.get(streamId);
+        
+        if (!container) {
+            // Calcola posizione in base all'indice (a cascata)
+            const baseLeft = 280 + (index * 40);
+            const baseTop = 100 + (index * 40);
+            
+            container = document.createElement('div');
+            container.id = `screen-share-container-${streamId}`;
             container.style.cssText = `
                 position: fixed;
-                bottom: 100px;
-                left: 280px;
+                bottom: ${baseTop}px;
+                left: ${baseLeft}px;
                 width: 360px;
                 height: 220px;
-                z-index: 9999;
+                z-index: ${9999 + index};
                 pointer-events: auto;
                 user-select: none;
             `;
@@ -151,10 +164,10 @@ export function MediaManager() {
                 flex-shrink: 0;
             `;
             
-            // Label
+            // Label con numero schermo
             const label = document.createElement('div');
-            label.id = 'screen-share-label';
-            label.innerHTML = isSpeaking ? '🔴 Stai condividendo (parlando)' : '🔴 Stai condividendo';
+            label.id = `screen-share-label-${streamId}`;
+            label.innerHTML = `🔴 Schermo ${index + 1}`;
             label.style.cssText = `
                 color: white;
                 font-size: 12px;
@@ -165,7 +178,7 @@ export function MediaManager() {
             // Close button
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '✕';
-            closeBtn.title = 'Chiudi';
+            closeBtn.title = 'Chiudi questo schermo';
             closeBtn.style.cssText = `
                 width: 26px;
                 height: 26px;
@@ -188,8 +201,52 @@ export function MediaManager() {
                 closeBtn.style.background = 'rgba(239, 68, 68, 0.8)';
                 closeBtn.style.transform = 'scale(1)';
             };
-            closeBtn.onclick = () => stopScreenShare();
+            closeBtn.onclick = () => {
+                stream.getTracks().forEach(track => track.stop());
+                removeScreenContainer(streamId);
+            };
+            
+            // Add "+" button per aggiungere altri schermi
+            const addBtn = document.createElement('button');
+            addBtn.innerHTML = '+';
+            addBtn.title = 'Aggiungi altro schermo';
+            addBtn.style.cssText = `
+                width: 26px;
+                height: 26px;
+                border-radius: 6px;
+                background: rgba(16, 185, 129, 0.8);
+                color: white;
+                border: none;
+                cursor: pointer;
+                font-size: 18px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+                margin-right: 8px;
+            `;
+            addBtn.onmouseenter = () => {
+                addBtn.style.background = 'rgba(16, 185, 129, 1)';
+                addBtn.style.transform = 'scale(1.05)';
+            };
+            addBtn.onmouseleave = () => {
+                addBtn.style.background = 'rgba(16, 185, 129, 0.8)';
+                addBtn.style.transform = 'scale(1)';
+            };
+            addBtn.onclick = async () => {
+                try {
+                    const newStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                        audio: false
+                    });
+                    useOfficeStore.getState().addScreenStream(newStream);
+                } catch (err) {
+                    console.error('Failed to add screen:', err);
+                }
+            };
+            
             toolbar.appendChild(label);
+            toolbar.appendChild(addBtn);
             toolbar.appendChild(closeBtn);
             
             // Drag handlers for toolbar
@@ -198,13 +255,13 @@ export function MediaManager() {
                 toolbar.style.cursor = 'grabbing';
                 startX = e.clientX;
                 startY = e.clientY;
-                const rect = container.getBoundingClientRect();
+                const rect = container!.getBoundingClientRect();
                 startLeft = rect.left;
                 startTop = rect.top;
                 e.preventDefault();
             });
             
-            // Video container (also draggable)
+            // Video container
             const videoContainer = document.createElement('div');
             videoContainer.style.cssText = `
                 flex: 1;
@@ -216,7 +273,7 @@ export function MediaManager() {
             
             // Video
             const video = document.createElement('video');
-            video.id = 'screen-share-video';
+            video.id = `screen-share-video-${streamId}`;
             video.autoplay = true;
             video.playsInline = true;
             video.muted = true;
@@ -233,7 +290,7 @@ export function MediaManager() {
                 toolbar.style.cursor = 'grabbing';
                 startX = e.clientX;
                 startY = e.clientY;
-                const rect = container.getBoundingClientRect();
+                const rect = container!.getBoundingClientRect();
                 startLeft = rect.left;
                 startTop = rect.top;
                 e.preventDefault();
@@ -241,7 +298,7 @@ export function MediaManager() {
             
             videoContainer.appendChild(video);
             
-            // Resize handle - MORE VISIBLE
+            // Resize handle
             const resizeHandle = document.createElement('div');
             resizeHandle.innerHTML = '◢';
             resizeHandle.title = 'Trascina per ridimensionare';
@@ -278,8 +335,8 @@ export function MediaManager() {
                 isResizing = true;
                 startX = e.clientX;
                 startY = e.clientY;
-                startWidth = container.offsetWidth;
-                startHeight = container.offsetHeight;
+                startWidth = container!.offsetWidth;
+                startHeight = container!.offsetHeight;
                 e.preventDefault();
                 e.stopPropagation();
             });
@@ -289,16 +346,16 @@ export function MediaManager() {
                 if (isDragging) {
                     const dx = e.clientX - startX;
                     const dy = e.clientY - startY;
-                    container.style.left = `${startLeft + dx}px`;
-                    container.style.top = `${startTop + dy}px`;
-                    container.style.bottom = 'auto';
-                    container.style.right = 'auto';
+                    container!.style.left = `${startLeft + dx}px`;
+                    container!.style.top = `${startTop + dy}px`;
+                    container!.style.bottom = 'auto';
+                    container!.style.right = 'auto';
                 }
                 if (isResizing) {
                     const dx = e.clientX - startX;
                     const dy = e.clientY - startY;
-                    container.style.width = `${Math.max(280, startWidth + dx)}px`;
-                    container.style.height = `${Math.max(180, startHeight + dy)}px`;
+                    container!.style.width = `${Math.max(280, startWidth + dx)}px`;
+                    container!.style.height = `${Math.max(180, startHeight + dy)}px`;
                 }
             };
             
@@ -323,43 +380,56 @@ export function MediaManager() {
             wrapper.appendChild(resizeHandle);
             container.appendChild(wrapper);
             document.body.appendChild(container);
-            screenContainerRef.current = container;
+            screenContainersMap.set(streamId, container);
+            
+            // Imposta lo stream video
+            video.srcObject = stream;
+            
+            // Ascolta quando il track finisce (utente ferma condivisione dal browser)
+            const handleTrackEnded = () => {
+                removeScreenContainer(streamId);
+            };
+            stream.getVideoTracks()[0]?.addEventListener('ended', handleTrackEnded);
             
         } else {
-            // Update existing container styles
-            const wrapper = screenContainerRef.current.querySelector('div') as HTMLDivElement;
-            const label = document.getElementById('screen-share-label');
-            if (wrapper) {
-                wrapper.style.borderColor = isSpeaking ? '#10b981' : '#6366f1';
-                wrapper.style.boxShadow = `0 20px 60px rgba(0,0,0,0.9), 0 0 30px ${isSpeaking ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.5)'}`;
-            }
+            // Container esistente - aggiorna label se necessario
+            const label = document.getElementById(`screen-share-label-${streamId}`);
             if (label) {
-                label.innerHTML = isSpeaking ? '🔴 Stai condividendo (parlando)' : '🔴 Stai condividendo';
+                label.innerHTML = `🔴 Schermo ${index + 1}`;
+            }
+            
+            // Assicurati che il video abbia lo stream corretto
+            const video = document.getElementById(`screen-share-video-${streamId}`) as HTMLVideoElement;
+            if (video && video.srcObject !== stream) {
+                video.srcObject = stream;
             }
         }
+    }, [isSpeaking, removeScreenContainer]);
+
+    // Effect per gestire gli schermi condivisi
+    useEffect(() => {
+        // Crea/aggiorna container per ogni schermo
+        screenStreams.forEach((stream, index) => {
+            createScreenContainer(stream, index);
+        });
         
-        const video = document.getElementById('screen-share-video') as HTMLVideoElement;
-        if (video && video.srcObject !== screenStream) {
-            video.srcObject = screenStream;
-        }
+        // Rimuovi container per schermi che non esistono più
+        const currentStreamIds = new Set(screenStreams.map(s => s.id));
+        screenContainersMap.forEach((container, streamId) => {
+            if (!currentStreamIds.has(streamId)) {
+                container.remove();
+                screenContainersMap.delete(streamId);
+            }
+        });
         
-        const handleTrackEnded = () => stopScreenShare();
-        screenStream.getVideoTracks()[0]?.addEventListener('ended', handleTrackEnded);
-        
-        return () => {
-            screenStream.getVideoTracks()[0]?.removeEventListener('ended', handleTrackEnded);
-        };
-    }, [isScreenSharing, screenStream, isSpeaking, stopScreenShare]);
+    }, [screenStreams, createScreenContainer]);
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            if (screenContainerRef.current) {
-                screenContainerRef.current.remove();
-                screenContainerRef.current = null;
-            }
+            stopAllScreens();
         };
-    }, []);
+    }, [stopAllScreens]);
 
     // Volume detection for speaking indicator
     useEffect(() => {
