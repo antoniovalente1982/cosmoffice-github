@@ -213,31 +213,97 @@ export function KonvaOffice() {
         y: pos.y * zoom + stagePos.y
     });
 
-    // Handle center on me event from MiniMap
+    // Helper: zoom the Konva stage around the center of the viewport
+    const zoomAroundCenter = useCallback((newScale: number) => {
+        const stage = stageRef.current;
+        if (!stage || !containerRef.current) return;
+
+        const { clientWidth, clientHeight } = containerRef.current;
+        const centerX = clientWidth / 2;
+        const centerY = clientHeight / 2;
+
+        const oldScale = stage.scaleX();
+        const mousePointTo = {
+            x: (centerX - stage.x()) / oldScale,
+            y: (centerY - stage.y()) / oldScale,
+        };
+
+        const clampedScale = Math.max(0.3, Math.min(3, newScale));
+        stage.scale({ x: clampedScale, y: clampedScale });
+
+        const newPos = {
+            x: centerX - mousePointTo.x * clampedScale,
+            y: centerY - mousePointTo.y * clampedScale,
+        };
+        stage.position(newPos);
+        setZoom(clampedScale);
+        setStagePos(newPos);
+    }, [setZoom, setStagePos]);
+
+    // Handle all MiniMap events
     useEffect(() => {
         const handleCenterOnMe = () => {
-            if (containerRef.current) {
+            if (containerRef.current && stageRef.current) {
                 const { clientWidth, clientHeight } = containerRef.current;
+                const currentZoom = stageRef.current.scaleX();
                 const newPos = {
-                    x: clientWidth / 2 - myPosition.x * zoom,
-                    y: clientHeight / 2 - myPosition.y * zoom,
+                    x: clientWidth / 2 - myPosition.x * currentZoom,
+                    y: clientHeight / 2 - myPosition.y * currentZoom,
                 };
-                if (stageRef.current) {
-                    stageRef.current.position(newPos);
-                }
+                stageRef.current.position(newPos);
                 setStagePos(newPos);
             }
         };
-        
-        window.addEventListener('center-on-me' as any, handleCenterOnMe);
-        return () => window.removeEventListener('center-on-me' as any, handleCenterOnMe);
-    }, [myPosition, zoom]);
+
+        const handleZoomIn = () => {
+            const stage = stageRef.current;
+            if (!stage) return;
+            zoomAroundCenter(stage.scaleX() * 1.15);
+        };
+
+        const handleZoomOut = () => {
+            const stage = stageRef.current;
+            if (!stage) return;
+            zoomAroundCenter(stage.scaleX() / 1.15);
+        };
+
+        const handleZoomReset = () => {
+            zoomAroundCenter(1);
+        };
+
+        const handleNavigate = (e: Event) => {
+            const { x, y } = (e as CustomEvent).detail;
+            if (containerRef.current && stageRef.current) {
+                const { clientWidth, clientHeight } = containerRef.current;
+                const currentZoom = stageRef.current.scaleX();
+                const newPos = {
+                    x: clientWidth / 2 - x * currentZoom,
+                    y: clientHeight / 2 - y * currentZoom,
+                };
+                stageRef.current.position(newPos);
+                setStagePos(newPos);
+            }
+        };
+
+        window.addEventListener('center-on-me', handleCenterOnMe);
+        window.addEventListener('minimap-zoom-in', handleZoomIn);
+        window.addEventListener('minimap-zoom-out', handleZoomOut);
+        window.addEventListener('minimap-zoom-reset', handleZoomReset);
+        window.addEventListener('minimap-navigate', handleNavigate);
+        return () => {
+            window.removeEventListener('center-on-me', handleCenterOnMe);
+            window.removeEventListener('minimap-zoom-in', handleZoomIn);
+            window.removeEventListener('minimap-zoom-out', handleZoomOut);
+            window.removeEventListener('minimap-zoom-reset', handleZoomReset);
+            window.removeEventListener('minimap-navigate', handleNavigate);
+        };
+    }, [myPosition, zoomAroundCenter, setStagePos]);
 
     return (
         <div ref={containerRef} className="w-full h-full bg-[#0f172a] overflow-hidden relative">
             {/* Mini Map */}
             <MiniMap />
-            
+
             {dimensions.width > 0 && dimensions.height > 0 && (
                 <>
                     <Stage
