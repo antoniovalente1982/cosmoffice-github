@@ -1,102 +1,103 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { createClient } from '../utils/supabase/client';
 import { useOfficeStore } from '../stores/useOfficeStore';
 
 export function usePresence() {
     const supabase = createClient();
+    const channelRef = useRef<any>(null);
+    const userIdRef = useRef<string | null>(null);
     const {
         myPosition, myStatus, myRoomId, activeSpaceId, updatePeer, removePeer,
         isMicEnabled, isVideoEnabled, isSpeaking
     } = useOfficeStore();
 
-    const syncPosition = useCallback(async (userId: string) => {
+    // Initialize presence channel once
+    useEffect(() => {
         if (!activeSpaceId) return;
 
-        const { isMicEnabled, isVideoEnabled, isSpeaking } = useOfficeStore.getState();
-
-        const channel = supabase.channel(`office_presence_${activeSpaceId}`, {
-            config: {
-                presence: {
-                    key: userId,
-                },
-            },
-        });
-
-        channel
-            .on('presence', { event: 'sync' }, () => {
-                const state = channel.presenceState();
-                Object.keys(state).forEach((key) => {
-                    if (key !== userId) {
-                        const presenceData = state[key][0] as any;
-                        updatePeer(key, {
-                            id: key,
-                            ...presenceData,
-                        });
-                    }
-                });
-            })
-            .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                if (key !== userId) {
-                    updatePeer(key, newPresences[0] as any);
-                }
-            })
-            .on('presence', { event: 'leave' }, ({ key }) => {
-                removePeer(key);
-            })
-            .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    await channel.track({
-                        position: myPosition,
-                        status: myStatus,
-                        roomId: myRoomId,
-                        audioEnabled: isMicEnabled,
-                        videoEnabled: isVideoEnabled,
-                        isSpeaking: isSpeaking,
-                        online_at: new Date().toISOString(),
-                    });
-                }
-            });
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [supabase, updatePeer, removePeer, myPosition, myStatus, myRoomId, activeSpaceId]);
-
-    useEffect(() => {
-        let cleanup: (() => void) | undefined;
+        let cleanupFn: (() => void) | undefined;
 
         const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                cleanup = await syncPosition(user.id);
-            }
+            if (!user) return;
+            
+            userIdRef.current = user.id;
+
+            const channel = supabase.channel(`office_presence_${activeSpaceId}`, {
+                config: {
+                    presence: {
+                        key: user.id,
+                    },
+                },
+            });
+
+            channel
+                .on('presence', { event: 'sync' }, () => {
+                    const state = channel.presenceState();
+                    Object.keys(state).forEach((key) => {
+                        if (key !== user.id) {
+                            const presenceData = state[key][0] as any;
+                            updatePeer(key, {
+                                id: key,
+                                ...presenceData,
+                            });
+                        }
+                    });
+                })
+                .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+                    if (key !== user.id) {
+                        updatePeer(key, newPresences[0] as any);
+                    }
+                })
+                .on('presence', { event: 'leave' }, ({ key }) => {
+                    removePeer(key);
+                })
+                .subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await channel.track({
+                            position: myPosition,
+                            status: myStatus,
+                            roomId: myRoomId,
+                            audioEnabled: isMicEnabled,
+                            videoEnabled: isVideoEnabled,
+                            isSpeaking: isSpeaking,
+                            online_at: new Date().toISOString(),
+                        });
+                    }
+                });
+
+            channelRef.current = channel;
+
+            cleanupFn = () => {
+                supabase.removeChannel(channel);
+            };
         };
 
         init();
 
         return () => {
-            if (cleanup) cleanup();
+            if (cleanupFn) cleanupFn();
         };
-    }, [supabase, syncPosition]);
+    }, [supabase, activeSpaceId, updatePeer, removePeer]);
 
-    // Update position and media status in presence when they change locally
+    // Update presence when state changes (using the existing channel)
     useEffect(() => {
-        const updatePresence = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user && activeSpaceId) {
-                const channel = supabase.channel(`office_presence_${activeSpaceId}`);
-                await channel.track({
-                    position: myPosition,
-                    status: myStatus,
-                    roomId: myRoomId,
-                    spaceId: activeSpaceId,
-                    audioEnabled: isMicEnabled,
-                    videoEnabled: isVideoEnabled,
-                    isSpeaking: isSpeaking,
-                    online_at: new Date().toISOString(),
-                });
-            }
-        };
-        updatePresence();
-    }, [myPosition, myStatus, myRoomId, activeSpaceId, isMicEnabled, isVideoEnabled, isSpeaking, supabase]);
+        if (!channelRef.current || !userIdRef.current || !activeSpaceId) return;
+        
+        // Debounce the update to prevent too many calls
+        const timeoutId = setTimeout(() => {
+            channelRef.current.track({
+                position: myPosition,
+                status: myStatus,
+                roomId: myRoomId,
+                spaceId: activeSpaceId,
+                audioEnabled: isMicEnabled,
+                videoEnabled: isVideoEnabled,
+                isSpeaking: isSpeaking,
+                online_at: new Date().toISOString(),
+            });
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
+    }, [myPosition, myStatus, myRoomId, activeSpaceId, isMicEnabled, isVideoEnabled, isSpeaking]);
 }

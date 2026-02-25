@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '../../utils/supabase/client';
 import {
     Settings,
@@ -11,7 +11,9 @@ import {
     UserPlus,
     Trash2,
     Check,
-    Users
+    Users,
+    Upload,
+    Camera
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -31,6 +33,8 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [fullName, setFullName] = useState('');
     const [avatarUrl, setAvatarUrl] = useState('');
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -50,6 +54,63 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
         fetchProfile();
     }, [supabase]);
 
+    const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            setUploading(true);
+            
+            if (!event.target.files || event.target.files.length === 0) {
+                throw new Error('Seleziona un file da caricare');
+            }
+
+            const file = event.target.files[0];
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) throw new Error('Utente non autenticato');
+
+            // Create unique file path
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            setAvatarUrl(publicUrl);
+            
+            // Auto-save profile with new avatar
+            const updates = {
+                full_name: fullName,
+                avatar_url: publicUrl
+            };
+
+            const { error } = await supabase
+                .from('profiles')
+                .update(updates)
+                .eq('id', user.id);
+
+            if (!error) {
+                setMyProfile(updates);
+                setStatus('success');
+            }
+            
+            setTimeout(() => setStatus('idle'), 3000);
+        } catch (error) {
+            console.error('Error uploading avatar:', error);
+            setStatus('error');
+            setTimeout(() => setStatus('idle'), 3000);
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const updateProfile = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -64,7 +125,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                 .eq('id', user.id);
 
             if (!error) {
-                setMyProfile(updates); // We only need the display updates here
+                setMyProfile(updates);
                 setStatus('success');
             } else {
                 setStatus('error');
@@ -142,6 +203,42 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                             <h3 className="text-sm font-semibold text-primary-400 uppercase tracking-wider flex items-center gap-2">
                                 <Users className="w-4 h-4" /> My Profile
                             </h3>
+                            
+                            {/* Avatar Preview */}
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    {avatarUrl ? (
+                                        <img 
+                                            src={avatarUrl} 
+                                            alt="Avatar" 
+                                            className="w-20 h-20 rounded-full object-cover border-2 border-primary-500/30"
+                                        />
+                                    ) : (
+                                        <div className="w-20 h-20 rounded-full bg-slate-800 border-2 border-primary-500/30 flex items-center justify-center text-2xl font-bold text-slate-400">
+                                            {fullName?.[0]?.toUpperCase() || '?'}
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploading}
+                                        className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary-500 hover:bg-primary-400 rounded-full flex items-center justify-center text-white shadow-lg transition-colors disabled:opacity-50"
+                                    >
+                                        <Camera className="w-4 h-4" />
+                                    </button>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={uploadAvatar}
+                                        accept="image/*"
+                                        className="hidden"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm text-slate-400">Clicca l&apos;icona camera per caricare un avatar</p>
+                                    {uploading && <p className="text-xs text-primary-400 mt-1">Caricamento...</p>}
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-xs text-slate-500 ml-1 font-medium">Full Name</label>
@@ -153,7 +250,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs text-slate-500 ml-1 font-medium">Avatar URL</label>
+                                    <label className="text-xs text-slate-500 ml-1 font-medium">Avatar URL (opzionale)</label>
                                     <input
                                         placeholder="https://example.com/avatar.jpg"
                                         className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all text-sm"

@@ -7,15 +7,29 @@ import { createClient } from '../../utils/supabase/client';
 export function MediaManager() {
     const {
         isMicEnabled, isVideoEnabled, isScreenSharing, screenStream,
-        localStream, setLocalStream, isSystemAudioEnabled,
+        localStream, setLocalStream,
         setSpeaking, peers, updatePeer, setScreenSharing, setScreenStream
     } = useOfficeStore();
     const peersRef = useRef<Record<string, any>>({});
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyzerRef = useRef<AnalyserNode | null>(null);
-    const screenVideoRef = useRef<HTMLVideoElement | null>(null);
+    const screenContainerRef = useRef<HTMLDivElement | null>(null);
     const initializedRef = useRef(false);
     const supabase = createClient();
+
+    // Stop screen share function - defined early for use in effects
+    const stopScreenShare = useCallback(() => {
+        if (screenContainerRef.current) {
+            screenContainerRef.current.remove();
+            screenContainerRef.current = null;
+        }
+        const currentStream = useOfficeStore.getState().screenStream;
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+        setScreenSharing(false);
+        setScreenStream(null);
+    }, [setScreenSharing, setScreenStream]);
 
     // Initialize camera/mic on first mount
     useEffect(() => {
@@ -37,7 +51,6 @@ export function MediaManager() {
         initMedia();
         
         return () => {
-            // Cleanup on unmount
             const currentStream = useOfficeStore.getState().localStream;
             if (currentStream) {
                 currentStream.getTracks().forEach(t => t.stop());
@@ -52,7 +65,6 @@ export function MediaManager() {
             if (!localStream) return;
             
             try {
-                // Sync video tracks
                 const videoTracks = localStream.getVideoTracks();
                 if (isVideoEnabled && videoTracks.length === 0) {
                     const vStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -64,7 +76,6 @@ export function MediaManager() {
                     });
                 }
 
-                // Sync audio tracks
                 const audioTracks = localStream.getAudioTracks();
                 if (isMicEnabled && audioTracks.length === 0) {
                     const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -76,7 +87,6 @@ export function MediaManager() {
                     });
                 }
 
-                // Force update
                 setLocalStream(new MediaStream(localStream.getTracks()));
             } catch (err) {
                 console.error('Failed to update media:', err);
@@ -87,65 +97,99 @@ export function MediaManager() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isMicEnabled, isVideoEnabled]);
 
-    // Screen sharing - separate component logic moved here
+    // Screen sharing effect
     useEffect(() => {
         if (!isScreenSharing || !screenStream) return;
         
-        // Create screen sharing preview
-        if (!screenVideoRef.current) {
+        if (!screenContainerRef.current) {
+            const container = document.createElement('div');
+            container.id = 'screen-share-container';
+            container.style.cssText = `
+                position: fixed;
+                bottom: 100px;
+                left: 280px;
+                width: 320px;
+                height: 180px;
+                z-index: 9999;
+                pointer-events: auto;
+            `;
+            
             const video = document.createElement('video');
+            video.id = 'screen-share-video';
             video.autoplay = true;
             video.playsInline = true;
             video.muted = true;
             video.style.cssText = `
-                position: fixed;
-                top: 24px;
-                right: 24px;
-                width: 288px;
-                height: 162px;
+                width: 100%;
+                height: 100%;
                 object-fit: contain;
                 border-radius: 16px;
                 background: #0f172a;
                 border: 3px solid #6366f1;
-                box-shadow: 0 10px 50px rgba(0,0,0,0.7), 0 0 20px rgba(99,102,241,0.5);
-                z-index: 200;
-                pointer-events: auto;
+                box-shadow: 0 10px 50px rgba(0,0,0,0.9), 0 0 30px rgba(99,102,241,0.6);
             `;
-            document.body.appendChild(video);
-            screenVideoRef.current = video;
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.innerHTML = '✕';
+            closeBtn.style.cssText = `
+                position: absolute;
+                top: -10px;
+                right: -10px;
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                background: #ef4444;
+                color: white;
+                border: 2px solid white;
+                cursor: pointer;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                z-index: 10000;
+            `;
+            closeBtn.onclick = () => stopScreenShare();
+            
+            const label = document.createElement('div');
+            label.innerHTML = '🔴 Stai condividendo';
+            label.style.cssText = `
+                position: absolute;
+                top: 8px;
+                left: 8px;
+                background: rgba(239, 68, 68, 0.9);
+                color: white;
+                padding: 4px 10px;
+                border-radius: 20px;
+                font-size: 11px;
+                font-weight: 600;
+                z-index: 10000;
+            `;
+            
+            container.appendChild(video);
+            container.appendChild(closeBtn);
+            container.appendChild(label);
+            document.body.appendChild(container);
+            screenContainerRef.current = container;
         }
-        screenVideoRef.current.srcObject = screenStream;
         
-        // Handle browser stop sharing button
-        const handleTrackEnded = () => {
-            stopScreenShare();
-        };
+        const video = document.getElementById('screen-share-video') as HTMLVideoElement;
+        if (video) video.srcObject = screenStream;
+        
+        const handleTrackEnded = () => stopScreenShare();
         screenStream.getVideoTracks()[0]?.addEventListener('ended', handleTrackEnded);
         
         return () => {
             screenStream.getVideoTracks()[0]?.removeEventListener('ended', handleTrackEnded);
         };
-    }, [isScreenSharing, screenStream]);
-
-    const stopScreenShare = useCallback(() => {
-        if (screenVideoRef.current) {
-            screenVideoRef.current.remove();
-            screenVideoRef.current = null;
-        }
-        const currentStream = useOfficeStore.getState().screenStream;
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-        }
-        setScreenSharing(false);
-        setScreenStream(null);
-    }, [setScreenSharing, setScreenStream]);
+    }, [isScreenSharing, screenStream, stopScreenShare]);
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            if (screenVideoRef.current) {
-                screenVideoRef.current.remove();
-                screenVideoRef.current = null;
+            if (screenContainerRef.current) {
+                screenContainerRef.current.remove();
+                screenContainerRef.current = null;
             }
         };
     }, []);

@@ -7,91 +7,28 @@ import { usePresence } from '../../hooks/usePresence';
 import { useSpatialAudio } from '../../hooks/useSpatialAudio';
 import { UserAvatar } from './UserAvatar';
 
-// Pathfinding - simple A* implementation
+// Simple pathfinding
 interface Node {
     x: number;
     y: number;
-    g: number;
-    h: number;
-    f: number;
-    parent?: Node;
 }
 
-function heuristic(a: Node, b: Node): number {
-    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
-
-function getNeighbors(node: Node, gridSize: number = 20): Node[] {
-    const neighbors: Node[] = [];
-    const directions = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+function findPath(start: { x: number, y: number }, end: { x: number, y: number }): { x: number, y: number }[] {
+    // Simple direct path with waypoints for smooth movement
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const steps = Math.max(Math.abs(dx), Math.abs(dy)) / 20;
+    const path: { x: number, y: number }[] = [];
     
-    for (const [dx, dy] of directions) {
-        neighbors.push({
-            x: node.x + dx * gridSize,
-            y: node.y + dy * gridSize,
-            g: 0, h: 0, f: 0
+    for (let i = 1; i <= steps; i++) {
+        path.push({
+            x: start.x + (dx * i) / steps,
+            y: start.y + (dy * i) / steps
         });
     }
-    return neighbors;
-}
-
-function findPath(start: { x: number, y: number }, end: { x: number, y: number }, rooms: any[]): { x: number, y: number }[] {
-    const gridSize = 20;
-    const startNode: Node = { x: Math.round(start.x / gridSize) * gridSize, y: Math.round(start.y / gridSize) * gridSize, g: 0, h: 0, f: 0 };
-    const endNode: Node = { x: Math.round(end.x / gridSize) * gridSize, y: Math.round(end.y / gridSize) * gridSize, g: 0, h: 0, f: 0 };
     
-    const openSet: Node[] = [startNode];
-    const closedSet = new Set<string>();
-    
-    while (openSet.length > 0) {
-        // Get node with lowest f score
-        let current = openSet[0];
-        let currentIndex = 0;
-        for (let i = 1; i < openSet.length; i++) {
-            if (openSet[i].f < current.f) {
-                current = openSet[i];
-                currentIndex = i;
-            }
-        }
-        
-        openSet.splice(currentIndex, 1);
-        closedSet.add(`${current.x},${current.y}`);
-        
-        if (Math.abs(current.x - endNode.x) < gridSize && Math.abs(current.y - endNode.y) < gridSize) {
-            // Reconstruct path
-            const path: { x: number, y: number }[] = [];
-            let node: Node | undefined = current;
-            while (node) {
-                path.unshift({ x: node.x, y: node.y });
-                node = node.parent;
-            }
-            return path.length > 0 ? path : [end];
-        }
-        
-        for (const neighbor of getNeighbors(current, gridSize)) {
-            if (closedSet.has(`${neighbor.x},${neighbor.y}`)) continue;
-            
-            // Check collision with rooms (can't walk through room walls, only through doors)
-            // For now, allow walking anywhere - we'll improve this later
-            
-            const tentativeG = current.g + gridSize;
-            const existingNode = openSet.find(n => n.x === neighbor.x && n.y === neighbor.y);
-            
-            if (!existingNode || tentativeG < existingNode.g) {
-                neighbor.g = tentativeG;
-                neighbor.h = heuristic(neighbor, endNode);
-                neighbor.f = neighbor.g + neighbor.h;
-                neighbor.parent = current;
-                
-                if (!existingNode) {
-                    openSet.push(neighbor);
-                }
-            }
-        }
-    }
-    
-    // No path found, go direct
-    return [end];
+    if (path.length === 0) return [end];
+    return path;
 }
 
 export function KonvaOffice() {
@@ -105,9 +42,9 @@ export function KonvaOffice() {
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
     const [targetPos, setTargetPos] = useState<{ x: number, y: number } | null>(null);
-    const [path, setPath] = useState<{ x: number, y: number }[]>([]);
-    const pathIndexRef = useRef(0);
+    const pathRef = useRef<{ x: number, y: number }[]>([]);
     const animationRef = useRef<number | null>(null);
+    const isMovingRef = useRef(false);
 
     // Initialize presence and spatial audio
     usePresence();
@@ -116,8 +53,8 @@ export function KonvaOffice() {
     useEffect(() => {
         const updateDimensions = () => {
             setDimensions({
-                width: window.innerWidth - 320, // Sidebar width
-                height: window.innerHeight - 64, // Header height
+                width: window.innerWidth - 320,
+                height: window.innerHeight - 64,
             });
         };
         updateDimensions();
@@ -126,57 +63,69 @@ export function KonvaOffice() {
         return () => window.removeEventListener('resize', updateDimensions);
     }, []);
 
-    // Movement animation with smooth interpolation
+    // Smooth movement animation
     useEffect(() => {
-        if (path.length === 0 || pathIndexRef.current >= path.length) {
-            if (animationRef.current) {
-                cancelAnimationFrame(animationRef.current);
-                animationRef.current = null;
-            }
+        if (pathRef.current.length === 0) {
+            isMovingRef.current = false;
             return;
         }
 
-        const speed = 8; // pixels per frame - adjust for faster/slower movement
-        let currentPos = { ...myPosition };
+        isMovingRef.current = true;
+        const speed = 6;
 
         const animate = () => {
-            if (pathIndexRef.current >= path.length) {
-                setPath([]);
+            if (pathRef.current.length === 0) {
+                isMovingRef.current = false;
                 setTargetPos(null);
                 return;
             }
 
-            const target = path[pathIndexRef.current];
-            const dx = target.x - currentPos.x;
-            const dy = target.y - currentPos.y;
+            const current = pathRef.current[0];
+            const dx = current.x - myPosition.x;
+            const dy = current.y - myPosition.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < speed) {
-                // Reached this waypoint, move to next
-                currentPos = { ...target };
-                pathIndexRef.current++;
+                // Reached waypoint
+                const newPos = { ...current };
+                pathRef.current.shift();
+                setMyPosition(newPos);
+                
+                // Check room
+                let currentRoomId = undefined;
+                rooms.forEach(room => {
+                    if (
+                        newPos.x >= room.x &&
+                        newPos.x <= room.x + room.width &&
+                        newPos.y >= room.y &&
+                        newPos.y <= room.y + room.height
+                    ) {
+                        currentRoomId = room.id;
+                    }
+                });
+                setMyRoom(currentRoomId);
             } else {
-                // Move towards target
-                const ratio = speed / distance;
-                currentPos.x += dx * ratio;
-                currentPos.y += dy * ratio;
+                // Move towards waypoint
+                const newPos = {
+                    x: myPosition.x + (dx / distance) * speed,
+                    y: myPosition.y + (dy / distance) * speed
+                };
+                setMyPosition(newPos);
+                
+                // Check room
+                let currentRoomId = undefined;
+                rooms.forEach(room => {
+                    if (
+                        newPos.x >= room.x &&
+                        newPos.x <= room.x + room.width &&
+                        newPos.y >= room.y &&
+                        newPos.y <= room.y + room.height
+                    ) {
+                        currentRoomId = room.id;
+                    }
+                });
+                setMyRoom(currentRoomId);
             }
-
-            setMyPosition({ ...currentPos });
-            
-            // Check room collision
-            let currentRoomId = undefined;
-            rooms.forEach(room => {
-                if (
-                    currentPos.x >= room.x &&
-                    currentPos.x <= room.x + room.width &&
-                    currentPos.y >= room.y &&
-                    currentPos.y <= room.y + room.height
-                ) {
-                    currentRoomId = room.id;
-                }
-            });
-            setMyRoom(currentRoomId);
 
             animationRef.current = requestAnimationFrame(animate);
         };
@@ -188,25 +137,28 @@ export function KonvaOffice() {
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [path, rooms, setMyPosition, setMyRoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [myPosition.x, myPosition.y, pathRef.current?.length]);
 
     const handleStageClick = useCallback((e: any) => {
+        // Prevent default to avoid any bubbling issues
+        e.evt.preventDefault();
+        e.evt.stopPropagation();
+        
         const stage = stageRef.current;
-        if (!stage) return;
+        if (!stage || isMovingRef.current) return;
 
         const pointer = stage.getPointerPosition();
         if (!pointer) return;
 
-        // Convert screen coordinates to world coordinates
+        // Convert to world coordinates
         const worldX = (pointer.x - stage.x()) / zoom;
         const worldY = (pointer.y - stage.y()) / zoom;
 
-        // Find path to target
-        const newPath = findPath(myPosition, { x: worldX, y: worldY }, rooms);
-        setPath(newPath);
+        // Set target and calculate path
         setTargetPos({ x: worldX, y: worldY });
-        pathIndexRef.current = 0;
-    }, [myPosition, rooms, zoom]);
+        pathRef.current = findPath(myPosition, { x: worldX, y: worldY });
+    }, [myPosition, zoom]);
 
     const handleWheel = (e: any) => {
         e.evt.preventDefault();
@@ -236,7 +188,6 @@ export function KonvaOffice() {
         setStagePos({ x: e.target.x(), y: e.target.y() });
     };
 
-    // Helper to calculate screen position of an avatar
     const getScreenPos = (pos: { x: number, y: number }) => ({
         x: pos.x * zoom + stagePos.x,
         y: pos.y * zoom + stagePos.y
@@ -291,17 +242,6 @@ export function KonvaOffice() {
                                 </Group>
                             ))}
 
-                            {/* Path visualization */}
-                            {path.length > 1 && (
-                                <Line
-                                    points={path.flatMap(p => [p.x, p.y])}
-                                    stroke="#6366f1"
-                                    strokeWidth={3}
-                                    opacity={0.5}
-                                    dash={[10, 5]}
-                                />
-                            )}
-
                             {/* Target indicator */}
                             {targetPos && (
                                 <>
@@ -326,11 +266,11 @@ export function KonvaOffice() {
                     </Stage>
 
                     {/* Instructions */}
-                    <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md px-4 py-2 rounded-lg text-xs text-slate-400 pointer-events-none">
+                    <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md px-4 py-2 rounded-lg text-xs text-slate-400 pointer-events-none z-10">
                         Clicca dove vuoi andare • Trascina per muovere la visuale • Scroll per zoomare
                     </div>
 
-                    {/* Avatars Overlay (HTML) */}
+                    {/* Avatars Overlay */}
                     <div className="absolute inset-0 pointer-events-none overflow-hidden">
                         {/* Peers */}
                         {Object.values(peers).map((peer: any) => (
