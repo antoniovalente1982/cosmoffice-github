@@ -50,6 +50,7 @@ interface OfficeState {
     myPosition: UserPosition;
     myStatus: 'online' | 'away' | 'busy' | 'offline';
     myRoomId?: string;
+    myProfile: any;
 
     // Peers state
     peers: Record<string, Peer>;
@@ -77,6 +78,7 @@ interface OfficeState {
     setMyPosition: (position: UserPosition) => void;
     setMyStatus: (status: 'online' | 'away' | 'busy' | 'offline') => void;
     setMyRoom: (roomId?: string) => void;
+    setMyProfile: (profile: any) => void;
     updatePeer: (id: string, data: Partial<Peer>) => void;
     removePeer: (id: string) => void;
     toggleChat: () => void;
@@ -98,6 +100,7 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     myPosition: { x: 500, y: 500 }, // Default center
     myStatus: 'online',
     myRoomId: undefined,
+    myProfile: null,
     peers: {},
     activeSpaceId: undefined,
     rooms: [],
@@ -116,6 +119,7 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     setMyPosition: (position) => set({ myPosition: position }),
     setMyStatus: (status) => set({ myStatus: status }),
     setMyRoom: (roomId) => set({ myRoomId: roomId }),
+    setMyProfile: (myProfile) => set({ myProfile }),
 
     updatePeer: (id, data) => set((state) => ({
         peers: {

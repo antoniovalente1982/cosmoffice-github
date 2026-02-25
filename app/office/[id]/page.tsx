@@ -66,6 +66,17 @@ export default function OfficePage() {
                 if (spaceId) {
                     setActiveSpace(spaceId);
                 }
+
+                // Fetch profile
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                if (profile) {
+                    useOfficeStore.getState().setMyProfile(profile);
+                }
             }
             setLoading(false);
         };

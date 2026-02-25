@@ -73,51 +73,68 @@ export function MediaManager() {
 
     // Volume detection for speaking circle
     useEffect(() => {
-        if (!localStream || !isMicEnabled) {
-            setSpeaking(false);
-            return;
-        }
-
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const analyzer = audioContext.createAnalyser();
-        const source = audioContext.createMediaStreamSource(localStream);
-        source.connect(analyzer);
-        analyzer.fftSize = 256;
-
-        const bufferLength = analyzer.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-
         let animationFrame: number;
-        let speakCount = 0;
+        let audioContext: AudioContext | null = null;
 
-        const checkVolume = () => {
-            analyzer.getByteFrequencyData(dataArray);
-            let total = 0;
-            for (let i = 0; i < bufferLength; i++) {
-                total += dataArray[i];
+        const startDetection = async () => {
+            try {
+                if (!localStream || !isMicEnabled || localStream.getAudioTracks().length === 0) {
+                    setSpeaking(false);
+                    return;
+                }
+
+                audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+
+                const analyzer = audioContext.createAnalyser();
+                const source = audioContext.createMediaStreamSource(localStream);
+                source.connect(analyzer);
+                analyzer.fftSize = 256;
+
+                const bufferLength = analyzer.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+
+                let speakCount = 0;
+
+                const checkVolume = () => {
+                    if (!audioContext || audioContext.state === 'closed') return;
+
+                    analyzer.getByteFrequencyData(dataArray);
+                    let total = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        total += dataArray[i];
+                    }
+                    const average = total / bufferLength;
+
+                    if (average > 25) {
+                        speakCount = Math.min(speakCount + 1, 10);
+                    } else {
+                        speakCount = Math.max(speakCount - 1, 0);
+                    }
+
+                    setSpeaking(speakCount > 3);
+                    animationFrame = requestAnimationFrame(checkVolume);
+                };
+
+                checkVolume();
+                audioContextRef.current = audioContext;
+                analyzerRef.current = analyzer;
+            } catch (err) {
+                console.warn('Audio detection failed to start:', err);
+                setSpeaking(false);
             }
-            const average = total / bufferLength;
-
-            // Threshold for speaking
-            if (average > 25) {
-                speakCount = Math.min(speakCount + 1, 10);
-            } else {
-                speakCount = Math.max(speakCount - 1, 0);
-            }
-
-            setSpeaking(speakCount > 3);
-            animationFrame = requestAnimationFrame(checkVolume);
         };
 
-        checkVolume();
-        audioContextRef.current = audioContext;
-        analyzerRef.current = analyzer;
+        startDetection();
 
         return () => {
-            cancelAnimationFrame(animationFrame);
-            if (audioContext.state !== 'closed') {
-                audioContext.close();
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close().catch(console.error);
             }
+            setSpeaking(false);
         };
     }, [localStream, isMicEnabled, setSpeaking]);
 

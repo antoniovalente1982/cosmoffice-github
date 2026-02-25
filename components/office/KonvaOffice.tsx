@@ -11,7 +11,8 @@ export function KonvaOffice() {
     const {
         myPosition, setMyPosition, peers, rooms,
         zoom, setZoom, setMyRoom,
-        isMicEnabled, isVideoEnabled, isSpeaking, localStream
+        isMicEnabled, isVideoEnabled, isSpeaking, localStream,
+        myProfile
     } = useOfficeStore();
     const stageRef = useRef<any>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -174,7 +175,8 @@ export function KonvaOffice() {
                         <UserAvatar
                             id="me"
                             isMe
-                            fullName="You"
+                            fullName={myProfile?.full_name || 'You'}
+                            avatarUrl={myProfile?.avatar_url}
                             status="online"
                             position={getScreenPos(myPosition)}
                             audioEnabled={isMicEnabled}

@@ -39,25 +39,30 @@ export default function DashboardPage() {
             }
             setUser(user);
 
-            // Fetch organizations user belongs to
-            const { data: orgMembers } = await supabase
-                .from('organization_members')
-                .select('org_id, organizations(*)')
-                .eq('user_id', user.id);
+            // Fetch organizations from both memberships AND created orgs to be safe
+            const [membersRes, createdRes] = await Promise.all([
+                supabase.from('organization_members').select('org_id, organizations(*)').eq('user_id', user.id),
+                supabase.from('organizations').select('*').eq('created_by', user.id)
+            ]);
 
-            if (orgMembers && orgMembers.length > 0) {
-                const orgs = orgMembers.map(m => m.organizations).filter(Boolean);
-                setOrganizations(orgs);
+            const memberOrgs = membersRes.data?.map(m => m.organizations).filter(Boolean) || [];
+            const createdOrgs = createdRes.data || [];
 
-                // Fetch spaces for these organizations
+            // Merge and deduplicate by ID
+            const allOrgsMap = new Map();
+            [...memberOrgs, ...createdOrgs].forEach(o => allOrgsMap.set(o.id, o));
+            const orgs = Array.from(allOrgsMap.values());
+
+            setOrganizations(orgs);
+
+            // Fetch spaces for these organizations
+            if (orgs.length > 0) {
                 const orgIds = orgs.map((o: any) => o.id);
-                if (orgIds.length > 0) {
-                    const { data: activeSpaces } = await supabase
-                        .from('spaces')
-                        .select('*')
-                        .in('org_id', orgIds);
-                    setSpaces(activeSpaces || []);
-                }
+                const { data: activeSpaces } = await supabase
+                    .from('spaces')
+                    .select('*')
+                    .in('org_id', orgIds);
+                setSpaces(activeSpaces || []);
             }
             setLoading(false);
         };
@@ -86,10 +91,10 @@ export default function DashboardPage() {
                 .single();
 
             // If it's a duplicate slug error, try once more with a random suffix
-            if (orgError && orgError.code === '23505' && orgError.message.includes('slug')) {
+            if (orgError && orgError.code === '23505') {
                 const randomSuffix = Math.random().toString(36).substring(2, 6);
                 slug = `${baseSlug}-${randomSuffix}`;
-                
+
                 const { data: retryOrg, error: retryError } = await supabase
                     .from('organizations')
                     .insert({
@@ -99,7 +104,7 @@ export default function DashboardPage() {
                     })
                     .select()
                     .single();
-                
+
                 org = retryOrg;
                 orgError = retryError;
             }
@@ -118,16 +123,29 @@ export default function DashboardPage() {
                 .single();
 
             if (spaceError) throw spaceError;
+            if (!space) throw new Error('Failed to create default space');
 
-            // Update local state
-            setOrganizations(prev => [...prev, org]);
-            if (space) setSpaces(prev => [...prev, space]);
+            // STEP 3: Create default rooms for the space
+            const defaultRooms = [
+                { space_id: space.id, name: 'Lobby', type: 'reception', x: 400, y: 400, width: 250, height: 200 },
+                { space_id: space.id, name: 'Coffee Break', type: 'break', x: 700, y: 400, width: 200, height: 200 },
+                { space_id: space.id, name: 'Deep Work', type: 'focus', x: 400, y: 700, width: 300, height: 250 },
+                { space_id: space.id, name: 'Design Hub', type: 'meeting', x: 750, y: 700, width: 250, height: 250 }
+            ];
+
+            const { error: roomsError } = await supabase
+                .from('rooms')
+                .insert(defaultRooms);
+
+            if (roomsError) console.warn('Failed to create default rooms:', roomsError);
+
+            // Navigate immediately to the new space
+            router.push(`/office/${space.id}`);
 
             setIsCreatingOrg(false);
             setNewOrgName('');
         } catch (err: any) {
             console.error('Error creating organization:', err);
-            // If it's still a duplicate error or another error, show a more user-friendly message
             let message = err.message || 'An unexpected error occurred';
             if (err.code === '23505') {
                 message = 'An organization with this slug already exists. Please try a different name.';
