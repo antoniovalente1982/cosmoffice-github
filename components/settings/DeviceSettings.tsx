@@ -66,6 +66,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
     const animationFrameRef = useRef<number | null>(null);
     const testAudioElementRef = useRef<HTMLAudioElement | null>(null);
     const hasInitialized = useRef(false);
+    const lastDeviceIdRef = useRef<string>('');
 
     // Filtra i dispositivi per tipo
     const audioInputs = devices.filter(d => d.kind === 'audioinput');
@@ -192,6 +193,59 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         }
     }, [isOpen, requestPermissionsAndGetDevices]);
 
+    // Avvia la preview automaticamente quando i dispositivi sono selezionati
+    // e i permessi sono stati concessi
+    useEffect(() => {
+        if (!isOpen || !permissionGranted) return;
+        
+        // Se abbiamo già uno stream di preview attivo, non far nulla
+        if (previewStream) return;
+        
+        // Se non ci sono dispositivi selezionati, non far nulla
+        if (!selectedAudioInput && !selectedVideoInput) return;
+        
+        // Avvia la preview con i dispositivi correnti
+        const startPreview = async () => {
+            setIsLoading(true);
+            
+            try {
+                const constraints: MediaStreamConstraints = {};
+                
+                if (selectedAudioInput) {
+                    constraints.audio = { deviceId: { exact: selectedAudioInput } };
+                }
+                
+                if (selectedVideoInput) {
+                    constraints.video = { deviceId: { exact: selectedVideoInput } };
+                }
+                
+                if (!constraints.audio && !constraints.video) {
+                    setIsLoading(false);
+                    return;
+                }
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                setPreviewStream(stream);
+                
+                // Inizia il monitoring dell'audio
+                if (stream.getAudioTracks().length > 0) {
+                    startAudioMonitoring(stream);
+                }
+                
+            } catch (err: any) {
+                console.error('Preview error:', err);
+                setError(`Errore nell'accesso al dispositivo: ${err.message}`);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        
+        // Debounce per evitare troppe chiamate
+        const timeout = setTimeout(startPreview, 100);
+        return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, permissionGranted, selectedAudioInput, selectedVideoInput]);
+
     // Aggiorna la preview quando cambiano i dispositivi selezionati
     useEffect(() => {
         if (!isOpen || !permissionGranted) return;
@@ -242,7 +296,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         const timeout = setTimeout(updatePreview, 300);
         return () => clearTimeout(timeout);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, selectedAudioInput, selectedVideoInput, permissionGranted]);
+    }, [selectedAudioInput, selectedVideoInput]);
 
     // Assegna lo stream al video element
     useEffect(() => {
@@ -254,7 +308,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         }
     }, [previewStream]);
 
-    // Monitoraggio livello audio
+    // Monitoraggio livello audio - OTTIMIZZATO per maggiore reattività
     const startAudioMonitoring = (stream: MediaStream) => {
         stopAudioMonitoring();
         
@@ -263,31 +317,61 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
             const analyser = audioContext.createAnalyser();
             const source = audioContext.createMediaStreamSource(stream);
             source.connect(analyser);
-            analyser.fftSize = 256;
+            
+            // Configurazione ottimizzata per reattività
+            analyser.fftSize = 256; // Più piccolo = più veloce
+            analyser.smoothingTimeConstant = 0.2; // Minore = più reattivo
             
             audioContextRef.current = audioContext;
             analyserRef.current = analyser;
             
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            const timeDomainArray = new Uint8Array(bufferLength);
             let peakDecay = 0;
+            
+            let frameCount = 0;
             
             const checkLevel = () => {
                 if (!analyser) return;
                 
+                // Processa solo ogni 2 frame per bilanciare performance e reattività
+                frameCount++;
+                
+                // Usa time domain data per rilevare la voce in modo più immediato
+                analyser.getByteTimeDomainData(timeDomainArray);
                 analyser.getByteFrequencyData(dataArray);
                 
+                // Calcola il livello RMS dal time domain (più reattivo per la voce)
                 let sum = 0;
-                for (let i = 0; i < dataArray.length; i++) {
-                    sum += dataArray[i];
+                let maxSample = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    const sample = (timeDomainArray[i] - 128) / 128;
+                    sum += sample * sample;
+                    maxSample = Math.max(maxSample, Math.abs(sample));
                 }
-                const average = sum / dataArray.length;
-                const normalized = Math.min(100, (average / 128) * 100);
+                const rms = Math.sqrt(sum / bufferLength);
                 
-                peakDecay = Math.max(peakDecay - 2, 0);
+                // Calcola anche dalla frequenza per bilanciare
+                let freqSum = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    freqSum += dataArray[i];
+                }
+                const freqAvg = freqSum / bufferLength;
+                
+                // Combina i due metodi (RMS pesa di più per reattività)
+                const combinedLevel = Math.max(rms * 200, (freqAvg / 255) * 100);
+                const normalized = Math.min(100, combinedLevel * 1.5);
+                
+                // Peak decay più veloce
+                peakDecay = Math.max(peakDecay - 5, 0);
                 const peak = Math.max(normalized, peakDecay);
                 peakDecay = peak;
                 
-                setTestAudioLevel({ value: normalized, peak });
+                // Aggiorna lo stato solo ogni 3 frame per ridurre re-render
+                if (frameCount % 3 === 0) {
+                    setTestAudioLevel({ value: normalized, peak });
+                }
                 
                 animationFrameRef.current = requestAnimationFrame(checkLevel);
             };
@@ -724,27 +808,30 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                         )}
                                     </div>
 
-                                    {/* Audio Level Meter */}
+                                    {/* Audio Level Meter - OTTIMIZZATO */}
                                     {selectedAudioInput && (
                                         <div className="mt-6 p-4 bg-slate-800/50 rounded-xl">
                                             <div className="flex items-center justify-between mb-2">
                                                 <span className="text-sm text-slate-400">Livello Audio</span>
-                                                <span className="text-xs text-slate-500">
+                                                <span className={`text-xs ${testAudioLevel.value > 5 ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
                                                     {testAudioLevel.value > 5 ? 'Rilevato audio!' : 'Parla per testare'}
                                                 </span>
                                             </div>
                                             <div className="h-4 bg-slate-700 rounded-full overflow-hidden">
                                                 <div 
-                                                    className="h-full bg-gradient-to-r from-emerald-500 via-yellow-500 to-red-500 transition-all duration-75"
+                                                    className="h-full bg-gradient-to-r from-emerald-500 via-yellow-500 to-red-500 transition-all duration-75 ease-out"
                                                     style={{ width: `${testAudioLevel.value}%` }}
                                                 />
                                             </div>
                                             <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden relative">
                                                 <div 
-                                                    className="absolute h-full w-1 bg-white transition-all"
+                                                    className="absolute h-full w-1 bg-white transition-all duration-75"
                                                     style={{ left: `${testAudioLevel.peak}%` }}
                                                 />
                                             </div>
+                                            <p className="text-xs text-slate-500 mt-2">
+                                                Il livello si aggiorna in tempo reale mentre parli
+                                            </p>
                                         </div>
                                     )}
                                 </div>

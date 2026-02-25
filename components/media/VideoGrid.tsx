@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, Settings, Video, VideoOff } from 'lucide-react';
 import { Card } from '../ui/card';
@@ -18,17 +18,53 @@ interface VideoTileProps {
 
 function VideoTile({ stream, fullName, isMe, audioEnabled, videoEnabled, isSpeaking }: VideoTileProps) {
     const videoElRef = useRef<HTMLVideoElement | null>(null);
+    const [hasVideo, setHasVideo] = useState(false);
 
     // Update video srcObject when stream changes
     useEffect(() => {
-        if (videoElRef.current && stream) {
-            videoElRef.current.srcObject = stream;
+        if (videoElRef.current) {
+            if (stream && stream !== videoElRef.current.srcObject) {
+                videoElRef.current.srcObject = stream;
+                // Forza il play per assicurarsi che il video parta
+                videoElRef.current.play().catch(err => {
+                    console.warn('Video play failed:', err);
+                });
+            } else if (!stream) {
+                videoElRef.current.srcObject = null;
+            }
         }
     }, [stream]);
 
-    // Check if video track exists and is enabled
-    const videoTrack = stream?.getVideoTracks()[0];
-    const hasVideo = videoEnabled && stream && videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
+    // Monitora lo stato del video track
+    useEffect(() => {
+        const checkVideoState = () => {
+            const videoTrack = stream?.getVideoTracks()[0];
+            const videoActive = !!(videoEnabled && stream && videoTrack && videoTrack.enabled && videoTrack.readyState === 'live');
+            setHasVideo(videoActive);
+        };
+
+        checkVideoState();
+
+        // Controlla periodicamente lo stato del video
+        const interval = setInterval(checkVideoState, 100);
+        
+        // Ascolta gli eventi del track
+        const videoTrack = stream?.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.addEventListener('ended', checkVideoState);
+            videoTrack.addEventListener('mute', checkVideoState);
+            videoTrack.addEventListener('unmute', checkVideoState);
+        }
+
+        return () => {
+            clearInterval(interval);
+            if (videoTrack) {
+                videoTrack.removeEventListener('ended', checkVideoState);
+                videoTrack.removeEventListener('mute', checkVideoState);
+                videoTrack.removeEventListener('unmute', checkVideoState);
+            }
+        };
+    }, [stream, videoEnabled]);
 
     return (
         <Card className={`relative aspect-video bg-slate-950 overflow-hidden flex items-center justify-center transition-all duration-300 border-2 ${isSpeaking ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] scale-[1.02]' : 'border-white/10'} group rounded-2xl`}>
@@ -94,22 +130,40 @@ export function VideoGrid() {
         localStream, isMicEnabled, isVideoEnabled, isSpeaking, peers, myProfile
     } = useOfficeStore();
 
-    // Check if my video should be shown
-    const videoTrack = localStream?.getVideoTracks()[0];
-    const showMyVideo = isVideoEnabled && localStream && videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
+    // Stato locale per forzare il re-render
+    const [streamVersion, setStreamVersion] = useState(0);
 
-    // Build participants list - only include myself if video is on
+    // Ascolta i cambiamenti dello stream
+    useEffect(() => {
+        const checkStream = () => {
+            setStreamVersion(v => v + 1);
+        };
+
+        // Controlla lo stato dello stream periodicamente
+        const interval = setInterval(checkStream, 500);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    // Build participants list - include myself sempre quando il video è attivo
     const participants: VideoTileProps[] = [];
     
-    if (showMyVideo) {
+    // Aggiungi sempre l'utente corrente se ha completato il setup
+    const currentStream = localStream;
+    const hasVideoTrack = currentStream && currentStream.getVideoTracks().length > 0;
+    const videoTrack = hasVideoTrack ? currentStream!.getVideoTracks()[0] : null;
+    const showMyVideo = isVideoEnabled || (videoTrack && videoTrack.enabled);
+    
+    // Mostra il tile se c'è uno stream video disponibile o se il video è abilitato
+    if (currentStream && hasVideoTrack) {
         participants.push({
             id: 'me',
             fullName: myProfile?.full_name || 'You',
             isMe: true,
             audioEnabled: isMicEnabled,
-            videoEnabled: isVideoEnabled,
+            videoEnabled: isVideoEnabled && videoTrack?.enabled,
             isSpeaking: isSpeaking,
-            stream: localStream
+            stream: currentStream
         });
     }
     
@@ -126,7 +180,7 @@ export function VideoGrid() {
         });
     });
 
-    // If no participants to show, return null (don't render the container)
+    // Se no participants to show, return null (don't render the container)
     if (participants.length === 0) {
         return null;
     }

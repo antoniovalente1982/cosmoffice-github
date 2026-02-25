@@ -20,6 +20,7 @@ export function MediaManager() {
     const videoTrackRef = useRef<MediaStreamTrack | null>(null);
     const audioTrackRef = useRef<MediaStreamTrack | null>(null);
     const lastDeviceSetupRef = useRef(false);
+    const isInitializingRef = useRef(false);
     const supabase = createClient();
 
     // Rimuovi un singolo schermo
@@ -43,10 +44,17 @@ export function MediaManager() {
 
     // Inizializza o aggiorna lo stream con i dispositivi selezionati
     const initOrUpdateMedia = useCallback(async () => {
+        // Evita chiamate concorrenti
+        if (isInitializingRef.current) {
+            return;
+        }
+
         // Se l'utente non ha completato il setup, non inizializzare automaticamente
         if (!hasCompletedDeviceSetup) {
             return;
         }
+
+        isInitializingRef.current = true;
 
         try {
             // Costruisci i constraints in base ai dispositivi selezionati
@@ -64,7 +72,8 @@ export function MediaManager() {
                 constraints.video = true; // default
             }
 
-            // Ferma lo stream precedente
+            // Ferma lo stream precedente solo se stiamo ricreando con nuovi dispositivi
+            // e non è lo stesso stream che già abbiamo
             if (localStream) {
                 localStream.getTracks().forEach(t => t.stop());
             }
@@ -86,6 +95,8 @@ export function MediaManager() {
             setLocalStream(stream);
         } catch (err) {
             console.error('Failed to initialize/update media:', err);
+        } finally {
+            isInitializingRef.current = false;
         }
     }, [hasCompletedDeviceSetup, selectedAudioInput, selectedVideoInput, isMicEnabled, isVideoEnabled, localStream, setLocalStream]);
 
@@ -94,12 +105,11 @@ export function MediaManager() {
     useEffect(() => {
         const setupCompleted = hasCompletedDeviceSetup && !lastDeviceSetupRef.current;
         
-        // Se il setup è completato appena ora, NON ricreare lo stream 
-        // perché è già stato impostato dalla DeviceSettings
         if (setupCompleted) {
-            // Solo aggiorna i track refs dallo stream esistente
+            // Il setup è appena stato completato - verifica se c'è già uno stream valido
             const currentStream = useOfficeStore.getState().localStream;
             if (currentStream) {
+                // Usa lo stream esistente, aggiorna solo i track refs
                 const videoTrack = currentStream.getVideoTracks()[0];
                 const audioTrack = currentStream.getAudioTracks()[0];
                 if (videoTrack) {
@@ -110,12 +120,17 @@ export function MediaManager() {
                     audioTrack.enabled = isMicEnabled;
                     audioTrackRef.current = audioTrack;
                 }
+            } else {
+                // Nessuno stream esistente, inizializza
+                initOrUpdateMedia();
             }
             initializedRef.current = true;
         } else if (hasCompletedDeviceSetup && initializedRef.current) {
             // Solo se i dispositivi selezionati cambiano DOPO l'inizializzazione
             // allora ricrea lo stream
-            initOrUpdateMedia();
+            if (selectedAudioInput !== undefined || selectedVideoInput !== undefined) {
+                initOrUpdateMedia();
+            }
         }
         
         lastDeviceSetupRef.current = hasCompletedDeviceSetup;
@@ -128,30 +143,40 @@ export function MediaManager() {
             if (currentStream) {
                 currentStream.getTracks().forEach(t => t.stop());
             }
+            setLocalStream(null);
         };
-    }, []);
+    }, [setLocalStream]);
 
     // Handle video toggle - enable/disable track instead of removing
     useEffect(() => {
-        if (videoTrackRef.current) {
-            videoTrackRef.current.enabled = isVideoEnabled;
+        const currentStream = useOfficeStore.getState().localStream;
+        if (!currentStream) return;
+
+        const videoTrack = currentStream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = isVideoEnabled;
+            videoTrackRef.current = videoTrack;
+            // Notifica il cambiamento creando un nuovo stream con lo stesso contenuto
+            // ma stato aggiornato - questo triggera gli effect che dipendono da localStream
+            const newStream = new MediaStream(currentStream.getTracks());
+            setLocalStream(newStream);
         }
-        if (localStream) {
-            setLocalStream(new MediaStream(localStream.getTracks()));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isVideoEnabled]);
+    }, [isVideoEnabled, setLocalStream]);
 
     // Handle mic toggle - enable/disable track instead of removing
     useEffect(() => {
-        if (audioTrackRef.current) {
-            audioTrackRef.current.enabled = isMicEnabled;
+        const currentStream = useOfficeStore.getState().localStream;
+        if (!currentStream) return;
+
+        const audioTrack = currentStream.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = isMicEnabled;
+            audioTrackRef.current = audioTrack;
+            // Notifica il cambiamento
+            const newStream = new MediaStream(currentStream.getTracks());
+            setLocalStream(newStream);
         }
-        if (localStream) {
-            setLocalStream(new MediaStream(localStream.getTracks()));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isMicEnabled]);
+    }, [isMicEnabled, setLocalStream]);
 
     // Update track refs when stream changes
     useEffect(() => {
@@ -488,10 +513,11 @@ export function MediaManager() {
         };
     }, [stopAllScreens]);
 
-    // Volume detection for speaking indicator
+    // Volume detection for speaking indicator - OTTIMIZZATO
     useEffect(() => {
         let animationFrame: number;
         let audioContext: AudioContext | null = null;
+        let isChecking = false;
 
         const startDetection = async () => {
             try {
@@ -509,33 +535,47 @@ export function MediaManager() {
                 const analyzer = audioContext.createAnalyser();
                 const source = audioContext.createMediaStreamSource(micStream);
                 source.connect(analyzer);
-                analyzer.fftSize = 256;
+                // Aumentato fftSize per migliore risoluzione e reattività
+                analyzer.fftSize = 512;
+                analyzer.smoothingTimeConstant = 0.3;
 
                 const bufferLength = analyzer.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
                 let speakCount = 0;
+                let lastUpdateTime = 0;
 
-                const checkVolume = () => {
+                const checkVolume = (timestamp: number) => {
                     if (!audioContext || audioContext.state === 'closed') return;
+                    
+                    // Limita gli aggiornamenti a ~30fps per evitare sovraccarico
+                    if (timestamp - lastUpdateTime < 33) {
+                        animationFrame = requestAnimationFrame(checkVolume);
+                        return;
+                    }
+                    lastUpdateTime = timestamp;
 
                     analyzer.getByteFrequencyData(dataArray);
+                    
+                    // Calcolo ottimizzato della media
                     let total = 0;
-                    for (let i = 0; i < bufferLength; i++) {
+                    // Campiona solo metà dei dati per performance
+                    for (let i = 0; i < bufferLength; i += 2) {
                         total += dataArray[i];
                     }
-                    const average = total / bufferLength;
+                    const average = total / (bufferLength / 2);
 
-                    if (average > 20) {
-                        speakCount = Math.min(speakCount + 1, 10);
+                    // Soglia ridotta per maggiore sensibilità
+                    if (average > 15) {
+                        speakCount = Math.min(speakCount + 1, 5);
                     } else {
                         speakCount = Math.max(speakCount - 1, 0);
                     }
 
-                    setSpeaking(speakCount > 2);
+                    setSpeaking(speakCount > 1);
                     animationFrame = requestAnimationFrame(checkVolume);
                 };
 
-                checkVolume();
+                animationFrame = requestAnimationFrame(checkVolume);
                 audioContextRef.current = audioContext;
                 analyzerRef.current = analyzer;
             } catch (err) {
