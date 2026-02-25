@@ -14,6 +14,9 @@ interface Peer {
     status: 'online' | 'away' | 'busy' | 'offline';
     last_seen: string;
     roomId?: string;
+    audioEnabled?: boolean;
+    videoEnabled?: boolean;
+    isSpeaking?: boolean;
 }
 
 interface Room {
@@ -67,6 +70,8 @@ interface OfficeState {
     isMicEnabled: boolean;
     isVideoEnabled: boolean;
     isScreenSharing: boolean;
+    isSpeaking: boolean;
+    localStream: MediaStream | null;
 
     // Actions
     setMyPosition: (position: UserPosition) => void;
@@ -81,6 +86,8 @@ interface OfficeState {
     toggleMic: () => void;
     toggleVideo: () => void;
     toggleScreenShare: () => void;
+    setSpeaking: (isSpeaking: boolean) => void;
+    setLocalStream: (stream: MediaStream | null) => void;
     setZoom: (zoom: number) => void;
     setActiveSpace: (spaceId: string) => void;
     setRooms: (rooms: Room[]) => void;
@@ -103,6 +110,8 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     isMicEnabled: true,
     isVideoEnabled: true,
     isScreenSharing: false,
+    isSpeaking: false,
+    localStream: null,
 
     setMyPosition: (position) => set({ myPosition: position }),
     setMyStatus: (status) => set({ myStatus: status }),
@@ -136,6 +145,8 @@ export const useOfficeStore = create<OfficeState>((set) => ({
     toggleMic: () => set((state) => ({ isMicEnabled: !state.isMicEnabled })),
     toggleVideo: () => set((state) => ({ isVideoEnabled: !state.isVideoEnabled })),
     toggleScreenShare: () => set((state) => ({ isScreenSharing: !state.isScreenSharing })),
+    setSpeaking: (isSpeaking) => set({ isSpeaking }),
+    setLocalStream: (localStream) => set({ localStream }),
     setZoom: (zoom) => set({ zoom }),
     setActiveSpace: (activeSpaceId) => set({ activeSpaceId }),
     setRooms: (rooms) => set({ rooms }),

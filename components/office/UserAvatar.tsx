@@ -6,22 +6,31 @@ import { Mic, MicOff, Video, VideoOff } from 'lucide-react';
 interface UserAvatarProps {
     id: string;
     fullName?: string;
+    avatarUrl?: string;
     position: { x: number; y: number };
     status: 'online' | 'away' | 'busy' | 'offline';
     isMe?: boolean;
     audioEnabled?: boolean;
     videoEnabled?: boolean;
+    isSpeaking?: boolean;
+    stream?: MediaStream | null;
 }
 
 export function UserAvatar({
     fullName,
+    avatarUrl,
     position,
     status,
     isMe,
     audioEnabled = false,
-    videoEnabled = false
+    videoEnabled = false,
+    isSpeaking = false,
+    stream
 }: UserAvatarProps) {
     const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
+    const videoRef = (el: HTMLVideoElement | null) => {
+        if (el && stream) el.srcObject = stream;
+    };
 
     const statusColors = {
         online: 'bg-emerald-500',
@@ -39,34 +48,54 @@ export function UserAvatar({
             }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="absolute z-30"
-            style={{ marginLeft: -24, marginTop: -24 }}
+            style={{ marginLeft: -32, marginTop: -32 }}
         >
             <div className="relative group flex flex-col items-center">
                 {/* Name Tag */}
-                <div className="absolute -top-10 px-2 py-1 rounded bg-slate-900/80 border border-slate-700 backdrop-blur whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[10px] font-medium text-slate-100 italic">
+                <div className="absolute -top-12 px-3 py-1 rounded-full bg-slate-900/80 border border-white/10 backdrop-blur-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all shadow-xl">
+                    <span className="text-[11px] font-semibold text-slate-100 italic">
                         {fullName} {isMe && '(You)'}
                     </span>
                 </div>
 
-                {/* Avatar Circle */}
+                {/* Avatar Container */}
                 <div className={`
-                    w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg
-                    ${isMe ? 'ring-4 ring-primary-500 ring-offset-4 ring-offset-transparent' : 'ring-2 ring-slate-700'}
-                    bg-gradient-to-br from-slate-600 to-slate-800 shadow-xl relative overflow-hidden
+                    w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl
+                    transition-all duration-300 relative
+                    ${isSpeaking ? 'ring-4 ring-emerald-400 ring-offset-2 ring-offset-[#0f172a] shadow-[0_0_20px_rgba(52,211,153,0.4)] scale-110' :
+                        isMe ? 'ring-4 ring-primary-500/50 ring-offset-2 ring-offset-[#0f172a]' : 'ring-2 ring-slate-700'}
+                    bg-gradient-to-br from-slate-700 to-slate-900 shadow-2xl overflow-hidden
                 `}>
-                    {initials}
+                    {/* Video Overlay */}
+                    {videoEnabled && stream && (
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className={`absolute inset-0 w-full h-full object-cover mirror ${isMe ? 'scale-x-[-1]' : ''}`}
+                        />
+                    )}
+
+                    {/* Image / Initials */}
+                    {(!videoEnabled || !stream) && (
+                        avatarUrl ? (
+                            <img src={avatarUrl} alt={fullName} className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="relative z-10 drop-shadow-lg">{initials}</span>
+                        )
+                    )}
 
                     {/* Media Indicators overlay */}
-                    <div className="absolute inset-0 bg-black/20 flex items-end justify-center pb-1 gap-1">
-                        {audioEnabled ? <Mic className="w-2.5 h-2.5" /> : <MicOff className="w-2.5 h-2.5 text-red-400" />}
-                        {videoEnabled ? <Video className="w-2.5 h-2.5" /> : <VideoOff className="w-2.5 h-2.5 text-red-400" />}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent flex items-center justify-center pb-1.5 gap-2">
+                        {!audioEnabled && <MicOff className="w-3 h-3 text-red-500" />}
+                        {!videoEnabled && <VideoOff className="w-3 h-3 text-red-500" />}
                     </div>
                 </div>
 
                 {/* Status Dot */}
                 <div className={`
-                    absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-slate-900
+                    absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-[#0f172a] shadow-lg
                     ${statusColors[status] || statusColors.offline}
                 `} />
             </div>

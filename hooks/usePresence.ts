@@ -4,10 +4,15 @@ import { useOfficeStore } from '../stores/useOfficeStore';
 
 export function usePresence() {
     const supabase = createClient();
-    const { myPosition, myStatus, myRoomId, activeSpaceId, updatePeer, removePeer } = useOfficeStore();
+    const {
+        myPosition, myStatus, myRoomId, activeSpaceId, updatePeer, removePeer,
+        isMicEnabled, isVideoEnabled, isSpeaking
+    } = useOfficeStore();
 
     const syncPosition = useCallback(async (userId: string) => {
         if (!activeSpaceId) return;
+
+        const { isMicEnabled, isVideoEnabled, isSpeaking } = useOfficeStore.getState();
 
         const channel = supabase.channel(`office_presence_${activeSpaceId}`, {
             config: {
@@ -44,6 +49,9 @@ export function usePresence() {
                         position: myPosition,
                         status: myStatus,
                         roomId: myRoomId,
+                        audioEnabled: isMicEnabled,
+                        videoEnabled: isVideoEnabled,
+                        isSpeaking: isSpeaking,
                         online_at: new Date().toISOString(),
                     });
                 }
@@ -71,7 +79,7 @@ export function usePresence() {
         };
     }, [supabase, syncPosition]);
 
-    // Update position in presence when it changes locally
+    // Update position and media status in presence when they change locally
     useEffect(() => {
         const updatePresence = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -82,10 +90,13 @@ export function usePresence() {
                     status: myStatus,
                     roomId: myRoomId,
                     spaceId: activeSpaceId,
+                    audioEnabled: isMicEnabled,
+                    videoEnabled: isVideoEnabled,
+                    isSpeaking: isSpeaking,
                     online_at: new Date().toISOString(),
                 });
             }
         };
         updatePresence();
-    }, [myPosition, myStatus, myRoomId, activeSpaceId, supabase]);
+    }, [myPosition, myStatus, myRoomId, activeSpaceId, isMicEnabled, isVideoEnabled, isSpeaking, supabase]);
 }
