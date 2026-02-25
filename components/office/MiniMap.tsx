@@ -147,7 +147,7 @@ export function MiniMap({ officeWidth = 3000, officeHeight = 3000 }: MiniMapProp
                         ))}
                     </svg>
                     
-                    {/* User position indicator - blue square with dot */}
+                    {/* User position indicator - blue square with dot (scales with zoom) */}
                     <div
                         className="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
                         style={{
@@ -155,10 +155,30 @@ export function MiniMap({ officeWidth = 3000, officeHeight = 3000 }: MiniMapProp
                             top: transformY(myPosition.y),
                         }}
                     >
-                        {/* Outer blue square */}
-                        <div className="w-6 h-6 border-2 border-blue-500 bg-blue-500/20 rounded-sm flex items-center justify-center">
-                            {/* Inner blue dot */}
-                            <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                        {/* Outer blue square - scales with zoom */}
+                        <div 
+                            className="border-2 border-blue-500 bg-blue-500/20 rounded-sm flex items-center justify-center transition-all duration-75"
+                            style={{
+                                width: `${16 * zoom}px`,
+                                height: `${16 * zoom}px`,
+                                minWidth: '10px',
+                                minHeight: '10px',
+                                maxWidth: '32px',
+                                maxHeight: '32px',
+                            }}
+                        >
+                            {/* Inner blue dot - scales with zoom */}
+                            <div 
+                                className="bg-blue-500 rounded-full transition-all duration-75"
+                                style={{
+                                    width: `${6 * zoom}px`,
+                                    height: `${6 * zoom}px`,
+                                    minWidth: '3px',
+                                    minHeight: '3px',
+                                    maxWidth: '12px',
+                                    maxHeight: '12px',
+                                }}
+                            />
                         </div>
                     </div>
                 </div>
