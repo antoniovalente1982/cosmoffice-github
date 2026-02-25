@@ -26,7 +26,9 @@ function VideoTile({ stream, fullName, isMe, audioEnabled, videoEnabled, isSpeak
         }
     }, [stream]);
 
-    const hasVideo = videoEnabled && stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].readyState === 'live';
+    // Check if video track exists and is enabled
+    const videoTrack = stream?.getVideoTracks()[0];
+    const hasVideo = videoEnabled && stream && videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
 
     return (
         <Card className={`relative aspect-video bg-slate-950 overflow-hidden flex items-center justify-center transition-all duration-300 border-2 ${isSpeaking ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] scale-[1.02]' : 'border-white/10'} group rounded-2xl`}>
@@ -109,7 +111,7 @@ export function VideoGrid() {
             audioEnabled: peer.audioEnabled,
             videoEnabled: peer.videoEnabled,
             isSpeaking: peer.isSpeaking,
-            stream: null // Remote streams would be integrated here from MediaManager
+            stream: null
         }))
     ];
 

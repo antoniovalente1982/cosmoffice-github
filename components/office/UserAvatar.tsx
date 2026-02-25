@@ -28,6 +28,11 @@ export function UserAvatar({
     stream
 }: UserAvatarProps) {
     const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
+    
+    // Check if video track exists and is enabled
+    const videoTrack = stream?.getVideoTracks()[0];
+    const hasVideo = videoEnabled && stream && videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
+    
     const videoRef = (el: HTMLVideoElement | null) => {
         if (el && stream) el.srcObject = stream;
     };
@@ -66,19 +71,19 @@ export function UserAvatar({
                         isMe ? 'ring-4 ring-primary-500/50 ring-offset-2 ring-offset-[#0f172a]' : 'ring-2 ring-slate-700'}
                     bg-gradient-to-br from-slate-700 to-slate-900 shadow-2xl overflow-hidden
                 `}>
-                    {/* Video Overlay */}
-                    {videoEnabled && stream && (
+                    {/* Video Overlay - show when video is enabled */}
+                    {hasVideo && (
                         <video
                             ref={videoRef}
                             autoPlay
                             playsInline
                             muted
-                            className={`absolute inset-0 w-full h-full object-cover mirror ${isMe ? 'scale-x-[-1]' : ''}`}
+                            className={`absolute inset-0 w-full h-full object-cover ${isMe ? 'scale-x-[-1]' : ''}`}
                         />
                     )}
 
-                    {/* Image / Initials */}
-                    {(!videoEnabled || !stream) && (
+                    {/* Image / Initials - show when video is disabled */}
+                    {!hasVideo && (
                         avatarUrl ? (
                             <img src={avatarUrl} alt={fullName} className="w-full h-full object-cover" />
                         ) : (

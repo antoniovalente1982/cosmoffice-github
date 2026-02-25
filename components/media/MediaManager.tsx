@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { createClient } from '../../utils/supabase/client';
 
 export function MediaManager() {
     const {
-        isMicEnabled, isVideoEnabled, isScreenSharing, screenStream,
+        isMicEnabled, isVideoEnabled, isScreenSharing, screenStream, isSpeaking,
         localStream, setLocalStream,
         setSpeaking, peers, updatePeer, setScreenSharing, setScreenStream
     } = useOfficeStore();
@@ -15,9 +15,11 @@ export function MediaManager() {
     const analyzerRef = useRef<AnalyserNode | null>(null);
     const screenContainerRef = useRef<HTMLDivElement | null>(null);
     const initializedRef = useRef(false);
+    const videoTrackRef = useRef<MediaStreamTrack | null>(null);
+    const audioTrackRef = useRef<MediaStreamTrack | null>(null);
     const supabase = createClient();
 
-    // Stop screen share function - defined early for use in effects
+    // Stop screen share function
     const stopScreenShare = useCallback(() => {
         if (screenContainerRef.current) {
             screenContainerRef.current.remove();
@@ -31,17 +33,26 @@ export function MediaManager() {
         setScreenStream(null);
     }, [setScreenSharing, setScreenStream]);
 
-    // Initialize camera/mic on first mount
+    // Initialize camera/mic on first mount - get tracks separately
     useEffect(() => {
         if (initializedRef.current) return;
         initializedRef.current = true;
         
         const initMedia = async () => {
             try {
+                // Get video and audio separately to have more control
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: true,
                     audio: true
                 });
+                
+                // Store references to tracks
+                const videoTrack = stream.getVideoTracks()[0];
+                const audioTrack = stream.getAudioTracks()[0];
+                
+                if (videoTrack) videoTrackRef.current = videoTrack;
+                if (audioTrack) audioTrackRef.current = audioTrack;
+                
                 setLocalStream(stream);
             } catch (err) {
                 console.error('Failed to initialize media:', err);
@@ -59,45 +70,41 @@ export function MediaManager() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Handle mic/video toggles
+    // Handle video toggle - enable/disable track instead of removing
     useEffect(() => {
-        const updateMedia = async () => {
-            if (!localStream) return;
-            
-            try {
-                const videoTracks = localStream.getVideoTracks();
-                if (isVideoEnabled && videoTracks.length === 0) {
-                    const vStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    localStream.addTrack(vStream.getVideoTracks()[0]);
-                } else if (!isVideoEnabled && videoTracks.length > 0) {
-                    videoTracks.forEach(t => {
-                        t.stop();
-                        localStream.removeTrack(t);
-                    });
-                }
-
-                const audioTracks = localStream.getAudioTracks();
-                if (isMicEnabled && audioTracks.length === 0) {
-                    const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    localStream.addTrack(aStream.getAudioTracks()[0]);
-                } else if (!isMicEnabled && audioTracks.length > 0) {
-                    audioTracks.forEach(t => {
-                        t.stop();
-                        localStream.removeTrack(t);
-                    });
-                }
-
-                setLocalStream(new MediaStream(localStream.getTracks()));
-            } catch (err) {
-                console.error('Failed to update media:', err);
-            }
-        };
-        
-        updateMedia();
+        if (videoTrackRef.current) {
+            videoTrackRef.current.enabled = isVideoEnabled;
+        }
+        // Force a re-render by creating a new stream with same tracks
+        if (localStream) {
+            setLocalStream(new MediaStream(localStream.getTracks()));
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isMicEnabled, isVideoEnabled]);
+    }, [isVideoEnabled]);
 
-    // Screen sharing effect
+    // Handle mic toggle - enable/disable track instead of removing
+    useEffect(() => {
+        if (audioTrackRef.current) {
+            audioTrackRef.current.enabled = isMicEnabled;
+        }
+        // Force a re-render
+        if (localStream) {
+            setLocalStream(new MediaStream(localStream.getTracks()));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isMicEnabled]);
+
+    // Update track refs when stream changes
+    useEffect(() => {
+        if (localStream) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (videoTrack) videoTrackRef.current = videoTrack;
+            if (audioTrack) audioTrackRef.current = audioTrack;
+        }
+    }, [localStream]);
+
+    // Screen sharing effect with drag/resize support
     useEffect(() => {
         if (!isScreenSharing || !screenStream) return;
         
@@ -112,6 +119,92 @@ export function MediaManager() {
                 height: 180px;
                 z-index: 9999;
                 pointer-events: auto;
+                user-select: none;
+            `;
+            
+            // Make draggable and resizable
+            let isDragging = false;
+            let isResizing = false;
+            let startX = 0, startY = 0, startWidth = 0, startHeight = 0, startLeft = 0, startTop = 0;
+            
+            const header = document.createElement('div');
+            header.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 24px;
+                background: rgba(99, 102, 241, 0.9);
+                border-radius: 16px 16px 0 0;
+                cursor: move;
+                z-index: 10001;
+                display: flex;
+                align-items: center;
+                padding: 0 10px;
+                gap: 8px;
+            `;
+            
+            header.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                const rect = container.getBoundingClientRect();
+                startLeft = rect.left;
+                startTop = rect.top;
+                e.preventDefault();
+            });
+            
+            const resizeHandle = document.createElement('div');
+            resizeHandle.style.cssText = `
+                position: absolute;
+                bottom: 0;
+                right: 0;
+                width: 20px;
+                height: 20px;
+                cursor: se-resize;
+                z-index: 10002;
+                background: linear-gradient(135deg, transparent 50%, rgba(99, 102, 241, 0.8) 50%);
+                border-radius: 0 0 16px 0;
+            `;
+            
+            resizeHandle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = container.offsetWidth;
+                startHeight = container.offsetHeight;
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    container.style.left = `${startLeft + dx}px`;
+                    container.style.top = `${startTop + dy}px`;
+                    container.style.bottom = 'auto';
+                }
+                if (isResizing) {
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    container.style.width = `${Math.max(200, startWidth + dx)}px`;
+                    container.style.height = `${Math.max(150, startHeight + dy)}px`;
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                isResizing = false;
+            });
+            
+            const videoContainer = document.createElement('div');
+            videoContainer.style.cssText = `
+                width: 100%;
+                height: 100%;
+                position: relative;
+                border-radius: 16px;
+                overflow: hidden;
             `;
             
             const video = document.createElement('video');
@@ -123,58 +216,77 @@ export function MediaManager() {
                 width: 100%;
                 height: 100%;
                 object-fit: contain;
-                border-radius: 16px;
                 background: #0f172a;
-                border: 3px solid #6366f1;
-                box-shadow: 0 10px 50px rgba(0,0,0,0.9), 0 0 30px rgba(99,102,241,0.6);
+                border: 3px solid ${isSpeaking ? '#10b981' : '#6366f1'};
+                border-radius: 16px;
+                box-shadow: 0 10px 50px rgba(0,0,0,0.9), 0 0 30px ${isSpeaking ? 'rgba(16,185,129,0.6)' : 'rgba(99,102,241,0.6)'};
+                transition: border-color 0.2s, box-shadow 0.2s;
             `;
             
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '✕';
             closeBtn.style.cssText = `
                 position: absolute;
-                top: -10px;
-                right: -10px;
-                width: 28px;
-                height: 28px;
+                top: 2px;
+                right: 8px;
+                width: 20px;
+                height: 20px;
                 border-radius: 50%;
                 background: #ef4444;
                 color: white;
-                border: 2px solid white;
+                border: none;
                 cursor: pointer;
-                font-size: 14px;
+                font-size: 12px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-                z-index: 10000;
+                z-index: 10003;
             `;
             closeBtn.onclick = () => stopScreenShare();
             
             const label = document.createElement('div');
-            label.innerHTML = '🔴 Stai condividendo';
+            label.id = 'screen-share-label';
+            label.innerHTML = isSpeaking ? '🔴 Stai condividendo (parlando)' : '🔴 Stai condividendo';
             label.style.cssText = `
                 position: absolute;
-                top: 8px;
+                top: 28px;
                 left: 8px;
-                background: rgba(239, 68, 68, 0.9);
+                background: ${isSpeaking ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)'};
                 color: white;
                 padding: 4px 10px;
                 border-radius: 20px;
                 font-size: 11px;
                 font-weight: 600;
                 z-index: 10000;
+                transition: background 0.2s;
             `;
             
-            container.appendChild(video);
-            container.appendChild(closeBtn);
-            container.appendChild(label);
+            header.appendChild(label);
+            header.appendChild(closeBtn);
+            videoContainer.appendChild(video);
+            container.appendChild(header);
+            container.appendChild(videoContainer);
+            container.appendChild(resizeHandle);
             document.body.appendChild(container);
             screenContainerRef.current = container;
+        } else {
+            // Update border color based on speaking state
+            const video = document.getElementById('screen-share-video') as HTMLVideoElement;
+            const label = document.getElementById('screen-share-label');
+            if (video) {
+                video.style.borderColor = isSpeaking ? '#10b981' : '#6366f1';
+                video.style.boxShadow = `0 10px 50px rgba(0,0,0,0.9), 0 0 30px ${isSpeaking ? 'rgba(16,185,129,0.6)' : 'rgba(99,102,241,0.6)'}`;
+            }
+            if (label) {
+                label.innerHTML = isSpeaking ? '🔴 Stai condividendo (parlando)' : '🔴 Stai condividendo';
+                label.style.background = isSpeaking ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)';
+            }
         }
         
         const video = document.getElementById('screen-share-video') as HTMLVideoElement;
-        if (video) video.srcObject = screenStream;
+        if (video && video.srcObject !== screenStream) {
+            video.srcObject = screenStream;
+        }
         
         const handleTrackEnded = () => stopScreenShare();
         screenStream.getVideoTracks()[0]?.addEventListener('ended', handleTrackEnded);
@@ -182,7 +294,7 @@ export function MediaManager() {
         return () => {
             screenStream.getVideoTracks()[0]?.removeEventListener('ended', handleTrackEnded);
         };
-    }, [isScreenSharing, screenStream, stopScreenShare]);
+    }, [isScreenSharing, screenStream, isSpeaking, stopScreenShare]);
 
     // Cleanup on unmount
     useEffect(() => {
