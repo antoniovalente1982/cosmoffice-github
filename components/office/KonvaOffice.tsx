@@ -6,6 +6,7 @@ import { useOfficeStore } from '../../stores/useOfficeStore';
 import { usePresence } from '../../hooks/usePresence';
 import { useSpatialAudio } from '../../hooks/useSpatialAudio';
 import { UserAvatar } from './UserAvatar';
+import { MiniMap } from './MiniMap';
 
 // Simple pathfinding
 interface Node {
@@ -34,7 +35,7 @@ function findPath(start: { x: number, y: number }, end: { x: number, y: number }
 export function KonvaOffice() {
     const {
         myPosition, setMyPosition, peers, rooms,
-        zoom, setZoom, setMyRoom,
+        zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
         myProfile
     } = useOfficeStore();
@@ -42,7 +43,7 @@ export function KonvaOffice() {
     const containerRef = useRef<HTMLDivElement>(null);
     const hasInitializedRef = useRef(false);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-    const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+    const { stagePos } = useOfficeStore();
     const [targetPos, setTargetPos] = useState<{ x: number, y: number } | null>(null);
     const pathRef = useRef<{ x: number, y: number }[]>([]);
     const animationRef = useRef<number | null>(null);
@@ -71,10 +72,11 @@ export function KonvaOffice() {
     // Center stage on user position at first render
     useEffect(() => {
         if (dimensions.width > 0 && dimensions.height > 0 && !hasInitializedRef.current) {
-            setStagePos({
+            const newPos = {
                 x: dimensions.width / 2 - myPosition.x * zoom,
                 y: dimensions.height / 2 - myPosition.y * zoom,
-            });
+            };
+            setStagePos(newPos);
             hasInitializedRef.current = true;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,7 +204,8 @@ export function KonvaOffice() {
     };
 
     const handleDragMove = (e: any) => {
-        setStagePos({ x: e.target.x(), y: e.target.y() });
+        const newPos = { x: e.target.x(), y: e.target.y() };
+        setStagePos(newPos);
     };
 
     const getScreenPos = (pos: { x: number, y: number }) => ({
@@ -210,8 +213,31 @@ export function KonvaOffice() {
         y: pos.y * zoom + stagePos.y
     });
 
+    // Handle center on me event from MiniMap
+    useEffect(() => {
+        const handleCenterOnMe = () => {
+            if (containerRef.current) {
+                const { clientWidth, clientHeight } = containerRef.current;
+                const newPos = {
+                    x: clientWidth / 2 - myPosition.x * zoom,
+                    y: clientHeight / 2 - myPosition.y * zoom,
+                };
+                if (stageRef.current) {
+                    stageRef.current.position(newPos);
+                }
+                setStagePos(newPos);
+            }
+        };
+        
+        window.addEventListener('center-on-me' as any, handleCenterOnMe);
+        return () => window.removeEventListener('center-on-me' as any, handleCenterOnMe);
+    }, [myPosition, zoom]);
+
     return (
         <div ref={containerRef} className="w-full h-full bg-[#0f172a] overflow-hidden relative">
+            {/* Mini Map */}
+            <MiniMap />
+            
             {dimensions.width > 0 && dimensions.height > 0 && (
                 <>
                     <Stage

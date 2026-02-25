@@ -51,6 +51,9 @@ interface OfficeState {
     myStatus: 'online' | 'away' | 'busy' | 'offline';
     myRoomId?: string;
     myProfile: any;
+    
+    // Camera/View state
+    stagePos: { x: number; y: number };
 
     // Peers state
     peers: Record<string, Peer>;
@@ -114,6 +117,7 @@ interface OfficeState {
     setSpeaking: (isSpeaking: boolean) => void;
     setLocalStream: (stream: MediaStream | null) => void;
     setZoom: (zoom: number) => void;
+    setStagePos: (stagePos: { x: number; y: number }) => void;
     setActiveSpace: (spaceId: string) => void;
     setRooms: (rooms: Room[]) => void;
     setRoomConnections: (connections: RoomConnection[]) => void;
@@ -124,6 +128,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     myStatus: 'online',
     myRoomId: undefined,
     myProfile: null,
+    stagePos: { x: 0, y: 0 },
     peers: {},
     activeSpaceId: undefined,
     rooms: [],
@@ -375,6 +380,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     setSpeaking: (isSpeaking) => set({ isSpeaking }),
     setLocalStream: (localStream) => set({ localStream }),
     setZoom: (zoom) => set({ zoom }),
+    setStagePos: (stagePos) => set({ stagePos }),
     setActiveSpace: (activeSpaceId) => set({ activeSpaceId }),
     setRooms: (rooms) => set({ rooms }),
     setRoomConnections: (roomConnections) => set({ roomConnections }),
