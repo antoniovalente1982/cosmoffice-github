@@ -19,14 +19,14 @@ function findPath(start: { x: number, y: number }, end: { x: number, y: number }
     const dy = end.y - start.y;
     const steps = Math.max(Math.abs(dx), Math.abs(dy)) / 20;
     const path: { x: number, y: number }[] = [];
-    
+
     for (let i = 1; i <= steps; i++) {
         path.push({
             x: start.x + (dx * i) / steps,
             y: start.y + (dy * i) / steps
         });
     }
-    
+
     if (path.length === 0) return [end];
     return path;
 }
@@ -39,6 +39,8 @@ export function KonvaOffice() {
         myProfile
     } = useOfficeStore();
     const stageRef = useRef<any>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const hasInitializedRef = useRef(false);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
     const [targetPos, setTargetPos] = useState<{ x: number, y: number } | null>(null);
@@ -50,18 +52,33 @@ export function KonvaOffice() {
     usePresence();
     useSpatialAudio();
 
+    // Use ResizeObserver to measure the actual container size
     useEffect(() => {
-        const updateDimensions = () => {
-            setDimensions({
-                width: window.innerWidth - 320,
-                height: window.innerHeight - 64,
-            });
-        };
-        updateDimensions();
-        window.addEventListener('resize', updateDimensions);
+        const container = containerRef.current;
+        if (!container) return;
 
-        return () => window.removeEventListener('resize', updateDimensions);
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                setDimensions({ width, height });
+            }
+        });
+        observer.observe(container);
+
+        return () => observer.disconnect();
     }, []);
+
+    // Center stage on user position at first render
+    useEffect(() => {
+        if (dimensions.width > 0 && dimensions.height > 0 && !hasInitializedRef.current) {
+            setStagePos({
+                x: dimensions.width / 2 - myPosition.x * zoom,
+                y: dimensions.height / 2 - myPosition.y * zoom,
+            });
+            hasInitializedRef.current = true;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dimensions.width, dimensions.height]);
 
     // Smooth movement animation
     useEffect(() => {
@@ -90,7 +107,7 @@ export function KonvaOffice() {
                 const newPos = { ...current };
                 pathRef.current.shift();
                 setMyPosition(newPos);
-                
+
                 // Check room
                 let currentRoomId = undefined;
                 rooms.forEach(room => {
@@ -111,7 +128,7 @@ export function KonvaOffice() {
                     y: myPosition.y + (dy / distance) * speed
                 };
                 setMyPosition(newPos);
-                
+
                 // Check room
                 let currentRoomId = undefined;
                 rooms.forEach(room => {
@@ -137,14 +154,14 @@ export function KonvaOffice() {
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [myPosition.x, myPosition.y, pathRef.current?.length]);
 
     const handleStageClick = useCallback((e: any) => {
         // Prevent default to avoid any bubbling issues
         e.evt.preventDefault();
         e.evt.stopPropagation();
-        
+
         const stage = stageRef.current;
         if (!stage || isMovingRef.current) return;
 
@@ -194,7 +211,7 @@ export function KonvaOffice() {
     });
 
     return (
-        <div className="w-full h-full bg-[#0f172a] overflow-hidden relative">
+        <div ref={containerRef} className="w-full h-full bg-[#0f172a] overflow-hidden relative">
             {dimensions.width > 0 && dimensions.height > 0 && (
                 <>
                     <Stage
