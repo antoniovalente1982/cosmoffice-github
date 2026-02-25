@@ -1,127 +1,162 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { createClient } from '../../utils/supabase/client';
 
 export function MediaManager() {
     const {
         isMicEnabled, isVideoEnabled, isScreenSharing, screenStream,
-        localStream, setLocalStream,
-        setSpeaking, peers, updatePeer
+        localStream, setLocalStream, isSystemAudioEnabled,
+        setSpeaking, peers, updatePeer, setScreenSharing, setScreenStream
     } = useOfficeStore();
     const peersRef = useRef<Record<string, any>>({});
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyzerRef = useRef<AnalyserNode | null>(null);
     const screenVideoRef = useRef<HTMLVideoElement | null>(null);
+    const initializedRef = useRef(false);
     const supabase = createClient();
 
-    // Local stream management (mic + camera)
+    // Initialize camera/mic on first mount
     useEffect(() => {
-        const updateMedia = async () => {
+        if (initializedRef.current) return;
+        initializedRef.current = true;
+        
+        const initMedia = async () => {
             try {
-                // If neither is enabled, stop all tracks and clear local stream
-                if (!isMicEnabled && !isVideoEnabled) {
-                    if (localStream) {
-                        localStream.getTracks().forEach(t => t.stop());
-                        setLocalStream(null);
-                    }
-                    return;
-                }
-
-                // If we need a stream but don't have one or it's missing tracks
-                if (!localStream) {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: isVideoEnabled,
-                        audio: isMicEnabled
-                    });
-                    setLocalStream(stream);
-                } else {
-                    // Sync active tracks with store state
-                    const videoTracks = localStream.getVideoTracks();
-                    const audioTracks = localStream.getAudioTracks();
-
-                    if (isVideoEnabled && videoTracks.length === 0) {
-                        const vStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                        localStream.addTrack(vStream.getVideoTracks()[0]);
-                    } else if (!isVideoEnabled && videoTracks.length > 0) {
-                        videoTracks.forEach(t => {
-                            t.stop();
-                            localStream.removeTrack(t);
-                        });
-                    }
-
-                    if (isMicEnabled && audioTracks.length === 0) {
-                        const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        localStream.addTrack(aStream.getAudioTracks()[0]);
-                    } else if (!isMicEnabled && audioTracks.length > 0) {
-                        audioTracks.forEach(t => {
-                            t.stop();
-                            localStream.removeTrack(t);
-                        });
-                    }
-
-                    // Trigger state update to refresh video elements
-                    setLocalStream(new MediaStream(localStream.getTracks()));
-                }
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+                setLocalStream(stream);
             } catch (err) {
-                console.error('Failed to update local stream', err);
+                console.error('Failed to initialize media:', err);
             }
         };
+        
+        initMedia();
+        
+        return () => {
+            // Cleanup on unmount
+            const currentStream = useOfficeStore.getState().localStream;
+            if (currentStream) {
+                currentStream.getTracks().forEach(t => t.stop());
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Handle mic/video toggles
+    useEffect(() => {
+        const updateMedia = async () => {
+            if (!localStream) return;
+            
+            try {
+                // Sync video tracks
+                const videoTracks = localStream.getVideoTracks();
+                if (isVideoEnabled && videoTracks.length === 0) {
+                    const vStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    localStream.addTrack(vStream.getVideoTracks()[0]);
+                } else if (!isVideoEnabled && videoTracks.length > 0) {
+                    videoTracks.forEach(t => {
+                        t.stop();
+                        localStream.removeTrack(t);
+                    });
+                }
+
+                // Sync audio tracks
+                const audioTracks = localStream.getAudioTracks();
+                if (isMicEnabled && audioTracks.length === 0) {
+                    const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    localStream.addTrack(aStream.getAudioTracks()[0]);
+                } else if (!isMicEnabled && audioTracks.length > 0) {
+                    audioTracks.forEach(t => {
+                        t.stop();
+                        localStream.removeTrack(t);
+                    });
+                }
+
+                // Force update
+                setLocalStream(new MediaStream(localStream.getTracks()));
+            } catch (err) {
+                console.error('Failed to update media:', err);
+            }
+        };
+        
         updateMedia();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isMicEnabled, isVideoEnabled]);
 
-    // Screen sharing stream management
+    // Screen sharing - separate component logic moved here
     useEffect(() => {
-        // Create or update screen sharing video element
-        if (isScreenSharing && screenStream) {
-            if (!screenVideoRef.current) {
-                const video = document.createElement('video');
-                video.autoplay = true;
-                video.playsInline = true;
-                video.muted = true; // Mute to avoid feedback
-                video.style.cssText = `
-                    position: fixed;
-                    top: 80px;
-                    right: 320px;
-                    width: 320px;
-                    height: 180px;
-                    object-fit: contain;
-                    border-radius: 12px;
-                    background: #0f172a;
-                    border: 2px solid #6366f1;
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-                    z-index: 100;
-                `;
-                document.body.appendChild(video);
-                screenVideoRef.current = video;
-            }
-            screenVideoRef.current.srcObject = screenStream;
-        } else {
-            // Clean up screen sharing video element
-            if (screenVideoRef.current) {
-                screenVideoRef.current.remove();
-                screenVideoRef.current = null;
-            }
+        if (!isScreenSharing || !screenStream) return;
+        
+        // Create screen sharing preview
+        if (!screenVideoRef.current) {
+            const video = document.createElement('video');
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = true;
+            video.style.cssText = `
+                position: fixed;
+                top: 24px;
+                right: 24px;
+                width: 288px;
+                height: 162px;
+                object-fit: contain;
+                border-radius: 16px;
+                background: #0f172a;
+                border: 3px solid #6366f1;
+                box-shadow: 0 10px 50px rgba(0,0,0,0.7), 0 0 20px rgba(99,102,241,0.5);
+                z-index: 200;
+                pointer-events: auto;
+            `;
+            document.body.appendChild(video);
+            screenVideoRef.current = video;
         }
+        screenVideoRef.current.srcObject = screenStream;
+        
+        // Handle browser stop sharing button
+        const handleTrackEnded = () => {
+            stopScreenShare();
+        };
+        screenStream.getVideoTracks()[0]?.addEventListener('ended', handleTrackEnded);
+        
+        return () => {
+            screenStream.getVideoTracks()[0]?.removeEventListener('ended', handleTrackEnded);
+        };
+    }, [isScreenSharing, screenStream]);
 
+    const stopScreenShare = useCallback(() => {
+        if (screenVideoRef.current) {
+            screenVideoRef.current.remove();
+            screenVideoRef.current = null;
+        }
+        const currentStream = useOfficeStore.getState().screenStream;
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+        setScreenSharing(false);
+        setScreenStream(null);
+    }, [setScreenSharing, setScreenStream]);
+
+    // Cleanup on unmount
+    useEffect(() => {
         return () => {
             if (screenVideoRef.current) {
                 screenVideoRef.current.remove();
                 screenVideoRef.current = null;
             }
         };
-    }, [isScreenSharing, screenStream]);
+    }, []);
 
-    // Volume detection for speaking circle (from mic only, not screen audio)
+    // Volume detection for speaking indicator
     useEffect(() => {
         let animationFrame: number;
         let audioContext: AudioContext | null = null;
 
         const startDetection = async () => {
             try {
-                // Only detect speaking from microphone, not from screen share audio
                 const micStream = localStream;
                 if (!micStream || !isMicEnabled || micStream.getAudioTracks().length === 0) {
                     setSpeaking(false);
@@ -140,7 +175,6 @@ export function MediaManager() {
 
                 const bufferLength = analyzer.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
-
                 let speakCount = 0;
 
                 const checkVolume = () => {
@@ -153,13 +187,13 @@ export function MediaManager() {
                     }
                     const average = total / bufferLength;
 
-                    if (average > 25) {
+                    if (average > 20) {
                         speakCount = Math.min(speakCount + 1, 10);
                     } else {
                         speakCount = Math.max(speakCount - 1, 0);
                     }
 
-                    setSpeaking(speakCount > 3);
+                    setSpeaking(speakCount > 2);
                     animationFrame = requestAnimationFrame(checkVolume);
                 };
 
@@ -167,7 +201,7 @@ export function MediaManager() {
                 audioContextRef.current = audioContext;
                 analyzerRef.current = analyzer;
             } catch (err) {
-                console.warn('Audio detection failed to start:', err);
+                console.warn('Audio detection failed:', err);
                 setSpeaking(false);
             }
         };
@@ -182,14 +216,6 @@ export function MediaManager() {
             setSpeaking(false);
         };
     }, [localStream, isMicEnabled, setSpeaking]);
-
-    // Signaling logic placeholder
-    useEffect(() => {
-        if (!localStream) return;
-
-        // Note: Simple peer and signaling logic would go here
-        // Now it has access to both localStream and screenStream from store
-    }, [localStream, screenStream]);
 
     return null;
 }

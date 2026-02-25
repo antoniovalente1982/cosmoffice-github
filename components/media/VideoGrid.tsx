@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MicOff, Settings } from 'lucide-react';
+import { MicOff, Settings, Video, VideoOff } from 'lucide-react';
 import { Card } from '../ui/card';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 
@@ -17,15 +17,22 @@ interface VideoTileProps {
 }
 
 function VideoTile({ stream, fullName, isMe, audioEnabled, videoEnabled, isSpeaking }: VideoTileProps) {
-    const videoRef = (el: HTMLVideoElement | null) => {
-        if (el && stream) el.srcObject = stream;
-    };
+    const videoElRef = useRef<HTMLVideoElement | null>(null);
+
+    // Update video srcObject when stream changes
+    useEffect(() => {
+        if (videoElRef.current && stream) {
+            videoElRef.current.srcObject = stream;
+        }
+    }, [stream]);
+
+    const hasVideo = videoEnabled && stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].readyState === 'live';
 
     return (
         <Card className={`relative aspect-video bg-slate-950 overflow-hidden flex items-center justify-center transition-all duration-300 border-2 ${isSpeaking ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] scale-[1.02]' : 'border-white/10'} group rounded-2xl`}>
-            {videoEnabled && stream ? (
+            {hasVideo ? (
                 <video
-                    ref={videoRef}
+                    ref={videoElRef}
                     autoPlay
                     playsInline
                     muted={isMe}
@@ -50,8 +57,21 @@ function VideoTile({ stream, fullName, isMe, audioEnabled, videoEnabled, isSpeak
                 )}
             </div>
 
+            {/* Video status indicator */}
+            <div className="absolute top-3 left-3 flex items-center gap-1">
+                {hasVideo ? (
+                    <div className="bg-emerald-500/80 backdrop-blur-md p-1 rounded-full border border-emerald-400/20">
+                        <Video className="w-3 h-3 text-white" />
+                    </div>
+                ) : (
+                    <div className="bg-red-500/80 backdrop-blur-md p-1 rounded-full border border-red-400/20">
+                        <VideoOff className="w-3 h-3 text-white" />
+                    </div>
+                )}
+            </div>
+
             {isSpeaking && (
-                <div className="absolute top-3 left-3">
+                <div className="absolute top-3 right-10">
                     <div className="flex gap-0.5 items-end h-3">
                         <motion.div animate={{ height: [4, 12, 6] }} transition={{ repeat: Infinity, duration: 0.5 }} className="w-1 bg-emerald-400 rounded-full" />
                         <motion.div animate={{ height: [6, 4, 10] }} transition={{ repeat: Infinity, duration: 0.6 }} className="w-1 bg-emerald-400 rounded-full" />
