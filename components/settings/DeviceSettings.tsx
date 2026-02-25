@@ -35,16 +35,12 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         selectedAudioOutput,
         selectedVideoInput,
         availableDevices,
-        isMicEnabled,
-        isVideoEnabled,
         setSelectedAudioInput,
         setSelectedAudioOutput,
         setSelectedVideoInput,
         refreshDevices,
         setLocalStream,
         setHasCompletedDeviceSetup,
-        toggleMic,
-        toggleVideo
     } = useOfficeStore();
 
     const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
@@ -52,23 +48,69 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
     const [isLoading, setIsLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'input' | 'output' | 'video'>('input');
     const [error, setError] = useState<string | null>(null);
+    const [hasAutoSelectedDefaults, setHasAutoSelectedDefaults] = useState(false);
     
     const videoRef = useRef<HTMLVideoElement>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const testAudioElementRef = useRef<HTMLAudioElement | null>(null);
 
     // Filtra i dispositivi per tipo
     const audioInputs = availableDevices.filter(d => d.kind === 'audioinput');
     const audioOutputs = availableDevices.filter(d => d.kind === 'audiooutput');
     const videoInputs = availableDevices.filter(d => d.kind === 'videoinput');
 
-    // Inizializza e aggiorna i dispositivi disponibili
+    // Inizializza e aggiorna i dispositivi disponibili + auto-seleziona default
     useEffect(() => {
         if (isOpen) {
-            refreshDevices();
+            const loadDevices = async () => {
+                await refreshDevices();
+            };
+            loadDevices();
         }
     }, [isOpen, refreshDevices]);
+
+    // Auto-seleziona i dispositivi di default quando vengono caricati
+    useEffect(() => {
+        if (!hasAutoSelectedDefaults && availableDevices.length > 0) {
+            // Seleziona il primo dispositivo di ogni tipo (di solito il default del sistema)
+            if (!selectedAudioInput && audioInputs.length > 0) {
+                // Cerca il dispositivo default (solitamente label contiene "default" o è il primo)
+                const defaultDevice = audioInputs.find(d => 
+                    d.label.toLowerCase().includes('default') || 
+                    d.deviceId === 'default'
+                ) || audioInputs[0];
+                setSelectedAudioInput(defaultDevice.deviceId);
+            }
+            
+            if (!selectedAudioOutput && audioOutputs.length > 0) {
+                const defaultDevice = audioOutputs.find(d => 
+                    d.label.toLowerCase().includes('default') || 
+                    d.deviceId === 'default'
+                ) || audioOutputs[0];
+                setSelectedAudioOutput(defaultDevice.deviceId);
+            }
+            
+            if (!selectedVideoInput && videoInputs.length > 0) {
+                const defaultDevice = videoInputs.find(d => 
+                    d.label.toLowerCase().includes('default') || 
+                    d.deviceId === 'default'
+                ) || videoInputs[0];
+                setSelectedVideoInput(defaultDevice.deviceId);
+            }
+            
+            setHasAutoSelectedDefaults(true);
+        }
+    }, [availableDevices, hasAutoSelectedDefaults, selectedAudioInput, selectedAudioOutput, selectedVideoInput, 
+        setSelectedAudioInput, setSelectedAudioOutput, setSelectedVideoInput, audioInputs, audioOutputs, videoInputs]);
+
+    // Resetta il flag quando chiudi il modal
+    useEffect(() => {
+        if (!isOpen) {
+            setHasAutoSelectedDefaults(false);
+        }
+    }, [isOpen]);
 
     // Ascolta i cambiamenti dei dispositivi (quando si collega/scollega)
     useEffect(() => {
@@ -96,21 +138,35 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                     previewStream.getTracks().forEach(t => t.stop());
                 }
 
-                const constraints: MediaStreamConstraints = {
-                    audio: selectedAudioInput ? { deviceId: { exact: selectedAudioInput } } : true,
-                    video: selectedVideoInput ? { deviceId: { exact: selectedVideoInput } } : true
-                };
+                // Attendi che i dispositivi siano selezionati
+                if (!selectedAudioInput && !selectedVideoInput) {
+                    setIsLoading(false);
+                    return;
+                }
+
+                const constraints: MediaStreamConstraints = {};
+                
+                if (selectedAudioInput) {
+                    constraints.audio = { deviceId: { exact: selectedAudioInput } };
+                }
+                
+                if (selectedVideoInput) {
+                    constraints.video = { deviceId: { exact: selectedVideoInput } };
+                }
+
+                // Se nessun constraint è stato impostato, non fare nulla
+                if (!constraints.audio && !constraints.video) {
+                    setIsLoading(false);
+                    return;
+                }
 
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 setPreviewStream(stream);
                 
-                // Se c'è un video track, mostralo
-                if (stream.getVideoTracks().length > 0 && videoRef.current) {
-                    videoRef.current.srcObject = stream;
+                // Inizia il monitoring dell'audio se c'è un audio track
+                if (stream.getAudioTracks().length > 0) {
+                    startAudioMonitoring(stream);
                 }
-
-                // Inizia il monitoring dell'audio
-                startAudioMonitoring(stream);
                 
             } catch (err: any) {
                 console.error('Failed to get preview stream:', err);
@@ -125,7 +181,19 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         return () => {
             stopAudioMonitoring();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, selectedAudioInput, selectedVideoInput]);
+
+    // Assegna lo stream al video element quando cambia
+    useEffect(() => {
+        if (videoRef.current && previewStream) {
+            videoRef.current.srcObject = previewStream;
+            // Forza il play
+            videoRef.current.play().catch(err => {
+                console.warn('Autoplay prevented:', err);
+            });
+        }
+    }, [previewStream]);
 
     // Aggiorna lo stream locale quando si confermano le impostazioni
     const applySettings = useCallback(() => {
@@ -137,7 +205,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
             }
             
             // Crea un nuovo stream dai track del preview
-            const newStream = new MediaStream(previewStream.getTracks());
+            const newStream = new MediaStream(previewStream.getTracks().map(t => t.clone()));
             setLocalStream(newStream);
         }
         
@@ -193,45 +261,150 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
     const stopAudioMonitoring = () => {
         if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
         }
         if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
             audioContextRef.current.close();
+            audioContextRef.current = null;
         }
         setTestAudioLevel({ value: 0, peak: 0 });
     };
 
-    // Test audio output
+    // Test audio output - usando elemento audio HTML per supportare setSinkId
     const testAudioOutput = async () => {
         try {
-            const audio = new Audio('/test-sound.mp3'); // Puoi usare un beep generato
+            // Crea un elemento audio se non esiste
+            if (!testAudioElementRef.current) {
+                testAudioElementRef.current = new Audio();
+            }
+            
+            const audio = testAudioElementRef.current;
+            
+            // Crea un beep usando Web Audio API e convertilo in blob per l'elemento audio
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            const duration = 0.5;
+            const numberOfSamples = duration * sampleRate;
+            
+            // Crea un buffer per il suono
+            const buffer = audioContext.createBuffer(1, numberOfSamples, sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            // Genera un tono sinusoidale a 440Hz con fade out
+            for (let i = 0; i < numberOfSamples; i++) {
+                const t = i / sampleRate;
+                const envelope = Math.exp(-3 * t); // fade out esponenziale
+                data[i] = Math.sin(2 * Math.PI * 440 * t) * 0.3 * envelope;
+            }
+            
+            // Converti il buffer in WAV blob
+            const wavBlob = bufferToWave(buffer, numberOfSamples);
+            const url = URL.createObjectURL(wavBlob);
+            
+            audio.src = url;
+            audio.loop = false;
+            
+            // Imposta il dispositivo di uscita se supportato (Chrome/Edge)
             if (selectedAudioOutput) {
                 // @ts-ignore - setSinkId è supportato in Chrome/Edge
                 if (audio.setSinkId) {
-                    // @ts-ignore
-                    await audio.setSinkId(selectedAudioOutput);
+                    try {
+                        // @ts-ignore
+                        await audio.setSinkId(selectedAudioOutput);
+                        console.log('Audio output set to:', selectedAudioOutput);
+                    } catch (err) {
+                        console.warn('setSinkId failed:', err);
+                    }
+                } else {
+                    console.warn('setSinkId not supported in this browser');
                 }
             }
             
-            // Genera un beep invece di usare un file
-            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
+            // Riproduci il suono
+            await audio.play();
             
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = 440;
-            oscillator.type = 'sine';
-            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.5);
+            // Cleanup dopo la riproduzione
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 1000);
             
         } catch (err) {
             console.error('Audio test failed:', err);
+            // Fallback: emetti un beep usando l'audio di sistema
+            try {
+                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 440;
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (fallbackErr) {
+                console.error('Fallback audio test also failed:', fallbackErr);
+            }
         }
     };
+
+    // Funzione per convertire AudioBuffer in WAV blob
+    function bufferToWave(abuffer: AudioBuffer, len: number) {
+        let numOfChan = abuffer.numberOfChannels,
+            length = len * numOfChan * 2 + 44,
+            buffer = new ArrayBuffer(length),
+            view = new DataView(buffer),
+            channels = [],
+            i: number,
+            sample: number,
+            offset = 0,
+            pos = 0;
+
+        // scrivi l'header WAV
+        setUint32(0x46464952); // "RIFF"
+        setUint32(length - 8); // file length - 8
+        setUint32(0x45564157); // "WAVE"
+        setUint32(0x20746d66); // "fmt " chunk
+        setUint32(16); // length = 16
+        setUint16(1); // PCM (uncompressed)
+        setUint16(numOfChan);
+        setUint32(abuffer.sampleRate);
+        setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+        setUint16(numOfChan * 2); // block-align
+        setUint16(16); // 16-bit (hardcoded in this example)
+        setUint32(0x61746164); // "data" - chunk
+        setUint32(length - pos - 4); // chunk length
+
+        // scrivi i dati
+        for(i = 0; i < abuffer.numberOfChannels; i++)
+            channels.push(abuffer.getChannelData(i));
+
+        while(pos < length) {
+            for(i = 0; i < numOfChan; i++) {
+                sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0; // scale to 16-bit signed int
+                view.setInt16(pos, sample, true); // write 16-bit sample
+                pos += 2;
+            }
+            offset++;
+        }
+
+        return new Blob([buffer], {type: "audio/wav"});
+
+        function setUint16(data: number) {
+            view.setUint16(pos, data, true);
+            pos += 2;
+        }
+
+        function setUint32(data: number) {
+            view.setUint32(pos, data, true);
+            pos += 4;
+        }
+    }
 
     // Cleanup
     useEffect(() => {
@@ -239,6 +412,10 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
             stopAudioMonitoring();
             if (previewStream) {
                 previewStream.getTracks().forEach(t => t.stop());
+            }
+            if (testAudioElementRef.current) {
+                testAudioElementRef.current.pause();
+                testAudioElementRef.current = null;
             }
         };
     }, [previewStream]);
@@ -271,7 +448,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 </h2>
                                 <p className="text-sm text-slate-400">
                                     {isInitialSetup 
-                                        ? 'Seleziona e testa i dispositivi che vuoi usare' 
+                                        ? 'I dispositivi di sistema sono già selezionati. Puoi modificarli se vuoi.' 
                                         : 'Gestisci i tuoi dispositivi audio e video'}
                                 </p>
                             </div>
@@ -352,7 +529,11 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 <div className="space-y-6">
                                     <div>
                                         <h3 className="text-lg font-semibold text-white mb-2">Seleziona Microfono</h3>
-                                        <p className="text-slate-400 text-sm mb-4">Scegli il dispositivo di input audio</p>
+                                        <p className="text-slate-400 text-sm mb-4">
+                                            Dispositivo selezionato: <span className="text-indigo-300">
+                                                {audioInputs.find(d => d.deviceId === selectedAudioInput)?.label || 'Default'}
+                                            </span>
+                                        </p>
                                     </div>
 
                                     {/* Lista dispositivi */}
@@ -429,7 +610,14 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 <div className="space-y-6">
                                     <div>
                                         <h3 className="text-lg font-semibold text-white mb-2">Seleziona Dispositivo Uscita</h3>
-                                        <p className="text-slate-400 text-sm mb-4">Scegli dove vuoi ascoltare l&apos;audio</p>
+                                        <p className="text-slate-400 text-sm mb-4">
+                                            Dispositivo selezionato: <span className="text-indigo-300">
+                                                {audioOutputs.find(d => d.deviceId === selectedAudioOutput)?.label || 'Default di sistema'}
+                                            </span>
+                                        </p>
+                                        <p className="text-xs text-amber-400 mb-4">
+                                            Nota: Il test audio usa il dispositivo di default se il browser non supporta la selezione.
+                                        </p>
                                     </div>
 
                                     <div className="space-y-2">
@@ -493,7 +681,11 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                 <div className="space-y-6">
                                     <div>
                                         <h3 className="text-lg font-semibold text-white mb-2">Seleziona Webcam</h3>
-                                        <p className="text-slate-400 text-sm mb-4">Scegli la camera che vuoi usare</p>
+                                        <p className="text-slate-400 text-sm mb-4">
+                                            Dispositivo selezionato: <span className="text-indigo-300">
+                                                {videoInputs.find(d => d.deviceId === selectedVideoInput)?.label || 'Default'}
+                                            </span>
+                                        </p>
                                     </div>
 
                                     {/* Preview Video */}
@@ -512,15 +704,20 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                                 style={{ transform: 'scaleX(-1)' }}
                                             />
                                         ) : (
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <VideoOff className="w-12 h-12 text-slate-600" />
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                <VideoOff className="w-12 h-12 text-slate-600 mb-2" />
+                                                <p className="text-slate-500 text-sm">
+                                                    {selectedVideoInput ? 'Caricamento...' : 'Nessuna webcam selezionata'}
+                                                </p>
                                             </div>
                                         )}
                                         
                                         {/* Overlay info */}
-                                        <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                                            <p className="text-white text-sm font-medium">Anteprima</p>
-                                        </div>
+                                        {previewStream && previewStream.getVideoTracks().length > 0 && (
+                                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                                                <p className="text-white text-sm font-medium">Anteprima attiva</p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Lista webcam */}

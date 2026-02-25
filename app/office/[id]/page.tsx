@@ -24,7 +24,8 @@ import {
     Search,
     Sparkles,
     BarChart3,
-    Trophy
+    Trophy,
+    SlidersHorizontal
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 // Dynamically import client-heavy components with SSR disabled
@@ -328,6 +329,17 @@ export default function OfficePage() {
                             )}
                             
                             <div className="w-px h-8 bg-white/10 mx-2"></div>
+                            
+                            {/* Pulsante per aprire la Cabina di Regia */}
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                className="rounded-full w-12 h-12 bg-slate-700/50 hover:bg-indigo-500/50 text-slate-200 hover:text-white transition-all glow-button"
+                                onClick={() => setIsDeviceSettingsOpen(true)}
+                                title="Cabina di Regia - Cambia dispositivi"
+                            >
+                                <SlidersHorizontal className="w-5 h-5" />
+                            </Button>
                             <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
                         </motion.div>
                     )}
