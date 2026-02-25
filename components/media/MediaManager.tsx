@@ -162,50 +162,6 @@ export function MediaManager() {
                 pointer-events: none;
             `;
             
-            // Buttons container
-            const buttonsDiv = document.createElement('div');
-            buttonsDiv.style.cssText = `
-                display: flex;
-                gap: 8px;
-            `;
-            
-            // Fullscreen button
-            const fullscreenBtn = document.createElement('button');
-            fullscreenBtn.innerHTML = '⛶';
-            fullscreenBtn.title = 'Schermo intero';
-            fullscreenBtn.style.cssText = `
-                width: 26px;
-                height: 26px;
-                border-radius: 6px;
-                background: rgba(255,255,255,0.15);
-                color: white;
-                border: none;
-                cursor: pointer;
-                font-size: 14px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s;
-            `;
-            fullscreenBtn.onmouseenter = () => {
-                fullscreenBtn.style.background = 'rgba(255,255,255,0.3)';
-                fullscreenBtn.style.transform = 'scale(1.05)';
-            };
-            fullscreenBtn.onmouseleave = () => {
-                fullscreenBtn.style.background = 'rgba(255,255,255,0.15)';
-                fullscreenBtn.style.transform = 'scale(1)';
-            };
-            fullscreenBtn.onclick = () => {
-                const video = document.getElementById('screen-share-video') as HTMLVideoElement;
-                if (video) {
-                    if (video.requestFullscreen) {
-                        video.requestFullscreen();
-                    } else if ((video as any).webkitRequestFullscreen) {
-                        (video as any).webkitRequestFullscreen();
-                    }
-                }
-            };
-            
             // Close button
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '✕';
@@ -233,11 +189,8 @@ export function MediaManager() {
                 closeBtn.style.transform = 'scale(1)';
             };
             closeBtn.onclick = () => stopScreenShare();
-            
-            buttonsDiv.appendChild(fullscreenBtn);
-            buttonsDiv.appendChild(closeBtn);
             toolbar.appendChild(label);
-            toolbar.appendChild(buttonsDiv);
+            toolbar.appendChild(closeBtn);
             
             // Drag handlers for toolbar
             toolbar.addEventListener('mousedown', (e) => {
