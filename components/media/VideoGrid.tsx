@@ -91,19 +91,23 @@ function VideoTile({ stream, fullName, isMe, audioEnabled, videoEnabled, isSpeak
 
 export function VideoGrid() {
     const {
-        localStream, isMicEnabled, isVideoEnabled, isSpeaking, peers
+        localStream, isMicEnabled, isVideoEnabled, isSpeaking, peers, myProfile
     } = useOfficeStore();
 
+    // Only show "me" tile when video is enabled
+    const videoTrack = localStream?.getVideoTracks()[0];
+    const showMyVideo = isVideoEnabled && localStream && videoTrack && videoTrack.enabled;
+
     const participants = [
-        {
+        ...(showMyVideo ? [{
             id: 'me',
-            fullName: 'You',
+            fullName: myProfile?.full_name || 'You',
             isMe: true,
             audioEnabled: isMicEnabled,
             videoEnabled: isVideoEnabled,
             isSpeaking: isSpeaking,
             stream: localStream
-        },
+        }] : []),
         ...Object.values(peers).map(peer => ({
             id: peer.id,
             fullName: peer.full_name || peer.email,
@@ -114,6 +118,9 @@ export function VideoGrid() {
             stream: null
         }))
     ];
+
+    // Don't render the container if no participants to show
+    if (participants.length === 0) return null;
 
     return (
         <div className="absolute top-6 right-6 w-72 space-y-4 pointer-events-auto z-40">
