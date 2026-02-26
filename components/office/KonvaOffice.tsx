@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Stage, Layer, Circle, Line } from 'react-konva';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { Stage, Layer, Circle, Line, Rect } from 'react-konva';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { usePresence } from '../../hooks/usePresence';
 import { useSpatialAudio } from '../../hooks/useSpatialAudio';
@@ -75,13 +75,40 @@ export function KonvaOffice() {
             const hours = now.getHours();
             const mins = now.getMinutes();
             const secs = now.getSeconds();
-            const fractionOfDay = ((hours * 60 * 60) + (mins * 60) + secs) / (24 * 60 * 60);
+            const ms = now.getMilliseconds();
+
+            // Total ms in a day
+            const totalMsInDay = 24 * 60 * 60 * 1000;
+            const currentMs = (hours * 60 * 60 * 1000) + (mins * 60 * 1000) + (secs * 1000) + ms;
+            const fractionOfDay = currentMs / totalMsInDay;
+
             setSolarRotation(fractionOfDay * 360);
         };
         updateRotation();
-        const interval = setInterval(updateRotation, 30000); // UI update every 30s
+        const interval = setInterval(updateRotation, 50); // Smooth real-time update
         return () => clearInterval(interval);
     }, []);
+
+    // Dynamically calculate the bounded safe area around all rooms for the base platform
+    const officeBounds = useMemo(() => {
+        if (!rooms || rooms.length === 0) {
+            return { x: -1000, y: -1000, width: 2000, height: 2000 };
+        }
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        rooms.forEach((r: any) => {
+            if (r.x < minX) minX = r.x;
+            if (r.y < minY) minY = r.y;
+            if (r.x + r.width > maxX) maxX = r.x + r.width;
+            if (r.y + r.height > maxY) maxY = r.y + r.height;
+        });
+        const padding = 800;
+        return {
+            x: minX - padding,
+            y: minY - padding,
+            width: (maxX - minX) + padding * 2,
+            height: (maxY - minY) + padding * 2
+        };
+    }, [rooms]);
 
     // Use ResizeObserver to measure the actual container size
     useEffect(() => {
@@ -330,29 +357,57 @@ export function KonvaOffice() {
             />
 
             {/* Solar System Background Layer */}
+            {/* The wrapper scales to cover immense depths so the planets can stretch out far. */}
             <div className="absolute left-1/2 top-1/2 pointer-events-none z-0 overflow-hidden"
-                style={{ width: '200vw', height: '200vw', transform: 'translate(-50%, -50%)' }}>
+                style={{ width: '400vw', height: '400vw', transform: 'translate(-50%, -50%)', opacity: 0.8 }}>
                 <div
-                    className="absolute inset-0 transition-transform duration-[1000s] ease-linear"
+                    className="absolute inset-0"
                     style={{ transform: `rotate(${solarRotation}deg)` }}
                 >
                     {/* The Sun (Center) */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-100 shadow-[0_0_150px_40px_rgba(251,191,36,0.3)] animate-pulse-glow" />
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-300 to-amber-100 shadow-[0_0_200px_60px_rgba(251,191,36,0.3)] animate-pulse-glow" style={{ zIndex: 10 }} />
 
-                    {/* Inner Orbit (Cyan Planet) */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-white/5" />
-                    <div className="absolute left-1/2 top-[calc(50%-250px)] -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-300 to-blue-600 shadow-[0_0_30px_rgba(6,182,212,0.6)]" />
+                    {/* Mercury */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] rounded-full border border-white/5" />
+                    <div className="absolute left-1/2 top-[calc(50%-175px)] -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 shadow-[0_0_10px_rgba(156,163,175,0.6)]" />
 
-                    {/* Middle Orbit (Purple Gas Giant) */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full border border-white/5" />
-                    <div className="absolute left-[calc(50%+450px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-pink-600 shadow-[0_0_40px_rgba(192,132,252,0.5)]">
-                        {/* Ring around planet */}
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[20%] rounded-[50%] border-2 border-pink-300/30 transform rotate-12" />
+                    {/* Venus */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full border border-white/5" />
+                    <div className="absolute left-[calc(50%+275px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-100 to-orange-400 shadow-[0_0_15px_rgba(253,224,71,0.5)]" />
+
+                    {/* Earth & Moon */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full border border-cyan-500/10" />
+                    <div className="absolute left-[calc(50%-400px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 via-blue-600 to-green-500 shadow-[0_0_25px_rgba(59,130,246,0.6)]">
+                        {/* Moon */}
+                        <div className="absolute left-[-15px] top-[-10px] w-2 h-2 rounded-full bg-gray-300 shadow-[0_0_5px_rgba(209,213,219,0.8)]" />
                     </div>
 
-                    {/* Outer Orbit (Emerald Planet) */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1400px] h-[1400px] rounded-full border border-white/5" />
-                    <div className="absolute left-[calc(50%-700px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-gradient-to-br from-emerald-300 to-teal-700 shadow-[0_0_35px_rgba(16,185,129,0.4)]" />
+                    {/* Mars */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] rounded-full border border-white/5" />
+                    <div className="absolute left-1/2 top-[calc(50%+550px)] -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gradient-to-br from-red-400 to-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]" />
+
+                    {/* Jupiter */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1600px] h-[1600px] rounded-full border border-white/5" />
+                    <div className="absolute left-[calc(50%+800px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-[72px] h-[72px] rounded-full bg-gradient-to-br from-orange-300 via-orange-600 to-amber-900 shadow-[0_0_40px_rgba(217,119,6,0.5)]">
+                        <div className="absolute top-[60%] left-[30%] w-5 h-2 rounded-full bg-red-900/40" />
+                    </div>
+
+                    {/* Saturn */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[2200px] h-[2200px] rounded-full border border-white/5" />
+                    <div className="absolute left-1/2 top-[calc(50%-1100px)] -translate-x-1/2 -translate-y-1/2 w-[60px] h-[60px] rounded-full bg-gradient-to-br from-yellow-100 to-yellow-700 shadow-[0_0_35px_rgba(234,179,8,0.4)]">
+                        {/* Saturn Rings */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[230%] h-[35%] rounded-[50%] border-[5px] border-yellow-200/40 transform -rotate-12 outline outline-1 outline-yellow-400/20" />
+                    </div>
+
+                    {/* Uranus */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[2800px] h-[2800px] rounded-full border border-white/5" />
+                    <div className="absolute left-[calc(50%-1400px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-200 to-cyan-600 shadow-[0_0_25px_rgba(6,182,212,0.5)]">
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[20%] h-[160%] rounded-[50%] border-[2px] border-cyan-100/30 transform rotate-[80deg]" />
+                    </div>
+
+                    {/* Neptune */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[3400px] h-[3400px] rounded-full border border-white/5" />
+                    <div className="absolute left-1/2 top-[calc(50%+1700px)] -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-900 shadow-[0_0_30px_rgba(29,78,216,0.6)]" />
                 </div>
             </div>
 
@@ -371,7 +426,40 @@ export function KonvaOffice() {
                         draggable
                     >
                         <Layer>
-                            {/* Animated background particles */}
+                            {/* Glass Office Base Platform */}
+                            <Rect
+                                x={officeBounds.x}
+                                y={officeBounds.y}
+                                width={officeBounds.width}
+                                height={officeBounds.height}
+                                fill="rgba(6, 182, 212, 0.02)"
+                                stroke="rgba(255, 255, 255, 0.05)"
+                                strokeWidth={2}
+                                cornerRadius={120}
+                                shadowColor="#06b6d4"
+                                shadowBlur={150}
+                                shadowOpacity={0.15}
+                                shadowOffsetY={0}
+                                listening={false}
+                            />
+                            {/* Inner core dark boundary to block space and pop the rooms out */}
+                            <Rect
+                                x={officeBounds.x + 40}
+                                y={officeBounds.y + 40}
+                                width={officeBounds.width - 80}
+                                height={officeBounds.height - 80}
+                                fill="rgba(10, 15, 30, 0.75)"
+                                stroke="rgba(6, 182, 212, 0.15)"
+                                strokeWidth={1}
+                                dash={[20, 30]}
+                                cornerRadius={80}
+                                shadowColor="#000"
+                                shadowBlur={120}
+                                shadowOpacity={0.8}
+                                listening={false}
+                            />
+
+                            {/* Fluid Bezier Connections between rooms */}
                             {particles.map((p, i) => (
                                 <Circle
                                     key={`p-${i}`}
