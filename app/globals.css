@@ -6,33 +6,41 @@
 
 @layer base {
   * { @apply border-dark-border; }
-  html { @apply antialiased scroll-smooth; }
+  html { 
+    @apply antialiased scroll-smooth;
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+  }
   body { 
-    @apply bg-dark-bg text-slate-50 font-sans min-h-screen relative overflow-x-hidden;
-    /* Adding subtle noise or texture can also help, but we'll stick to css blobs */
+    @apply bg-dark-bg text-slate-50 font-sans min-h-screen relative;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   
   /* Animated background elements */
   body::before, body::after {
     content: '';
-    position: absolute;
+    position: fixed;
     border-radius: 50%;
     filter: blur(120px);
     z-index: -1;
     opacity: 0.15;
     animation: drift 20s infinite alternate ease-in-out;
+    pointer-events: none;
   }
   
   body::before {
-    top: -10%; left: -10%;
-    width: 60vw; height: 60vw;
+    top: 0; left: 0;
+    width: 50vw; height: 50vw;
+    transform: translate(-30%, -30%);
     background: radial-gradient(circle, theme('colors.primary.500'), transparent);
     animation-delay: -5s;
   }
   
   body::after {
-    bottom: -10%; right: -10%;
-    width: 50vw; height: 50vw;
+    bottom: 0; right: 0;
+    width: 40vw; height: 40vw;
+    transform: translate(30%, 30%);
     background: radial-gradient(circle, theme('colors.secondary.500'), transparent);
   }
 

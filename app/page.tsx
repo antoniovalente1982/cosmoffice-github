@@ -303,7 +303,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden bg-dark-bg">
+    <div className="min-h-screen relative overflow-hidden bg-dark-bg flex flex-col">
       <StarField />
       <FloatingOrbs />
       
@@ -336,7 +336,7 @@ export default function LandingPage() {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
-        className="fixed top-0 left-0 right-0 z-50 bg-dark-bg/60 backdrop-blur-2xl border-b border-white/5"
+        className="fixed top-0 left-0 right-0 z-50 bg-dark-bg/60 backdrop-blur-2xl border-b border-white/5 flex-shrink-0"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
@@ -394,6 +394,8 @@ export default function LandingPage() {
         </div>
       </motion.nav>
 
+      {/* Main Content */}
+      <main className="flex-grow">
       {/* Hero Section */}
       <section ref={heroRef} className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Floating Decorative Icons */}
@@ -929,16 +931,15 @@ export default function LandingPage() {
           </div>
         </motion.div>
       </section>
+      </main>
 
       {/* Footer */}
-      <footer className="py-16 px-4 sm:px-6 lg:px-8 border-t border-white/5 bg-slate-950/50">
+      <footer className="py-16 px-4 sm:px-6 lg:px-8 border-t border-white/5 bg-slate-950 flex-shrink-0">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div className="md:col-span-2">
               <Link href="/" className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 flex items-center justify-center">
-                  <Hexagon className="w-6 h-6 text-white" />
-                </div>
+                <Logo size="md" showText={false} variant="glow" />
                 <span className="text-xl font-bold text-white">Cosmoffice</span>
               </Link>
               <p className="text-slate-400 max-w-sm mb-6">
