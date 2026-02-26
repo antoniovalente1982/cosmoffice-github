@@ -6,10 +6,27 @@ import { useOfficeStore } from '../stores/useOfficeStore';
 
 export function useOffice(spaceId?: string) {
     const supabase = createClient();
-    const { setRooms, setRoomConnections, setFurnitureItems } = useOfficeStore();
+    const { setRooms, setRoomConnections, setFurnitureItems, setOfficeDimensions, setBgOpacity } = useOfficeStore();
 
     const fetchOfficeData = useCallback(async () => {
         if (!spaceId) return;
+
+        // Fetch office layout settings from space
+        const { data: space, error: spaceError } = await supabase
+            .from('spaces')
+            .select('layout_data')
+            .eq('id', spaceId)
+            .single();
+
+        if (!spaceError && space?.layout_data) {
+            const layout = space.layout_data as any;
+            if (layout.officeWidth && layout.officeHeight) {
+                setOfficeDimensions(layout.officeWidth, layout.officeHeight);
+            }
+            if (layout.bgOpacity !== undefined) {
+                setBgOpacity(layout.bgOpacity);
+            }
+        }
 
         // Fetch rooms
         const { data: rooms, error: roomsError } = await supabase
@@ -43,7 +60,7 @@ export function useOffice(spaceId?: string) {
         if (!connError && connections) {
             setRoomConnections(connections);
         }
-    }, [spaceId, supabase, setRooms, setRoomConnections, setFurnitureItems]);
+    }, [spaceId, supabase, setRooms, setRoomConnections, setFurnitureItems, setOfficeDimensions, setBgOpacity]);
 
     useEffect(() => {
         fetchOfficeData();

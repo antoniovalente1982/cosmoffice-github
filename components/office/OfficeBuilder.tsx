@@ -44,6 +44,7 @@ export function OfficeBuilder() {
     const [editName, setEditName] = useState('');
     const [editDepartment, setEditDepartment] = useState('');
     const [editColor, setEditColor] = useState('#3b82f6');
+    const [builderTab, setBuilderTab] = useState<'rooms' | 'environment'>('rooms');
 
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -169,6 +170,21 @@ export function OfficeBuilder() {
         else { setToast({ msg: '✅ Proprietà salvate!', type: 'ok' }); }
         setSaving(false);
     }, [selectedRoomId, editName, editDepartment, editColor, supabase, setRooms]);
+
+    const handleSaveEnvironment = useCallback(async () => {
+        if (!activeSpaceId) return;
+        setSaving(true);
+        const state = useOfficeStore.getState();
+        const layout_data = {
+            officeWidth: state.officeWidth,
+            officeHeight: state.officeHeight,
+            bgOpacity: state.bgOpacity
+        };
+        const { error } = await supabase.from('spaces').update({ layout_data }).eq('id', activeSpaceId);
+        if (error) { setToast({ msg: `❌ Errore DB: ${error.message}`, type: 'err' }); }
+        else { setToast({ msg: '✅ Ambiente salvato!', type: 'ok' }); }
+        setSaving(false);
+    }, [activeSpaceId, supabase]);
 
     if (!isBuilderMode) return null;
 
@@ -347,78 +363,117 @@ export function OfficeBuilder() {
                         </>
                     ) : (
                         <>
-                            {/* Glass Header for Room Templates */}
-                            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between"
+                            {/* Glass Tabs Header for Builder Actions */}
+                            <div className="flex border-b border-white/5"
                                 style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%)' }}>
-                                <div className="flex items-center gap-2">
-                                    <Plus className="w-4 h-4 text-cyan-400" />
-                                    <h3 className="text-sm font-bold text-white tracking-wide">Aggiungi Stanza</h3>
-                                </div>
+                                <button
+                                    onClick={() => setBuilderTab('rooms')}
+                                    className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors ${builderTab === 'rooms' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-500/5' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Stanze
+                                </button>
+                                <button
+                                    onClick={() => setBuilderTab('environment')}
+                                    className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors ${builderTab === 'environment' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-500/5' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Ambiente
+                                </button>
                             </div>
 
-                            <div className="p-4 flex-1 flex flex-col justify-center items-center h-full min-h-[160px] relative">
-                                <button
-                                    onClick={() => handleAddRoom(roomTemplates[0])}
-                                    className="w-[90%] flex flex-col items-center justify-center gap-3 p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group"
-                                >
-                                    <div className="w-12 h-12 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
-                                        <Plus className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
-                                    </div>
-                                    <span className="text-sm font-bold text-cyan-50 tracking-wide">
-                                        Nuova Stanza
-                                    </span>
-                                </button>
+                            <div className="p-4 flex-1 flex flex-col justify-start items-center h-full min-h-[160px] relative overflow-y-auto custom-scrollbar">
+                                {builderTab === 'rooms' ? (
+                                    <>
+                                        <button
+                                            onClick={() => handleAddRoom(roomTemplates[0])}
+                                            className="w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group relative overflow-hidden"
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
+                                                <Plus className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
+                                            </div>
+                                            <span className="relative text-sm font-bold text-cyan-50 tracking-wide">
+                                                Nuova Stanza base
+                                            </span>
+                                        </button>
 
-                                <div className="mt-8 w-[90%] bg-slate-800/50 p-4 rounded-xl border border-white/5 mx-auto">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Trasparenza Spazio</label>
-                                        <span className="text-xs text-cyan-400 font-mono">{Math.round((useOfficeStore.getState().bgOpacity || 0.8) * 100)}%</span>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="1"
-                                        step="0.05"
-                                        value={useOfficeStore.getState().bgOpacity || 0.8}
-                                        onChange={(e) => useOfficeStore.getState().setBgOpacity(parseFloat(e.target.value))}
-                                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
-                                        style={{
-                                            accentColor: '#22d3ee'
-                                        }}
-                                    />
-                                </div>
+                                        <div className="mt-6 w-full text-left">
+                                            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2 mb-3">Template Veloci (WIP)</h4>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {roomTemplates.slice(1, 5).map(tpl => (
+                                                    <button
+                                                        key={tpl.name}
+                                                        onClick={() => handleAddRoom(tpl)}
+                                                        className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-black/20 border border-white/5 hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all text-xs text-slate-300 hover:text-white"
+                                                    >
+                                                        <span className="text-xl">{tpl.icon}</span>
+                                                        <span className="font-semibold">{tpl.name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="w-full space-y-5">
+                                        <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5 w-full">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Trasparenza Spazio</label>
+                                                <span className="text-xs text-cyan-400 font-mono">{Math.round((useOfficeStore.getState().bgOpacity || 0.8) * 100)}%</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="100"
+                                                step="5"
+                                                value={Math.round((useOfficeStore.getState().bgOpacity || 0.8) * 100)}
+                                                onChange={(e) => useOfficeStore.getState().setBgOpacity(parseFloat(e.target.value) / 100)}
+                                                className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors mb-2"
+                                                style={{ accentColor: '#22d3ee' }}
+                                            />
+                                            <p className="text-[10px] text-slate-500 leading-snug">
+                                                Regola l&apos;opacità dello sfondo cosmico.
+                                            </p>
+                                        </div>
 
-                                <div className="mt-4 w-[90%] bg-slate-800/50 p-4 rounded-xl border border-white/5 mx-auto">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Larghezza Ufficio</label>
-                                        <span className="text-xs text-indigo-400 font-mono">{useOfficeStore.getState().officeWidth || 4000}px</span>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min="2000"
-                                        max="10000"
-                                        step="500"
-                                        value={useOfficeStore.getState().officeWidth || 4000}
-                                        onChange={(e) => useOfficeStore.getState().setOfficeDimensions(parseInt(e.target.value), useOfficeStore.getState().officeHeight || 4000)}
-                                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
-                                        style={{ accentColor: '#818cf8' }}
-                                    />
+                                        <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5 w-full">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Larghezza Ufficio</label>
+                                                <span className="text-xs text-indigo-400 font-mono">{useOfficeStore.getState().officeWidth || 4000}px</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="2000"
+                                                max="10000"
+                                                step="500"
+                                                value={useOfficeStore.getState().officeWidth || 4000}
+                                                onChange={(e) => useOfficeStore.getState().setOfficeDimensions(parseInt(e.target.value), useOfficeStore.getState().officeHeight || 4000)}
+                                                className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
+                                                style={{ accentColor: '#818cf8' }}
+                                            />
 
-                                    <div className="flex justify-between items-center mb-2 mt-4">
-                                        <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Altezza Ufficio</label>
-                                        <span className="text-xs text-indigo-400 font-mono">{useOfficeStore.getState().officeHeight || 4000}px</span>
+                                            <div className="flex justify-between items-center mb-2 mt-5">
+                                                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Altezza Ufficio</label>
+                                                <span className="text-xs text-indigo-400 font-mono">{useOfficeStore.getState().officeHeight || 4000}px</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="2000"
+                                                max="10000"
+                                                step="500"
+                                                value={useOfficeStore.getState().officeHeight || 4000}
+                                                onChange={(e) => useOfficeStore.getState().setOfficeDimensions(useOfficeStore.getState().officeWidth || 4000, parseInt(e.target.value))}
+                                                className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
+                                                style={{ accentColor: '#818cf8' }}
+                                            />
+                                        </div>
+
+                                        <button
+                                            onClick={handleSaveEnvironment} disabled={saving}
+                                            className="w-full flex items-center justify-center gap-2 py-3 mt-4 rounded-xl text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(34,211,238,0.4)] disabled:opacity-50"
+                                        >
+                                            <Save className="w-4 h-4" /> {saving ? 'Salvataggio...' : 'Salva Ambiente'}
+                                        </button>
                                     </div>
-                                    <input
-                                        type="range"
-                                        min="2000"
-                                        max="10000"
-                                        step="500"
-                                        value={useOfficeStore.getState().officeHeight || 4000}
-                                        onChange={(e) => useOfficeStore.getState().setOfficeDimensions(useOfficeStore.getState().officeWidth || 4000, parseInt(e.target.value))}
-                                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
-                                        style={{ accentColor: '#818cf8' }}
-                                    />
-                                </div>
+                                )}
                             </div>
                         </>
                     )}

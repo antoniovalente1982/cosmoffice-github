@@ -301,3 +301,10 @@ Import trace for requested module:
  ✓ Compiled in 210ms (2495 modules)
  ✓ Compiled in 171ms (2495 modules)
  ✓ Compiled in 136ms (2495 modules)
+ ✓ Compiled in 166ms (2481 modules)
+ ✓ Compiled in 142ms (2495 modules)
+ ✓ Compiled in 166ms (2495 modules)
+ ✓ Compiled in 187ms (2495 modules)
+ ✓ Compiled in 196ms (2495 modules)
+ ✓ Compiled in 135ms (2495 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/0.pack.gz_' -> '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/0.pack.gz'

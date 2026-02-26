@@ -242,7 +242,7 @@ export function KonvaOffice() {
 
         const minScaleX = dimensions.width / (officeWidth || 4000);
         const minScaleY = dimensions.height / (officeHeight || 4000);
-        const minScale = Math.max(0.1, Math.max(minScaleX, minScaleY));
+        const minScale = Math.max(minScaleX, minScaleY); // Prevent zooming out beyond strict bounds
 
         const clampedScale = Math.max(minScale, Math.min(3, newScale));
         stage.scale({ x: clampedScale, y: clampedScale });
@@ -288,7 +288,7 @@ export function KonvaOffice() {
 
         const minScaleX = dimensions.width / (officeWidth || 4000);
         const minScaleY = dimensions.height / (officeHeight || 4000);
-        const minScale = Math.max(0.1, Math.max(minScaleX, minScaleY));
+        const minScale = Math.max(minScaleX, minScaleY);
 
         const clampedScale = Math.max(minScale, Math.min(3, newScale));
         stage.scale({ x: clampedScale, y: clampedScale });
@@ -301,7 +301,7 @@ export function KonvaOffice() {
         stage.position(newPos);
         setZoom(clampedScale);
         setStagePos(newPos);
-    }, [setZoom, setStagePos]);
+    }, [setZoom, setStagePos, clampStagePosition, dimensions, officeHeight, officeWidth]);
 
     // Handle all MiniMap events
     useEffect(() => {
