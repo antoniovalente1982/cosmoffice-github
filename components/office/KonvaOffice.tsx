@@ -66,6 +66,23 @@ export function KonvaOffice() {
     usePresence();
     useSpatialAudio();
 
+    // Solar system rotation based on current time (360 degrees = 24 hours)
+    const [solarRotation, setSolarRotation] = useState(0);
+
+    useEffect(() => {
+        const updateRotation = () => {
+            const now = new Date();
+            const hours = now.getHours();
+            const mins = now.getMinutes();
+            const secs = now.getSeconds();
+            const fractionOfDay = ((hours * 60 * 60) + (mins * 60) + secs) / (24 * 60 * 60);
+            setSolarRotation(fractionOfDay * 360);
+        };
+        updateRotation();
+        const interval = setInterval(updateRotation, 30000); // UI update every 30s
+        return () => clearInterval(interval);
+    }, []);
+
     // Use ResizeObserver to measure the actual container size
     useEffect(() => {
         const container = containerRef.current;
@@ -312,23 +329,31 @@ export function KonvaOffice() {
                 }}
             />
 
-            {/* Shooting Stars (Meteors) Layer */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-                {[...Array(5)].map((_, i) => (
-                    <div
-                        key={i}
-                        className="absolute h-[2px] w-[100px] bg-gradient-to-r from-transparent via-cyan-100 to-cyan-400 opacity-0 transform -rotate-45"
-                        style={{
-                            top: `${Math.random() * 50}%`,
-                            left: `${Math.random() * 80 + 20}%`,
-                            animation: `meteor ${Math.random() * 10 + 5}s linear ${Math.random() * 10}s infinite`,
-                            boxShadow: '0 0 10px 2px rgba(34,211,238,0.5)'
-                        }}
-                    >
-                        {/* Glow head */}
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[4px] h-[4px] rounded-full bg-white shadow-[0_0_15px_5px_rgba(255,255,255,0.8)]" />
+            {/* Solar System Background Layer */}
+            <div className="absolute left-1/2 top-1/2 pointer-events-none z-0 overflow-hidden"
+                style={{ width: '200vw', height: '200vw', transform: 'translate(-50%, -50%)' }}>
+                <div
+                    className="absolute inset-0 transition-transform duration-[1000s] ease-linear"
+                    style={{ transform: `rotate(${solarRotation}deg)` }}
+                >
+                    {/* The Sun (Center) */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-100 shadow-[0_0_150px_40px_rgba(251,191,36,0.3)] animate-pulse-glow" />
+
+                    {/* Inner Orbit (Cyan Planet) */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-white/5" />
+                    <div className="absolute left-1/2 top-[calc(50%-250px)] -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-300 to-blue-600 shadow-[0_0_30px_rgba(6,182,212,0.6)]" />
+
+                    {/* Middle Orbit (Purple Gas Giant) */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full border border-white/5" />
+                    <div className="absolute left-[calc(50%+450px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-pink-600 shadow-[0_0_40px_rgba(192,132,252,0.5)]">
+                        {/* Ring around planet */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[20%] rounded-[50%] border-2 border-pink-300/30 transform rotate-12" />
                     </div>
-                ))}
+
+                    {/* Outer Orbit (Emerald Planet) */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1400px] h-[1400px] rounded-full border border-white/5" />
+                    <div className="absolute left-[calc(50%-700px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-gradient-to-br from-emerald-300 to-teal-700 shadow-[0_0_35px_rgba(16,185,129,0.4)]" />
+                </div>
             </div>
 
             {/* Mini Map */}
