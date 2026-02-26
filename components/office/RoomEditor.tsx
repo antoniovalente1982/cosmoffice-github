@@ -10,6 +10,7 @@ const GRID_SIZE = 20;
 const HANDLE_SIZE = 10;
 const MIN_ROOM_W = 80;
 const MIN_ROOM_H = 60;
+const MAX_BOUNDS = 4000; // Max fixed office plane limit
 
 function snapToGrid(value: number): number {
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
@@ -32,14 +33,19 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
 
     const handleDragEnd = useCallback(async (e: any) => {
         setIsDragging(false);
-        const newX = snapToGrid(e.target.x());
-        const newY = snapToGrid(e.target.y());
+        // Force bounds clamping for new room moves
+        let newX = snapToGrid(e.target.x());
+        let newY = snapToGrid(e.target.y());
+
+        newX = Math.max(0, Math.min(newX, MAX_BOUNDS - room.width));
+        newY = Math.max(0, Math.min(newY, MAX_BOUNDS - room.height));
+
         e.target.position({ x: newX, y: newY });
         updateRoomPosition(room.id, newX, newY);
         if (!room.id.startsWith('temp_')) {
             await supabase.from('rooms').update({ x: newX, y: newY }).eq('id', room.id);
         }
-    }, [room.id, supabase, updateRoomPosition]);
+    }, [room, supabase, updateRoomPosition]);
 
     const handleResizeDragEnd = useCallback(async (handlePos: string, e: any) => {
         const handleX = e.target.x();
@@ -47,8 +53,13 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         let newX = room.x, newY = room.y, newW = room.width, newH = room.height;
         if (handlePos.includes('right')) newW = snapToGrid(Math.max(MIN_ROOM_W, handleX));
         if (handlePos.includes('bottom')) newH = snapToGrid(Math.max(MIN_ROOM_H, handleY));
-        if (handlePos.includes('left')) { const d = snapToGrid(handleX); newX = room.x + d; newW = Math.max(MIN_ROOM_W, room.width - d); }
-        if (handlePos.includes('top')) { const d = snapToGrid(handleY); newY = room.y + d; newH = Math.max(MIN_ROOM_H, room.height - d); }
+        if (handlePos.includes('left')) { const d = snapToGrid(handleX); newX = Math.max(0, room.x + d); newW = Math.max(MIN_ROOM_W, room.width - d); }
+        if (handlePos.includes('top')) { const d = snapToGrid(handleY); newY = Math.max(0, room.y + d); newH = Math.max(MIN_ROOM_H, room.height - d); }
+
+        // Prevent exceeding MAX_BOUNDS
+        if (newX + newW > MAX_BOUNDS) newW = MAX_BOUNDS - newX;
+        if (newY + newH > MAX_BOUNDS) newH = MAX_BOUNDS - newY;
+
         e.target.position(getHandleOffset(handlePos, newW, newH));
         updateRoomPosition(room.id, newX, newY);
         updateRoomSize(room.id, newW, newH);

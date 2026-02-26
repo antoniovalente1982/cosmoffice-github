@@ -46,15 +46,13 @@ export function KonvaOffice() {
         myPosition, setMyPosition, peers, rooms,
         zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
-        myProfile, isBuilderMode
+        myProfile, isBuilderMode, bgOpacity, stagePos
     } = useOfficeStore();
     const stageRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const hasInitializedRef = useRef(false);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-    const { stagePos } = useOfficeStore();
 
-    // Avatar drag state
     const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
     const isDraggingAvatarRef = useRef(false);
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
@@ -145,8 +143,17 @@ export function KonvaOffice() {
             if (!isDraggingAvatarRef.current) return;
 
             const { mouseX, mouseY, posX, posY, zoom: startZoom } = dragStartRef.current;
-            const newX = posX + (e.clientX - mouseX) / startZoom;
-            const newY = posY + (e.clientY - mouseY) / startZoom;
+            const rawX = posX + (e.clientX - mouseX) / startZoom;
+            const rawY = posY + (e.clientY - mouseY) / startZoom;
+
+            // Restrict movement to office bounds
+            const bounds = officeBounds; // Derived from useMemo
+            const avatarRadius = 24; // Average visual radius
+
+            const newX = Math.max(bounds.x + avatarRadius, Math.min(rawX, bounds.x + bounds.width - avatarRadius));
+            const newY = Math.max(bounds.y + avatarRadius, Math.min(rawY, bounds.y + bounds.height - avatarRadius));
+
+            setMyPosition({ x: newX, y: newY });
 
             setMyPosition({ x: newX, y: newY });
         };
@@ -183,7 +190,7 @@ export function KonvaOffice() {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [rooms, setMyPosition, setMyRoom]);
+    }, [rooms, setMyPosition, setMyRoom, officeBounds]);
 
     // Handler: start dragging the avatar
     const handleAvatarMouseDown = useCallback((e: React.MouseEvent) => {
@@ -358,8 +365,10 @@ export function KonvaOffice() {
 
             {/* Solar System Background Layer */}
             {/* The wrapper scales to cover immense depths so the planets can stretch out far. */}
+            {/* Solar System Background Layer */}
+            {/* The wrapper scales to cover immense depths so the planets can stretch out far. */}
             <div className="absolute left-1/2 top-1/2 pointer-events-none z-0 overflow-hidden"
-                style={{ width: '400vw', height: '400vw', transform: 'translate(-50%, -50%)', opacity: 0.8 }}>
+                style={{ width: '400vw', height: '400vw', transform: 'translate(-50%, -50%)', opacity: bgOpacity }}>
                 <div
                     className="absolute inset-0"
                     style={{ transform: `rotate(${solarRotation}deg)` }}

@@ -356,7 +356,7 @@ export function OfficeBuilder() {
                                 </div>
                             </div>
 
-                            <div className="p-4 flex-1 flex flex-col justify-center items-center h-full min-h-[160px]">
+                            <div className="p-4 flex-1 flex flex-col justify-center items-center h-full min-h-[160px] relative">
                                 <button
                                     onClick={() => handleAddRoom(roomTemplates[0])}
                                     className="w-[90%] flex flex-col items-center justify-center gap-3 p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group"
@@ -368,6 +368,25 @@ export function OfficeBuilder() {
                                         Nuova Stanza
                                     </span>
                                 </button>
+
+                                <div className="mt-8 w-[90%] bg-slate-800/50 p-4 rounded-xl border border-white/5 mx-auto">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Trasparenza Spazio</label>
+                                        <span className="text-xs text-cyan-400 font-mono">{Math.round((useOfficeStore.getState().bgOpacity || 0.8) * 100)}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.05"
+                                        value={useOfficeStore.getState().bgOpacity || 0.8}
+                                        onChange={(e) => useOfficeStore.getState().setBgOpacity(parseFloat(e.target.value))}
+                                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
+                                        style={{
+                                            accentColor: '#22d3ee'
+                                        }}
+                                    />
+                                </div>
                             </div>
                         </>
                     )}

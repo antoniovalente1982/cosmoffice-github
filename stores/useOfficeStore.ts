@@ -114,6 +114,7 @@ interface OfficeState {
 
     // Builder State
     isBuilderMode: boolean;
+    bgOpacity: number;
     selectedRoomId: string | null;
     furnitureItems: FurnitureItem[];
     roomTemplates: RoomTemplate[];
@@ -163,6 +164,7 @@ interface OfficeState {
     addFurniture: (item: FurnitureItem) => void;
     updateFurniture: (id: string, data: Partial<FurnitureItem>) => void;
     removeFurniture: (id: string) => void;
+    setBgOpacity: (val: number) => void;
 }
 
 export const useOfficeStore = create<OfficeState>((set, get) => ({
@@ -198,6 +200,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
 
     // Builder defaults
     isBuilderMode: false,
+    bgOpacity: 0.8,
     selectedRoomId: null,
     furnitureItems: [],
     roomTemplates: [
@@ -458,12 +461,11 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
         selectedRoomId: state.selectedRoomId === roomId ? null : state.selectedRoomId,
         furnitureItems: state.furnitureItems.filter(f => f.room_id !== roomId)
     })),
-    setFurnitureItems: (furnitureItems) => set({ furnitureItems }),
+    setFurnitureItems: (items) => set({ furnitureItems: items }),
     addFurniture: (item) => set((state) => ({ furnitureItems: [...state.furnitureItems, item] })),
     updateFurniture: (id, data) => set((state) => ({
         furnitureItems: state.furnitureItems.map(f => f.id === id ? { ...f, ...data } : f)
     })),
-    removeFurniture: (id) => set((state) => ({
-        furnitureItems: state.furnitureItems.filter(f => f.id !== id)
-    })),
+    removeFurniture: (id) => set((state) => ({ furnitureItems: state.furnitureItems.filter(f => f.id !== id) })),
+    setBgOpacity: (bgOpacity) => set({ bgOpacity }),
 }));

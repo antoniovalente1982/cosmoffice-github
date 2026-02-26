@@ -97,3 +97,201 @@ Import trace for requested module:
  ✓ Compiled in 279ms (2495 modules)
  ✓ Compiled in 168ms (2495 modules)
  ✓ Compiled in 251ms (2495 modules)
+ ✓ Compiled in 178ms (2481 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development-fallback/0.pack.gz_' -> '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development-fallback/0.pack.gz'
+ ⨯ ./components/office/KonvaOffice.tsx
+Error: 
+  [31mx[0m the name `setStagePos` is defined multiple times
+    ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/KonvaOffice.tsx[0m:44:1]
+ [2m44[0m | export function KonvaOffice() {
+ [2m45[0m |     const {
+ [2m46[0m |         myPosition, setMyPosition, peers, rooms,
+ [2m47[0m |         zoom, setZoom, setStagePos, setMyRoom,
+    : [31;1m                       ^^^^^|^^^^^[0m
+    :                             [31;1m`-- [31;1mprevious definition of `setStagePos` here[0m[0m
+ [2m48[0m |         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
+ [2m49[0m |         myProfile, isBuilderMode
+ [2m50[0m |     } = useOfficeStore();
+ [2m51[0m |     const stageRef = useRef<any>(null);
+ [2m52[0m |     const containerRef = useRef<HTMLDivElement>(null);
+ [2m53[0m |     const hasInitializedRef = useRef(false);
+ [2m54[0m |     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+ [2m55[0m |     const { stagePos, setStagePos, setZoom, isBuilderMode, zoom, myPosition, setMyPosition, setMyRoom, rooms, bgOpacity } = useOfficeStore();
+    : [33;1m                      ^^^^^|^^^^^[0m
+    :                            [33;1m`-- [33;1m`setStagePos` redefined here[0m[0m
+ [2m56[0m |     const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+ [2m57[0m |     const isDraggingAvatarRef = useRef(false);
+ [2m58[0m |     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
+    `----
+
+  [31mx[0m the name `setZoom` is defined multiple times
+    ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/KonvaOffice.tsx[0m:44:1]
+ [2m44[0m | export function KonvaOffice() {
+ [2m45[0m |     const {
+ [2m46[0m |         myPosition, setMyPosition, peers, rooms,
+ [2m47[0m |         zoom, setZoom, setStagePos, setMyRoom,
+    : [31;1m              ^^^|^^^[0m
+    :                  [31;1m`-- [31;1mprevious definition of `setZoom` here[0m[0m
+ [2m48[0m |         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
+ [2m49[0m |         myProfile, isBuilderMode
+ [2m50[0m |     } = useOfficeStore();
+ [2m51[0m |     const stageRef = useRef<any>(null);
+ [2m52[0m |     const containerRef = useRef<HTMLDivElement>(null);
+ [2m53[0m |     const hasInitializedRef = useRef(false);
+ [2m54[0m |     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+ [2m55[0m |     const { stagePos, setStagePos, setZoom, isBuilderMode, zoom, myPosition, setMyPosition, setMyRoom, rooms, bgOpacity } = useOfficeStore();
+    : [33;1m                                   ^^^|^^^[0m
+    :                                       [33;1m`-- [33;1m`setZoom` redefined here[0m[0m
+ [2m56[0m |     const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+ [2m57[0m |     const isDraggingAvatarRef = useRef(false);
+ [2m58[0m |     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
+    `----
+
+  [31mx[0m the name `isBuilderMode` is defined multiple times
+    ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/KonvaOffice.tsx[0m:46:1]
+ [2m46[0m |         myPosition, setMyPosition, peers, rooms,
+ [2m47[0m |         zoom, setZoom, setStagePos, setMyRoom,
+ [2m48[0m |         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
+ [2m49[0m |         myProfile, isBuilderMode
+    : [31;1m                   ^^^^^^|^^^^^^[0m
+    :                          [31;1m`-- [31;1mprevious definition of `isBuilderMode` here[0m[0m
+ [2m50[0m |     } = useOfficeStore();
+ [2m51[0m |     const stageRef = useRef<any>(null);
+ [2m52[0m |     const containerRef = useRef<HTMLDivElement>(null);
+ [2m53[0m |     const hasInitializedRef = useRef(false);
+ [2m54[0m |     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+ [2m55[0m |     const { stagePos, setStagePos, setZoom, isBuilderMode, zoom, myPosition, setMyPosition, setMyRoom, rooms, bgOpacity } = useOfficeStore();
+    : [33;1m                                            ^^^^^^|^^^^^^[0m
+    :                                                   [33;1m`-- [33;1m`isBuilderMode` redefined here[0m[0m
+ [2m56[0m |     const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+ [2m57[0m |     const isDraggingAvatarRef = useRef(false);
+ [2m58[0m |     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
+    `----
+
+  [31mx[0m the name `zoom` is defined multiple times
+    ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/KonvaOffice.tsx[0m:44:1]
+ [2m44[0m | export function KonvaOffice() {
+ [2m45[0m |     const {
+ [2m46[0m |         myPosition, setMyPosition, peers, rooms,
+ [2m47[0m |         zoom, setZoom, setStagePos, setMyRoom,
+    : [31;1m        ^^|^[0m
+    :           [31;1m`-- [31;1mprevious definition of `zoom` here[0m[0m
+ [2m48[0m |         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
+ [2m49[0m |         myProfile, isBuilderMode
+ [2m50[0m |     } = useOfficeStore();
+ [2m51[0m |     const stageRef = useRef<any>(null);
+ [2m52[0m |     const containerRef = useRef<HTMLDivElement>(null);
+ [2m53[0m |     const hasInitializedRef = useRef(false);
+ [2m54[0m |     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+ [2m55[0m |     const { stagePos, setStagePos, setZoom, isBuilderMode, zoom, myPosition, setMyPosition, setMyRoom, rooms, bgOpacity } = useOfficeStore();
+    : [33;1m                                                           ^^|^[0m
+    :                                                              [33;1m`-- [33;1m`zoom` redefined here[0m[0m
+ [2m56[0m |     const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+ [2m57[0m |     const isDraggingAvatarRef = useRef(false);
+ [2m58[0m |     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
+    `----
+
+  [31mx[0m the name `myPosition` is defined multiple times
+    ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/KonvaOffice.tsx[0m:43:1]
+ [2m43[0m | 
+ [2m44[0m | export function KonvaOffice() {
+ [2m45[0m |     const {
+ [2m46[0m |         myPosition, setMyPosition, peers, rooms,
+    : [31;1m        ^^^^^|^^^^[0m
+    :              [31;1m`-- [31;1mprevious definition of `myPosition` here[0m[0m
+ [2m47[0m |         zoom, setZoom, setStagePos, setMyRoom,
+ [2m48[0m |         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
+ [2m49[0m |         myProfile, isBuilderMode
+ [2m50[0m |     } = useOfficeStore();
+ [2m51[0m |     const stageRef = useRef<any>(null);
+ [2m52[0m |     const containerRef = useRef<HTMLDivElement>(null);
+ [2m53[0m |     const hasInitializedRef = useRef(false);
+ [2m54[0m |     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+ [2m55[0m |     const { stagePos, setStagePos, setZoom, isBuilderMode, zoom, myPosition, setMyPosition, setMyRoom, rooms, bgOpacity } = useOfficeStore();
+    : [33;1m                                                                 ^^^^^|^^^^[0m
+    :                                                                       [33;1m`-- [33;1m`myPosition` redefined here[0m[0m
+ [2m56[0m |     const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+ [2m57[0m |     const isDraggingAvatarRef = useRef(false);
+ [2m58[0m |     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
+    `----
+
+  [31mx[0m the name `setMyPosition` is defined multiple times
+    ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/KonvaOffice.tsx[0m:43:1]
+ [2m43[0m | 
+ [2m44[0m | export function KonvaOffice() {
+ [2m45[0m |     const {
+ [2m46[0m |         myPosition, setMyPosition, peers, rooms,
+    : [31;1m                    ^^^^^^|^^^^^^[0m
+    :                           [31;1m`-- [31;1mprevious definition of `setMyPosition` here[0m[0m
+ [2m47[0m |         zoom, setZoom, setStagePos, setMyRoom,
+ [2m48[0m |         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
+ [2m49[0m |         myProfile, isBuilderMode
+ [2m50[0m |     } = useOfficeStore();
+ [2m51[0m |     const stageRef = useRef<any>(null);
+ [2m52[0m |     const containerRef = useRef<HTMLDivElement>(null);
+ [2m53[0m |     const hasInitializedRef = useRef(false);
+ [2m54[0m |     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+ [2m55[0m |     const { stagePos, setStagePos, setZoom, isBuilderMode, zoom, myPosition, setMyPosition, setMyRoom, rooms, bgOpacity } = useOfficeStore();
+    : [33;1m                                                                             ^^^^^^|^^^^^^[0m
+    :                                                                                    [33;1m`-- [33;1m`setMyPosition` redefined here[0m[0m
+ [2m56[0m |     const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+ [2m57[0m |     const isDraggingAvatarRef = useRef(false);
+ [2m58[0m |     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
+    `----
+
+  [31mx[0m the name `setMyRoom` is defined multiple times
+    ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/KonvaOffice.tsx[0m:44:1]
+ [2m44[0m | export function KonvaOffice() {
+ [2m45[0m |     const {
+ [2m46[0m |         myPosition, setMyPosition, peers, rooms,
+ [2m47[0m |         zoom, setZoom, setStagePos, setMyRoom,
+    : [31;1m                                    ^^^^|^^^^[0m
+    :                                         [31;1m`-- [31;1mprevious definition of `setMyRoom` here[0m[0m
+ [2m48[0m |         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
+ [2m49[0m |         myProfile, isBuilderMode
+ [2m50[0m |     } = useOfficeStore();
+ [2m51[0m |     const stageRef = useRef<any>(null);
+ [2m52[0m |     const containerRef = useRef<HTMLDivElement>(null);
+ [2m53[0m |     const hasInitializedRef = useRef(false);
+ [2m54[0m |     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+ [2m55[0m |     const { stagePos, setStagePos, setZoom, isBuilderMode, zoom, myPosition, setMyPosition, setMyRoom, rooms, bgOpacity } = useOfficeStore();
+    : [33;1m                                                                                            ^^^^|^^^^[0m
+    :                                                                                                 [33;1m`-- [33;1m`setMyRoom` redefined here[0m[0m
+ [2m56[0m |     const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+ [2m57[0m |     const isDraggingAvatarRef = useRef(false);
+ [2m58[0m |     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
+    `----
+
+  [31mx[0m the name `rooms` is defined multiple times
+    ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/KonvaOffice.tsx[0m:43:1]
+ [2m43[0m | 
+ [2m44[0m | export function KonvaOffice() {
+ [2m45[0m |     const {
+ [2m46[0m |         myPosition, setMyPosition, peers, rooms,
+    : [31;1m                                          ^^|^^[0m
+    :                                             [31;1m`-- [31;1mprevious definition of `rooms` here[0m[0m
+ [2m47[0m |         zoom, setZoom, setStagePos, setMyRoom,
+ [2m48[0m |         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
+ [2m49[0m |         myProfile, isBuilderMode
+ [2m50[0m |     } = useOfficeStore();
+ [2m51[0m |     const stageRef = useRef<any>(null);
+ [2m52[0m |     const containerRef = useRef<HTMLDivElement>(null);
+ [2m53[0m |     const hasInitializedRef = useRef(false);
+ [2m54[0m |     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+ [2m55[0m |     const { stagePos, setStagePos, setZoom, isBuilderMode, zoom, myPosition, setMyPosition, setMyRoom, rooms, bgOpacity } = useOfficeStore();
+    : [33;1m                                                                                                       ^^|^^[0m
+    :                                                                                                          [33;1m`-- [33;1m`rooms` redefined here[0m[0m
+ [2m56[0m |     const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+ [2m57[0m |     const isDraggingAvatarRef = useRef(false);
+ [2m58[0m |     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
+    `----
+
+Import trace for requested module:
+./components/office/KonvaOffice.tsx
+./app/office/[id]/page.tsx
+ ✓ Compiled in 167ms (2495 modules)
+ ✓ Compiled in 139ms (2481 modules)
+ ✓ Compiled in 189ms (2495 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/0.pack.gz_' -> '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/0.pack.gz'
+ ✓ Compiled in 164ms (2495 modules)
+ ✓ Compiled in 183ms (2495 modules)
