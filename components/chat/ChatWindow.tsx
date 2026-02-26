@@ -21,6 +21,7 @@ import { useOfficeStore } from '../../stores/useOfficeStore';
 interface ChatMessage {
     id: string;
     space_id: string;
+    room_id?: string | null;
     sender_id: string;
     sender_name: string;
     sender_avatar_url?: string;
@@ -32,7 +33,8 @@ interface ChatMessage {
 }
 
 export function ChatWindow() {
-    const { isChatOpen, toggleChat, activeSpaceId } = useOfficeStore();
+    const { isChatOpen, toggleChat, activeSpaceId, myRoomId, rooms } = useOfficeStore();
+    const [chatTab, setChatTab] = useState<'office' | 'room'>('office');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -45,13 +47,22 @@ export function ChatWindow() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // Switch automatico a stanza quando l'utente entra in una stanza
+    useEffect(() => {
+        if (myRoomId) {
+            setChatTab('room');
+        } else {
+            setChatTab('office');
+        }
+    }, [myRoomId, isChatOpen]);
+
     // Carica utente corrente e ruolo
     useEffect(() => {
         const loadUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 setCurrentUser(user);
-                
+
                 // Carica profilo completo
                 const { data: profile } = await supabase
                     .from('profiles')
@@ -66,14 +77,14 @@ export function ChatWindow() {
                         .select('org_id')
                         .eq('id', activeSpaceId)
                         .single();
-                    
+
                     if (spaceData) {
                         const { data: orgData } = await supabase
                             .from('organizations')
                             .select('created_by')
                             .eq('id', spaceData.org_id)
                             .single();
-                        
+
                         const { data: memberData } = await supabase
                             .from('organization_members')
                             .select('role')
@@ -107,14 +118,26 @@ export function ChatWindow() {
     // Carica messaggi dal database
     const loadMessages = useCallback(async () => {
         if (!activeSpaceId) return;
-        
+
         setIsLoading(true);
-        const { data, error } = await supabase
+        let query = supabase
             .from('space_chat_messages')
             .select('*')
-            .eq('space_id', activeSpaceId)
-            .order('created_at', { ascending: true })
-            .limit(100);
+            .eq('space_id', activeSpaceId);
+
+        if (chatTab === 'room') {
+            if (myRoomId) {
+                query = query.eq('room_id', myRoomId);
+            } else {
+                setMessages([]);
+                setIsLoading(false);
+                return;
+            }
+        } else {
+            query = query.is('room_id', null);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: true }).limit(100);
 
         if (error) {
             console.error('Error loading messages:', error);
@@ -122,13 +145,13 @@ export function ChatWindow() {
             setMessages(data || []);
         }
         setIsLoading(false);
-    }, [activeSpaceId, supabase]);
+    }, [activeSpaceId, myRoomId, chatTab, supabase]);
 
     useEffect(() => {
         if (isChatOpen && activeSpaceId) {
             loadMessages();
         }
-    }, [isChatOpen, activeSpaceId, loadMessages]);
+    }, [isChatOpen, activeSpaceId, chatTab, myRoomId, loadMessages]);
 
     // Sottoscrizione realtime ai nuovi messaggi
     useEffect(() => {
@@ -147,6 +170,11 @@ export function ChatWindow() {
                 (payload) => {
                     const newMessage = payload.new as ChatMessage;
                     setMessages((prev) => {
+                        // Filtra basato sul tab corrente:
+                        const isRoomMsg = !!newMessage.room_id;
+                        if (chatTab === 'office' && isRoomMsg) return prev;
+                        if (chatTab === 'room' && newMessage.room_id !== myRoomId) return prev;
+
                         // Evita duplicati
                         if (prev.find(m => m.id === newMessage.id)) return prev;
                         return [...prev, newMessage];
@@ -159,8 +187,6 @@ export function ChatWindow() {
                     event: 'DELETE',
                     schema: 'public',
                     table: 'space_chat_messages'
-                    // Nessun filtro: senza REPLICA IDENTITY FULL Supabase non invia
-                    // space_id nei DELETE events. Filtriamo nel callback via id.
                 },
                 (payload) => {
                     const deletedId = payload.old.id;
@@ -172,7 +198,7 @@ export function ChatWindow() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [activeSpaceId, isChatOpen, supabase]);
+    }, [activeSpaceId, isChatOpen, chatTab, myRoomId, supabase]);
 
     // Auto-scroll ai nuovi messaggi
     useEffect(() => {
@@ -213,6 +239,7 @@ export function ChatWindow() {
 
         const newMessage = {
             space_id: activeSpaceId,
+            room_id: chatTab === 'room' ? myRoomId : null,
             sender_id: currentUser.id,
             sender_name: profile?.full_name || currentUser.email || 'Anonymous',
             sender_avatar_url: profile?.avatar_url,
@@ -233,7 +260,7 @@ export function ChatWindow() {
 
     const handleDeleteMessage = async (messageId: string) => {
         if (!confirm('Sei sicuro di voler eliminare questo messaggio?')) return;
-        
+
         const { error } = await supabase
             .from('space_chat_messages')
             .delete()
@@ -253,13 +280,25 @@ export function ChatWindow() {
 
     const handleClearChat = async () => {
         if (!activeSpaceId) return;
-        if (!confirm('Sei sicuro di voler eliminare tutta la chat? Questa operazione non può essere annullata.')) return;
+        const confirmMsg = chatTab === 'room'
+            ? 'Sei sicuro di voler eliminare tutta la chat di questa stanza? Questa operazione non può essere annullata.'
+            : 'Sei sicuro di voler eliminare tutta la chat dell\'ufficio? Questa operazione non può essere annullata.';
+
+        if (!confirm(confirmMsg)) return;
 
         setIsClearingChat(true);
-        const { error } = await supabase
+        let query = supabase
             .from('space_chat_messages')
             .delete()
             .eq('space_id', activeSpaceId);
+
+        if (chatTab === 'room' && myRoomId) {
+            query = query.eq('room_id', myRoomId);
+        } else {
+            query = query.is('room_id', null);
+        }
+
+        const { error } = await query;
 
         if (error) {
             console.error('Error clearing chat:', error);
@@ -272,9 +311,9 @@ export function ChatWindow() {
 
     const formatTime = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleTimeString('it-IT', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
+        return date.toLocaleTimeString('it-IT', {
+            hour: '2-digit',
+            minute: '2-digit'
         });
     };
 
@@ -289,8 +328,8 @@ export function ChatWindow() {
         } else if (date.toDateString() === yesterday.toDateString()) {
             return 'Ieri';
         } else {
-            return date.toLocaleDateString('it-IT', { 
-                day: 'numeric', 
+            return date.toLocaleDateString('it-IT', {
+                day: 'numeric',
                 month: 'short',
                 year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
             });
@@ -318,43 +357,74 @@ export function ChatWindow() {
                     className="absolute right-4 top-4 bottom-4 w-96 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl flex flex-col z-50 shadow-2xl overflow-hidden"
                 >
                     {/* Header */}
-                    <div className="p-4 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-slate-800/50 to-transparent">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center shadow-lg">
-                                <MessageSquare className="w-5 h-5 text-white" />
+                    <div className="p-4 border-b border-white/5 flex flex-col gap-3 bg-gradient-to-r from-slate-800/50 to-transparent">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center shadow-lg">
+                                    <MessageSquare className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-slate-100">
+                                        {chatTab === 'room' && myRoomId
+                                            ? rooms.find(r => r.id === myRoomId)?.name || 'Stanza'
+                                            : spaceName || 'Office'}
+                                    </h3>
+                                    <p className="text-xs text-slate-400">{messages.length} messaggi</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="font-bold text-slate-100">{spaceName}</h3>
-                                <p className="text-xs text-slate-400">{messages.length} messaggi</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            {(userRole === 'owner' || userRole === 'admin') && (
+                            <div className="flex items-center gap-1">
+                                {(userRole === 'owner' || userRole === 'admin') && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleClearChat}
+                                        disabled={isClearingChat || messages.length === 0}
+                                        className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-full disabled:opacity-30"
+                                        title="Cancella tutta la chat"
+                                    >
+                                        <Eraser className="w-4 h-4" />
+                                    </Button>
+                                )}
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={handleClearChat}
-                                    disabled={isClearingChat || messages.length === 0}
-                                    className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-full disabled:opacity-30"
-                                    title="Cancella tutta la chat"
+                                    onClick={toggleChat}
+                                    className="h-8 w-8 text-slate-400 hover:text-slate-100 hover:bg-white/10 rounded-full"
                                 >
-                                    <Eraser className="w-4 h-4" />
+                                    <X className="w-4 h-4" />
                                 </Button>
-                            )}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={toggleChat}
-                                className="h-8 w-8 text-slate-400 hover:text-slate-100 hover:bg-white/10 rounded-full"
+                            </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex items-center gap-2 p-1 bg-slate-900/50 rounded-lg">
+                            <button
+                                onClick={() => setChatTab('office')}
+                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${chatTab === 'office'
+                                        ? 'bg-slate-700 text-white shadow'
+                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    }`}
                             >
-                                <X className="w-4 h-4" />
-                            </Button>
+                                Ufficio
+                            </button>
+                            <button
+                                onClick={() => setChatTab('room')}
+                                disabled={!myRoomId}
+                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${!myRoomId ? 'opacity-40 cursor-not-allowed' : ''
+                                    } ${chatTab === 'room'
+                                        ? 'bg-slate-700 text-white shadow'
+                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    }`}
+                                title={!myRoomId ? 'Entra in una stanza per usare la chat' : ''}
+                            >
+                                Stanza
+                            </button>
                         </div>
                     </div>
 
                     {/* Messages Area */}
-                    <div 
-                        ref={scrollRef} 
+                    <div
+                        ref={scrollRef}
                         className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
                     >
                         {isLoading ? (
@@ -378,12 +448,12 @@ export function ChatWindow() {
                                             {formatDate(dateMessages[0].created_at)}
                                         </div>
                                     </div>
-                                    
+
                                     {dateMessages.map((msg, index) => {
                                         const own = isOwnMessage(msg);
-                                        const showAvatar = index === 0 || 
+                                        const showAvatar = index === 0 ||
                                             dateMessages[index - 1].sender_id !== msg.sender_id;
-                                        
+
                                         return (
                                             <motion.div
                                                 key={msg.id}
@@ -396,8 +466,8 @@ export function ChatWindow() {
                                                     {showAvatar ? (
                                                         <div className="relative">
                                                             {msg.sender_avatar_url ? (
-                                                                <img 
-                                                                    src={msg.sender_avatar_url} 
+                                                                <img
+                                                                    src={msg.sender_avatar_url}
                                                                     alt={msg.sender_name}
                                                                     className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-700"
                                                                 />
@@ -434,12 +504,12 @@ export function ChatWindow() {
                                                             </span>
                                                         </div>
                                                     )}
-                                                    
+
                                                     <div className={`relative max-w-[85%] group/message ${own ? 'bg-primary-500/20' : 'bg-slate-800/80'} rounded-2xl px-4 py-2.5 border ${own ? 'border-primary-500/30 rounded-tr-sm' : 'border-white/5 rounded-tl-sm'}`}>
                                                         <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap break-words">
                                                             {msg.content}
                                                         </p>
-                                                        
+
                                                         {/* Menu azioni messaggio */}
                                                         {canDeleteMessage() && (
                                                             <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/message:opacity-100 transition-opacity ${own ? '-left-8' : '-right-8'}`}>
@@ -452,7 +522,7 @@ export function ChatWindow() {
                                                                 >
                                                                     <MoreHorizontal className="w-4 h-4" />
                                                                 </button>
-                                                                
+
                                                                 {messageMenuOpen === msg.id && (
                                                                     <div className={`absolute top-full mt-1 ${own ? 'right-0' : 'left-0'} w-32 bg-slate-800 border border-white/10 rounded-xl shadow-xl z-20 py-1`}>
                                                                         <button
@@ -485,7 +555,7 @@ export function ChatWindow() {
                                 >
                                     <Smile className="w-5 h-5" />
                                 </button>
-                                
+
                                 <input
                                     ref={inputRef}
                                     type="text"
@@ -495,24 +565,24 @@ export function ChatWindow() {
                                     className="flex-1 bg-transparent text-sm text-slate-200 placeholder:text-slate-600 outline-none"
                                     maxLength={1000}
                                 />
-                                
+
                                 <button
                                     type="button"
                                     className="p-1.5 text-slate-500 hover:text-slate-300 transition-colors"
                                 >
                                     <ImageIcon className="w-5 h-5" />
                                 </button>
-                                
+
                                 <button
                                     type="submit"
-                                    disabled={!inputValue.trim()}
+                                    disabled={!inputValue.trim() || (chatTab === 'room' && !myRoomId)}
                                     className="p-2 rounded-xl bg-primary-500 hover:bg-primary-400 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all active:scale-95"
                                 >
                                     <Send className="w-4 h-4" />
                                 </button>
                             </div>
                         </form>
-                        
+
                         {/* Ruolo indicator */}
                         {userRole && (
                             <div className="mt-2 flex items-center justify-center gap-1.5">
