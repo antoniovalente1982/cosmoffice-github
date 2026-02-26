@@ -8,7 +8,6 @@ import { useSpatialAudio } from '../../hooks/useSpatialAudio';
 import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
-import { FurnitureLayer } from './FurnitureLayer';
 import { ModernRoom } from './ModernRoom';
 
 // Animated background particles
@@ -381,9 +380,6 @@ export function KonvaOffice() {
                                     ))}
                                 </>
                             )}
-
-                            {/* Furniture Layer - always visible */}
-                            <FurnitureLayer />
                         </Layer>
                     </Stage>
 

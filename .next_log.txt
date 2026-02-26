@@ -17,3 +17,54 @@
  GET / 200 in 2041ms
 <w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (133kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
  ✓ Compiled /office in 262ms (1958 modules)
+ ○ Compiling /office/[id] ...
+ ✓ Compiled /office/[id] in 546ms (2261 modules)
+ ⨯ ./components/office/OfficeBuilder.tsx
+Error: 
+  [31mx[0m Unexpected token `div`. Expected jsx identifier
+     ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/OfficeBuilder.tsx[0m:175:1]
+ [2m175[0m |     const roomFurniture = furnitureItems.filter(f => f.room_id === selectedRoomId);
+ [2m176[0m | 
+ [2m177[0m |     return (
+ [2m178[0m |         <div className="absolute inset-0 pointer-events-none overflow-hidden z-[100]">
+     : [31;1m         ^^^[0m
+ [2m179[0m | 
+ [2m180[0m |             {/* TOAST NOTIFICATIONS */}
+ [2m181[0m |             <AnimatePresence>
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/office/OfficeBuilder.tsx
+./app/office/[id]/page.tsx
+ ⨯ ./components/office/OfficeBuilder.tsx
+Error: 
+  [31mx[0m Unexpected token `div`. Expected jsx identifier
+     ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/OfficeBuilder.tsx[0m:175:1]
+ [2m175[0m |     const roomFurniture = furnitureItems.filter(f => f.room_id === selectedRoomId);
+ [2m176[0m | 
+ [2m177[0m |     return (
+ [2m178[0m |         <div className="absolute inset-0 pointer-events-none overflow-hidden z-[100]">
+     : [31;1m         ^^^[0m
+ [2m179[0m | 
+ [2m180[0m |             {/* TOAST NOTIFICATIONS */}
+ [2m181[0m |             <AnimatePresence>
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/office/OfficeBuilder.tsx
+./app/office/[id]/page.tsx
+ GET / 500 in 951ms
+ GET / 500 in 806ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 255ms (2499 modules)
+ ✓ Compiled in 172ms (2499 modules)
+ ✓ Compiled in 300ms (2495 modules)
+ ✓ Compiled in 182ms (2495 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/3.pack.gz_' -> '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/3.pack.gz'
+ ✓ Compiled in 94ms (1324 modules)
