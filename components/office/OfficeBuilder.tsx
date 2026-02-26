@@ -5,7 +5,7 @@ import { useOfficeStore } from '../../stores/useOfficeStore';
 import { createClient } from '../../utils/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket
+    Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2
 } from 'lucide-react';
 
 
@@ -45,6 +45,7 @@ export function OfficeBuilder() {
     const [editDepartment, setEditDepartment] = useState('');
     const [editColor, setEditColor] = useState('#3b82f6');
     const [builderTab, setBuilderTab] = useState<'rooms' | 'environment'>('rooms');
+    const [showRoomsList, setShowRoomsList] = useState(false);
 
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -383,34 +384,69 @@ export function OfficeBuilder() {
                             <div className="p-4 flex-1 flex flex-col justify-start items-center h-full min-h-[160px] relative overflow-y-auto custom-scrollbar">
                                 {builderTab === 'rooms' ? (
                                     <>
-                                        <button
-                                            onClick={() => handleAddRoom(roomTemplates[0])}
-                                            className="w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group relative overflow-hidden"
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
-                                                <Plus className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
+                                        <div className="grid grid-cols-2 gap-3 w-full">
+                                            <button
+                                                onClick={() => handleAddRoom(roomTemplates[0])}
+                                                className="w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group relative overflow-hidden"
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
+                                                    <Plus className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
+                                                </div>
+                                                <span className="relative text-xs font-bold text-cyan-50 tracking-wide text-center">
+                                                    Nuova Stanza
+                                                </span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => setShowRoomsList(!showRoomsList)}
+                                                className={`w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all transform hover:-translate-y-1 group relative overflow-hidden ${showRoomsList ? 'bg-purple-500/20 border-purple-500/50 shadow-[0_10px_30px_rgba(168,85,247,0.2)]' : 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 hover:border-purple-500/50 hover:shadow-[0_10px_30px_rgba(168,85,247,0.15)]'}`}
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-purple-500/20 group-hover:bg-purple-500/30 transition-colors">
+                                                    <PenTool className="w-6 h-6 text-purple-400 group-hover:scale-110 transition-transform" />
+                                                </div>
+                                                <span className="relative text-xs font-bold text-purple-50 tracking-wide text-center">
+                                                    Modifica Stanza
+                                                </span>
+                                            </button>
+                                        </div>
+
+                                        {showRoomsList && (
+                                            <div className="w-full mt-4 space-y-2">
+                                                <p className="text-xs text-slate-400 font-medium mb-2 uppercase tracking-wider">Seleziona una stanza da modificare</p>
+                                                {rooms.map(room => (
+                                                    <button
+                                                        key={room.id}
+                                                        onClick={() => setSelectedRoom(room.id)}
+                                                        className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 border border-white/5 hover:border-white/10 transition-colors"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getRoomColor(room) }} />
+                                                            <span className="text-sm text-slate-200 font-medium">{room.name}</span>
+                                                        </div>
+                                                        <Edit2 className="w-4 h-4 text-slate-500" />
+                                                    </button>
+                                                ))}
+                                                {rooms.length === 0 && (
+                                                    <p className="text-sm text-slate-500 text-center py-4">Nessuna stanza presente.</p>
+                                                )}
                                             </div>
-                                            <span className="relative text-sm font-bold text-cyan-50 tracking-wide">
-                                                Nuova Stanza base
-                                            </span>
-                                        </button>
-
-
+                                        )}
                                     </>
                                 ) : (
                                     <div className="w-full space-y-5">
                                         <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5 w-full">
                                             <div className="flex justify-between items-center mb-2">
                                                 <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Trasparenza Spazio</label>
-                                                <span className="text-xs text-cyan-400 font-mono">{Math.round((useOfficeStore.getState().bgOpacity || 0.8) * 100)}%</span>
+                                                <span className="text-xs text-cyan-400 font-mono">{Math.round((useOfficeStore.getState().bgOpacity ?? 0.8) * 100)}%</span>
                                             </div>
                                             <input
                                                 type="range"
                                                 min="0"
                                                 max="100"
                                                 step="5"
-                                                value={Math.round((useOfficeStore.getState().bgOpacity || 0.8) * 100)}
+                                                value={Math.round((useOfficeStore.getState().bgOpacity ?? 0.8) * 100)}
                                                 onChange={(e) => useOfficeStore.getState().setBgOpacity(parseFloat(e.target.value) / 100)}
                                                 className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors mb-2"
                                                 style={{ accentColor: '#22d3ee' }}

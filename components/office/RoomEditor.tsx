@@ -89,8 +89,11 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         <Group
             x={room.x}
             y={room.y}
-            draggable={isSelected}
-            onDragStart={() => setIsDragging(true)}
+            draggable={true}
+            onDragStart={(e) => {
+                setIsDragging(true);
+                onSelect(room.id);
+            }}
             onDragEnd={handleDragEnd}
             onClick={(e) => { e.cancelBubble = true; onSelect(room.id); }}
             onTap={(e) => { e.cancelBubble = true; onSelect(room.id); }}
