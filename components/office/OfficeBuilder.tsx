@@ -56,7 +56,6 @@ export function OfficeBuilder() {
     const [editName, setEditName] = useState('');
     const [editDepartment, setEditDepartment] = useState('');
     const [editColor, setEditColor] = useState('#3b82f6');
-    const [editCapacity, setEditCapacity] = useState(10);
 
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -88,7 +87,6 @@ export function OfficeBuilder() {
             setEditName(room.name || '');
             setEditDepartment(getRoomDepartment(room) || '');
             setEditColor(getRoomColor(room));
-            setEditCapacity((room as any).capacity || room.settings?.capacity || 10);
         }
     }
 
@@ -198,22 +196,21 @@ export function OfficeBuilder() {
         if (!selectedRoomId) return;
         setSaving(true);
         const newSettings = {
-            capacity: editCapacity,
             color: editColor,
             department: editDepartment || null,
         };
         const currentRooms = useOfficeStore.getState().rooms;
         setRooms(currentRooms.map(r => r.id === selectedRoomId
-            ? { ...r, name: editName, capacity: editCapacity, settings: newSettings, color: editColor, department: editDepartment || null }
+            ? { ...r, name: editName, settings: { ...r.settings, ...newSettings }, color: editColor, department: editDepartment || null }
             : r
         ));
 
-        const dbUpdates: any = { name: editName, capacity: editCapacity, settings: newSettings };
+        const dbUpdates: any = { name: editName, settings: newSettings };
         const { error } = await supabase.from('rooms').update(dbUpdates).eq('id', selectedRoomId);
         if (error) { setToast({ msg: `❌ ${error.message}`, type: 'err' }); }
         else { setToast({ msg: '✅ Proprietà salvate!', type: 'ok' }); }
         setSaving(false);
-    }, [selectedRoomId, editName, editDepartment, editColor, editCapacity, supabase, setRooms]);
+    }, [selectedRoomId, editName, editDepartment, editColor, supabase, setRooms]);
 
     if (!isBuilderMode) return null;
 
@@ -466,29 +463,19 @@ export function OfficeBuilder() {
 
                                 <div>
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5"><Users className="w-3 h-3" /> Capacità</div>
-                                        <span className="text-cyan-400 text-sm">{editCapacity}</span>
+                                        <div className="flex items-center gap-1.5"><Users className="w-3 h-3" /> Capacità Massima</div>
+                                        {/* Dynamic Calculation matching ModernRoom */}
+                                        <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold">
+                                            {Math.max(1, Math.floor((selectedRoom.width * selectedRoom.height) / (128 * 128)))}
+                                        </span>
                                     </label>
-                                    <input
-                                        type="range" min="1" max="50"
-                                        value={editCapacity} onChange={(e) => setEditCapacity(parseInt(e.target.value))}
-                                        className="w-full appearance-none bg-black/30 h-1.5 rounded-full outline-none slider-thumb-cyan"
-                                        style={{
-                                            backgroundImage: `linear-gradient(to right, #22d3ee ${editCapacity * 2}%, transparent ${editCapacity * 2}%)`
-                                        }}
-                                    />
-                                    <style>{`
-                                        .slider-thumb-cyan::-webkit-slider-thumb {
-                                            appearance: none;
-                                            width: 14px; height: 14px;
-                                            background: #fff; border-radius: 50%;
-                                            box-shadow: 0 0 10px rgba(34,211,238,0.8);
-                                            cursor: pointer;
-                                            border: 2px solid #22d3ee;
-                                        }
-                                    `}</style>
+                                    <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                                        La capienza viene calcolata automaticamente in base alle dimensioni della stanza per garantire lo spazio vitale necessario ad ogni utente.
+                                    </p>
                                 </div>
                             </div>
+
+                            {/* Divider for Furniture */}
 
                             {/* Furniture list in properties */}
                             {roomFurniture.length > 0 && (
