@@ -347,162 +347,135 @@ export function KonvaOffice() {
                             ) : (
                                 <>
                                     {rooms.map((room: any) => {
-                                        const roomColor = (room as any).color || '#3b82f6';
-                                        const deptLabel = (room as any).department;
+                                        const roomColor = room?.settings?.color || (room as any).color || '#3b82f6';
+                                        const deptLabel = room?.settings?.department || (room as any).department;
                                         const cap = (room as any).capacity || room.settings?.capacity;
 
                                         return (
                                             <Group key={room.id} x={room.x} y={room.y}>
-                                                {/* Outer glow — vivid colored shadow */}
+                                                {/* ▸ OUTER GLOW — large vivid halo */}
                                                 <Rect
-                                                    x={-8}
-                                                    y={-8}
-                                                    width={room.width + 16}
-                                                    height={room.height + 16}
+                                                    x={-12}
+                                                    y={-12}
+                                                    width={room.width + 24}
+                                                    height={room.height + 24}
                                                     fill="transparent"
                                                     shadowColor={roomColor}
-                                                    shadowBlur={40}
-                                                    shadowOpacity={0.35}
-                                                    cornerRadius={18}
+                                                    shadowBlur={50}
+                                                    shadowOpacity={0.45}
+                                                    cornerRadius={20}
                                                 />
 
-                                                {/* Room body — vivid fill */}
+                                                {/* ▸ ROOM BODY — strong fill with glassmorphism */}
                                                 <Rect
                                                     width={room.width}
                                                     height={room.height}
                                                     fill={roomColor}
-                                                    opacity={0.22}
+                                                    opacity={0.35}
                                                     cornerRadius={16}
                                                 />
-                                                {/* Border — bright and visible */}
+                                                {/* Solid border */}
                                                 <Rect
                                                     width={room.width}
                                                     height={room.height}
                                                     fill="transparent"
                                                     stroke={roomColor}
-                                                    strokeWidth={2}
+                                                    strokeWidth={2.5}
                                                     cornerRadius={16}
-                                                    opacity={0.6}
+                                                    opacity={0.7}
                                                 />
 
-                                                {/* Top accent bar — vivid colored strip */}
+                                                {/* ▸ TOP ACCENT BAR — bright color strip */}
                                                 <Rect
-                                                    x={0}
-                                                    y={0}
-                                                    width={room.width}
-                                                    height={4}
+                                                    x={0} y={0}
+                                                    width={room.width} height={6}
                                                     fill={roomColor}
-                                                    opacity={0.8}
+                                                    opacity={0.9}
                                                     cornerRadius={[16, 16, 0, 0]}
                                                 />
 
-                                                {/* Glass highlight — top edge shimmer */}
+                                                {/* ▸ GLASS HIGHLIGHTS — shimmer lines */}
+                                                <Rect x={12} y={8} width={room.width * 0.5} height={1.5} fill="white" opacity={0.12} cornerRadius={1} />
+                                                <Rect x={12} y={11} width={room.width * 0.25} height={1} fill="white" opacity={0.06} cornerRadius={1} />
+
+                                                {/* ▸ BOTTOM GRADIENT — subtle fade */}
                                                 <Rect
-                                                    x={10}
-                                                    y={6}
-                                                    width={room.width * 0.4}
-                                                    height={1}
-                                                    fill="white"
-                                                    opacity={0.1}
-                                                    cornerRadius={1}
+                                                    x={0} y={room.height - 20}
+                                                    width={room.width} height={20}
+                                                    fill={roomColor}
+                                                    opacity={0.08}
+                                                    cornerRadius={[0, 0, 16, 16]}
                                                 />
 
-                                                {/* Floor pattern — subtle grid */}
+                                                {/* ▸ FLOOR PATTERN — subtle colored grid */}
                                                 {Array.from({ length: Math.floor(room.width / 50) }).map((_, gi) => (
-                                                    <Rect key={`fg-v-${gi}`} x={(gi + 1) * 50} y={4} width={0.5} height={room.height - 4} fill={roomColor} opacity={0.06} />
+                                                    <Rect key={`fg-v-${gi}`} x={(gi + 1) * 50} y={6} width={0.5} height={room.height - 6} fill={roomColor} opacity={0.08} />
                                                 ))}
                                                 {Array.from({ length: Math.floor(room.height / 50) }).map((_, gi) => (
-                                                    <Rect key={`fg-h-${gi}`} x={0} y={(gi + 1) * 50} width={room.width} height={0.5} fill={roomColor} opacity={0.06} />
+                                                    <Rect key={`fg-h-${gi}`} x={0} y={(gi + 1) * 50} width={room.width} height={0.5} fill={roomColor} opacity={0.08} />
                                                 ))}
 
-                                                {/* Corner accents — little bright dots at corners */}
-                                                <Circle x={3} y={3} radius={2} fill={roomColor} opacity={0.5} />
-                                                <Circle x={room.width - 3} y={3} radius={2} fill={roomColor} opacity={0.5} />
-                                                <Circle x={3} y={room.height - 3} radius={2} fill={roomColor} opacity={0.3} />
-                                                <Circle x={room.width - 3} y={room.height - 3} radius={2} fill={roomColor} opacity={0.3} />
+                                                {/* ▸ CORNER ACCENTS — bright dots */}
+                                                <Circle x={4} y={4} radius={2.5} fill={roomColor} opacity={0.7} />
+                                                <Circle x={room.width - 4} y={4} radius={2.5} fill={roomColor} opacity={0.7} />
+                                                <Circle x={4} y={room.height - 4} radius={2.5} fill={roomColor} opacity={0.5} />
+                                                <Circle x={room.width - 4} y={room.height - 4} radius={2.5} fill={roomColor} opacity={0.5} />
 
-                                                {/* Room name — floating pill */}
+                                                {/* ▸ NAME PILL — floating label with glow */}
                                                 <Rect
-                                                    x={0}
-                                                    y={-32}
-                                                    width={Math.max((room.name?.length || 4) * 7.5 + 28, 80)}
-                                                    height={26}
+                                                    x={0} y={-34}
+                                                    width={Math.max((room.name?.length || 4) * 8 + 30, 90)}
+                                                    height={28}
                                                     fill={roomColor}
-                                                    opacity={0.85}
-                                                    cornerRadius={13}
+                                                    opacity={0.9}
+                                                    cornerRadius={14}
                                                     shadowColor={roomColor}
-                                                    shadowBlur={12}
-                                                    shadowOpacity={0.3}
+                                                    shadowBlur={16}
+                                                    shadowOpacity={0.4}
                                                 />
                                                 <Text
                                                     text={room.name || 'Room'}
-                                                    fontSize={11}
+                                                    fontSize={12}
                                                     fill="#ffffff"
-                                                    x={14}
-                                                    y={-25}
+                                                    x={15} y={-27}
                                                     fontStyle="bold"
                                                     fontFamily="Inter, system-ui, sans-serif"
                                                 />
 
-                                                {/* Department badge */}
+                                                {/* ▸ DEPARTMENT BADGE */}
                                                 {deptLabel && (
                                                     <>
                                                         <Rect
-                                                            x={room.width - deptLabel.length * 6 - 24}
-                                                            y={-30}
-                                                            width={deptLabel.length * 6 + 20}
-                                                            height={22}
-                                                            fill="rgba(255,255,255,0.12)"
-                                                            cornerRadius={11}
+                                                            x={room.width - deptLabel.length * 6.5 - 24} y={-32}
+                                                            width={deptLabel.length * 6.5 + 20} height={24}
+                                                            fill="rgba(255,255,255,0.15)" cornerRadius={12}
                                                         />
                                                         <Text
-                                                            text={deptLabel}
-                                                            fontSize={9}
-                                                            fill="#e2e8f0"
-                                                            x={room.width - deptLabel.length * 6 - 14}
-                                                            y={-24}
-                                                            fontFamily="Inter, system-ui, sans-serif"
-                                                            fontStyle="600"
+                                                            text={deptLabel} fontSize={10} fill="#ffffff"
+                                                            x={room.width - deptLabel.length * 6.5 - 14} y={-26}
+                                                            fontFamily="Inter, system-ui, sans-serif" fontStyle="600"
                                                         />
                                                     </>
                                                 )}
 
-                                                {/* Capacity — modern circle indicator */}
+                                                {/* ▸ CAPACITY — modern circle */}
                                                 {cap && (
                                                     <>
-                                                        <Circle
-                                                            x={room.width - 18}
-                                                            y={room.height - 18}
-                                                            radius={14}
-                                                            fill={roomColor}
-                                                            opacity={0.2}
-                                                        />
-                                                        <Circle
-                                                            x={room.width - 18}
-                                                            y={room.height - 18}
-                                                            radius={14}
-                                                            fill="transparent"
-                                                            stroke={roomColor}
-                                                            strokeWidth={1.5}
-                                                            opacity={0.5}
-                                                        />
+                                                        <Circle x={room.width - 20} y={room.height - 20} radius={15} fill={roomColor} opacity={0.3} />
+                                                        <Circle x={room.width - 20} y={room.height - 20} radius={15} fill="transparent" stroke={roomColor} strokeWidth={2} opacity={0.6} />
                                                         <Text
-                                                            text={`${cap}`}
-                                                            fontSize={10}
-                                                            fill="#e2e8f0"
-                                                            x={room.width - 18 - (String(cap).length * 3.5)}
-                                                            y={room.height - 23}
-                                                            fontStyle="bold"
-                                                            fontFamily="Inter, system-ui, sans-serif"
+                                                            text={`${cap}`} fontSize={11} fill="#ffffff"
+                                                            x={room.width - 20 - (String(cap).length * 3.5)} y={room.height - 25}
+                                                            fontStyle="bold" fontFamily="Inter, system-ui, sans-serif"
                                                         />
                                                     </>
                                                 )}
 
-                                                {/* Edge glow dots — connection points */}
-                                                <Circle x={room.width / 2} y={0} radius={3.5} fill={roomColor} opacity={0.6} />
-                                                <Circle x={room.width / 2} y={room.height} radius={3.5} fill={roomColor} opacity={0.6} />
-                                                <Circle x={0} y={room.height / 2} radius={3.5} fill={roomColor} opacity={0.6} />
-                                                <Circle x={room.width} y={room.height / 2} radius={3.5} fill={roomColor} opacity={0.6} />
+                                                {/* ▸ EDGE DOTS — glowing connection points */}
+                                                <Circle x={room.width / 2} y={0} radius={4} fill={roomColor} opacity={0.7} />
+                                                <Circle x={room.width / 2} y={room.height} radius={4} fill={roomColor} opacity={0.7} />
+                                                <Circle x={0} y={room.height / 2} radius={4} fill={roomColor} opacity={0.7} />
+                                                <Circle x={room.width} y={room.height / 2} radius={4} fill={roomColor} opacity={0.7} />
                                             </Group>
                                         );
                                     })}

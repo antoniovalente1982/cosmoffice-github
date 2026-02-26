@@ -25,8 +25,8 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
     const { updateRoomPosition, updateRoomSize } = useOfficeStore();
     const [isDragging, setIsDragging] = useState(false);
 
-    const roomColor = (room as any).color || '#3b82f6';
-    const deptLabel = (room as any).department;
+    const roomColor = room?.settings?.color || (room as any).color || '#3b82f6';
+    const deptLabel = room?.settings?.department || (room as any).department;
     const cap = (room as any).capacity || room.settings?.capacity;
 
     const handleDragEnd = useCallback(async (e: any) => {

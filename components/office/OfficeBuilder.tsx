@@ -5,15 +5,8 @@ import { useOfficeStore } from '../../stores/useOfficeStore';
 import { createClient } from '../../utils/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Plus,
-    Trash2,
-    X,
-    Layers,
-    PaintBucket,
-    Users,
-    ChevronRight,
-    ChevronDown,
-    Save,
+    Plus, Trash2, X, Layers, PaintBucket, Users,
+    ChevronRight, ChevronDown, Save,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -38,9 +31,17 @@ const COLOR_PRESETS = [
 function snapToGrid(value: number, gridSize: number = 20): number {
     return Math.round(value / gridSize) * gridSize;
 }
-
 function tempId(): string {
     return `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+// Helper: extract color from room (check settings JSON first, then color column, then fallback)
+export function getRoomColor(room: any): string {
+    return room?.settings?.color || (room as any).color || '#3b82f6';
+}
+// Helper: extract department
+export function getRoomDepartment(room: any): string | null {
+    return room?.settings?.department || (room as any).department || null;
 }
 
 export function OfficeBuilder() {
@@ -56,7 +57,7 @@ export function OfficeBuilder() {
     const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
     const [editName, setEditName] = useState('');
     const [editDepartment, setEditDepartment] = useState('');
-    const [editColor, setEditColor] = useState('#1e293b');
+    const [editColor, setEditColor] = useState('#3b82f6');
     const [editCapacity, setEditCapacity] = useState(10);
 
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
@@ -80,8 +81,8 @@ export function OfficeBuilder() {
         if (room) {
             setSelectedRoom(roomId);
             setEditName(room.name || '');
-            setEditDepartment((room as any).department || '');
-            setEditColor((room as any).color || '#1e293b');
+            setEditDepartment(getRoomDepartment(room) || '');
+            setEditColor(getRoomColor(room));
             setEditCapacity((room as any).capacity || room.settings?.capacity || 10);
             setExpandedSection('properties');
         }
@@ -93,16 +94,24 @@ export function OfficeBuilder() {
         return { x: snapToGrid(worldX), y: snapToGrid(worldY) };
     }
 
+    // ADD ROOM — store color/department inside settings JSON (no extra columns needed)
     const handleAddRoom = useCallback(async (template: typeof roomTemplates[0]) => {
         if (!activeSpaceId) { setToast({ msg: '❌ Nessuno spazio attivo', type: 'err' }); return; }
         const center = getViewportCenter();
         const tId = tempId();
+        const roomSettings = {
+            capacity: template.capacity,
+            color: template.color,
+            department: template.department || null,
+        };
         const optimisticRoom: any = {
             id: tId, space_id: activeSpaceId, name: template.name, type: template.type,
             x: center.x - template.width / 2, y: center.y - template.height / 2,
-            width: template.width, height: template.height, is_secret: false,
-            capacity: template.capacity, settings: { capacity: template.capacity },
-            department: template.department || null, color: template.color,
+            width: template.width, height: template.height,
+            capacity: template.capacity,
+            settings: roomSettings,
+            color: template.color,
+            department: template.department || null,
         };
         addRoom(optimisticRoom);
         setSelectedRoom(tId);
@@ -112,22 +121,27 @@ export function OfficeBuilder() {
         setEditCapacity(template.capacity);
         setExpandedSection('properties');
 
+        // DB insert — only columns that definitely exist: space_id, name, type, x, y, width, height, capacity, settings
         const dbPayload: any = {
-            space_id: activeSpaceId, name: template.name, type: template.type,
-            x: optimisticRoom.x, y: optimisticRoom.y, width: template.width, height: template.height,
-            is_secret: false, capacity: template.capacity, settings: { capacity: template.capacity },
+            space_id: activeSpaceId,
+            name: template.name,
+            type: template.type,
+            x: optimisticRoom.x,
+            y: optimisticRoom.y,
+            width: template.width,
+            height: template.height,
+            capacity: template.capacity,
+            settings: roomSettings,
         };
+
         const { data, error } = await supabase.from('rooms').insert(dbPayload).select().single();
         if (error) {
             console.error('Room insert error:', error);
             setToast({ msg: `❌ Errore DB: ${error.message}`, type: 'err' });
         } else if (data) {
             const currentRooms = useOfficeStore.getState().rooms;
-            setRooms(currentRooms.map(r => r.id === tId ? { ...r, ...data } : r));
+            setRooms(currentRooms.map(r => r.id === tId ? { ...r, ...data, color: template.color, department: template.department || null } : r));
             setSelectedRoom(data.id);
-            if (template.department || template.color) {
-                try { await supabase.from('rooms').update({ department: template.department || null, color: template.color }).eq('id', data.id); } catch (e) { /* columns may not exist */ }
-            }
             setToast({ msg: `✅ ${template.name} creata!`, type: 'ok' });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -162,8 +176,7 @@ export function OfficeBuilder() {
         if (!confirm('Eliminare questa stanza e tutti i suoi arredi?')) return;
         removeRoom(selectedRoomId);
         setToast({ msg: '🗑️ Stanza eliminata', type: 'ok' });
-        const { error } = await supabase.from('rooms').delete().eq('id', selectedRoomId);
-        if (error) console.error('Delete room error:', error);
+        await supabase.from('rooms').delete().eq('id', selectedRoomId);
     }, [selectedRoomId, supabase, removeRoom]);
 
     const handleDeleteFurniture = useCallback(async (furnitureId: string) => {
@@ -171,18 +184,26 @@ export function OfficeBuilder() {
         await supabase.from('furniture').delete().eq('id', furnitureId);
     }, [supabase, removeFurniture]);
 
+    // SAVE PROPERTIES — store color/department in settings JSON
     const handleSaveProperties = useCallback(async () => {
         if (!selectedRoomId) return;
         setSaving(true);
+        const newSettings = {
+            capacity: editCapacity,
+            color: editColor,
+            department: editDepartment || null,
+        };
         const currentRooms = useOfficeStore.getState().rooms;
-        setRooms(currentRooms.map(r => r.id === selectedRoomId ? { ...r, name: editName, capacity: editCapacity, settings: { capacity: editCapacity }, department: editDepartment || null, color: editColor } : r));
-        const dbUpdates: any = { name: editName, capacity: editCapacity, settings: { capacity: editCapacity } };
+        setRooms(currentRooms.map(r => r.id === selectedRoomId
+            ? { ...r, name: editName, capacity: editCapacity, settings: newSettings, color: editColor, department: editDepartment || null }
+            : r
+        ));
+
+        // Only update columns that exist: name, capacity, settings
+        const dbUpdates: any = { name: editName, capacity: editCapacity, settings: newSettings };
         const { error } = await supabase.from('rooms').update(dbUpdates).eq('id', selectedRoomId);
         if (error) { setToast({ msg: `❌ ${error.message}`, type: 'err' }); }
-        else {
-            try { await supabase.from('rooms').update({ department: editDepartment || null, color: editColor }).eq('id', selectedRoomId); } catch (e) { /* columns may not exist */ }
-            setToast({ msg: '✅ Proprietà salvate!', type: 'ok' });
-        }
+        else { setToast({ msg: '✅ Proprietà salvate!', type: 'ok' }); }
         setSaving(false);
     }, [selectedRoomId, editName, editDepartment, editColor, editCapacity, supabase, setRooms]);
 
@@ -212,13 +233,13 @@ export function OfficeBuilder() {
                 )}
             </AnimatePresence>
 
-            {/* Builder Mode Banner */}
+            {/* Builder Banner */}
             <motion.div
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] bg-amber-500/90 text-black px-5 py-1.5 rounded-full text-sm font-bold shadow-lg flex items-center gap-2"
             >
-                🔧 MODALITÀ BUILDER — Clicca le stanze per selezionarle, trascinale per spostarle
+                🔧 BUILDER MODE
             </motion.div>
 
             {/* Sidebar */}
@@ -265,7 +286,7 @@ export function OfficeBuilder() {
                     {/* Furniture */}
                     <div className="rounded-xl border border-white/5 overflow-hidden">
                         <button className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 transition-colors text-left" onClick={() => setExpandedSection(expandedSection === 'furniture' ? 'properties' : 'furniture')}>
-                            <span className="text-sm font-semibold text-slate-200 flex items-center gap-2">🪑 Arredi & Decorazioni</span>
+                            <span className="text-sm font-semibold text-slate-200 flex items-center gap-2">🪑 Arredi</span>
                             {expandedSection === 'furniture' ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
                         </button>
                         {expandedSection === 'furniture' && (
@@ -285,9 +306,7 @@ export function OfficeBuilder() {
                                         {roomFurniture.map(f => (
                                             <div key={f.id} className="flex items-center justify-between p-2 rounded-lg bg-white/5 text-xs">
                                                 <span className="text-slate-300">{f.label || f.type}</span>
-                                                <button onClick={() => handleDeleteFurniture(f.id)} className="text-slate-500 hover:text-red-400 transition-colors p-1">
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
+                                                <button onClick={() => handleDeleteFurniture(f.id)} className="text-slate-500 hover:text-red-400 transition-colors p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                                             </div>
                                         ))}
                                     </div>
@@ -316,21 +335,17 @@ export function OfficeBuilder() {
                                             <label className="text-xs text-slate-500 font-medium">Reparto</label>
                                             <input className="w-full bg-slate-900/50 border border-white/10 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary-500/50 text-slate-200" value={editDepartment} onChange={(e) => setEditDepartment(e.target.value)} placeholder="es. Engineering, Marketing..." />
                                         </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs text-slate-500 font-medium flex items-center gap-1"><PaintBucket className="w-3 h-3" /> Colore</label>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs text-slate-500 font-medium flex items-center gap-1"><PaintBucket className="w-3 h-3" /> Colore Stanza</label>
                                             <div className="flex gap-2 flex-wrap">
                                                 {COLOR_PRESETS.map(c => (
-                                                    <button key={c} className={`w-7 h-7 rounded-lg border-2 transition-all ${editColor === c ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:border-white/30'}`} style={{ backgroundColor: c }} onClick={() => setEditColor(c)} />
+                                                    <button key={c} className={`w-8 h-8 rounded-full border-2 transition-all shadow-md ${editColor === c ? 'border-white scale-125 shadow-lg ring-2 ring-white/30' : 'border-transparent hover:border-white/30 hover:scale-110'}`} style={{ backgroundColor: c }} onClick={() => setEditColor(c)} />
                                                 ))}
                                             </div>
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-xs text-slate-500 font-medium flex items-center gap-1"><Users className="w-3 h-3" /> Capacità: {editCapacity}</label>
                                             <input type="range" min="1" max="50" value={editCapacity} onChange={(e) => setEditCapacity(parseInt(e.target.value))} className="w-full accent-primary-500" />
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-slate-500 bg-white/5 rounded-lg p-2">
-                                            <span>📐 {selectedRoom.width} × {selectedRoom.height}px</span>
-                                            <span>📍 ({selectedRoom.x}, {selectedRoom.y})</span>
                                         </div>
                                         <div className="flex gap-2 pt-1">
                                             <Button className="flex-1 gap-1.5 text-sm h-9" onClick={handleSaveProperties} disabled={saving}>
@@ -354,10 +369,10 @@ export function OfficeBuilder() {
                         <div className="max-h-48 overflow-y-auto">
                             {rooms.map(room => (
                                 <button key={room.id} className={`w-full flex items-center gap-2 p-2.5 text-left hover:bg-white/10 transition-colors border-b border-white/5 last:border-0 ${selectedRoomId === room.id ? 'bg-primary-500/15 border-l-2 border-l-primary-500' : ''}`} onClick={() => handleSelectRoom(room.id)}>
-                                    <div className="w-4 h-4 rounded shrink-0 border border-white/10" style={{ backgroundColor: (room as any).color || '#1e293b' }} />
+                                    <div className="w-5 h-5 rounded-full shrink-0 border border-white/20 shadow-sm" style={{ backgroundColor: getRoomColor(room) }} />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-medium text-slate-200 truncate">{room.name}</p>
-                                        <p className="text-[10px] text-slate-500">{(room as any).department || room.type}</p>
+                                        <p className="text-[10px] text-slate-500">{getRoomDepartment(room) || room.type}</p>
                                     </div>
                                 </button>
                             ))}
