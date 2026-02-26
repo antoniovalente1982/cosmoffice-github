@@ -171,10 +171,23 @@ export function OfficeBuilder() {
     const handleDeleteRoom = useCallback(async () => {
         if (!selectedRoomId) return;
         if (!confirm('Eliminare questa stanza e tutti i suoi arredi?')) return;
+
+        // Optimistic delete
         removeRoom(selectedRoomId);
+        setSelectedRoom(null); // Clear selection as well to avoid zombie references
         setToast({ msg: '🗑️ Stanza eliminata', type: 'ok' });
-        await supabase.from('rooms').delete().eq('id', selectedRoomId);
-    }, [selectedRoomId, supabase, removeRoom]);
+
+        // Ensure we delete dependent records first in case ON DELETE CASCADE is missing
+        await supabase.from('furniture').delete().eq('room_id', selectedRoomId);
+        await supabase.from('room_connections').delete().or(`room_a_id.eq.${selectedRoomId},room_b_id.eq.${selectedRoomId}`);
+
+        const { error } = await supabase.from('rooms').delete().eq('id', selectedRoomId);
+        if (error) {
+            console.error("Error deleting room from DB:", error);
+            setToast({ msg: `❌ Errore DB: ${error.message}`, type: 'err' });
+            // Ideally we'd rollback here, but for now at least we show the error
+        }
+    }, [selectedRoomId, supabase, removeRoom, setSelectedRoom]);
 
     const handleDeleteFurniture = useCallback(async (furnitureId: string) => {
         removeFurniture(furnitureId);
@@ -267,8 +280,8 @@ export function OfficeBuilder() {
             {/* MAC-STYLE BOTTOM DOCK */}
             <motion.div
                 initial={{ y: 150, x: '-50%' }}
-                animate={{ y: -32, x: '-50%' }}
-                className="pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4"
+                animate={{ y: -100, x: '-50%' }}
+                className="pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 z-[110]"
             >
                 {/* Dock Context Panel (Expands above dock) */}
                 <div className="relative" style={{ width: Math.max(roomTemplates.length, FURNITURE_PRESETS.length) * 70 }}>
