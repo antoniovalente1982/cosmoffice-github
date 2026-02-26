@@ -13,7 +13,12 @@ import {
     ArrowRight,
     Search,
     Building2,
-    Users
+    Users,
+    MoreVertical,
+    Trash2,
+    Edit2,
+    X,
+    Check
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -29,6 +34,9 @@ export default function DashboardPage() {
     const [newOrgName, setNewOrgName] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingSpace, setEditingSpace] = useState<string | null>(null);
+    const [editName, setEditName] = useState('');
+    const [spaceMenuOpen, setSpaceMenuOpen] = useState<string | null>(null);
 
     useEffect(() => {
         const initDashboard = async () => {
@@ -68,6 +76,15 @@ export default function DashboardPage() {
         };
         initDashboard();
     }, [supabase, router]);
+
+    // Chiudi il menu quando si clicca fuori
+    useEffect(() => {
+        const handleClickOutside = () => setSpaceMenuOpen(null);
+        if (spaceMenuOpen) {
+            document.addEventListener('click', handleClickOutside);
+            return () => document.removeEventListener('click', handleClickOutside);
+        }
+    }, [spaceMenuOpen]);
 
     const handleCreateOrg = async () => {
         if (!newOrgName || !user || isSubmitting) return;
@@ -161,6 +178,55 @@ export default function DashboardPage() {
         router.push('/');
     };
 
+    const handleDeleteSpace = async (spaceId: string) => {
+        if (!confirm('Sei sicuro di voler cancellare questo ufficio? Questa azione non può essere annullata.')) {
+            return;
+        }
+        
+        try {
+            const { error } = await supabase
+                .from('spaces')
+                .delete()
+                .eq('id', spaceId);
+            
+            if (error) throw error;
+            
+            // Aggiorna la lista locale
+            setSpaces(spaces.filter(s => s.id !== spaceId));
+            setSpaceMenuOpen(null);
+        } catch (err: any) {
+            console.error('Error deleting space:', err);
+            alert('Errore durante la cancellazione: ' + err.message);
+        }
+    };
+
+    const handleUpdateSpace = async (spaceId: string) => {
+        if (!editName.trim()) return;
+        
+        try {
+            const { error } = await supabase
+                .from('spaces')
+                .update({ name: editName.trim() })
+                .eq('id', spaceId);
+            
+            if (error) throw error;
+            
+            // Aggiorna la lista locale
+            setSpaces(spaces.map(s => s.id === spaceId ? { ...s, name: editName.trim() } : s));
+            setEditingSpace(null);
+            setEditName('');
+        } catch (err: any) {
+            console.error('Error updating space:', err);
+            alert('Errore durante l\'aggiornamento: ' + err.message);
+        }
+    };
+
+    const startEditing = (space: any) => {
+        setEditingSpace(space.id);
+        setEditName(space.name);
+        setSpaceMenuOpen(null);
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-dark-bg">
@@ -225,26 +291,112 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {spaces.map((space) => {
                         const org = organizations.find(o => o.id === space.org_id);
+                        const isEditing = editingSpace === space.id;
+                        const isMenuOpen = spaceMenuOpen === space.id;
+                        
                         return (
                             <motion.div key={space.id} whileHover={{ y: -5 }} transition={{ duration: 0.2 }}>
-                                <Card className="p-6 h-full flex flex-col justify-between group cursor-pointer hover:border-primary-500/50 transition-all border-white/5 bg-slate-900/40 backdrop-blur-xl" onClick={() => router.push(`/office/${space.id}`)}>
+                                <Card className="p-6 h-full flex flex-col justify-between group hover:border-primary-500/50 transition-all border-white/5 bg-slate-900/40 backdrop-blur-xl relative">
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
                                             <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-400">
                                                 <Building2 className="w-6 h-6" />
                                             </div>
-                                            <div className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">
-                                                Active
+                                            <div className="flex items-center gap-2">
+                                                <div className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">
+                                                    Active
+                                                </div>
+                                                {/* Menu pulsante */}
+                                                <div className="relative">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-8 w-8 text-slate-400 hover:text-slate-100"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSpaceMenuOpen(isMenuOpen ? null : space.id);
+                                                        }}
+                                                    >
+                                                        <MoreVertical className="w-4 h-4" />
+                                                    </Button>
+                                                    {/* Dropdown menu */}
+                                                    {isMenuOpen && (
+                                                        <div className="absolute right-0 top-full mt-1 w-40 bg-slate-800 border border-white/10 rounded-xl shadow-xl z-20 py-1">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    startEditing(space);
+                                                                }}
+                                                                className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/5 flex items-center gap-2"
+                                                            >
+                                                                <Edit2 className="w-4 h-4" /> Modifica nome
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteSpace(space.id);
+                                                                }}
+                                                                className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/5 flex items-center gap-2"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" /> Elimina
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-bold text-slate-100 group-hover:text-primary-400 transition-colors">{space.name}</h3>
-                                            <p className="text-slate-400 text-sm flex items-center gap-1 mt-1">
-                                                <Globe className="w-3 h-3" /> {org?.name}
-                                            </p>
+                                            {isEditing ? (
+                                                <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="text"
+                                                        value={editName}
+                                                        onChange={(e) => setEditName(e.target.value)}
+                                                        className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-primary-500 outline-none"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleUpdateSpace(space.id);
+                                                            if (e.key === 'Escape') {
+                                                                setEditingSpace(null);
+                                                                setEditName('');
+                                                            }
+                                                        }}
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <Button 
+                                                            size="sm" 
+                                                            className="h-7 px-2 text-xs"
+                                                            onClick={() => handleUpdateSpace(space.id)}
+                                                        >
+                                                            <Check className="w-3 h-3" />
+                                                        </Button>
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="ghost" 
+                                                            className="h-7 px-2 text-xs"
+                                                            onClick={() => {
+                                                                setEditingSpace(null);
+                                                                setEditName('');
+                                                            }}
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div onClick={() => router.push(`/office/${space.id}`)} className="cursor-pointer">
+                                                    <h3 className="text-xl font-bold text-slate-100 group-hover:text-primary-400 transition-colors">{space.name}</h3>
+                                                    <p className="text-slate-400 text-sm flex items-center gap-1 mt-1">
+                                                        <Globe className="w-3 h-3" /> {org?.name}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="mt-8 flex items-center justify-between pt-4 border-t border-white/5">
+                                    <div 
+                                        className="mt-8 flex items-center justify-between pt-4 border-t border-white/5 cursor-pointer"
+                                        onClick={() => router.push(`/office/${space.id}`)}
+                                    >
                                         <div className="flex items-center gap-2 text-xs text-slate-500">
                                             <Users className="w-4 h-4" /> Team Active
                                         </div>
