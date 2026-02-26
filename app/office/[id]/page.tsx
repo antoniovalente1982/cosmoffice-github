@@ -258,6 +258,7 @@ export default function OfficePage() {
                             <KonvaOffice />
                             <MediaManager />
                             <VideoGrid />
+                            {isBuilderMode && <OfficeBuilder />}
                         </>
                     )}
 
@@ -359,9 +360,6 @@ export default function OfficePage() {
                     )}
                 </motion.div>
                 {isManagementOpen && <OfficeManagement spaceId={spaceId} onClose={() => setIsManagementOpen(false)} />}
-
-                {/* Office Builder */}
-                {isBuilderMode && <OfficeBuilder />}
 
                 {/* Cabina di Regia - Accessibile durante la sessione */}
                 <DeviceSettings

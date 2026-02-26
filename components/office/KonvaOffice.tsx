@@ -169,8 +169,11 @@ export function KonvaOffice() {
         const stage = stageRef.current;
         if (!stage || isMovingRef.current) return;
 
-        // In builder mode, don't start movement on stage click
-        if (isBuilderMode) return;
+        // In builder mode, clicking empty space deselects the room
+        if (isBuilderMode) {
+            useOfficeStore.getState().setSelectedRoom(null);
+            return;
+        }
 
         const pointer = stage.getPointerPosition();
         if (!pointer) return;
