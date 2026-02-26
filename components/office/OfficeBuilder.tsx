@@ -396,21 +396,7 @@ export function OfficeBuilder() {
                                             </span>
                                         </button>
 
-                                        <div className="mt-6 w-full text-left">
-                                            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2 mb-3">Template Veloci (WIP)</h4>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                {roomTemplates.slice(1, 5).map(tpl => (
-                                                    <button
-                                                        key={tpl.name}
-                                                        onClick={() => handleAddRoom(tpl)}
-                                                        className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-black/20 border border-white/5 hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all text-xs text-slate-300 hover:text-white"
-                                                    >
-                                                        <span className="text-xl">{tpl.icon}</span>
-                                                        <span className="font-semibold">{tpl.name}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
+
                                     </>
                                 ) : (
                                     <div className="w-full space-y-5">
