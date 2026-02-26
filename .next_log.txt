@@ -10,3 +10,9 @@
 
  ✓ Starting...
  ✓ Ready in 986ms
+ ✓ Compiled /middleware in 310ms (461 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 1915ms (1937 modules)
+ GET / 200 in 2282ms
+ GET / 200 in 2041ms
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (133kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
