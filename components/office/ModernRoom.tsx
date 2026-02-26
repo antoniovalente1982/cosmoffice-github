@@ -236,28 +236,34 @@ export function ModernRoom({ room, animated = true, isSelected = false }: { room
 
             {/* ═══ CAPACITY BADGE (Solid Circle/Pill) ═══ */}
             {dynamicCapacity && (
-                <Group x={room.width - Math.max(28, (String(dynamicCapacity).length + String(currentUsers).length) * 8 + 16)} y={room.height - 30} listening={false}>
-                    {/* Background Pill */}
-                    <Rect
-                        height={24}
-                        width={Math.max(28, (String(dynamicCapacity).length + String(currentUsers).length) * 8 + 16)}
-                        cornerRadius={12}
-                        fill={currentUsers > dynamicCapacity ? '#ef4444' : roomColor}
-                        opacity={currentUsers >= dynamicCapacity ? 0.8 : 0.6}
-                    />
-                    <Rect
-                        height={24}
-                        width={Math.max(28, (String(dynamicCapacity).length + String(currentUsers).length) * 8 + 16)}
-                        cornerRadius={12}
-                        stroke="rgba(255,255,255,0.3)"
-                        strokeWidth={1.5}
-                    />
-                    {/* Text */}
-                    <Text
-                        text={`${currentUsers}/${dynamicCapacity}`} fontSize={11} fill="#ffffff" fontStyle="bold" fontFamily="Inter, sans-serif"
-                        x={0} y={6} width={Math.max(28, (String(dynamicCapacity).length + String(currentUsers).length) * 8 + 16)} align="center"
-                    />
-                </Group>
+                (() => {
+                    const capText = `${currentUsers}/${dynamicCapacity}`;
+                    const capWidth = Math.max(32, capText.length * 8 + 16);
+                    return (
+                        <Group x={room.width - capWidth - 12} y={room.height - 24 - 12} listening={false}>
+                            {/* Background Pill */}
+                            <Rect
+                                height={24}
+                                width={capWidth}
+                                cornerRadius={12}
+                                fill={currentUsers > dynamicCapacity ? '#ef4444' : roomColor}
+                                opacity={currentUsers >= dynamicCapacity ? 0.8 : 0.6}
+                            />
+                            <Rect
+                                height={24}
+                                width={capWidth}
+                                cornerRadius={12}
+                                stroke="rgba(255,255,255,0.3)"
+                                strokeWidth={1.5}
+                            />
+                            {/* Text */}
+                            <Text
+                                text={capText} fontSize={11} fill="#ffffff" fontStyle="bold" fontFamily="Inter, sans-serif"
+                                x={0} y={6} width={capWidth} align="center"
+                            />
+                        </Group>
+                    );
+                })()
             )}
         </Group>
     );
