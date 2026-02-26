@@ -7,9 +7,10 @@ import { Card } from '../components/ui/card';
 import { 
   Users, Video, MessageSquare, Map, Zap, Shield, Globe, Sparkles, 
   ArrowRight, CheckCircle2, Rocket, Orbit, Star, Satellite, 
-  CircleDot, Radio, Cpu, Wifi, Crown, ArrowUpRight, Hexagon, 
+  Radio, Cpu, Wifi, Crown, ArrowUpRight, Hexagon, 
   Triangle, Circle, Moon
 } from 'lucide-react';
+import { Logo } from '../components/ui/logo';
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '../utils/supabase/client';
@@ -340,12 +341,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <Link href="/" className="flex items-center gap-3 group">
-              <motion.div 
-                className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25 group-hover:shadow-purple-500/40 transition-shadow"
-                whileHover={{ scale: 1.1, rotate: 5 }}
+              <motion.div
+                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Hexagon className="w-6 h-6 text-white" />
+                <Logo size="md" animated={false} showText={false} variant="glow" />
               </motion.div>
               <span className="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                 Cosmoffice
@@ -412,12 +412,27 @@ export default function LandingPage() {
         <FloatingIcon x="90%" y="80%" delay={0.5} duration={4}>
           <Cpu className="w-8 h-8 text-emerald-400/30" />
         </FloatingIcon>
+        <FloatingIcon x="15%" y="40%" delay={0.8} duration={5.2}>
+          <Hexagon className="w-6 h-6 text-purple-400/30" />
+        </FloatingIcon>
+        <FloatingIcon x="80%" y="45%" delay={1.2} duration={4.8}>
+          <Moon className="w-9 h-9 text-indigo-400/30" />
+        </FloatingIcon>
 
         <div className="max-w-7xl mx-auto text-center relative z-10">
           <motion.div 
             initial={{ opacity: 0, y: 30, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
+            className="flex justify-center mb-8"
+          >
+            <Logo size="xl" animated={true} showText={false} variant="default" />
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 30, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
           >
             <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/20 text-violet-300 text-sm font-medium mb-8 backdrop-blur-sm">
               <motion.span
