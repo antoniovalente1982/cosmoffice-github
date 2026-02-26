@@ -16,3 +16,4 @@
  GET / 200 in 2282ms
  GET / 200 in 2041ms
 <w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (133kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled /office in 262ms (1958 modules)
