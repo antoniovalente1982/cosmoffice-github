@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Map, Target, ZoomIn, ZoomOut, ChevronDown, ChevronUp } from 'lucide-react';
+import { Map, Target, ZoomIn, ZoomOut, ChevronDown, ChevronUp, Sun } from 'lucide-react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 
 interface MiniMapProps {
@@ -57,6 +57,12 @@ export function MiniMap({ officeWidth = 3000, officeHeight = 3000 }: MiniMapProp
         window.dispatchEvent(new CustomEvent('center-on-me'));
     };
 
+    const handleCenterOnSun = () => {
+        window.dispatchEvent(new CustomEvent('minimap-navigate', {
+            detail: { x: officeWidth / 2, y: officeHeight / 2 }
+        }));
+    };
+
     // Click on minimap → navigate the main viewport
     const handleMinimapClick = (e: React.MouseEvent<SVGSVGElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -89,6 +95,13 @@ export function MiniMap({ officeWidth = 3000, officeHeight = 3000 }: MiniMapProp
                             onClick={() => setIsCollapsed(!isCollapsed)}
                         >
                             {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <Map className="w-4 h-4" />}
+                        </button>
+                        <button
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-700/50 transition-colors"
+                            title="Centra sul Sole"
+                            onClick={handleCenterOnSun}
+                        >
+                            <Sun className="w-4 h-4" />
                         </button>
                         <button
                             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"

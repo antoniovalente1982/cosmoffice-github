@@ -144,6 +144,8 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
                             fill="#00d4ff" stroke="#00b4d8" strokeWidth={1} cornerRadius={3}
                             shadowColor="#00d4ff" shadowBlur={10} shadowOpacity={0.8}
                             draggable
+                            onDragStart={(e) => { e.cancelBubble = true; }}
+                            onDragMove={(e) => { e.cancelBubble = true; }}
                             onDragEnd={(e) => { e.cancelBubble = true; handleResizeDragEnd(pos, e); }}
                             hitStrokeWidth={16}
                         />
