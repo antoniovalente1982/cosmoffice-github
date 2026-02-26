@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
-import { Mail, Lock, ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
+import { Mail, Lock, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Logo } from '../../components/ui/logo';
 import { login } from './actions';
 
 export default function LoginPage() {
@@ -44,8 +45,8 @@ export default function LoginPage() {
 
         <Card className="p-8">
           <div className="text-center mb-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-6 h-6 text-white" />
+            <div className="flex justify-center mb-4">
+              <Logo size="lg" showText={false} variant="glow" />
             </div>
             <h1 className="text-2xl font-bold text-slate-100 mb-2">Welcome back</h1>
             <p className="text-slate-400">Sign in to your Cosmoffice account</p>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '../../../utils/supabase/client';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
     Users,
@@ -29,6 +30,7 @@ import {
     Wrench
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import { Logo } from '../../../components/ui/logo';
 // Dynamically import client-heavy components with SSR disabled
 const KonvaOffice = dynamic(() => import('../../../components/office/KonvaOffice').then(mod => mod.KonvaOffice), { ssr: false });
 const VideoGrid = dynamic(() => import('../../../components/media/VideoGrid').then(mod => mod.VideoGrid), { ssr: false });
@@ -146,12 +148,10 @@ export default function OfficePage() {
                 className="w-64 shrink-0 flex flex-col glass z-20 overflow-hidden shadow-2xl"
             >
                 <div className="p-6 border-b border-white/5">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-pink-500 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                            <span className="text-white font-bold text-sm">C</span>
-                        </div>
+                    <Link href="/office" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                        <Logo size="sm" showText={false} variant="glow" />
                         <span className="text-lg font-bold text-gradient">Cosmoffice</span>
-                    </div>
+                    </Link>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

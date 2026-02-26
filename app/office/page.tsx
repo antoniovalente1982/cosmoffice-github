@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
+import { Logo } from '../../components/ui/logo';
 
 export default function DashboardPage() {
     const supabase = createClient();
@@ -242,9 +243,7 @@ export default function DashboardPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-pink-500 flex items-center justify-center shadow-lg">
-                            <span className="text-white font-bold">C</span>
-                        </div>
+                        <Logo size="md" showText={false} variant="glow" />
                         <h1 className="text-2xl font-bold text-gradient">My Workspaces</h1>
                     </div>
                     <div className="flex items-center gap-4">

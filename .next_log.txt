@@ -90,3 +90,5 @@ Import trace for requested module:
 ./components/office/OfficeBuilder.tsx
 ./app/office/[id]/page.tsx
  ✓ Compiled in 211ms (2495 modules)
+ ✓ Compiled in 367ms (2495 modules)
+ ✓ Compiled in 186ms (2495 modules)
