@@ -49,20 +49,26 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
     const handleDragMove = useCallback((e: any) => {
         e.cancelBubble = true;
         // Only update local visual state during drag to prevent jump
-        setLocalPos({ x: e.target.x(), y: e.target.y() });
+        setLocalPos({ x: e.currentTarget.x(), y: e.currentTarget.y() });
     }, []);
 
     const handleDragEnd = useCallback(async (e: any) => {
         e.cancelBubble = true;
+
+        // Grab the coordinates from the Group that was dragged BEFORE updating state
+        const finalX = e.currentTarget.x();
+        const finalY = e.currentTarget.y();
+
         setIsDragging(false);
+
         // Force bounds clamping for new room moves
-        let newX = snapToGrid(e.target.x());
-        let newY = snapToGrid(e.target.y());
+        let newX = snapToGrid(finalX);
+        let newY = snapToGrid(finalY);
 
         newX = Math.max(0, Math.min(newX, (officeWidth || 4000) - room.width));
         newY = Math.max(0, Math.min(newY, (officeHeight || 4000) - room.height));
 
-        e.target.position({ x: newX, y: newY });
+        e.currentTarget.position({ x: newX, y: newY });
         setLocalPos({ x: newX, y: newY });
         updateRoomPosition(room.id, newX, newY);
         if (!room.id.startsWith('temp_')) {
@@ -71,8 +77,8 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
     }, [room, supabase, updateRoomPosition, officeWidth, officeHeight]);
 
     const handleResizeDragEnd = useCallback(async (handlePos: string, e: any) => {
-        const handleX = e.target.x();
-        const handleY = e.target.y();
+        const handleX = e.currentTarget.x();
+        const handleY = e.currentTarget.y();
         let newX = room.x, newY = room.y, newW = room.width, newH = room.height;
         if (handlePos.includes('right')) newW = snapToGrid(Math.max(MIN_ROOM_W, handleX));
         if (handlePos.includes('bottom')) newH = snapToGrid(Math.max(MIN_ROOM_H, handleY));
