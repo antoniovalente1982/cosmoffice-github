@@ -65,15 +65,14 @@ export function UserAvatar({
             transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
             className="absolute z-30"
             style={{
-                marginLeft: -32,
-                marginTop: -32,
+                marginLeft: -32 * zoom,
+                marginTop: -32 * zoom,
                 pointerEvents: onMouseDown ? 'auto' : 'none',
                 cursor: isDragging ? 'grabbing' : onMouseDown ? 'grab' : 'default',
             }}
             onMouseDown={onMouseDown}
         >
-            {/* transform: scale keeps proportions sharp at every zoom level */}
-            <div className="relative group flex flex-col items-center" style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
+            <div className="relative group flex flex-col items-center" style={{ zoom: zoom }}>
                 {/* Name Tag */}
                 <div className="absolute -top-12 px-3 py-1 rounded-full bg-slate-900/80 border border-white/10 backdrop-blur-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all shadow-xl">
                     <span className="text-[11px] font-semibold text-slate-100 italic">
