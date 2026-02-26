@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Stage, Layer, Rect, Circle, Text, Group, Line } from 'react-konva';
+import { Stage, Layer, Circle, Line } from 'react-konva';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { usePresence } from '../../hooks/usePresence';
 import { useSpatialAudio } from '../../hooks/useSpatialAudio';
@@ -42,46 +42,23 @@ function useParticles(count: number) {
     return particles;
 }
 
-// Simple pathfinding
-interface Node {
-    x: number;
-    y: number;
-}
-
-function findPath(start: { x: number, y: number }, end: { x: number, y: number }): { x: number, y: number }[] {
-    // Simple direct path with waypoints for smooth movement
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const steps = Math.max(Math.abs(dx), Math.abs(dy)) / 20;
-    const path: { x: number, y: number }[] = [];
-
-    for (let i = 1; i <= steps; i++) {
-        path.push({
-            x: start.x + (dx * i) / steps,
-            y: start.y + (dy * i) / steps
-        });
-    }
-
-    if (path.length === 0) return [end];
-    return path;
-}
-
 export function KonvaOffice() {
     const {
         myPosition, setMyPosition, peers, rooms,
         zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
-        myProfile, isBuilderMode, furnitureItems
+        myProfile, isBuilderMode
     } = useOfficeStore();
     const stageRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const hasInitializedRef = useRef(false);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const { stagePos } = useOfficeStore();
-    const [targetPos, setTargetPos] = useState<{ x: number, y: number } | null>(null);
-    const pathRef = useRef<{ x: number, y: number }[]>([]);
-    const animationRef = useRef<number | null>(null);
-    const isMovingRef = useRef(false);
+
+    // Avatar drag state
+    const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+    const isDraggingAvatarRef = useRef(false);
+    const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, zoom: 1 });
 
     // Animated background particles
     const particles = useParticles(40);
@@ -119,108 +96,79 @@ export function KonvaOffice() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dimensions.width, dimensions.height]);
 
-    // Smooth movement animation
+    // Global mouse handlers for avatar drag
     useEffect(() => {
-        if (pathRef.current.length === 0) {
-            isMovingRef.current = false;
-            return;
-        }
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDraggingAvatarRef.current) return;
 
-        isMovingRef.current = true;
-        const speed = 6;
+            const { mouseX, mouseY, posX, posY, zoom: startZoom } = dragStartRef.current;
+            const newX = posX + (e.clientX - mouseX) / startZoom;
+            const newY = posY + (e.clientY - mouseY) / startZoom;
 
-        const animate = () => {
-            if (pathRef.current.length === 0) {
-                isMovingRef.current = false;
-                setTargetPos(null);
-                return;
-            }
-
-            const current = pathRef.current[0];
-            const dx = current.x - myPosition.x;
-            const dy = current.y - myPosition.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < speed) {
-                // Reached waypoint
-                const newPos = { ...current };
-                pathRef.current.shift();
-                setMyPosition(newPos);
-
-                // Check room
-                let currentRoomId = undefined;
-                rooms.forEach(room => {
-                    if (
-                        newPos.x >= room.x &&
-                        newPos.x <= room.x + room.width &&
-                        newPos.y >= room.y &&
-                        newPos.y <= room.y + room.height
-                    ) {
-                        currentRoomId = room.id;
-                    }
-                });
-                setMyRoom(currentRoomId);
-            } else {
-                // Move towards waypoint
-                const newPos = {
-                    x: myPosition.x + (dx / distance) * speed,
-                    y: myPosition.y + (dy / distance) * speed
-                };
-                setMyPosition(newPos);
-
-                // Check room
-                let currentRoomId = undefined;
-                rooms.forEach(room => {
-                    if (
-                        newPos.x >= room.x &&
-                        newPos.x <= room.x + room.width &&
-                        newPos.y >= room.y &&
-                        newPos.y <= room.y + room.height
-                    ) {
-                        currentRoomId = room.id;
-                    }
-                });
-                setMyRoom(currentRoomId);
-            }
-
-            animationRef.current = requestAnimationFrame(animate);
+            setMyPosition({ x: newX, y: newY });
         };
 
-        animationRef.current = requestAnimationFrame(animate);
+        const handleMouseUp = (e: MouseEvent) => {
+            if (!isDraggingAvatarRef.current) return;
+            isDraggingAvatarRef.current = false;
+            setIsDraggingAvatar(false);
 
+            // Re-enable stage panning
+            if (stageRef.current) {
+                stageRef.current.draggable(true);
+            }
+
+            // Final room check
+            const { mouseX, mouseY, posX, posY, zoom: startZoom } = dragStartRef.current;
+            const finalX = posX + (e.clientX - mouseX) / startZoom;
+            const finalY = posY + (e.clientY - mouseY) / startZoom;
+            let currentRoomId: string | undefined = undefined;
+            rooms.forEach(room => {
+                if (
+                    finalX >= room.x && finalX <= room.x + room.width &&
+                    finalY >= room.y && finalY <= room.y + room.height
+                ) {
+                    currentRoomId = room.id;
+                }
+            });
+            setMyRoom(currentRoomId);
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
         return () => {
-            if (animationRef.current) {
-                cancelAnimationFrame(animationRef.current);
-            }
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [myPosition.x, myPosition.y, pathRef.current?.length]);
+    }, [rooms, setMyPosition, setMyRoom]);
 
-    const handleStageClick = useCallback((e: any) => {
-        // Prevent default to avoid any bubbling issues
-        e.evt.preventDefault();
-        e.evt.stopPropagation();
+    // Handler: start dragging the avatar
+    const handleAvatarMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
 
-        const stage = stageRef.current;
-        if (!stage || isMovingRef.current) return;
+        isDraggingAvatarRef.current = true;
+        setIsDraggingAvatar(true);
+        dragStartRef.current = {
+            mouseX: e.clientX,
+            mouseY: e.clientY,
+            posX: myPosition.x,
+            posY: myPosition.y,
+            zoom,
+        };
 
-        // In builder mode, clicking empty space deselects the room
+        // Disable stage panning while dragging the avatar
+        if (stageRef.current) {
+            stageRef.current.draggable(false);
+        }
+    }, [myPosition, zoom]);
+
+    // Stage click: only used in builder mode to deselect rooms
+    const handleStageClick = useCallback(() => {
         if (isBuilderMode) {
             useOfficeStore.getState().setSelectedRoom(null);
-            return;
         }
-
-        const pointer = stage.getPointerPosition();
-        if (!pointer) return;
-
-        // Convert to world coordinates
-        const worldX = (pointer.x - stage.x()) / zoom;
-        const worldY = (pointer.y - stage.y()) / zoom;
-
-        // Set target and calculate path
-        setTargetPos({ x: worldX, y: worldY });
-        pathRef.current = findPath(myPosition, { x: worldX, y: worldY });
-    }, [myPosition, zoom, isBuilderMode]);
+    }, [isBuilderMode]);
 
     const handleWheel = (e: any) => {
         e.evt.preventDefault();
@@ -403,7 +351,7 @@ export function KonvaOffice() {
                                     const cy2 = otherRoom.y + otherRoom.height / 2;
                                     const dist = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
 
-                                    if (dist > 800) return null; // Only connect relatively close rooms
+                                    if (dist > 800) return null;
 
                                     return (
                                         <Line
@@ -436,27 +384,6 @@ export function KonvaOffice() {
 
                             {/* Furniture Layer - always visible */}
                             <FurnitureLayer />
-
-                            {/* Target indicator - Modern Radar Ping */}
-                            {targetPos && (
-                                <Group x={targetPos.x} y={targetPos.y}>
-                                    {/* Outer dashed ring */}
-                                    <Circle
-                                        radius={25} fill="transparent"
-                                        stroke="#00d4ff" strokeWidth={1.5}
-                                        dash={[6, 4]} opacity={0.7}
-                                    />
-                                    {/* Inner glowing ring */}
-                                    <Circle
-                                        radius={10} fill="transparent"
-                                        stroke="#6366f1" strokeWidth={2}
-                                        shadowColor="#00d4ff" shadowBlur={15}
-                                        opacity={0.9}
-                                    />
-                                    {/* Center pulse dot */}
-                                    <Circle radius={4} fill="#00d4ff" shadowColor="#00d4ff" shadowBlur={10} />
-                                </Group>
-                            )}
                         </Layer>
                     </Stage>
 
@@ -469,7 +396,7 @@ export function KonvaOffice() {
                                 <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Live</span>
                             </div>
                             <p className="text-xs font-medium text-slate-300">
-                                Clicca per muoverti • Trascina la mappa • Scroll per zoomare
+                                Trascina il tuo avatar per muoverti • Trascina la mappa • Scroll per zoomare
                             </p>
                         </div>
                     </div>
@@ -492,7 +419,7 @@ export function KonvaOffice() {
                             />
                         ))}
 
-                        {/* Me */}
+                        {/* Me - draggable */}
                         <UserAvatar
                             id="me"
                             isMe
@@ -505,6 +432,8 @@ export function KonvaOffice() {
                             isSpeaking={isSpeaking}
                             stream={localStream}
                             zoom={zoom}
+                            onMouseDown={handleAvatarMouseDown}
+                            isDragging={isDraggingAvatar}
                         />
                     </div>
                 </>

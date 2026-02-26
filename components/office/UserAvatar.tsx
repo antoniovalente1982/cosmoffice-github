@@ -16,6 +16,8 @@ interface UserAvatarProps {
     isSpeaking?: boolean;
     stream?: MediaStream | null;
     zoom?: number;
+    onMouseDown?: (e: React.MouseEvent) => void;
+    isDragging?: boolean;
 }
 
 export function UserAvatar({
@@ -28,7 +30,9 @@ export function UserAvatar({
     videoEnabled = false,
     isSpeaking = false,
     stream,
-    zoom = 1
+    zoom = 1,
+    onMouseDown,
+    isDragging = false,
 }: UserAvatarProps) {
     const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -58,9 +62,15 @@ export function UserAvatar({
                 x: position.x,
                 y: position.y,
             }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
             className="absolute z-30"
-            style={{ marginLeft: -32 * zoom, marginTop: -32 * zoom }}
+            style={{
+                marginLeft: -32 * zoom,
+                marginTop: -32 * zoom,
+                pointerEvents: onMouseDown ? 'auto' : 'none',
+                cursor: isDragging ? 'grabbing' : onMouseDown ? 'grab' : 'default',
+            }}
+            onMouseDown={onMouseDown}
         >
             {/* CSS zoom renders at true resolution — no bitmap upscaling, no blur */}
             <div className="relative group flex flex-col items-center" style={{ zoom: zoom }}>
