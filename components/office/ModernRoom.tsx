@@ -108,7 +108,46 @@ export function ModernRoom({ room, animated = true, isSelected = false }: { room
                 cornerRadius={16}
             />
 
-            {/* ═══ LAYER 4: GLASS GLINT BORDER ═══ */}
+            {/* ═══ CLIPPED INNER ELEMENTS (prevent overflow at corners) ═══ */}
+            <Group
+                clipFunc={(ctx) => {
+                    const r = Math.min(16, room.width / 2, room.height / 2);
+                    const w = room.width;
+                    const h = room.height;
+                    ctx.beginPath();
+                    ctx.moveTo(r, 0);
+                    ctx.lineTo(w - r, 0);
+                    ctx.arcTo(w, 0, w, r, r);
+                    ctx.lineTo(w, h - r);
+                    ctx.arcTo(w, h, w - r, h, r);
+                    ctx.lineTo(r, h);
+                    ctx.arcTo(0, h, 0, h - r, r);
+                    ctx.lineTo(0, r);
+                    ctx.arcTo(0, 0, r, 0, r);
+                    ctx.closePath();
+                }}
+            >
+                {/* ═══ HEADER STRIPE ═══ */}
+                <Rect
+                    x={0} y={0}
+                    width={room.width} height={10}
+                    fill={roomColor}
+                    opacity={0.9}
+                    listening={false}
+                />
+
+                {/* ═══ INNER SCANLINE / HIGHLIGHT ═══ */}
+                <Rect
+                    x={2} y={2}
+                    width={room.width - 4} height={room.height / 2}
+                    fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+                    fillLinearGradientEndPoint={{ x: 0, y: room.height / 2 }}
+                    fillLinearGradientColorStops={[0, 'rgba(255,255,255,0.1)', 1, 'transparent']}
+                    listening={false}
+                />
+            </Group>
+
+            {/* ═══ LAYER 4: GLASS GLINT BORDER (Drawn on top to cover clipped edges) ═══ */}
             <Rect
                 width={room.width} height={room.height}
                 fill="transparent"
@@ -116,26 +155,6 @@ export function ModernRoom({ room, animated = true, isSelected = false }: { room
                 strokeWidth={isHovered ? 2 : 1.5}
                 cornerRadius={16}
                 opacity={0.9}
-            />
-
-            {/* ═══ HEADER STRIPE ═══ */}
-            <Rect
-                x={0} y={0}
-                width={room.width} height={10}
-                fill={roomColor}
-                opacity={0.9}
-                cornerRadius={[16, 16, 0, 0]}
-                listening={false}
-            />
-
-            {/* ═══ INNER SCANLINE / HIGHLIGHT ═══ */}
-            <Rect
-                x={2} y={2}
-                width={room.width - 4} height={room.height / 2}
-                fillLinearGradientStartPoint={{ x: 0, y: 0 }}
-                fillLinearGradientEndPoint={{ x: 0, y: room.height / 2 }}
-                fillLinearGradientColorStops={[0, 'rgba(255,255,255,0.1)', 1, 'transparent']}
-                cornerRadius={[14, 14, 0, 0]}
                 listening={false}
             />
 
