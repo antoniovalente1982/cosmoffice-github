@@ -57,13 +57,13 @@ export function UserAvatar({
             animate={{
                 x: position.x,
                 y: position.y,
-                scale: zoom
             }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="absolute z-30"
-            style={{ marginLeft: -32, marginTop: -32 }}
+            style={{ marginLeft: -32 * zoom, marginTop: -32 * zoom }}
         >
-            <div className="relative group flex flex-col items-center">
+            {/* CSS zoom renders at true resolution — no bitmap upscaling, no blur */}
+            <div className="relative group flex flex-col items-center" style={{ zoom: zoom }}>
                 {/* Name Tag */}
                 <div className="absolute -top-12 px-3 py-1 rounded-full bg-slate-900/80 border border-white/10 backdrop-blur-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all shadow-xl">
                     <span className="text-[11px] font-semibold text-slate-100 italic">
