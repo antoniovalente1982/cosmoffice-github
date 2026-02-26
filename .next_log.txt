@@ -68,3 +68,25 @@ Import trace for requested module:
  ✓ Compiled in 182ms (2495 modules)
 <w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/3.pack.gz_' -> '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/3.pack.gz'
  ✓ Compiled in 94ms (1324 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/0.pack.gz_' -> '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/0.pack.gz'
+ ⨯ ./components/office/OfficeBuilder.tsx
+Error: 
+  [31mx[0m Unexpected token `div`. Expected jsx identifier
+     ,-[[36;1;4m/Users/antoniovalente/Desktop/cosmoffice-github-1/components/office/OfficeBuilder.tsx[0m:173:1]
+ [2m173[0m |     if (!isBuilderMode) return null;
+ [2m174[0m | 
+ [2m175[0m |     return (
+ [2m176[0m |         <div className="absolute inset-0 pointer-events-none overflow-hidden z-[100]">
+     : [31;1m         ^^^[0m
+ [2m177[0m | 
+ [2m178[0m |             {/* TOAST NOTIFICATIONS */}
+ [2m179[0m |             <AnimatePresence>
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/office/OfficeBuilder.tsx
+./app/office/[id]/page.tsx
+ ✓ Compiled in 211ms (2495 modules)

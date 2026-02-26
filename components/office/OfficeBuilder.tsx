@@ -356,29 +356,18 @@ export function OfficeBuilder() {
                                 </div>
                             </div>
 
-                            {/* Templates Catalog */}
-                            <div className="p-4 space-y-3 flex-1 overflow-y-auto custom-scrollbar">
-                                <p className="text-xs text-slate-400 mb-2 leading-relaxed">
-                                    Scegli uno dei modelli preimpostati per aggiungerlo rapidamente al centro della mappa. Cliccaci poi sopra per modificarne dimensioni e colori.
-                                </p>
-                                {roomTemplates.map((template, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => handleAddRoom(template)}
-                                        className="w-full flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/20 transition-all transform hover:scale-[1.02] text-left group"
-                                    >
-                                        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg border border-white/10" style={{ backgroundColor: template.color }}>
-                                            {template.icon}
-                                        </div>
-                                        <div className="flex-1">
-                                            <h4 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">{template.name}</h4>
-                                            <p className="text-[10px] text-slate-400 mt-0.5">
-                                                {template.width}x{template.height}px
-                                            </p>
-                                        </div>
-                                        <Plus className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
-                                    </button>
-                                ))}
+                            <div className="p-4 flex-1 flex flex-col justify-center items-center h-full min-h-[160px]">
+                                <button
+                                    onClick={() => handleAddRoom(roomTemplates[0])}
+                                    className="w-[90%] flex flex-col items-center justify-center gap-3 p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group"
+                                >
+                                    <div className="w-12 h-12 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
+                                        <Plus className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
+                                    </div>
+                                    <span className="text-sm font-bold text-cyan-50 tracking-wide">
+                                        Nuova Stanza
+                                    </span>
+                                </button>
                             </div>
                         </>
                     )}
