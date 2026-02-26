@@ -488,6 +488,7 @@ export function KonvaOffice() {
                                 audioEnabled={peer.audioEnabled}
                                 videoEnabled={peer.videoEnabled}
                                 isSpeaking={peer.isSpeaking}
+                                zoom={zoom}
                             />
                         ))}
 
@@ -503,6 +504,7 @@ export function KonvaOffice() {
                             videoEnabled={isVideoEnabled}
                             isSpeaking={isSpeaking}
                             stream={localStream}
+                            zoom={zoom}
                         />
                     </div>
                 </>

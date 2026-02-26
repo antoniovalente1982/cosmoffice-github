@@ -15,6 +15,7 @@ interface UserAvatarProps {
     videoEnabled?: boolean;
     isSpeaking?: boolean;
     stream?: MediaStream | null;
+    zoom?: number;
 }
 
 export function UserAvatar({
@@ -26,7 +27,8 @@ export function UserAvatar({
     audioEnabled = false,
     videoEnabled = false,
     isSpeaking = false,
-    stream
+    stream,
+    zoom = 1
 }: UserAvatarProps) {
     const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -54,7 +56,8 @@ export function UserAvatar({
             initial={false}
             animate={{
                 x: position.x,
-                y: position.y
+                y: position.y,
+                scale: zoom
             }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="absolute z-30"
