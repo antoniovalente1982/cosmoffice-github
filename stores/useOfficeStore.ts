@@ -45,13 +45,37 @@ interface RoomConnection {
     settings: any;
 }
 
+interface FurnitureItem {
+    id: string;
+    room_id: string;
+    type: string;
+    label?: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    settings: any;
+}
+
+interface RoomTemplate {
+    name: string;
+    type: string;
+    department?: string;
+    width: number;
+    height: number;
+    color: string;
+    icon: string;
+    capacity: number;
+}
+
 interface OfficeState {
     // Current user state
     myPosition: UserPosition;
     myStatus: 'online' | 'away' | 'busy' | 'offline';
     myRoomId?: string;
     myProfile: any;
-    
+
     // Camera/View state
     stagePos: { x: number; y: number };
 
@@ -77,16 +101,22 @@ interface OfficeState {
     isSpeaking: boolean;
     localStream: MediaStream | null;
     screenStreams: MediaStream[];  // Supporto per multipli schermi
-    
+
     // Device Selection
     selectedAudioInput: string | null;  // deviceId del microfono
     selectedAudioOutput: string | null;  // deviceId dell'audio in uscita
     selectedVideoInput: string | null;  // deviceId della webcam
     availableDevices: MediaDeviceInfo[];
     hasCompletedDeviceSetup: boolean;  // Se l'utente ha completato la configurazione iniziale
-    
+
     // Audio State
     isRemoteAudioEnabled: boolean;  // Mute/unmute audio from other users
+
+    // Builder State
+    isBuilderMode: boolean;
+    selectedRoomId: string | null;
+    furnitureItems: FurnitureItem[];
+    roomTemplates: RoomTemplate[];
 
     // Actions
     setMyPosition: (position: UserPosition) => void;
@@ -106,7 +136,7 @@ interface OfficeState {
     addScreenStream: (stream: MediaStream) => void;
     removeScreenStream: (streamId: string) => void;
     clearAllScreenStreams: () => void;
-    
+
     // Device Actions
     setSelectedAudioInput: (deviceId: string | null) => void;
     setSelectedAudioOutput: (deviceId: string | null) => void;
@@ -121,6 +151,18 @@ interface OfficeState {
     setActiveSpace: (spaceId: string) => void;
     setRooms: (rooms: Room[]) => void;
     setRoomConnections: (connections: RoomConnection[]) => void;
+
+    // Builder Actions
+    toggleBuilderMode: () => void;
+    setSelectedRoom: (roomId: string | null) => void;
+    addRoom: (room: Room) => void;
+    updateRoomPosition: (roomId: string, x: number, y: number) => void;
+    updateRoomSize: (roomId: string, width: number, height: number) => void;
+    removeRoom: (roomId: string) => void;
+    setFurnitureItems: (items: FurnitureItem[]) => void;
+    addFurniture: (item: FurnitureItem) => void;
+    updateFurniture: (id: string, data: Partial<FurnitureItem>) => void;
+    removeFurniture: (id: string) => void;
 }
 
 export const useOfficeStore = create<OfficeState>((set, get) => ({
@@ -145,7 +187,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     isSpeaking: false,
     localStream: null,
     screenStreams: [],
-    
+
     // Device defaults (verranno impostati dopo il setup)
     selectedAudioInput: null,
     selectedAudioOutput: null,
@@ -153,6 +195,22 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     availableDevices: [],
     hasCompletedDeviceSetup: false,
     isRemoteAudioEnabled: true,  // Default: hear others (can be muted for focus mode)
+
+    // Builder defaults
+    isBuilderMode: false,
+    selectedRoomId: null,
+    furnitureItems: [],
+    roomTemplates: [
+        { name: 'Open Space', type: 'open', width: 400, height: 300, color: '#1e293b', icon: '🏢', capacity: 20 },
+        { name: 'Meeting Room', type: 'meeting', width: 250, height: 200, color: '#1e3a8a', icon: '🤝', capacity: 8 },
+        { name: 'Focus Zone', type: 'focus', width: 150, height: 150, color: '#312e81', icon: '🎯', capacity: 4 },
+        { name: 'Break Room', type: 'break', width: 200, height: 180, color: '#065f46', icon: '☕', capacity: 10 },
+        { name: 'Reception', type: 'reception', width: 300, height: 150, color: '#7c2d12', icon: '🛎️', capacity: 5 },
+        { name: 'Dev Team', type: 'open', department: 'engineering', width: 350, height: 280, color: '#0f766e', icon: '💻', capacity: 15 },
+        { name: 'Marketing', type: 'open', department: 'marketing', width: 300, height: 250, color: '#9333ea', icon: '📊', capacity: 12 },
+        { name: 'Sales', type: 'open', department: 'sales', width: 300, height: 250, color: '#b91c1c', icon: '📞', capacity: 12 },
+        { name: 'Design Studio', type: 'open', department: 'design', width: 300, height: 250, color: '#c2410c', icon: '🎨', capacity: 10 },
+    ],
 
     setMyPosition: (position) => set({ myPosition: position }),
     setMyStatus: (status) => set({ myStatus: status }),
@@ -187,7 +245,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     toggleMic: async () => {
         const state = get();
         const newMicEnabled = !state.isMicEnabled;
-        
+
         // Se stiamo attivando il microfono e non c'è uno stream locale, inizializzalo
         if (newMicEnabled && !state.localStream) {
             try {
@@ -199,25 +257,25 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
                         ? { deviceId: { exact: state.selectedVideoInput } }
                         : state.isVideoEnabled // Solo se il video è attivo
                 };
-                
+
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                
+
                 // Abilita l'audio track
                 const audioTrack = stream.getAudioTracks()[0];
                 if (audioTrack) {
                     audioTrack.enabled = true;
                 }
-                
+
                 // Disabilita il video track se il video è spento
                 const videoTrack = stream.getVideoTracks()[0];
                 if (videoTrack && !state.isVideoEnabled) {
                     videoTrack.enabled = false;
                 }
-                
-                set({ 
-                    localStream: stream, 
+
+                set({
+                    localStream: stream,
                     isMicEnabled: true,
-                    hasCompletedDeviceSetup: true 
+                    hasCompletedDeviceSetup: true
                 });
             } catch (err: any) {
                 console.error('Failed to initialize microphone:', err);
@@ -244,28 +302,28 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     toggleVideo: async () => {
         const state = get();
         const newVideoEnabled = !state.isVideoEnabled;
-        
+
         // Se stiamo attivando il video e non c'è uno stream locale, inizializzalo
         if (newVideoEnabled && !state.localStream) {
             try {
                 // Prova con constraint specifici per Insta360 e altre webcam USB
-                const videoConstraints: MediaStreamConstraints['video'] = state.selectedVideoInput && state.selectedVideoInput !== 'default' 
-                    ? { 
+                const videoConstraints: MediaStreamConstraints['video'] = state.selectedVideoInput && state.selectedVideoInput !== 'default'
+                    ? {
                         deviceId: { exact: state.selectedVideoInput },
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
-                      }
-                    : { 
+                    }
+                    : {
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
-                      };
-                      
+                    };
+
                 const audioConstraints = state.selectedAudioInput && state.selectedAudioInput !== 'default'
                     ? { deviceId: { exact: state.selectedAudioInput } }
                     : true;
-                    
+
                 let stream: MediaStream;
-                
+
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         video: videoConstraints,
@@ -276,21 +334,21 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
                     console.log('Retrying with lower resolution...');
                     stream = await navigator.mediaDevices.getUserMedia({
                         video: state.selectedVideoInput && state.selectedVideoInput !== 'default'
-                            ? { 
+                            ? {
                                 deviceId: { exact: state.selectedVideoInput },
                                 width: { ideal: 640 },
                                 height: { ideal: 480 },
                                 frameRate: { ideal: 15 }
-                              }
-                            : { 
+                            }
+                            : {
                                 width: { ideal: 640 },
                                 height: { ideal: 480 },
                                 frameRate: { ideal: 15 }
-                              },
+                            },
                         audio: audioConstraints
                     });
                 }
-                
+
                 // Verifica che il video track sia effettivamente attivo
                 const videoTrack = stream.getVideoTracks()[0];
                 if (videoTrack) {
@@ -301,23 +359,23 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
                         enabled: videoTrack.enabled
                     });
                     videoTrack.enabled = true;
-                    
+
                     // Se il track è muted, potrebbe essere in uso da un'altra app
                     if (videoTrack.muted) {
                         console.warn('Video track is muted - camera may be in use by another application');
                     }
                 }
-                
+
                 // Disabilita l'audio track se il microfono è spento
                 const audioTrack = stream.getAudioTracks()[0];
                 if (audioTrack) {
                     audioTrack.enabled = state.isMicEnabled;
                 }
-                
-                set({ 
-                    localStream: stream, 
+
+                set({
+                    localStream: stream,
                     isVideoEnabled: true,
-                    hasCompletedDeviceSetup: true 
+                    hasCompletedDeviceSetup: true
                 });
             } catch (err: any) {
                 console.error('Failed to initialize video:', err);
@@ -345,13 +403,13 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     },
     setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
     toggleRemoteAudio: () => set((state) => ({ isRemoteAudioEnabled: !state.isRemoteAudioEnabled })),
-    addScreenStream: (stream) => set((state) => ({ 
+    addScreenStream: (stream) => set((state) => ({
         screenStreams: [...state.screenStreams, stream],
-        isScreenSharing: true 
+        isScreenSharing: true
     })),
     removeScreenStream: (streamId) => set((state) => {
         const newStreams = state.screenStreams.filter(s => s.id !== streamId);
-        return { 
+        return {
             screenStreams: newStreams,
             isScreenSharing: newStreams.length > 0
         };
@@ -362,7 +420,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
         });
         return { screenStreams: [], isScreenSharing: false };
     }),
-    
+
     // Device Actions
     setSelectedAudioInput: (deviceId) => set({ selectedAudioInput: deviceId }),
     setSelectedAudioOutput: (deviceId) => set({ selectedAudioOutput: deviceId }),
@@ -384,4 +442,28 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     setActiveSpace: (activeSpaceId) => set({ activeSpaceId }),
     setRooms: (rooms) => set({ rooms }),
     setRoomConnections: (roomConnections) => set({ roomConnections }),
+
+    // Builder Actions
+    toggleBuilderMode: () => set((state) => ({ isBuilderMode: !state.isBuilderMode, selectedRoomId: null })),
+    setSelectedRoom: (roomId) => set({ selectedRoomId: roomId }),
+    addRoom: (room) => set((state) => ({ rooms: [...state.rooms, room] })),
+    updateRoomPosition: (roomId, x, y) => set((state) => ({
+        rooms: state.rooms.map(r => r.id === roomId ? { ...r, x, y } : r)
+    })),
+    updateRoomSize: (roomId, width, height) => set((state) => ({
+        rooms: state.rooms.map(r => r.id === roomId ? { ...r, width, height } : r)
+    })),
+    removeRoom: (roomId) => set((state) => ({
+        rooms: state.rooms.filter(r => r.id !== roomId),
+        selectedRoomId: state.selectedRoomId === roomId ? null : state.selectedRoomId,
+        furnitureItems: state.furnitureItems.filter(f => f.room_id !== roomId)
+    })),
+    setFurnitureItems: (furnitureItems) => set({ furnitureItems }),
+    addFurniture: (item) => set((state) => ({ furnitureItems: [...state.furnitureItems, item] })),
+    updateFurniture: (id, data) => set((state) => ({
+        furnitureItems: state.furnitureItems.map(f => f.id === id ? { ...f, ...data } : f)
+    })),
+    removeFurniture: (id) => set((state) => ({
+        furnitureItems: state.furnitureItems.filter(f => f.id !== id)
+    })),
 }));

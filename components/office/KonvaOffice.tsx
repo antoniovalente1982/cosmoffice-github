@@ -7,6 +7,8 @@ import { usePresence } from '../../hooks/usePresence';
 import { useSpatialAudio } from '../../hooks/useSpatialAudio';
 import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
+import { RoomEditor } from './RoomEditor';
+import { FurnitureLayer } from './FurnitureLayer';
 
 // Simple pathfinding
 interface Node {
@@ -37,7 +39,7 @@ export function KonvaOffice() {
         myPosition, setMyPosition, peers, rooms,
         zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
-        myProfile
+        myProfile, isBuilderMode, furnitureItems
     } = useOfficeStore();
     const stageRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -167,6 +169,9 @@ export function KonvaOffice() {
         const stage = stageRef.current;
         if (!stage || isMovingRef.current) return;
 
+        // In builder mode, don't start movement on stage click
+        if (isBuilderMode) return;
+
         const pointer = stage.getPointerPosition();
         if (!pointer) return;
 
@@ -177,7 +182,7 @@ export function KonvaOffice() {
         // Set target and calculate path
         setTargetPos({ x: worldX, y: worldY });
         pathRef.current = findPath(myPosition, { x: worldX, y: worldY });
-    }, [myPosition, zoom]);
+    }, [myPosition, zoom, isBuilderMode]);
 
     const handleWheel = (e: any) => {
         e.evt.preventDefault();
@@ -330,26 +335,39 @@ export function KonvaOffice() {
                                 ))
                             )}
 
-                            {/* Rooms */}
-                            {rooms.map((room: any) => (
-                                <Group key={room.id} x={room.x} y={room.y}>
-                                    <Rect
-                                        width={room.width}
-                                        height={room.height}
-                                        fill={
-                                            room.type === 'meeting' ? '#1e3a8a' :
-                                                room.type === 'focus' ? '#312e81' :
-                                                    room.type === 'break' ? '#065f46' :
-                                                        '#1e293b'
-                                        }
-                                        opacity={0.3}
-                                        cornerRadius={12}
-                                        stroke="#334155"
-                                        strokeWidth={1}
-                                    />
-                                    <Text text={room.name || ''} fontSize={14} fill="#94a3b8" x={10} y={-20} fontStyle="bold" />
-                                </Group>
-                            ))}
+                            {/* Rooms - use RoomEditor in builder mode, static rendering otherwise */}
+                            {isBuilderMode ? (
+                                <RoomEditor rooms={rooms} />
+                            ) : (
+                                <>
+                                    {rooms.map((room: any) => (
+                                        <Group key={room.id} x={room.x} y={room.y}>
+                                            <Rect
+                                                width={room.width}
+                                                height={room.height}
+                                                fill={
+                                                    (room as any).color ||
+                                                    (room.type === 'meeting' ? '#1e3a8a' :
+                                                        room.type === 'focus' ? '#312e81' :
+                                                            room.type === 'break' ? '#065f46' :
+                                                                '#1e293b')
+                                                }
+                                                opacity={0.3}
+                                                cornerRadius={12}
+                                                stroke="#334155"
+                                                strokeWidth={1}
+                                            />
+                                            <Text text={room.name || ''} fontSize={14} fill="#94a3b8" x={10} y={-20} fontStyle="bold" />
+                                            {(room as any).department && (
+                                                <Text text={`${(room as any).department}`} fontSize={10} fill="#64748b" x={10} y={room.height + 5} />
+                                            )}
+                                        </Group>
+                                    ))}
+                                </>
+                            )}
+
+                            {/* Furniture Layer - always visible */}
+                            <FurnitureLayer />
 
                             {/* Target indicator */}
                             {targetPos && (

@@ -25,7 +25,8 @@ import {
     Sparkles,
     BarChart3,
     Trophy,
-    SlidersHorizontal
+    SlidersHorizontal,
+    Wrench
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 // Dynamically import client-heavy components with SSR disabled
@@ -39,6 +40,7 @@ const GamificationSystem = dynamic(() => import('../../../components/office/Gami
 const TeamList = dynamic(() => import('../../../components/office/TeamList').then(mod => mod.TeamList), { ssr: false });
 const OfficeManagement = dynamic(() => import('../../../components/office/OfficeManagement'), { ssr: false });
 const DeviceSettings = dynamic(() => import('../../../components/settings/DeviceSettings').then(mod => mod.DeviceSettings), { ssr: false });
+const OfficeBuilder = dynamic(() => import('../../../components/office/OfficeBuilder').then(mod => mod.OfficeBuilder), { ssr: false });
 
 import { useOfficeStore } from '../../../stores/useOfficeStore';
 import { useOffice } from '../../../hooks/useOffice';
@@ -49,8 +51,9 @@ export default function OfficePage() {
     const {
         toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab,
         isMicEnabled, isVideoEnabled, isScreenSharing, isRemoteAudioEnabled, screenStreams,
-        hasCompletedDeviceSetup, toggleMic, toggleVideo, toggleRemoteAudio, 
+        hasCompletedDeviceSetup, toggleMic, toggleVideo, toggleRemoteAudio,
         setActiveSpace, addScreenStream, clearAllScreenStreams,
+        isBuilderMode, toggleBuilderMode,
     } = useOfficeStore();
     const params = useParams();
     const spaceId = params.id as string;
@@ -70,7 +73,7 @@ export default function OfficePage() {
                 video: true,
                 audio: false  // No system audio - user uses mic to speak
             });
-            
+
             addScreenStream(stream);
         } catch (err) {
             console.error('Failed to start screen sharing:', err);
@@ -104,7 +107,7 @@ export default function OfficePage() {
                 if (profile) {
                     useOfficeStore.getState().setMyProfile(profile);
                 }
-                
+
                 // Controlla se l'utente ha già completato il setup dispositivi
                 const hasSetup = useOfficeStore.getState().hasCompletedDeviceSetup;
                 if (!hasSetup) {
@@ -288,7 +291,7 @@ export default function OfficePage() {
                             >
                                 {isRemoteAudioEnabled ? <Headphones className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
                             </Button>
-                            
+
                             <Button
                                 variant={isMicEnabled ? "secondary" : "default"}
                                 size="icon"
@@ -314,7 +317,7 @@ export default function OfficePage() {
                             >
                                 {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                             </Button>
-                            
+
                             {/* Pulsante + per aggiungere altri schermi quando già ne stai condividendo */}
                             {isScreenSharing && (
                                 <Button
@@ -327,9 +330,20 @@ export default function OfficePage() {
                                     <span className="text-lg font-bold">+</span>
                                 </Button>
                             )}
-                            
+
                             <div className="w-px h-8 bg-white/10 mx-2"></div>
-                            
+
+                            {/* Builder Mode Toggle */}
+                            <Button
+                                variant={isBuilderMode ? "default" : "secondary"}
+                                size="icon"
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isBuilderMode ? 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                onClick={toggleBuilderMode}
+                                title={isBuilderMode ? 'Esci dal Builder' : 'Modifica Ufficio'}
+                            >
+                                <Wrench className="w-5 h-5" />
+                            </Button>
+
                             {/* Pulsante per aprire la Cabina di Regia */}
                             <Button
                                 variant="secondary"
@@ -345,20 +359,23 @@ export default function OfficePage() {
                     )}
                 </motion.div>
                 {isManagementOpen && <OfficeManagement spaceId={spaceId} onClose={() => setIsManagementOpen(false)} />}
-                
+
+                {/* Office Builder */}
+                {isBuilderMode && <OfficeBuilder />}
+
                 {/* Cabina di Regia - Accessibile durante la sessione */}
-                <DeviceSettings 
-                    isOpen={isDeviceSettingsOpen} 
-                    onClose={() => setIsDeviceSettingsOpen(false)} 
+                <DeviceSettings
+                    isOpen={isDeviceSettingsOpen}
+                    onClose={() => setIsDeviceSettingsOpen(false)}
                 />
-                
+
                 {/* Setup Iniziale - Appare solo all'ingresso */}
-                <DeviceSettings 
-                    isOpen={showInitialSetup} 
+                <DeviceSettings
+                    isOpen={showInitialSetup}
                     onClose={() => setShowInitialSetup(false)}
                     isInitialSetup={true}
                 />
-                
+
                 <ChatWindow />
                 <AIAssistant />
             </main>
