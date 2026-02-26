@@ -424,6 +424,21 @@ export function KonvaOffice() {
                                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-gray-300 shadow-[0_0_5px_rgba(209,213,219,0.8)]" />
                             </div>
                         </div>
+
+                        {/* "You are here!" indicator */}
+                        {/* We counter-rotate against the solar system so it always stays visually right-side up! */}
+                        <div className="absolute left-1/2 top-1/2 w-full h-full" style={{ transform: `translate(-50%, -50%) rotate(${-solarRotation}deg)` }}>
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+                                <div className="bg-white/20 backdrop-blur-md border border-white/60 px-2 py-0.5 rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.8)] mb-1">
+                                    <span className="text-white text-[11px] font-bold tracking-widest whitespace-nowrap drop-shadow-md" style={{ fontFamily: '"Comic Sans MS", "Chalkboard SE", "Marker Felt", sans-serif' }}>
+                                        you are here!
+                                    </span>
+                                </div>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_8px_rgba(255,255,255,1)] text-white/90 animate-bounce">
+                                    <path d="M12 22L19 12H14V2H10V12H5L12 22Z" fill="currentColor" />
+                                </svg>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Mars */}
