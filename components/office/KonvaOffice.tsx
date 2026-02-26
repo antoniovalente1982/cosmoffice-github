@@ -389,10 +389,15 @@ export function KonvaOffice() {
 
             {/* Solar System Background Layer */}
             {/* The wrapper scales to cover immense depths so the planets can stretch out far. */}
-            {/* Solar System Background Layer */}
-            {/* The wrapper scales to cover immense depths so the planets can stretch out far. */}
-            <div className="absolute left-1/2 top-1/2 pointer-events-none z-0 overflow-hidden"
-                style={{ width: '400vw', height: '400vw', transform: 'translate(-50%, -50%)', opacity: bgOpacity }}>
+            <div className="absolute pointer-events-none z-0 overflow-hidden"
+                style={{
+                    left: `${(officeBounds.width / 2) * zoom + stagePos.x}px`,
+                    top: `${(officeBounds.height / 2) * zoom + stagePos.y}px`,
+                    width: '400vw',
+                    height: '400vw',
+                    transform: `translate(-50%, -50%) scale(${zoom})`,
+                    opacity: bgOpacity
+                }}>
                 <div
                     className="absolute inset-0"
                     style={{ transform: `rotate(${solarRotation}deg)` }}
