@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Group, Rect, Circle, Text, Line } from 'react-konva';
 import { getRoomColor, getRoomDepartment } from './OfficeBuilder';
+import { useOfficeStore } from '../../stores/useOfficeStore';
 
 // Simple spring animation hook for Konva
 function useSpring(target: number, damping: number = 0.8, stiffness: number = 0.1) {
@@ -38,6 +39,38 @@ export function ModernRoom({ room, animated = true, isSelected = false }: { room
     const deptLabel = getRoomDepartment(room);
     const cap = room.settings?.capacity || room.capacity;
 
+    // Dynamic real-time calculation
+    // Assume each avatar needs an area of 128x128 pixels (64px avatar + 64px gap)
+    const avatarSpaceArea = 128 * 128;
+    const roomArea = room.width * room.height;
+    // Calculate max capacity. Keep at least 1, and bound it reasonably to physical space
+    const dynamicCapacity = Math.max(1, Math.floor(roomArea / avatarSpaceArea));
+
+    // Calculate current number of users in this room (including me if I'm in it)
+    const { peers, myPosition, myStatus } = useOfficeStore();
+    const currentUsers = useMemo(() => {
+        let count = 0;
+
+        // Helper to check if a position is within this room
+        const isInside = (x: number, y: number) => {
+            return x >= room.x && x <= room.x + room.width &&
+                y >= room.y && y <= room.y + room.height;
+        };
+
+        // Check peers
+        (Object.values(peers) as any[]).forEach(peer => {
+            if (peer.status !== 'offline' && isInside(peer.position.x, peer.position.y)) {
+                count++;
+            }
+        });
+
+        // Check self
+        if (myStatus !== 'offline' && isInside(myPosition.x, myPosition.y)) {
+            count++;
+        }
+
+        return count;
+    }, [peers, myPosition, myStatus, room.x, room.y, room.width, room.height]);
     // Fluid animations
     const scale = useSpring(isHovered ? 1.02 : 1.0, 0.7, 0.15);
     const glowBlur = useSpring(isHovered ? 60 : 30, 0.8, 0.2);
@@ -198,17 +231,28 @@ export function ModernRoom({ room, animated = true, isSelected = false }: { room
                 </>
             )}
 
-            {/* ═══ CAPACITY BADGE (Solid Circle) ═══ */}
-            {cap && (
-                <Group x={room.width - 24} y={room.height - 24} listening={false}>
-                    {/* Ring */}
-                    <Circle radius={16} fill={roomColor} opacity={0.2} />
-                    <Circle radius={14} fill={roomColor} opacity={0.8} />
-                    <Circle radius={14} stroke="rgba(255,255,255,0.3)" strokeWidth={1.5} />
-                    {/* Number */}
+            {/* ═══ CAPACITY BADGE (Solid Circle/Pill) ═══ */}
+            {dynamicCapacity && (
+                <Group x={room.width - Math.max(28, (String(dynamicCapacity).length + String(currentUsers).length) * 8 + 16)} y={room.height - 30} listening={false}>
+                    {/* Background Pill */}
+                    <Rect
+                        height={24}
+                        width={Math.max(28, (String(dynamicCapacity).length + String(currentUsers).length) * 8 + 16)}
+                        cornerRadius={12}
+                        fill={currentUsers > dynamicCapacity ? '#ef4444' : roomColor}
+                        opacity={currentUsers >= dynamicCapacity ? 0.8 : 0.6}
+                    />
+                    <Rect
+                        height={24}
+                        width={Math.max(28, (String(dynamicCapacity).length + String(currentUsers).length) * 8 + 16)}
+                        cornerRadius={12}
+                        stroke="rgba(255,255,255,0.3)"
+                        strokeWidth={1.5}
+                    />
+                    {/* Text */}
                     <Text
-                        text={`${cap}`} fontSize={11} fill="#ffffff" fontStyle="bold" fontFamily="Inter, sans-serif"
-                        x={-14} y={-5} width={28} align="center"
+                        text={`${currentUsers}/${dynamicCapacity}`} fontSize={11} fill="#ffffff" fontStyle="bold" fontFamily="Inter, sans-serif"
+                        x={0} y={6} width={Math.max(28, (String(dynamicCapacity).length + String(currentUsers).length) * 8 + 16)} align="center"
                     />
                 </Group>
             )}
