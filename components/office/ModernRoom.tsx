@@ -185,9 +185,12 @@ export function ModernRoom({ room, animated = true, isSelected = false }: { room
                 width={room.width} height={room.height}
                 fill="transparent"
                 stroke={roomColor}
-                strokeWidth={isHovered ? 2 : 1.5}
+                strokeWidth={isHovered ? 4 : 2.5}
                 cornerRadius={16}
-                opacity={0.9}
+                opacity={1}
+                shadowColor={roomColor}
+                shadowBlur={isHovered ? 20 : 12}
+                shadowOpacity={isHovered ? 0.9 : 0.6}
                 listening={false}
             />
 
