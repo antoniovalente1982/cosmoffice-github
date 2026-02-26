@@ -2,16 +2,17 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    Send, 
-    X, 
-    MessageSquare, 
-    Trash2, 
+import {
+    Send,
+    X,
+    MessageSquare,
+    Trash2,
     Shield,
     Crown,
     MoreHorizontal,
     Smile,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Eraser
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { createClient } from '../../utils/supabase/client';
@@ -38,6 +39,8 @@ export function ChatWindow() {
     const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [messageMenuOpen, setMessageMenuOpen] = useState<string | null>(null);
+    const [spaceName, setSpaceName] = useState<string>('Chat Workspace');
+    const [isClearingChat, setIsClearingChat] = useState(false);
     const supabase = createClient();
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -83,11 +86,19 @@ export function ChatWindow() {
                         } else if (memberData) {
                             setUserRole(memberData.role as 'admin' | 'member');
                         }
+
+                        // Carica nome dello space
+                        const { data: spaceInfo } = await supabase
+                            .from('spaces')
+                            .select('name')
+                            .eq('id', activeSpaceId)
+                            .single();
+                        if (spaceInfo) setSpaceName(spaceInfo.name);
                     }
                 }
             }
         };
-        
+
         if (isChatOpen) {
             loadUser();
         }
@@ -147,8 +158,9 @@ export function ChatWindow() {
                 {
                     event: 'DELETE',
                     schema: 'public',
-                    table: 'space_chat_messages',
-                    filter: `space_id=eq.${activeSpaceId}`
+                    table: 'space_chat_messages'
+                    // Nessun filtro: senza REPLICA IDENTITY FULL Supabase non invia
+                    // space_id nei DELETE events. Filtriamo nel callback via id.
                 },
                 (payload) => {
                     const deletedId = payload.old.id;
@@ -234,11 +246,28 @@ export function ChatWindow() {
         setMessageMenuOpen(null);
     };
 
-    const canDeleteMessage = (msg: ChatMessage) => {
-        // Admin/owner possono cancellare tutto
-        if (userRole === 'owner' || userRole === 'admin') return true;
-        // Utenti normali possono cancellare solo i propri (opzionale)
-        return msg.sender_id === currentUser?.id;
+    const canDeleteMessage = () => {
+        // Solo admin/owner possono cancellare messaggi (allineato alla RLS policy)
+        return userRole === 'owner' || userRole === 'admin';
+    };
+
+    const handleClearChat = async () => {
+        if (!activeSpaceId) return;
+        if (!confirm('Sei sicuro di voler eliminare tutta la chat? Questa operazione non può essere annullata.')) return;
+
+        setIsClearingChat(true);
+        const { error } = await supabase
+            .from('space_chat_messages')
+            .delete()
+            .eq('space_id', activeSpaceId);
+
+        if (error) {
+            console.error('Error clearing chat:', error);
+            alert('Errore durante la cancellazione della chat');
+        } else {
+            setMessages([]); // Aggiorna subito il frontend
+        }
+        setIsClearingChat(false);
     };
 
     const formatTime = (dateString: string) => {
@@ -295,18 +324,32 @@ export function ChatWindow() {
                                 <MessageSquare className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-slate-100">Chat Ufficio</h3>
+                                <h3 className="font-bold text-slate-100">{spaceName}</h3>
                                 <p className="text-xs text-slate-400">{messages.length} messaggi</p>
                             </div>
                         </div>
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={toggleChat} 
-                            className="h-8 w-8 text-slate-400 hover:text-slate-100 hover:bg-white/10 rounded-full"
-                        >
-                            <X className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                            {(userRole === 'owner' || userRole === 'admin') && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleClearChat}
+                                    disabled={isClearingChat || messages.length === 0}
+                                    className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-full disabled:opacity-30"
+                                    title="Cancella tutta la chat"
+                                >
+                                    <Eraser className="w-4 h-4" />
+                                </Button>
+                            )}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={toggleChat}
+                                className="h-8 w-8 text-slate-400 hover:text-slate-100 hover:bg-white/10 rounded-full"
+                            >
+                                <X className="w-4 h-4" />
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Messages Area */}
@@ -398,7 +441,7 @@ export function ChatWindow() {
                                                         </p>
                                                         
                                                         {/* Menu azioni messaggio */}
-                                                        {canDeleteMessage(msg) && (
+                                                        {canDeleteMessage() && (
                                                             <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/message:opacity-100 transition-opacity ${own ? '-left-8' : '-right-8'}`}>
                                                                 <button
                                                                     onClick={(e) => {
