@@ -229,6 +229,16 @@ CREATE POLICY "Admins can create rooms"
     public.is_space_admin(space_id)
   );
 
+CREATE POLICY "Admins can update rooms"
+  ON rooms FOR UPDATE USING (
+    public.is_space_admin(space_id)
+  );
+
+CREATE POLICY "Admins can delete rooms"
+  ON rooms FOR DELETE USING (
+    public.is_space_admin(space_id)
+  );
+
 -- PARTICIPANTS POLICIES
 CREATE POLICY "Participants viewable by room members"
   ON participants FOR SELECT USING (
