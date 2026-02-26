@@ -25,7 +25,7 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
     const { updateRoomPosition, updateRoomSize } = useOfficeStore();
     const [isDragging, setIsDragging] = useState(false);
 
-    const roomColor = (room as any).color || '#1e293b';
+    const roomColor = (room as any).color || '#3b82f6';
     const deptLabel = (room as any).department;
     const cap = (room as any).capacity || room.settings?.capacity;
 
@@ -35,7 +35,6 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         const newY = snapToGrid(e.target.y());
         e.target.position({ x: newX, y: newY });
         updateRoomPosition(room.id, newX, newY);
-
         if (!room.id.startsWith('temp_')) {
             await supabase.from('rooms').update({ x: newX, y: newY }).eq('id', room.id);
         }
@@ -45,16 +44,13 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         const handleX = e.target.x();
         const handleY = e.target.y();
         let newX = room.x, newY = room.y, newW = room.width, newH = room.height;
-
         if (handlePos.includes('right')) newW = snapToGrid(Math.max(MIN_ROOM_W, handleX));
         if (handlePos.includes('bottom')) newH = snapToGrid(Math.max(MIN_ROOM_H, handleY));
         if (handlePos.includes('left')) { const d = snapToGrid(handleX); newX = room.x + d; newW = Math.max(MIN_ROOM_W, room.width - d); }
         if (handlePos.includes('top')) { const d = snapToGrid(handleY); newY = room.y + d; newH = Math.max(MIN_ROOM_H, room.height - d); }
-
         e.target.position(getHandleOffset(handlePos, newW, newH));
         updateRoomPosition(room.id, newX, newY);
         updateRoomSize(room.id, newW, newH);
-
         if (!room.id.startsWith('temp_')) {
             await supabase.from('rooms').update({ x: newX, y: newY, width: newW, height: newH }).eq('id', room.id);
         }
@@ -75,10 +71,7 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         }
     }
 
-    const handles = isSelected ? [
-        'top-left', 'top', 'top-right', 'right',
-        'bottom-right', 'bottom', 'bottom-left', 'left'
-    ] : [];
+    const handles = isSelected ? ['top-left', 'top', 'top-right', 'right', 'bottom-right', 'bottom', 'bottom-left', 'left'] : [];
 
     return (
         <Group
@@ -90,7 +83,7 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
             onClick={(e) => { e.cancelBubble = true; onSelect(room.id); }}
             onTap={(e) => { e.cancelBubble = true; onSelect(room.id); }}
         >
-            {/* Selection glow ring */}
+            {/* Selection dashed ring */}
             {isSelected && (
                 <Rect
                     x={-5}
@@ -100,88 +93,101 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
                     fill="transparent"
                     stroke="#818cf8"
                     strokeWidth={2}
-                    cornerRadius={16}
+                    cornerRadius={18}
                     dash={[10, 5]}
                     shadowColor="#6366f1"
-                    shadowBlur={25}
+                    shadowBlur={30}
                     shadowOpacity={0.5}
                 />
             )}
 
-            {/* Ambient glow */}
+            {/* Vivid outer glow */}
             <Rect
-                x={-6}
-                y={-6}
-                width={room.width + 12}
-                height={room.height + 12}
+                x={-8}
+                y={-8}
+                width={room.width + 16}
+                height={room.height + 16}
                 fill="transparent"
                 shadowColor={isSelected ? '#6366f1' : roomColor}
-                shadowBlur={isSelected ? 35 : 20}
-                shadowOpacity={isSelected ? 0.4 : 0.2}
-                cornerRadius={16}
+                shadowBlur={isSelected ? 45 : 35}
+                shadowOpacity={isSelected ? 0.5 : 0.3}
+                cornerRadius={18}
             />
 
-            {/* Room body — layered for glass effect */}
+            {/* Room body — vivid fill */}
             <Rect
                 width={room.width}
                 height={room.height}
                 fill={roomColor}
-                opacity={isSelected ? 0.3 : 0.18}
-                cornerRadius={14}
+                opacity={isSelected ? 0.3 : 0.22}
+                cornerRadius={16}
             />
+            {/* Border */}
             <Rect
                 width={room.width}
                 height={room.height}
                 fill="transparent"
                 stroke={isSelected ? '#818cf8' : roomColor}
-                strokeWidth={isSelected ? 2 : 1.5}
-                cornerRadius={14}
-                opacity={isSelected ? 0.8 : 0.5}
+                strokeWidth={isSelected ? 2.5 : 2}
+                cornerRadius={16}
+                opacity={isSelected ? 0.9 : 0.6}
             />
 
-            {/* Inner highlight */}
+            {/* Top accent bar — vivid strip */}
             <Rect
-                x={1}
-                y={1}
-                width={room.width - 2}
-                height={2}
-                fill="white"
-                opacity={0.05}
-                cornerRadius={[14, 14, 0, 0]}
+                x={0}
+                y={0}
+                width={room.width}
+                height={4}
+                fill={isSelected ? '#818cf8' : roomColor}
+                opacity={0.9}
+                cornerRadius={[16, 16, 0, 0]}
             />
 
-            {/* Floor grid inside when selected */}
+            {/* Glass shimmer */}
+            <Rect x={10} y={6} width={room.width * 0.4} height={1} fill="white" opacity={0.12} cornerRadius={1} />
+
+            {/* Builder grid when selected */}
             {isSelected && Array.from({ length: Math.floor(room.width / GRID_SIZE) }).map((_, i) => (
-                <Rect key={`vl-${i}`} x={(i + 1) * GRID_SIZE} y={0} width={0.5} height={room.height} fill="#6366f1" opacity={0.08} />
+                <Rect key={`vl-${i}`} x={(i + 1) * GRID_SIZE} y={4} width={0.5} height={room.height - 4} fill="#818cf8" opacity={0.08} />
             ))}
             {isSelected && Array.from({ length: Math.floor(room.height / GRID_SIZE) }).map((_, i) => (
-                <Rect key={`hl-${i}`} x={0} y={(i + 1) * GRID_SIZE} width={room.width} height={0.5} fill="#6366f1" opacity={0.08} />
+                <Rect key={`hl-${i}`} x={0} y={(i + 1) * GRID_SIZE} width={room.width} height={0.5} fill="#818cf8" opacity={0.08} />
             ))}
 
-            {/* Subtle floor pattern (normal mode matches KonvaOffice render) */}
-            {!isSelected && Array.from({ length: Math.floor(room.width / 40) }).map((_, gi) => (
-                <Rect key={`fg-v-${gi}`} x={(gi + 1) * 40} y={0} width={0.5} height={room.height} fill="white" opacity={0.02} />
+            {/* Floor pattern when not selected */}
+            {!isSelected && Array.from({ length: Math.floor(room.width / 50) }).map((_, gi) => (
+                <Rect key={`fg-v-${gi}`} x={(gi + 1) * 50} y={4} width={0.5} height={room.height - 4} fill={roomColor} opacity={0.06} />
             ))}
-            {!isSelected && Array.from({ length: Math.floor(room.height / 40) }).map((_, gi) => (
-                <Rect key={`fg-h-${gi}`} x={0} y={(gi + 1) * 40} width={room.width} height={0.5} fill="white" opacity={0.02} />
+            {!isSelected && Array.from({ length: Math.floor(room.height / 50) }).map((_, gi) => (
+                <Rect key={`fg-h-${gi}`} x={0} y={(gi + 1) * 50} width={room.width} height={0.5} fill={roomColor} opacity={0.06} />
             ))}
+
+            {/* Corner accents */}
+            <Circle x={3} y={3} radius={2} fill={isSelected ? '#818cf8' : roomColor} opacity={0.6} />
+            <Circle x={room.width - 3} y={3} radius={2} fill={isSelected ? '#818cf8' : roomColor} opacity={0.6} />
+            <Circle x={3} y={room.height - 3} radius={2} fill={isSelected ? '#818cf8' : roomColor} opacity={0.4} />
+            <Circle x={room.width - 3} y={room.height - 3} radius={2} fill={isSelected ? '#818cf8' : roomColor} opacity={0.4} />
 
             {/* Room name pill */}
             <Rect
                 x={0}
-                y={-30}
-                width={Math.max((room.name?.length || 5) * 8 + 24, 80)}
-                height={24}
+                y={-32}
+                width={Math.max((room.name?.length || 4) * 7.5 + 28, 80)}
+                height={26}
                 fill={isSelected ? '#6366f1' : roomColor}
-                opacity={isSelected ? 0.8 : 0.6}
-                cornerRadius={12}
+                opacity={0.9}
+                cornerRadius={13}
+                shadowColor={isSelected ? '#6366f1' : roomColor}
+                shadowBlur={12}
+                shadowOpacity={0.35}
             />
             <Text
                 text={room.name || 'Stanza'}
                 fontSize={11}
-                fill="#e2e8f0"
-                x={12}
-                y={-24}
+                fill="#ffffff"
+                x={14}
+                y={-25}
                 fontStyle="bold"
                 fontFamily="Inter, system-ui, sans-serif"
             />
@@ -189,61 +195,35 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
             {/* Department badge */}
             {deptLabel && (
                 <>
-                    <Rect
-                        x={room.width - deptLabel.length * 6 - 24}
-                        y={-30}
-                        width={deptLabel.length * 6 + 20}
-                        height={20}
-                        fill="rgba(99,102,241,0.3)"
-                        cornerRadius={10}
-                    />
-                    <Text
-                        text={deptLabel}
-                        fontSize={9}
-                        fill="#a5b4fc"
-                        x={room.width - deptLabel.length * 6 - 14}
-                        y={-25}
-                        fontFamily="Inter, system-ui, sans-serif"
-                    />
+                    <Rect x={room.width - deptLabel.length * 6 - 24} y={-30} width={deptLabel.length * 6 + 20} height={22} fill="rgba(255,255,255,0.12)" cornerRadius={11} />
+                    <Text text={deptLabel} fontSize={9} fill="#e2e8f0" x={room.width - deptLabel.length * 6 - 14} y={-24} fontFamily="Inter, system-ui, sans-serif" fontStyle="600" />
                 </>
             )}
 
-            {/* Capacity badge */}
+            {/* Capacity — modern circle */}
             {cap && (
                 <>
-                    <Rect x={room.width - 42} y={room.height - 22} width={36} height={16} fill="rgba(255,255,255,0.06)" cornerRadius={8} />
-                    <Text text={`👥 ${cap}`} fontSize={9} fill="#64748b" x={room.width - 38} y={room.height - 19} />
+                    <Circle x={room.width - 18} y={room.height - 18} radius={14} fill={roomColor} opacity={0.2} />
+                    <Circle x={room.width - 18} y={room.height - 18} radius={14} fill="transparent" stroke={roomColor} strokeWidth={1.5} opacity={0.5} />
+                    <Text text={`${cap}`} fontSize={10} fill="#e2e8f0" x={room.width - 18 - (String(cap).length * 3.5)} y={room.height - 23} fontStyle="bold" fontFamily="Inter, system-ui, sans-serif" />
                 </>
             )}
 
-            {/* Connection dots */}
-            <Circle x={room.width / 2} y={0} radius={3} fill={isSelected ? '#818cf8' : roomColor} opacity={0.5} />
-            <Circle x={room.width / 2} y={room.height} radius={3} fill={isSelected ? '#818cf8' : roomColor} opacity={0.5} />
-            <Circle x={0} y={room.height / 2} radius={3} fill={isSelected ? '#818cf8' : roomColor} opacity={0.5} />
-            <Circle x={room.width} y={room.height / 2} radius={3} fill={isSelected ? '#818cf8' : roomColor} opacity={0.5} />
+            {/* Edge connection dots */}
+            <Circle x={room.width / 2} y={0} radius={3.5} fill={isSelected ? '#818cf8' : roomColor} opacity={0.6} />
+            <Circle x={room.width / 2} y={room.height} radius={3.5} fill={isSelected ? '#818cf8' : roomColor} opacity={0.6} />
+            <Circle x={0} y={room.height / 2} radius={3.5} fill={isSelected ? '#818cf8' : roomColor} opacity={0.6} />
+            <Circle x={room.width} y={room.height / 2} radius={3.5} fill={isSelected ? '#818cf8' : roomColor} opacity={0.6} />
 
             {/* Resize handles */}
             {handles.map(pos => {
                 const offset = getHandleOffset(pos, room.width, room.height);
                 return (
                     <Group key={pos}>
-                        {/* Handle glow */}
-                        <Circle
-                            x={offset.x + HANDLE_SIZE / 2}
-                            y={offset.y + HANDLE_SIZE / 2}
-                            radius={HANDLE_SIZE}
-                            fill="#6366f1"
-                            opacity={0.15}
-                        />
+                        <Circle x={offset.x + HANDLE_SIZE / 2} y={offset.y + HANDLE_SIZE / 2} radius={HANDLE_SIZE} fill="#6366f1" opacity={0.15} />
                         <Rect
-                            x={offset.x}
-                            y={offset.y}
-                            width={HANDLE_SIZE}
-                            height={HANDLE_SIZE}
-                            fill="#818cf8"
-                            stroke="#4f46e5"
-                            strokeWidth={1}
-                            cornerRadius={3}
+                            x={offset.x} y={offset.y} width={HANDLE_SIZE} height={HANDLE_SIZE}
+                            fill="#818cf8" stroke="#4f46e5" strokeWidth={1} cornerRadius={3}
                             draggable
                             onDragEnd={(e) => { e.cancelBubble = true; handleResizeDragEnd(pos, e); }}
                             hitStrokeWidth={16}
@@ -252,13 +232,13 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
                 );
             })}
 
-            {/* Dimension labels */}
+            {/* Dimension labels — ONLY visible in builder mode (this IS builder mode) */}
             {isSelected && (
                 <>
-                    <Rect x={room.width / 2 - 22} y={room.height + 6} width={44} height={16} fill="rgba(99,102,241,0.3)" cornerRadius={8} />
-                    <Text text={`${room.width}px`} fontSize={9} fill="#a5b4fc" x={room.width / 2 - 16} y={room.height + 10} fontStyle="bold" />
-                    <Rect x={room.width + 6} y={room.height / 2 - 8} width={44} height={16} fill="rgba(99,102,241,0.3)" cornerRadius={8} />
-                    <Text text={`${room.height}px`} fontSize={9} fill="#a5b4fc" x={room.width + 12} y={room.height / 2 - 4} fontStyle="bold" />
+                    <Rect x={room.width / 2 - 22} y={room.height + 8} width={44} height={16} fill="rgba(99,102,241,0.4)" cornerRadius={8} />
+                    <Text text={`${room.width}px`} fontSize={9} fill="#c7d2fe" x={room.width / 2 - 16} y={room.height + 12} fontStyle="bold" fontFamily="Inter, system-ui, sans-serif" />
+                    <Rect x={room.width + 8} y={room.height / 2 - 8} width={44} height={16} fill="rgba(99,102,241,0.4)" cornerRadius={8} />
+                    <Text text={`${room.height}px`} fontSize={9} fill="#c7d2fe" x={room.width + 14} y={room.height / 2 - 4} fontStyle="bold" fontFamily="Inter, system-ui, sans-serif" />
                 </>
             )}
         </Group>
@@ -280,12 +260,7 @@ export function RoomEditor({ rooms }: RoomEditorProps) {
     return (
         <>
             {rooms.map(room => (
-                <EditableRoom
-                    key={room.id}
-                    room={room}
-                    isSelected={selectedRoomId === room.id}
-                    onSelect={handleSelect}
-                />
+                <EditableRoom key={room.id} room={room} isSelected={selectedRoomId === room.id} onSelect={handleSelect} />
             ))}
         </>
     );

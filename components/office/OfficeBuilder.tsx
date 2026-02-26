@@ -31,8 +31,8 @@ const FURNITURE_PRESETS = [
 ];
 
 const COLOR_PRESETS = [
-    '#1e293b', '#1e3a8a', '#312e81', '#065f46', '#7c2d12',
-    '#0f766e', '#9333ea', '#b91c1c', '#c2410c', '#155e75'
+    '#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b',
+    '#ef4444', '#ec4899', '#f97316', '#14b8a6', '#6366f1',
 ];
 
 function snapToGrid(value: number, gridSize: number = 20): number {

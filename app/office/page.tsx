@@ -18,7 +18,8 @@ import {
     Trash2,
     Edit2,
     X,
-    Check
+    Check,
+    DoorOpen
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -295,11 +296,19 @@ export default function DashboardPage() {
                         const isMenuOpen = spaceMenuOpen === space.id;
                         
                         return (
-                            <motion.div key={space.id} whileHover={{ y: -5 }} transition={{ duration: 0.2 }}>
-                                <Card className="p-6 h-full flex flex-col justify-between group hover:border-primary-500/50 transition-all border-white/5 bg-slate-900/40 backdrop-blur-xl relative">
-                                    <div className="space-y-4">
+                            <motion.div 
+                                key={space.id} 
+                                whileHover={{ y: -5 }} 
+                                whileTap={{ scale: 0.98 }}
+                                transition={{ duration: 0.15, ease: "easeOut" }}
+                            >
+                                <Card className="p-6 h-full flex flex-col justify-between group hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/10 transition-all duration-200 border-white/5 bg-slate-900/40 backdrop-blur-xl relative overflow-hidden">
+                                    {/* Glow effect on hover */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                                    
+                                    <div className="space-y-4 relative z-10">
                                         <div className="flex items-center justify-between">
-                                            <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-400">
+                                            <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-400 group-hover:scale-110 transition-transform duration-200">
                                                 <Building2 className="w-6 h-6" />
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -384,7 +393,7 @@ export default function DashboardPage() {
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div onClick={() => router.push(`/office/${space.id}`)} className="cursor-pointer">
+                                                <div>
                                                     <h3 className="text-xl font-bold text-slate-100 group-hover:text-primary-400 transition-colors">{space.name}</h3>
                                                     <p className="text-slate-400 text-sm flex items-center gap-1 mt-1">
                                                         <Globe className="w-3 h-3" /> {org?.name}
@@ -393,17 +402,20 @@ export default function DashboardPage() {
                                             )}
                                         </div>
                                     </div>
-                                    <div 
-                                        className="mt-8 flex items-center justify-between pt-4 border-t border-white/5 cursor-pointer"
-                                        onClick={() => router.push(`/office/${space.id}`)}
-                                    >
-                                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                                            <Users className="w-4 h-4" /> Team Active
+                                    
+                                    {/* Pulsante Entra - PIU EVIDENTE */}
+                                    {!isEditing && (
+                                        <div className="mt-6 pt-4 border-t border-white/5">
+                                            <Button 
+                                                className="w-full gap-2 font-semibold shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 active:scale-95 transition-all duration-150 bg-gradient-to-r from-primary-500 to-purple-500 hover:from-primary-400 hover:to-purple-400 border-0"
+                                                onClick={() => router.push(`/office/${space.id}`)}
+                                            >
+                                                <DoorOpen className="w-4 h-4" />
+                                                Entra
+                                                <ArrowRight className="w-4 h-4 ml-auto" />
+                                            </Button>
                                         </div>
-                                        <div className="text-primary-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
-                                            <ArrowRight className="w-5 h-5" />
-                                        </div>
-                                    </div>
+                                    )}
                                 </Card>
                             </motion.div>
                         );
