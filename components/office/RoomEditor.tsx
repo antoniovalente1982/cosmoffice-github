@@ -30,6 +30,26 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
     const deptLabel = room?.settings?.department || (room as any).department;
     const cap = (room as any).capacity || room.settings?.capacity;
 
+    // Fix drag jump: local state for position during drag
+    const [localPos, setLocalPos] = useState({ x: room.x, y: room.y });
+
+    // Sync from props when NOT dragging
+    React.useEffect(() => {
+        if (!isDragging) {
+            setLocalPos({ x: room.x, y: room.y });
+        }
+    }, [room.x, room.y, isDragging]);
+
+    const handleDragStart = useCallback((e: any) => {
+        setIsDragging(true);
+        onSelect(room.id);
+    }, [onSelect, room.id]);
+
+    const handleDragMove = useCallback((e: any) => {
+        // Only update local visual state during drag to prevent jump
+        setLocalPos({ x: e.target.x(), y: e.target.y() });
+    }, []);
+
     const handleDragEnd = useCallback(async (e: any) => {
         setIsDragging(false);
         // Force bounds clamping for new room moves
@@ -40,6 +60,7 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         newY = Math.max(0, Math.min(newY, (officeHeight || 4000) - room.height));
 
         e.target.position({ x: newX, y: newY });
+        setLocalPos({ x: newX, y: newY });
         updateRoomPosition(room.id, newX, newY);
         if (!room.id.startsWith('temp_')) {
             await supabase.from('rooms').update({ x: newX, y: newY }).eq('id', room.id);
@@ -60,6 +81,7 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         if (newY + newH > (officeHeight || 4000)) newH = (officeHeight || 4000) - newY;
 
         e.target.position(getHandleOffset(handlePos, newW, newH));
+        setLocalPos({ x: newX, y: newY });
         updateRoomPosition(room.id, newX, newY);
         updateRoomSize(room.id, newW, newH);
         if (!room.id.startsWith('temp_')) {
@@ -87,13 +109,11 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
 
     return (
         <Group
-            x={room.x}
-            y={room.y}
+            x={isDragging ? localPos.x : room.x}
+            y={isDragging ? localPos.y : room.y}
             draggable={true}
-            onDragStart={(e) => {
-                setIsDragging(true);
-                onSelect(room.id);
-            }}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             onClick={(e) => { e.cancelBubble = true; onSelect(room.id); }}
             onTap={(e) => { e.cancelBubble = true; onSelect(room.id); }}

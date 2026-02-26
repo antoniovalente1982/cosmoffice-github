@@ -95,9 +95,20 @@ export function OfficeBuilder() {
             color: template.color,
             department: template.department || null,
         };
+        const state = useOfficeStore.getState();
+        const maxW = state.officeWidth || 4000;
+        const maxH = state.officeHeight || 4000;
+
+        let spawnX = center.x - template.width / 2;
+        let spawnY = center.y - template.height / 2;
+
+        // Clamp to prevent creating room outside bounds
+        spawnX = Math.max(0, Math.min(spawnX, maxW - template.width));
+        spawnY = Math.max(0, Math.min(spawnY, maxH - template.height));
+
         const optimisticRoom: any = {
             id: tId, space_id: activeSpaceId, name: template.name, type: template.type,
-            x: center.x - template.width / 2, y: center.y - template.height / 2,
+            x: spawnX, y: spawnY,
             width: template.width, height: template.height,
             capacity: template.capacity,
             settings: roomSettings,
@@ -186,6 +197,34 @@ export function OfficeBuilder() {
         else { setToast({ msg: '✅ Ambiente salvato!', type: 'ok' }); }
         setSaving(false);
     }, [activeSpaceId, supabase]);
+
+    const handleResizeOfficeWidth = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newWidth = parseInt(e.target.value);
+        const state = useOfficeStore.getState();
+
+        // Verifica costrizioni stanze
+        const outOfBounds = state.rooms.some(r => r.x + r.width > newWidth);
+        if (outOfBounds) {
+            setToast({ msg: '❌ Riduci/Sposta le stanze prima di stringere l\'ufficio!', type: 'err' });
+            return;
+        }
+
+        state.setOfficeDimensions(newWidth, state.officeHeight || 4000);
+    };
+
+    const handleResizeOfficeHeight = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newHeight = parseInt(e.target.value);
+        const state = useOfficeStore.getState();
+
+        // Verifica costrizioni stanze
+        const outOfBounds = state.rooms.some(r => r.y + r.height > newHeight);
+        if (outOfBounds) {
+            setToast({ msg: '❌ Riduci/Sposta le stanze prima di rimpicciolire l\'ufficio!', type: 'err' });
+            return;
+        }
+
+        state.setOfficeDimensions(state.officeWidth || 4000, newHeight);
+    };
 
     if (!isBuilderMode) return null;
 
@@ -467,7 +506,7 @@ export function OfficeBuilder() {
                                                 max="10000"
                                                 step="500"
                                                 value={useOfficeStore.getState().officeWidth || 4000}
-                                                onChange={(e) => useOfficeStore.getState().setOfficeDimensions(parseInt(e.target.value), useOfficeStore.getState().officeHeight || 4000)}
+                                                onChange={handleResizeOfficeWidth}
                                                 className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
                                                 style={{ accentColor: '#818cf8' }}
                                             />
@@ -482,7 +521,7 @@ export function OfficeBuilder() {
                                                 max="10000"
                                                 step="500"
                                                 value={useOfficeStore.getState().officeHeight || 4000}
-                                                onChange={(e) => useOfficeStore.getState().setOfficeDimensions(useOfficeStore.getState().officeWidth || 4000, parseInt(e.target.value))}
+                                                onChange={handleResizeOfficeHeight}
                                                 className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
                                                 style={{ accentColor: '#818cf8' }}
                                             />

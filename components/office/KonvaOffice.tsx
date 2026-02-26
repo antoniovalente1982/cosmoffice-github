@@ -68,23 +68,24 @@ export function KonvaOffice() {
     const [solarRotation, setSolarRotation] = useState(0);
 
     useEffect(() => {
-        const updateRotation = () => {
-            const now = new Date();
-            const hours = now.getHours();
-            const mins = now.getMinutes();
-            const secs = now.getSeconds();
-            const ms = now.getMilliseconds();
+        let frameId: number;
+        let lastTime = performance.now();
+        let currentRotation = 0;
 
-            // Total ms in a day
-            const totalMsInDay = 24 * 60 * 60 * 1000;
-            const currentMs = (hours * 60 * 60 * 1000) + (mins * 60 * 1000) + (secs * 1000) + ms;
-            const fractionOfDay = currentMs / totalMsInDay;
+        const updateRotation = (time: number) => {
+            const deltaTime = time - lastTime;
+            lastTime = time;
 
-            setSolarRotation(fractionOfDay * 360);
+            // Rotate by 1 degree per second (0.001 degrees per millisecond)
+            // This is slow enough to not be dizzying, but fast enough to be noticeable
+            currentRotation = (currentRotation + deltaTime * 0.001) % 360;
+            setSolarRotation(currentRotation);
+
+            frameId = requestAnimationFrame(updateRotation);
         };
-        updateRotation();
-        const interval = setInterval(updateRotation, 50); // Smooth real-time update
-        return () => clearInterval(interval);
+
+        frameId = requestAnimationFrame(updateRotation);
+        return () => cancelAnimationFrame(frameId);
     }, []);
 
     // Bounded safe area map limits 
