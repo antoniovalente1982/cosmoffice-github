@@ -416,8 +416,11 @@ export function KonvaOffice() {
                     {/* Earth & Moon */}
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full border border-cyan-500/10" />
                     <div className="absolute left-[calc(50%-400px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 via-blue-600 to-green-500 shadow-[0_0_25px_rgba(59,130,246,0.6)]">
-                        {/* Moon */}
-                        <div className="absolute left-[-15px] top-[-10px] w-2 h-2 rounded-full bg-gray-300 shadow-[0_0_5px_rgba(209,213,219,0.8)]" />
+                        {/* Moon orbit wrapper */}
+                        <div className="absolute left-1/2 top-1/2 w-[60px] h-[60px] -translate-x-1/2 -translate-y-1/2 animate-[spin_4s_linear_infinite]">
+                            {/* Moon */}
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-gray-300 shadow-[0_0_5px_rgba(209,213,219,0.8)]" />
+                        </div>
                     </div>
 
                     {/* Mars */}
