@@ -22,9 +22,9 @@ interface UserAvatarProps {
 
 const STATUS_COLOR: Record<string, string> = {
     online: '#10b981',
-    away:   '#f59e0b',
-    busy:   '#ef4444',
-    offline:'#64748b',
+    away: '#f59e0b',
+    busy: '#ef4444',
+    offline: '#64748b',
 };
 
 export function UserAvatar({
@@ -54,28 +54,28 @@ export function UserAvatar({
     }, [stream]);
 
     // All dimensions derived from zoom — no CSS zoom, no transform scale
-    const sz      = 64 * zoom;   // avatar circle diameter
-    const dot     = 16 * zoom;   // status dot diameter
-    const dotOff  = 4  * zoom;   // status dot offset from corner
-    const iconSz  = 12 * zoom;   // mic/video icon size
-    const ringOff = 2  * zoom;   // ring-offset gap
-    const ring    = 4  * zoom;   // ring thickness
+    const sz = 64 * zoom;   // avatar circle diameter
+    const dot = 16 * zoom;   // status dot diameter
+    const dotOff = 4 * zoom;   // status dot offset from corner
+    const iconSz = 12 * zoom;   // mic/video icon size
+    const ringOff = 2 * zoom;   // ring-offset gap
+    const ring = 4 * zoom;   // ring thickness
 
     const ringBoxShadow = isSpeaking
         ? `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px #34d399, 0 0 ${20 * zoom}px rgba(52,211,153,0.4)`
         : isMe
-        ? `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px rgba(99,102,241,0.5)`
-        : `0 0 0 ${2 * zoom}px #334155`;
+            ? `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px rgba(99,102,241,0.5)`
+            : `0 0 0 ${2 * zoom}px #334155`;
 
     return (
         <motion.div
             initial={false}
-            animate={{ x: position.x, y: position.y }}
-            transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
             className="absolute z-30"
             style={{
+                x: position.x,
+                y: position.y,
                 marginLeft: -(sz / 2),
-                marginTop:  -(sz / 2),
+                marginTop: -(sz / 2),
                 pointerEvents: onMouseDown ? 'auto' : 'none',
                 cursor: isDragging ? 'grabbing' : onMouseDown ? 'grab' : 'default',
             }}
@@ -155,7 +155,7 @@ export function UserAvatar({
                         paddingBottom: 6 * zoom,
                         gap: 4 * zoom,
                     }}>
-                        {!audioEnabled && <MicOff  style={{ width: iconSz, height: iconSz, color: '#ef4444' }} />}
+                        {!audioEnabled && <MicOff style={{ width: iconSz, height: iconSz, color: '#ef4444' }} />}
                         {!videoEnabled && <VideoOff style={{ width: iconSz, height: iconSz, color: '#ef4444' }} />}
                     </div>
                 </div>
@@ -164,8 +164,8 @@ export function UserAvatar({
                 <div style={{
                     position: 'absolute',
                     bottom: dotOff,
-                    right:  dotOff,
-                    width:  dot,
+                    right: dotOff,
+                    width: dot,
                     height: dot,
                     borderRadius: '50%',
                     border: `${2 * zoom}px solid #0f172a`,
