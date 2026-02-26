@@ -239,7 +239,7 @@ export function OfficeBuilder() {
                         animate={{ y: 0, opacity: 1, scale: 1 }}
                         exit={{ y: -50, opacity: 0, scale: 0.9 }}
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                        className="pointer-events-auto absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border"
+                        className="pointer-events-auto absolute top-24 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border z-[120]"
                         style={{
                             background: 'rgba(15, 23, 42, 0.85)',
                             backdropFilter: 'blur(20px)',
