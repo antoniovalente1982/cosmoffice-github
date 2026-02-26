@@ -5,9 +5,9 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Cosmoffice - Virtual Workspace',
-  description: 'The next generation virtual office platform for remote teams',
-  keywords: ['virtual office', 'remote work', 'collaboration', 'video conferencing'],
+  title: 'Cosmoffice - Your Office in the Cosmos',
+  description: 'The next generation virtual office platform for remote teams. Move, meet, and collaborate in a spatial workspace that feels like a real office.',
+  keywords: ['virtual office', 'remote work', 'collaboration', 'video conferencing', 'spatial workspace', 'team collaboration'],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
