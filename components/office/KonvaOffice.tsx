@@ -312,6 +312,25 @@ export function KonvaOffice() {
                 }}
             />
 
+            {/* Shooting Stars (Meteors) Layer */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+                {[...Array(5)].map((_, i) => (
+                    <div
+                        key={i}
+                        className="absolute h-[2px] w-[100px] bg-gradient-to-r from-transparent via-cyan-100 to-cyan-400 opacity-0 transform -rotate-45"
+                        style={{
+                            top: `${Math.random() * 50}%`,
+                            left: `${Math.random() * 80 + 20}%`,
+                            animation: `meteor ${Math.random() * 10 + 5}s linear ${Math.random() * 10}s infinite`,
+                            boxShadow: '0 0 10px 2px rgba(34,211,238,0.5)'
+                        }}
+                    >
+                        {/* Glow head */}
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[4px] h-[4px] rounded-full bg-white shadow-[0_0_15px_5px_rgba(255,255,255,0.8)]" />
+                    </div>
+                ))}
+            </div>
+
             {/* Mini Map */}
             <MiniMap />
 
