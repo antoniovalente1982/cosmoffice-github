@@ -259,6 +259,7 @@ export function KonvaOffice() {
     };
 
     const handleDragMove = (e: any) => {
+        if (e.target !== e.currentTarget) return;
         const rawPos = { x: e.target.x(), y: e.target.y() };
         const newPos = clampStagePosition(rawPos, zoom);
         if (rawPos.x !== newPos.x || rawPos.y !== newPos.y) {

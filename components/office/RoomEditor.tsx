@@ -41,16 +41,19 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
     }, [room.x, room.y, isDragging]);
 
     const handleDragStart = useCallback((e: any) => {
+        e.cancelBubble = true;
         setIsDragging(true);
         onSelect(room.id);
     }, [onSelect, room.id]);
 
     const handleDragMove = useCallback((e: any) => {
+        e.cancelBubble = true;
         // Only update local visual state during drag to prevent jump
         setLocalPos({ x: e.target.x(), y: e.target.y() });
     }, []);
 
     const handleDragEnd = useCallback(async (e: any) => {
+        e.cancelBubble = true;
         setIsDragging(false);
         // Force bounds clamping for new room moves
         let newX = snapToGrid(e.target.x());
