@@ -115,6 +115,8 @@ interface OfficeState {
     // Builder State
     isBuilderMode: boolean;
     bgOpacity: number;
+    officeWidth: number;
+    officeHeight: number;
     selectedRoomId: string | null;
     furnitureItems: FurnitureItem[];
     roomTemplates: RoomTemplate[];
@@ -165,6 +167,7 @@ interface OfficeState {
     updateFurniture: (id: string, data: Partial<FurnitureItem>) => void;
     removeFurniture: (id: string) => void;
     setBgOpacity: (val: number) => void;
+    setOfficeDimensions: (width: number, height: number) => void;
 }
 
 export const useOfficeStore = create<OfficeState>((set, get) => ({
@@ -201,6 +204,8 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     // Builder defaults
     isBuilderMode: false,
     bgOpacity: 0.8,
+    officeWidth: 4000,
+    officeHeight: 4000,
     selectedRoomId: null,
     furnitureItems: [],
     roomTemplates: [
@@ -468,4 +473,5 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     })),
     removeFurniture: (id) => set((state) => ({ furnitureItems: state.furnitureItems.filter(f => f.id !== id) })),
     setBgOpacity: (bgOpacity) => set({ bgOpacity }),
+    setOfficeDimensions: (officeWidth, officeHeight) => set({ officeWidth, officeHeight }),
 }));

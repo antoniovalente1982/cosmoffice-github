@@ -10,7 +10,6 @@ const GRID_SIZE = 20;
 const HANDLE_SIZE = 10;
 const MIN_ROOM_W = 80;
 const MIN_ROOM_H = 60;
-const MAX_BOUNDS = 4000; // Max fixed office plane limit
 
 function snapToGrid(value: number): number {
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
@@ -24,7 +23,7 @@ interface EditableRoomProps {
 
 function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
     const supabase = createClient();
-    const { updateRoomPosition, updateRoomSize } = useOfficeStore();
+    const { updateRoomPosition, updateRoomSize, officeWidth, officeHeight } = useOfficeStore();
     const [isDragging, setIsDragging] = useState(false);
 
     const roomColor = room?.settings?.color || (room as any).color || '#3b82f6';
@@ -37,15 +36,15 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         let newX = snapToGrid(e.target.x());
         let newY = snapToGrid(e.target.y());
 
-        newX = Math.max(0, Math.min(newX, MAX_BOUNDS - room.width));
-        newY = Math.max(0, Math.min(newY, MAX_BOUNDS - room.height));
+        newX = Math.max(0, Math.min(newX, (officeWidth || 4000) - room.width));
+        newY = Math.max(0, Math.min(newY, (officeHeight || 4000) - room.height));
 
         e.target.position({ x: newX, y: newY });
         updateRoomPosition(room.id, newX, newY);
         if (!room.id.startsWith('temp_')) {
             await supabase.from('rooms').update({ x: newX, y: newY }).eq('id', room.id);
         }
-    }, [room, supabase, updateRoomPosition]);
+    }, [room, supabase, updateRoomPosition, officeWidth, officeHeight]);
 
     const handleResizeDragEnd = useCallback(async (handlePos: string, e: any) => {
         const handleX = e.target.x();
@@ -56,9 +55,9 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         if (handlePos.includes('left')) { const d = snapToGrid(handleX); newX = Math.max(0, room.x + d); newW = Math.max(MIN_ROOM_W, room.width - d); }
         if (handlePos.includes('top')) { const d = snapToGrid(handleY); newY = Math.max(0, room.y + d); newH = Math.max(MIN_ROOM_H, room.height - d); }
 
-        // Prevent exceeding MAX_BOUNDS
-        if (newX + newW > MAX_BOUNDS) newW = MAX_BOUNDS - newX;
-        if (newY + newH > MAX_BOUNDS) newH = MAX_BOUNDS - newY;
+        // Prevent exceeding bounds
+        if (newX + newW > (officeWidth || 4000)) newW = (officeWidth || 4000) - newX;
+        if (newY + newH > (officeHeight || 4000)) newH = (officeHeight || 4000) - newY;
 
         e.target.position(getHandleOffset(handlePos, newW, newH));
         updateRoomPosition(room.id, newX, newY);
@@ -66,7 +65,7 @@ function EditableRoom({ room, isSelected, onSelect }: EditableRoomProps) {
         if (!room.id.startsWith('temp_')) {
             await supabase.from('rooms').update({ x: newX, y: newY, width: newW, height: newH }).eq('id', room.id);
         }
-    }, [room, supabase, updateRoomPosition, updateRoomSize]);
+    }, [room, supabase, updateRoomPosition, updateRoomSize, officeWidth, officeHeight]);
 
     function getHandleOffset(pos: string, w: number, h: number) {
         const hs = HANDLE_SIZE / 2;

@@ -46,7 +46,7 @@ export function KonvaOffice() {
         myPosition, setMyPosition, peers, rooms,
         zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
-        myProfile, isBuilderMode, bgOpacity, stagePos
+        myProfile, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight
     } = useOfficeStore();
     const stageRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -87,26 +87,32 @@ export function KonvaOffice() {
         return () => clearInterval(interval);
     }, []);
 
-    // Dynamically calculate the bounded safe area around all rooms for the base platform
+    // Bounded safe area map limits 
     const officeBounds = useMemo(() => {
-        if (!rooms || rooms.length === 0) {
-            return { x: -1000, y: -1000, width: 2000, height: 2000 };
-        }
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        rooms.forEach((r: any) => {
-            if (r.x < minX) minX = r.x;
-            if (r.y < minY) minY = r.y;
-            if (r.x + r.width > maxX) maxX = r.x + r.width;
-            if (r.y + r.height > maxY) maxY = r.y + r.height;
-        });
-        const padding = 800;
         return {
-            x: minX - padding,
-            y: minY - padding,
-            width: (maxX - minX) + padding * 2,
-            height: (maxY - minY) + padding * 2
+            x: 0,
+            y: 0,
+            width: officeWidth || 4000,
+            height: officeHeight || 4000
         };
-    }, [rooms]);
+    }, [officeWidth, officeHeight]);
+
+    // Stage clamping utility
+    const clampStagePosition = useCallback((pos: { x: number, y: number }, scale: number) => {
+        if (!dimensions.width || !dimensions.height) return pos;
+        const w = officeWidth || 4000;
+        const h = officeHeight || 4000;
+
+        const boundMinX = dimensions.width - w * scale;
+        const boundMinY = dimensions.height - h * scale;
+
+        // Ensure scale allows at least these bounds to be valid (min scale logic happens mostly in zooming)
+        // If screen is larger than scaled office, we lock it to center, or at least 0
+        const clampedX = boundMinX > 0 ? boundMinX / 2 : Math.max(Math.min(pos.x, 0), boundMinX);
+        const clampedY = boundMinY > 0 ? boundMinY / 2 : Math.max(Math.min(pos.y, 0), boundMinY);
+
+        return { x: clampedX, y: clampedY };
+    }, [dimensions, officeWidth, officeHeight]);
 
     // Use ResizeObserver to measure the actual container size
     useEffect(() => {
@@ -233,19 +239,30 @@ export function KonvaOffice() {
         };
 
         const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
-        stage.scale({ x: newScale, y: newScale });
 
-        const newPos = {
-            x: pointer.x - mousePointTo.x * newScale,
-            y: pointer.y - mousePointTo.y * newScale,
-        };
+        const minScaleX = dimensions.width / (officeWidth || 4000);
+        const minScaleY = dimensions.height / (officeHeight || 4000);
+        const minScale = Math.max(0.1, Math.max(minScaleX, minScaleY));
+
+        const clampedScale = Math.max(minScale, Math.min(3, newScale));
+        stage.scale({ x: clampedScale, y: clampedScale });
+
+        const newPos = clampStagePosition({
+            x: pointer.x - mousePointTo.x * clampedScale,
+            y: pointer.y - mousePointTo.y * clampedScale,
+        }, clampedScale);
+
         stage.position(newPos);
-        setZoom(newScale);
+        setZoom(clampedScale);
         setStagePos(newPos);
     };
 
     const handleDragMove = (e: any) => {
-        const newPos = { x: e.target.x(), y: e.target.y() };
+        const rawPos = { x: e.target.x(), y: e.target.y() };
+        const newPos = clampStagePosition(rawPos, zoom);
+        if (rawPos.x !== newPos.x || rawPos.y !== newPos.y) {
+            e.target.position(newPos);
+        }
         setStagePos(newPos);
     };
 
@@ -269,13 +286,18 @@ export function KonvaOffice() {
             y: (centerY - stage.y()) / oldScale,
         };
 
-        const clampedScale = Math.max(0.3, Math.min(3, newScale));
+        const minScaleX = dimensions.width / (officeWidth || 4000);
+        const minScaleY = dimensions.height / (officeHeight || 4000);
+        const minScale = Math.max(0.1, Math.max(minScaleX, minScaleY));
+
+        const clampedScale = Math.max(minScale, Math.min(3, newScale));
         stage.scale({ x: clampedScale, y: clampedScale });
 
-        const newPos = {
+        const newPos = clampStagePosition({
             x: centerX - mousePointTo.x * clampedScale,
             y: centerY - mousePointTo.y * clampedScale,
-        };
+        }, clampedScale);
+
         stage.position(newPos);
         setZoom(clampedScale);
         setStagePos(newPos);

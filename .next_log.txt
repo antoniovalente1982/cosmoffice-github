@@ -295,3 +295,9 @@ Import trace for requested module:
 <w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/0.pack.gz_' -> '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/client-development/0.pack.gz'
  ✓ Compiled in 164ms (2495 modules)
  ✓ Compiled in 183ms (2495 modules)
+ ✓ Compiled in 172ms (2481 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/server-development/0.pack.gz_' -> '/Users/antoniovalente/Desktop/cosmoffice-github-1/.next/cache/webpack/server-development/0.pack.gz'
+ ✓ Compiled in 203ms (2495 modules)
+ ✓ Compiled in 210ms (2495 modules)
+ ✓ Compiled in 171ms (2495 modules)
+ ✓ Compiled in 136ms (2495 modules)
