@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send,
@@ -12,12 +12,16 @@ import {
     MoreHorizontal,
     Smile,
     Image as ImageIcon,
-    Eraser
+    Eraser,
+    Bot
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { createClient } from '../../utils/supabase/client';
 import { useOfficeStore } from '../../stores/useOfficeStore';
-import type { Message } from '@/lib/supabase/database.types';
+import type { Message, AiAgent } from '@/lib/supabase/database.types';
+
+// Stable Supabase client — created once outside component
+const supabase = createClient();
 
 export function ChatWindow() {
     const { isChatOpen, toggleChat, activeSpaceId, myRoomId, rooms } = useOfficeStore();
@@ -32,7 +36,9 @@ export function ChatWindow() {
     const [isClearingChat, setIsClearingChat] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-    const supabase = createClient();
+    const [agents, setAgents] = useState<AiAgent[]>([]);
+    const [showAgentMenu, setShowAgentMenu] = useState(false);
+    const [isSending, setIsSending] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -47,65 +53,76 @@ export function ChatWindow() {
 
     // Carica utente corrente e ruolo
     useEffect(() => {
+        if (!isChatOpen) return;
+
+        let cancelled = false;
         const loadUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                setCurrentUser(user);
+            if (cancelled || !user) return;
+            setCurrentUser(user);
 
-                // Carica profilo completo
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', user.id)
-                    .single();
+            // Carica profilo completo
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
 
-                if (profile && activeSpaceId) {
-                    // Determina ruolo utente nello spazio
-                    const { data: spaceData } = await supabase
-                        .from('spaces')
-                        .select('workspace_id')
-                        .eq('id', activeSpaceId)
-                        .single();
+            if (cancelled || !profile || !activeSpaceId) return;
 
-                    if (spaceData) {
-                        setWorkspaceId(spaceData.workspace_id);
-                        
-                        const { data: wsData } = await supabase
-                            .from('workspaces')
-                            .select('created_by')
-                            .eq('id', spaceData.workspace_id)
-                            .single();
+            // Determina ruolo utente nello spazio
+            const { data: spaceData } = await supabase
+                .from('spaces')
+                .select('workspace_id')
+                .eq('id', activeSpaceId)
+                .single();
 
-                        const { data: memberData } = await supabase
-                            .from('workspace_members')
-                            .select('role')
-                            .eq('workspace_id', spaceData.workspace_id)
-                            .eq('user_id', user.id)
-                            .is('removed_at', null)
-                            .single();
+            if (cancelled || !spaceData) return;
 
-                        if (wsData?.created_by === user.id) {
-                            setUserRole('owner');
-                        } else if (memberData) {
-                            setUserRole(memberData.role as 'admin' | 'member');
-                        }
+            setWorkspaceId(spaceData.workspace_id);
 
-                        // Carica nome dello space
-                        const { data: spaceInfo } = await supabase
-                            .from('spaces')
-                            .select('name')
-                            .eq('id', activeSpaceId)
-                            .single();
-                        if (spaceInfo) setSpaceName(spaceInfo.name);
-                    }
-                }
+            const { data: wsData } = await supabase
+                .from('workspaces')
+                .select('created_by')
+                .eq('id', spaceData.workspace_id)
+                .single();
+
+            const { data: memberData } = await supabase
+                .from('workspace_members')
+                .select('role')
+                .eq('workspace_id', spaceData.workspace_id)
+                .eq('user_id', user.id)
+                .is('removed_at', null)
+                .single();
+
+            if (cancelled) return;
+
+            if (wsData?.created_by === user.id) {
+                setUserRole('owner');
+            } else if (memberData) {
+                setUserRole(memberData.role as 'admin' | 'member');
             }
+
+            // Carica nome dello space
+            const { data: spaceInfo } = await supabase
+                .from('spaces')
+                .select('name')
+                .eq('id', activeSpaceId)
+                .single();
+            if (!cancelled && spaceInfo) setSpaceName(spaceInfo.name);
+
+            // Carica agenti AI attivi per il workspace
+            const { data: agentData } = await supabase
+                .from('ai_agents')
+                .select('*')
+                .eq('workspace_id', spaceData.workspace_id)
+                .eq('is_active', true);
+            if (!cancelled && agentData) setAgents(agentData);
         };
 
-        if (isChatOpen) {
-            loadUser();
-        }
-    }, [isChatOpen, activeSpaceId, supabase]);
+        loadUser();
+        return () => { cancelled = true; };
+    }, [isChatOpen, activeSpaceId]);
 
     // Trova o crea la conversation per la chat
     const getOrCreateConversation = useCallback(async (): Promise<string | null> => {
@@ -123,8 +140,6 @@ export function ChatWindow() {
         if (targetRoomId) {
             query = query.eq('room_id', targetRoomId);
         } else {
-            // Per la chat office-wide, cerchiamo una conversation di tipo channel
-            // che possiamo usare come chat generale dello space
             query = query.is('room_id', null);
         }
 
@@ -153,7 +168,7 @@ export function ChatWindow() {
         }
 
         return newConv?.id || null;
-    }, [workspaceId, chatTab, myRoomId, currentUser?.id, supabase]);
+    }, [workspaceId, chatTab, myRoomId, currentUser?.id]);
 
     // Carica messaggi dal database
     const loadMessages = useCallback(async () => {
@@ -191,7 +206,7 @@ export function ChatWindow() {
             setMessages(data || []);
         }
         setIsLoading(false);
-    }, [workspaceId, getOrCreateConversation, supabase]);
+    }, [workspaceId, getOrCreateConversation]);
 
     useEffect(() => {
         if (isChatOpen && workspaceId) {
@@ -216,8 +231,11 @@ export function ChatWindow() {
                 (payload) => {
                     const newMessage = payload.new as Message;
                     setMessages((prev) => {
-                        // Evita duplicati
-                        if (prev.find(m => m.id === newMessage.id)) return prev;
+                        // Evita duplicati (inclusi messaggi ottimistici)
+                        if (prev.find(m => m.id === newMessage.id)) {
+                            // Aggiorna il messaggio ottimistico con quello reale
+                            return prev.map(m => m.id === newMessage.id ? newMessage : m);
+                        }
                         return [...prev, newMessage];
                     });
                 }
@@ -232,9 +250,29 @@ export function ChatWindow() {
                 },
                 (payload) => {
                     const updatedMessage = payload.new as Message;
-                    setMessages((prev) => 
-                        prev.map(m => m.id === updatedMessage.id ? updatedMessage : m)
-                    );
+                    // Se il messaggio è stato soft-deleted, rimuovilo
+                    if (updatedMessage.deleted_at) {
+                        setMessages((prev) => prev.filter(m => m.id !== updatedMessage.id));
+                    } else {
+                        setMessages((prev) =>
+                            prev.map(m => m.id === updatedMessage.id ? updatedMessage : m)
+                        );
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'DELETE',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `conversation_id=eq.${conversationId}`
+                },
+                (payload) => {
+                    const deletedMessage = payload.old as Message;
+                    if (deletedMessage?.id) {
+                        setMessages((prev) => prev.filter(m => m.id !== deletedMessage.id));
+                    }
                 }
             )
             .subscribe();
@@ -242,7 +280,7 @@ export function ChatWindow() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [conversationId, isChatOpen, supabase]);
+    }, [conversationId, isChatOpen]);
 
     // Auto-scroll ai nuovi messaggi
     useEffect(() => {
@@ -269,10 +307,11 @@ export function ChatWindow() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputValue.trim() || !currentUser || !conversationId) return;
+        if (!inputValue.trim() || !currentUser || !conversationId || isSending) return;
 
         const content = inputValue.trim();
         setInputValue('');
+        setIsSending(true);
 
         // Ottieni profilo completo
         const { data: profile } = await supabase
@@ -281,10 +320,12 @@ export function ChatWindow() {
             .eq('id', currentUser.id)
             .single();
 
+        const senderName = profile?.display_name || profile?.full_name || currentUser.email || 'Anonymous';
+
         const newMessage = {
             conversation_id: conversationId,
             sender_id: currentUser.id,
-            sender_name: profile?.display_name || profile?.full_name || currentUser.email || 'Anonymous',
+            sender_name: senderName,
             sender_avatar_url: profile?.avatar_url,
             content,
             type: 'text' as const
@@ -299,6 +340,7 @@ export function ChatWindow() {
             console.error('Error sending message:', error);
             setInputValue(content); // Ripristina input in caso di errore
         }
+        setIsSending(false);
     };
 
     const handleDeleteMessage = async (messageId: string) => {
@@ -323,9 +365,12 @@ export function ChatWindow() {
         setMessageMenuOpen(null);
     };
 
-    const canDeleteMessage = () => {
-        // Solo admin/owner possono cancellare messaggi
-        return userRole === 'owner' || userRole === 'admin';
+    const canDeleteMessage = (msg: Message) => {
+        // Admin/owner possono cancellare qualsiasi messaggio
+        if (userRole === 'owner' || userRole === 'admin') return true;
+        // L'utente può cancellare i propri messaggi
+        if (msg.sender_id === currentUser?.id) return true;
+        return false;
     };
 
     const handleClearChat = async () => {
@@ -384,14 +429,47 @@ export function ChatWindow() {
     };
 
     // Raggruppa messaggi per data
-    const groupedMessages = messages.reduce((groups, msg) => {
-        const date = new Date(msg.created_at).toDateString();
-        if (!groups[date]) groups[date] = [];
-        groups[date].push(msg);
-        return groups;
-    }, {} as Record<string, Message[]>);
+    const groupedMessages = useMemo(() => {
+        return messages.reduce((groups, msg) => {
+            const date = new Date(msg.created_at).toDateString();
+            if (!groups[date]) groups[date] = [];
+            groups[date].push(msg);
+            return groups;
+        }, {} as Record<string, Message[]>);
+    }, [messages]);
 
     const isOwnMessage = (msg: Message) => msg.sender_id === currentUser?.id;
+    const isAgentMessage = (msg: Message) => !!msg.agent_id;
+
+    // Determina se il sender è admin/owner (per il badge)
+    const getSenderBadge = useCallback((msg: Message): 'owner' | 'admin' | 'agent' | null => {
+        if (msg.agent_id) return 'agent';
+        // Per ora mostriamo il badge solo se il messaggio è dell'utente corrente e ha il ruolo
+        // In futuro si potrebbe fare un lookup dei ruoli per tutti i sender
+        if (msg.sender_id === currentUser?.id) {
+            if (userRole === 'owner') return 'owner';
+            if (userRole === 'admin') return 'admin';
+        }
+        return null;
+    }, [currentUser?.id, userRole]);
+
+    // Handle @agent mention in input
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setInputValue(value);
+        // Show agent menu when typing @
+        if (value.endsWith('@') && agents.length > 0) {
+            setShowAgentMenu(true);
+        } else {
+            setShowAgentMenu(false);
+        }
+    };
+
+    const insertAgentMention = (agent: AiAgent) => {
+        setInputValue(prev => prev.replace(/@$/, `@${agent.name} `));
+        setShowAgentMenu(false);
+        inputRef.current?.focus();
+    };
 
     return (
         <AnimatePresence>
@@ -448,8 +526,8 @@ export function ChatWindow() {
                             <button
                                 onClick={() => setChatTab('office')}
                                 className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${chatTab === 'office'
-                                        ? 'bg-slate-700 text-white shadow'
-                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    ? 'bg-slate-700 text-white shadow'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                                     }`}
                             >
                                 Ufficio
@@ -498,8 +576,11 @@ export function ChatWindow() {
 
                                     {dateMessages.map((msg, index) => {
                                         const own = isOwnMessage(msg);
+                                        const isAgent = isAgentMessage(msg);
                                         const showAvatar = index === 0 ||
-                                            dateMessages[index - 1].sender_id !== msg.sender_id;
+                                            dateMessages[index - 1].sender_id !== msg.sender_id ||
+                                            dateMessages[index - 1].agent_id !== msg.agent_id;
+                                        const badge = getSenderBadge(msg);
 
                                         return (
                                             <motion.div
@@ -512,22 +593,31 @@ export function ChatWindow() {
                                                 <div className="flex-shrink-0 w-8">
                                                     {showAvatar ? (
                                                         <div className="relative">
-                                                            {msg.sender_avatar_url ? (
+                                                            {isAgent ? (
+                                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white ring-2 ring-emerald-700/50">
+                                                                    <Bot className="w-4 h-4" />
+                                                                </div>
+                                                            ) : msg.sender_avatar_url ? (
                                                                 <img
                                                                     src={msg.sender_avatar_url}
-                                                                    alt={msg.sender_name}
+                                                                    alt={msg.sender_name || 'User'}
                                                                     className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-700"
                                                                 />
                                                             ) : (
                                                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 ring-2 ring-slate-700">
-                                                                    {msg.sender_name[0]?.toUpperCase()}
+                                                                    {(msg.sender_name || '?')[0]?.toUpperCase()}
                                                                 </div>
                                                             )}
-                                                            {/* Badge admin/owner */}
-                                                            {(msg.is_admin || msg.is_owner) && (
-                                                                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center ${msg.is_owner ? 'bg-amber-500' : 'bg-primary-500'}`}>
-                                                                    {msg.is_owner ? (
+                                                            {/* Badge admin/owner/agent */}
+                                                            {badge && (
+                                                                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center ${badge === 'owner' ? 'bg-amber-500' :
+                                                                        badge === 'agent' ? 'bg-emerald-500' :
+                                                                            'bg-primary-500'
+                                                                    }`}>
+                                                                    {badge === 'owner' ? (
                                                                         <Crown className="w-2.5 h-2.5 text-white" />
+                                                                    ) : badge === 'agent' ? (
+                                                                        <Bot className="w-2.5 h-2.5 text-white" />
                                                                     ) : (
                                                                         <Shield className="w-2.5 h-2.5 text-white" />
                                                                     )}
@@ -543,22 +633,37 @@ export function ChatWindow() {
                                                 <div className={`flex-1 ${own ? 'items-end' : 'items-start'} flex flex-col`}>
                                                     {showAvatar && (
                                                         <div className={`flex items-center gap-2 mb-1 ${own ? 'flex-row-reverse' : ''}`}>
-                                                            <span className="text-xs font-semibold text-slate-300">
-                                                                {msg.sender_name}
+                                                            <span className={`text-xs font-semibold ${isAgent ? 'text-emerald-400' : 'text-slate-300'}`}>
+                                                                {isAgent ? (msg.agent_name || 'AI Agent') : (msg.sender_name || 'Utente')}
                                                             </span>
+                                                            {isAgent && (
+                                                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium uppercase tracking-wider">
+                                                                    Bot
+                                                                </span>
+                                                            )}
                                                             <span className="text-[10px] text-slate-600">
                                                                 {formatTime(msg.created_at)}
                                                             </span>
                                                         </div>
                                                     )}
 
-                                                    <div className={`relative max-w-[85%] group/message ${own ? 'bg-primary-500/20' : 'bg-slate-800/80'} rounded-2xl px-4 py-2.5 border ${own ? 'border-primary-500/30 rounded-tr-sm' : 'border-white/5 rounded-tl-sm'}`}>
+                                                    <div className={`relative max-w-[85%] group/message ${isAgent
+                                                            ? 'bg-emerald-500/10 border-emerald-500/20'
+                                                            : own
+                                                                ? 'bg-primary-500/20 border-primary-500/30'
+                                                                : 'bg-slate-800/80 border-white/5'
+                                                        } rounded-2xl px-4 py-2.5 border ${isAgent
+                                                            ? 'rounded-tl-sm'
+                                                            : own
+                                                                ? 'rounded-tr-sm'
+                                                                : 'rounded-tl-sm'
+                                                        }`}>
                                                         <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap break-words">
                                                             {msg.content}
                                                         </p>
 
                                                         {/* Menu azioni messaggio */}
-                                                        {canDeleteMessage() && (
+                                                        {canDeleteMessage(msg) && (
                                                             <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/message:opacity-100 transition-opacity ${own ? '-left-8' : '-right-8'}`}>
                                                                 <button
                                                                     onClick={(e) => {
@@ -594,6 +699,41 @@ export function ChatWindow() {
 
                     {/* Input Area */}
                     <div className="p-4 bg-slate-800/30 border-t border-white/5">
+                        {/* Agent mention dropdown */}
+                        <AnimatePresence>
+                            {showAgentMenu && agents.length > 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                    className="mb-2 p-1 bg-slate-800 border border-white/10 rounded-xl shadow-xl"
+                                >
+                                    <div className="text-[10px] text-slate-500 px-2 py-1 uppercase tracking-wider font-medium">
+                                        Agenti AI disponibili
+                                    </div>
+                                    {agents.map(agent => (
+                                        <button
+                                            key={agent.id}
+                                            onClick={() => insertAgentMention(agent)}
+                                            className="w-full px-3 py-2 text-left flex items-center gap-2.5 hover:bg-white/5 rounded-lg transition-colors"
+                                        >
+                                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                                                {agent.avatar_url ? (
+                                                    <img src={agent.avatar_url} alt={agent.name} className="w-6 h-6 rounded-full object-cover" />
+                                                ) : (
+                                                    <Bot className="w-3.5 h-3.5 text-white" />
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium text-emerald-400">{agent.name}</p>
+                                                <p className="text-[10px] text-slate-500">{agent.role}</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         <form onSubmit={handleSendMessage} className="relative">
                             <div className="flex items-center gap-2 bg-slate-950/80 border border-white/10 rounded-2xl px-4 py-2.5 focus-within:border-primary-500/50 focus-within:ring-1 focus-within:ring-primary-500/30 transition-all">
                                 <button
@@ -607,8 +747,8 @@ export function ChatWindow() {
                                     ref={inputRef}
                                     type="text"
                                     value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder="Scrivi un messaggio..."
+                                    onChange={handleInputChange}
+                                    placeholder={agents.length > 0 ? 'Scrivi un messaggio... (@ per agenti)' : 'Scrivi un messaggio...'}
                                     className="flex-1 bg-transparent text-sm text-slate-200 placeholder:text-slate-600 outline-none"
                                     maxLength={1000}
                                 />
@@ -622,7 +762,7 @@ export function ChatWindow() {
 
                                 <button
                                     type="submit"
-                                    disabled={!inputValue.trim() || (chatTab === 'room' && !myRoomId)}
+                                    disabled={!inputValue.trim() || (chatTab === 'room' && !myRoomId) || isSending}
                                     className="p-2 rounded-xl bg-primary-500 hover:bg-primary-400 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all active:scale-95"
                                 >
                                     <Send className="w-4 h-4" />

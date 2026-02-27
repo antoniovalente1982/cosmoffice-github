@@ -350,6 +350,8 @@ export interface Message {
   created_at: string;
   thread_parent_id: string | null;
   reply_count: number;
+  agent_id: string | null;
+  agent_name: string | null;
 }
 
 export interface MessageAttachment {
@@ -679,53 +681,53 @@ export interface Database {
       };
       // Moderation functions
       kick_user_from_room: {
-        Args: { 
-          p_room_id: string; 
-          p_user_id: string; 
-          p_reason?: string; 
-          p_duration_minutes?: number 
+        Args: {
+          p_room_id: string;
+          p_user_id: string;
+          p_reason?: string;
+          p_duration_minutes?: number
         };
         Returns: void;
       };
       ban_user_from_workspace: {
-        Args: { 
-          p_workspace_id: string; 
-          p_user_id: string; 
-          p_reason?: string; 
-          p_expires_at?: string 
+        Args: {
+          p_workspace_id: string;
+          p_user_id: string;
+          p_reason?: string;
+          p_expires_at?: string
         };
         Returns: void;
       };
       unban_user_from_workspace: {
-        Args: { 
-          p_workspace_id: string; 
-          p_user_id: string; 
-          p_reason?: string 
+        Args: {
+          p_workspace_id: string;
+          p_user_id: string;
+          p_reason?: string
         };
         Returns: void;
       };
       mute_user_in_room: {
-        Args: { 
-          p_room_id: string; 
-          p_user_id: string; 
-          p_mute_type?: string; 
-          p_duration_minutes?: number 
+        Args: {
+          p_room_id: string;
+          p_user_id: string;
+          p_mute_type?: string;
+          p_duration_minutes?: number
         };
         Returns: void;
       };
       unmute_user_in_room: {
-        Args: { 
-          p_room_id: string; 
-          p_user_id: string; 
-          p_mute_type?: string 
+        Args: {
+          p_room_id: string;
+          p_user_id: string;
+          p_mute_type?: string
         };
         Returns: void;
       };
       change_user_role: {
-        Args: { 
-          p_workspace_id: string; 
-          p_user_id: string; 
-          p_new_role: WorkspaceRole 
+        Args: {
+          p_workspace_id: string;
+          p_user_id: string;
+          p_new_role: WorkspaceRole
         };
         Returns: void;
       };
