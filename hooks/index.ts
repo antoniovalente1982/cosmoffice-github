@@ -46,4 +46,4 @@ export {
 } from './usePresenceManager';
 
 // Re-export types
-export type { PermissionResult, ModerationState } from './usePermissions';
+export type { ModerationState } from './useModeration';

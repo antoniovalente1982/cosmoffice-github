@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase/client';
 import type { WorkspaceRole } from '@/lib/supabase/database.types';
 
 interface EdgeFunctionResponse<T = any> {
+  success: boolean;
   data?: T;
   error?: { message: string; code: string };
 }

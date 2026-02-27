@@ -14,7 +14,7 @@ import {
 } from '@/lib/supabase/client';
 import type { WorkspaceRole } from '@/lib/supabase/database.types';
 
-interface ModerationState {
+export interface ModerationState {
   isLoading: boolean;
   error: Error | null;
   success: boolean;
@@ -337,17 +337,4 @@ export function useBannedUsers(workspaceId?: string) {
   }, [workspaceId]);
 
   return { bannedUsers, isLoading };
-}
-
-// Fix import
-function useState<T>(initial: T): [T, (val: T | ((prev: T) => T)) => void] {
-  return useReactState(initial);
-}
-
-function useCallback<T extends (...args: any[]) => any>(
-  callback: T, 
-  deps: any[]
-): T {
-  // This is a shim for the type checker, actual implementation is from React
-  return callback as T;
 }
