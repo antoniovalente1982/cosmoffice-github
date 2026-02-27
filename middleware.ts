@@ -1,15 +1,36 @@
 // ============================================
 // MIDDLEWARE NEXT.JS
 // Protezione route e redirect automatici
+// Using @supabase/ssr (modern approach)
 // ============================================
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+  
+  // Create Supabase client with cookie handling
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          req.cookies.set({ name, value, ...options });
+          res.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          req.cookies.set({ name, value: '', ...options });
+          res.cookies.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
 
   const {
     data: { session },
@@ -48,7 +69,7 @@ export async function middleware(req: NextRequest) {
 
   // Authenticated
   if (isPublicRoute && pathname !== '/') {
-    return NextResponse.redirect(new URL('/dashboard', req.url));
+    return NextResponse.redirect(new URL('/office', req.url));
   }
 
   // Workspace routes - check membership
