@@ -30,10 +30,10 @@ export default function DashboardPage() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [organizations, setOrganizations] = useState<any[]>([]);
+    const [workspaces, setWorkspaces] = useState<any[]>([]);
     const [spaces, setSpaces] = useState<any[]>([]);
-    const [isCreatingOrg, setIsCreatingOrg] = useState(false);
-    const [newOrgName, setNewOrgName] = useState('');
+    const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+    const [newWorkspaceName, setNewWorkspaceName] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingSpace, setEditingSpace] = useState<string | null>(null);
@@ -49,29 +49,31 @@ export default function DashboardPage() {
             }
             setUser(user);
 
-            // Fetch organizations from both memberships AND created orgs to be safe
+            // Fetch workspaces from both memberships AND created workspaces to be safe
             const [membersRes, createdRes] = await Promise.all([
-                supabase.from('organization_members').select('org_id, organizations(*)').eq('user_id', user.id),
-                supabase.from('organizations').select('*').eq('created_by', user.id)
+                supabase.from('workspace_members').select('workspace_id, workspaces(*)').eq('user_id', user.id).is('removed_at', null),
+                supabase.from('workspaces').select('*').eq('created_by', user.id)
             ]);
 
-            const memberOrgs = membersRes.data?.map(m => m.organizations).filter(Boolean) || [];
-            const createdOrgs = createdRes.data || [];
+            const memberWorkspaces = membersRes.data?.map(m => m.workspaces).filter(Boolean) || [];
+            const createdWorkspaces = createdRes.data || [];
 
             // Merge and deduplicate by ID
-            const allOrgsMap = new Map();
-            [...memberOrgs, ...createdOrgs].forEach(o => allOrgsMap.set(o.id, o));
-            const orgs = Array.from(allOrgsMap.values());
+            const allWorkspacesMap = new Map();
+            [...memberWorkspaces, ...createdWorkspaces].forEach(w => allWorkspacesMap.set(w.id, w));
+            const wsList = Array.from(allWorkspacesMap.values());
 
-            setOrganizations(orgs);
+            setWorkspaces(wsList);
 
-            // Fetch spaces for these organizations
-            if (orgs.length > 0) {
-                const orgIds = orgs.map((o: any) => o.id);
+            // Fetch spaces for these workspaces
+            if (wsList.length > 0) {
+                const workspaceIds = wsList.map((w: any) => w.id);
                 const { data: activeSpaces } = await supabase
                     .from('spaces')
                     .select('*')
-                    .in('org_id', orgIds);
+                    .in('workspace_id', workspaceIds)
+                    .is('deleted_at', null)
+                    .is('archived_at', null);
                 setSpaces(activeSpaces || []);
             }
             setLoading(false);
@@ -88,21 +90,21 @@ export default function DashboardPage() {
         }
     }, [spaceMenuOpen]);
 
-    const handleCreateOrg = async () => {
-        if (!newOrgName || !user || isSubmitting) return;
+    const handleCreateWorkspace = async () => {
+        if (!newWorkspaceName || !user || isSubmitting) return;
 
         setIsSubmitting(true);
         setError(null);
 
-        const baseSlug = newOrgName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        let slug = baseSlug || 'org';
+        const baseSlug = newWorkspaceName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        let slug = baseSlug || 'workspace';
 
         try {
-            // STEP 1: Create Organization
-            let { data: org, error: orgError } = await supabase
-                .from('organizations')
+            // STEP 1: Create Workspace
+            let { data: workspace, error: wsError } = await supabase
+                .from('workspaces')
                 .insert({
-                    name: newOrgName,
+                    name: newWorkspaceName,
                     slug,
                     created_by: user.id
                 })
@@ -110,33 +112,35 @@ export default function DashboardPage() {
                 .single();
 
             // If it's a duplicate slug error, try once more with a random suffix
-            if (orgError && orgError.code === '23505') {
+            if (wsError && wsError.code === '23505') {
                 const randomSuffix = Math.random().toString(36).substring(2, 6);
                 slug = `${baseSlug}-${randomSuffix}`;
 
-                const { data: retryOrg, error: retryError } = await supabase
-                    .from('organizations')
+                const { data: retryWs, error: retryError } = await supabase
+                    .from('workspaces')
                     .insert({
-                        name: newOrgName,
+                        name: newWorkspaceName,
                         slug,
                         created_by: user.id
                     })
                     .select()
                     .single();
 
-                org = retryOrg;
-                orgError = retryError;
+                workspace = retryWs;
+                wsError = retryError;
             }
 
-            if (orgError) throw orgError;
-            if (!org) throw new Error('Failed to create organization');
+            if (wsError) throw wsError;
+            if (!workspace) throw new Error('Failed to create workspace');
 
             // STEP 2: Create default space
             const { data: space, error: spaceError } = await supabase
                 .from('spaces')
                 .insert({
-                    org_id: org.id,
-                    name: 'General Office'
+                    workspace_id: workspace.id,
+                    name: 'General Office',
+                    slug: 'general-office',
+                    created_by: user.id
                 })
                 .select()
                 .single();
@@ -146,10 +150,10 @@ export default function DashboardPage() {
 
             // STEP 3: Create default rooms for the space
             const defaultRooms = [
-                { space_id: space.id, name: 'Lobby', type: 'reception', x: 400, y: 400, width: 250, height: 200 },
-                { space_id: space.id, name: 'Coffee Break', type: 'break', x: 700, y: 400, width: 200, height: 200 },
-                { space_id: space.id, name: 'Deep Work', type: 'focus', x: 400, y: 700, width: 300, height: 250 },
-                { space_id: space.id, name: 'Design Hub', type: 'meeting', x: 750, y: 700, width: 250, height: 250 }
+                { space_id: space.id, name: 'Lobby', type: 'reception', x: 400, y: 400, width: 250, height: 200, created_by: user.id },
+                { space_id: space.id, name: 'Coffee Break', type: 'break', x: 700, y: 400, width: 200, height: 200, created_by: user.id },
+                { space_id: space.id, name: 'Deep Work', type: 'focus', x: 400, y: 700, width: 300, height: 250, created_by: user.id },
+                { space_id: space.id, name: 'Design Hub', type: 'meeting', x: 750, y: 700, width: 250, height: 250, created_by: user.id }
             ];
 
             const { error: roomsError } = await supabase
@@ -161,13 +165,13 @@ export default function DashboardPage() {
             // Navigate immediately to the new space
             router.push(`/office/${space.id}`);
 
-            setIsCreatingOrg(false);
-            setNewOrgName('');
+            setIsCreatingWorkspace(false);
+            setNewWorkspaceName('');
         } catch (err: any) {
-            console.error('Error creating organization:', err);
+            console.error('Error creating workspace:', err);
             let message = err.message || 'An unexpected error occurred';
             if (err.code === '23505') {
-                message = 'An organization with this slug already exists. Please try a different name.';
+                message = 'A workspace with this slug already exists. Please try a different name.';
             }
             setError(`Creation failed: ${message}`);
         } finally {
@@ -186,9 +190,13 @@ export default function DashboardPage() {
         }
         
         try {
+            // Soft delete invece di delete fisico
             const { error } = await supabase
                 .from('spaces')
-                .delete()
+                .update({ 
+                    deleted_at: new Date().toISOString(),
+                    deleted_by: user?.id
+                })
                 .eq('id', spaceId);
             
             if (error) throw error;
@@ -247,8 +255,8 @@ export default function DashboardPage() {
                         <h1 className="text-2xl font-bold text-gradient">My Workspaces</h1>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Button variant="outline" className="gap-2" onClick={() => setIsCreatingOrg(true)}>
-                            <Plus className="w-4 h-4" /> New Organization
+                        <Button variant="outline" className="gap-2" onClick={() => setIsCreatingWorkspace(true)}>
+                            <Plus className="w-4 h-4" /> New Workspace
                         </Button>
                         <div className="w-px h-6 bg-white/10 mx-2"></div>
                         <div className="flex items-center gap-3">
@@ -263,15 +271,15 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {isCreatingOrg && (
+                {isCreatingWorkspace && (
                     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="glass p-6 rounded-2xl border border-primary-500/20 max-w-md mx-auto">
-                        <h2 className="text-lg font-semibold mb-4">Create New Organization</h2>
+                        <h2 className="text-lg font-semibold mb-4">Create New Workspace</h2>
                         <input
                             type="text"
-                            placeholder="Org Name (e.g. Acme Corp)"
+                            placeholder="Workspace Name (e.g. Acme Corp)"
                             className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2 mb-4 focus:border-primary-500 outline-none"
-                            value={newOrgName}
-                            onChange={(e) => setNewOrgName(e.target.value)}
+                            value={newWorkspaceName}
+                            onChange={(e) => setNewWorkspaceName(e.target.value)}
                         />
                         {error && (
                             <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
@@ -279,18 +287,18 @@ export default function DashboardPage() {
                             </div>
                         )}
                         <div className="flex gap-2">
-                            <Button className="flex-1" onClick={handleCreateOrg} disabled={isSubmitting}>
+                            <Button className="flex-1" onClick={handleCreateWorkspace} disabled={isSubmitting}>
                                 {isSubmitting ? 'Creating...' : 'Create'}
                             </Button>
-                            <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingOrg(false)} disabled={isSubmitting}>Cancel</Button>
+                            <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingWorkspace(false)} disabled={isSubmitting}>Cancel</Button>
                         </div>
                     </motion.div>
                 )}
 
-                {/* Organizations & Spaces */}
+                {/* Workspaces & Spaces */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {spaces.map((space) => {
-                        const org = organizations.find(o => o.id === space.org_id);
+                        const workspace = workspaces.find(w => w.id === space.workspace_id);
                         const isEditing = editingSpace === space.id;
                         const isMenuOpen = spaceMenuOpen === space.id;
                         
@@ -395,7 +403,7 @@ export default function DashboardPage() {
                                                 <div>
                                                     <h3 className="text-xl font-bold text-slate-100 group-hover:text-primary-400 transition-colors">{space.name}</h3>
                                                     <p className="text-slate-400 text-sm flex items-center gap-1 mt-1">
-                                                        <Globe className="w-3 h-3" /> {org?.name}
+                                                        <Globe className="w-3 h-3" /> {workspace?.name}
                                                     </p>
                                                 </div>
                                             )}
@@ -421,23 +429,22 @@ export default function DashboardPage() {
                     })}
 
                     <motion.div whileHover={{ scale: 1.02 }}>
-                        <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-white/10 bg-white/5 hover:bg-white/10 transition-all min-h-[220px] group cursor-pointer" onClick={() => setIsCreatingOrg(true)}>
+                        <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-white/10 bg-white/5 hover:bg-white/10 transition-all min-h-[220px] group cursor-pointer" onClick={() => setIsCreatingWorkspace(true)}>
                             <PlusCircle className="w-12 h-12 text-slate-500 group-hover:text-primary-400 transition-colors mb-4" />
                             <p className="text-slate-400 font-medium group-hover:text-slate-200">New Space</p>
                         </Card>
                     </motion.div>
                 </div>
 
-                {organizations.length === 0 && !loading && (
+                {workspaces.length === 0 && !loading && (
                     <div className="text-center py-20 glass rounded-3xl border-white/5">
                         <Building2 className="w-16 h-16 text-slate-700 mx-auto mb-4" />
-                        <h2 className="text-xl font-bold text-slate-200">No organizations found</h2>
-                        <p className="text-slate-500 mb-8">Create your first organization to start your virtual office</p>
-                        <Button size="lg" onClick={() => setIsCreatingOrg(true)}>Get Started</Button>
+                        <h2 className="text-xl font-bold text-slate-200">No workspaces found</h2>
+                        <p className="text-slate-500 mb-8">Create your first workspace to start your virtual office</p>
+                        <Button size="lg" onClick={() => setIsCreatingWorkspace(true)}>Get Started</Button>
                     </div>
                 )}
             </div>
         </div>
     );
 }
-

@@ -17,25 +17,12 @@ import {
 import { Button } from '../ui/button';
 import { createClient } from '../../utils/supabase/client';
 import { useOfficeStore } from '../../stores/useOfficeStore';
-
-interface ChatMessage {
-    id: string;
-    space_id: string;
-    room_id?: string | null;
-    sender_id: string;
-    sender_name: string;
-    sender_avatar_url?: string;
-    content: string;
-    type: 'text' | 'image' | 'file' | 'system';
-    created_at: string;
-    is_admin?: boolean;
-    is_owner?: boolean;
-}
+import type { Message } from '@/lib/supabase/database.types';
 
 export function ChatWindow() {
     const { isChatOpen, toggleChat, activeSpaceId, myRoomId, rooms } = useOfficeStore();
     const [chatTab, setChatTab] = useState<'office' | 'room'>('office');
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
@@ -43,6 +30,8 @@ export function ChatWindow() {
     const [messageMenuOpen, setMessageMenuOpen] = useState<string | null>(null);
     const [spaceName, setSpaceName] = useState<string>('Chat Workspace');
     const [isClearingChat, setIsClearingChat] = useState(false);
+    const [conversationId, setConversationId] = useState<string | null>(null);
+    const [workspaceId, setWorkspaceId] = useState<string | null>(null);
     const supabase = createClient();
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -74,25 +63,28 @@ export function ChatWindow() {
                     // Determina ruolo utente nello spazio
                     const { data: spaceData } = await supabase
                         .from('spaces')
-                        .select('org_id')
+                        .select('workspace_id')
                         .eq('id', activeSpaceId)
                         .single();
 
                     if (spaceData) {
-                        const { data: orgData } = await supabase
-                            .from('organizations')
+                        setWorkspaceId(spaceData.workspace_id);
+                        
+                        const { data: wsData } = await supabase
+                            .from('workspaces')
                             .select('created_by')
-                            .eq('id', spaceData.org_id)
+                            .eq('id', spaceData.workspace_id)
                             .single();
 
                         const { data: memberData } = await supabase
-                            .from('organization_members')
+                            .from('workspace_members')
                             .select('role')
-                            .eq('org_id', spaceData.org_id)
+                            .eq('workspace_id', spaceData.workspace_id)
                             .eq('user_id', user.id)
+                            .is('removed_at', null)
                             .single();
 
-                        if (orgData?.created_by === user.id) {
+                        if (wsData?.created_by === user.id) {
                             setUserRole('owner');
                         } else if (memberData) {
                             setUserRole(memberData.role as 'admin' | 'member');
@@ -115,66 +107,115 @@ export function ChatWindow() {
         }
     }, [isChatOpen, activeSpaceId, supabase]);
 
-    // Carica messaggi dal database
-    const loadMessages = useCallback(async () => {
-        if (!activeSpaceId) return;
+    // Trova o crea la conversation per la chat
+    const getOrCreateConversation = useCallback(async (): Promise<string | null> => {
+        if (!workspaceId) return null;
 
-        setIsLoading(true);
+        const targetRoomId = chatTab === 'room' ? myRoomId : null;
+
+        // Cerca conversation esistente
         let query = supabase
-            .from('space_chat_messages')
-            .select('*')
-            .eq('space_id', activeSpaceId);
+            .from('conversations')
+            .select('id')
+            .eq('workspace_id', workspaceId)
+            .eq('type', targetRoomId ? 'room' : 'channel');
 
-        if (chatTab === 'room') {
-            if (myRoomId) {
-                query = query.eq('room_id', myRoomId);
-            } else {
-                setMessages([]);
-                setIsLoading(false);
-                return;
-            }
+        if (targetRoomId) {
+            query = query.eq('room_id', targetRoomId);
         } else {
+            // Per la chat office-wide, cerchiamo una conversation di tipo channel
+            // che possiamo usare come chat generale dello space
             query = query.is('room_id', null);
         }
 
-        const { data, error } = await query.order('created_at', { ascending: true }).limit(100);
+        const { data: existingConv } = await query.single();
+
+        if (existingConv) {
+            return existingConv.id;
+        }
+
+        // Se non esiste, crea una nuova conversation
+        const { data: newConv, error } = await supabase
+            .from('conversations')
+            .insert({
+                workspace_id: workspaceId,
+                type: targetRoomId ? 'room' : 'channel',
+                room_id: targetRoomId,
+                name: targetRoomId ? null : 'general',
+                created_by: currentUser?.id
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating conversation:', error);
+            return null;
+        }
+
+        return newConv?.id || null;
+    }, [workspaceId, chatTab, myRoomId, currentUser?.id, supabase]);
+
+    // Carica messaggi dal database
+    const loadMessages = useCallback(async () => {
+        if (!workspaceId) {
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+
+        const convId = await getOrCreateConversation();
+        if (!convId) {
+            setMessages([]);
+            setIsLoading(false);
+            return;
+        }
+
+        setConversationId(convId);
+
+        const { data, error } = await supabase
+            .from('messages')
+            .select(`
+                *,
+                attachments:message_attachments(*)
+            `)
+            .eq('conversation_id', convId)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: true })
+            .limit(100);
 
         if (error) {
             console.error('Error loading messages:', error);
+            setMessages([]);
         } else {
             setMessages(data || []);
         }
         setIsLoading(false);
-    }, [activeSpaceId, myRoomId, chatTab, supabase]);
+    }, [workspaceId, getOrCreateConversation, supabase]);
 
     useEffect(() => {
-        if (isChatOpen && activeSpaceId) {
+        if (isChatOpen && workspaceId) {
             loadMessages();
         }
-    }, [isChatOpen, activeSpaceId, chatTab, myRoomId, loadMessages]);
+    }, [isChatOpen, workspaceId, chatTab, myRoomId, loadMessages]);
 
     // Sottoscrizione realtime ai nuovi messaggi
     useEffect(() => {
-        if (!activeSpaceId || !isChatOpen) return;
+        if (!conversationId || !isChatOpen) return;
 
         const channel = supabase
-            .channel(`space_chat:${activeSpaceId}`)
+            .channel(`messages:${conversationId}`)
             .on(
                 'postgres_changes',
                 {
                     event: 'INSERT',
                     schema: 'public',
-                    table: 'space_chat_messages',
-                    filter: `space_id=eq.${activeSpaceId}`
+                    table: 'messages',
+                    filter: `conversation_id=eq.${conversationId}`
                 },
                 (payload) => {
-                    const newMessage = payload.new as ChatMessage;
+                    const newMessage = payload.new as Message;
                     setMessages((prev) => {
-                        // Filtra basato sul tab corrente:
-                        const isRoomMsg = !!newMessage.room_id;
-                        if (chatTab === 'office' && isRoomMsg) return prev;
-                        if (chatTab === 'room' && newMessage.room_id !== myRoomId) return prev;
-
                         // Evita duplicati
                         if (prev.find(m => m.id === newMessage.id)) return prev;
                         return [...prev, newMessage];
@@ -184,13 +225,16 @@ export function ChatWindow() {
             .on(
                 'postgres_changes',
                 {
-                    event: 'DELETE',
+                    event: 'UPDATE',
                     schema: 'public',
-                    table: 'space_chat_messages'
+                    table: 'messages',
+                    filter: `conversation_id=eq.${conversationId}`
                 },
                 (payload) => {
-                    const deletedId = payload.old.id;
-                    setMessages((prev) => prev.filter(m => m.id !== deletedId));
+                    const updatedMessage = payload.new as Message;
+                    setMessages((prev) => 
+                        prev.map(m => m.id === updatedMessage.id ? updatedMessage : m)
+                    );
                 }
             )
             .subscribe();
@@ -198,7 +242,7 @@ export function ChatWindow() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [activeSpaceId, isChatOpen, chatTab, myRoomId, supabase]);
+    }, [conversationId, isChatOpen, supabase]);
 
     // Auto-scroll ai nuovi messaggi
     useEffect(() => {
@@ -225,7 +269,7 @@ export function ChatWindow() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputValue.trim() || !currentUser || !activeSpaceId) return;
+        if (!inputValue.trim() || !currentUser || !conversationId) return;
 
         const content = inputValue.trim();
         setInputValue('');
@@ -233,15 +277,14 @@ export function ChatWindow() {
         // Ottieni profilo completo
         const { data: profile } = await supabase
             .from('profiles')
-            .select('full_name, avatar_url')
+            .select('full_name, display_name, avatar_url')
             .eq('id', currentUser.id)
             .single();
 
         const newMessage = {
-            space_id: activeSpaceId,
-            room_id: chatTab === 'room' ? myRoomId : null,
+            conversation_id: conversationId,
             sender_id: currentUser.id,
-            sender_name: profile?.full_name || currentUser.email || 'Anonymous',
+            sender_name: profile?.display_name || profile?.full_name || currentUser.email || 'Anonymous',
             sender_avatar_url: profile?.avatar_url,
             content,
             type: 'text' as const
@@ -249,7 +292,7 @@ export function ChatWindow() {
 
         // Salva nel database
         const { error } = await supabase
-            .from('space_chat_messages')
+            .from('messages')
             .insert(newMessage);
 
         if (error) {
@@ -261,25 +304,32 @@ export function ChatWindow() {
     const handleDeleteMessage = async (messageId: string) => {
         if (!confirm('Sei sicuro di voler eliminare questo messaggio?')) return;
 
+        // Soft delete
         const { error } = await supabase
-            .from('space_chat_messages')
-            .delete()
+            .from('messages')
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: currentUser?.id
+            })
             .eq('id', messageId);
 
         if (error) {
             console.error('Error deleting message:', error);
             alert('Errore durante l\'eliminazione del messaggio');
+        } else {
+            // Aggiorna localmente
+            setMessages(prev => prev.filter(m => m.id !== messageId));
         }
         setMessageMenuOpen(null);
     };
 
     const canDeleteMessage = () => {
-        // Solo admin/owner possono cancellare messaggi (allineato alla RLS policy)
+        // Solo admin/owner possono cancellare messaggi
         return userRole === 'owner' || userRole === 'admin';
     };
 
     const handleClearChat = async () => {
-        if (!activeSpaceId) return;
+        if (!conversationId) return;
         const confirmMsg = chatTab === 'room'
             ? 'Sei sicuro di voler eliminare tutta la chat di questa stanza? Questa operazione non può essere annullata.'
             : 'Sei sicuro di voler eliminare tutta la chat dell\'ufficio? Questa operazione non può essere annullata.';
@@ -287,18 +337,15 @@ export function ChatWindow() {
         if (!confirm(confirmMsg)) return;
 
         setIsClearingChat(true);
-        let query = supabase
-            .from('space_chat_messages')
-            .delete()
-            .eq('space_id', activeSpaceId);
 
-        if (chatTab === 'room' && myRoomId) {
-            query = query.eq('room_id', myRoomId);
-        } else {
-            query = query.is('room_id', null);
-        }
-
-        const { error } = await query;
+        // Soft delete di tutti i messaggi della conversation
+        const { error } = await supabase
+            .from('messages')
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: currentUser?.id
+            })
+            .eq('conversation_id', conversationId);
 
         if (error) {
             console.error('Error clearing chat:', error);
@@ -342,9 +389,9 @@ export function ChatWindow() {
         if (!groups[date]) groups[date] = [];
         groups[date].push(msg);
         return groups;
-    }, {} as Record<string, ChatMessage[]>);
+    }, {} as Record<string, Message[]>);
 
-    const isOwnMessage = (msg: ChatMessage) => msg.sender_id === currentUser?.id;
+    const isOwnMessage = (msg: Message) => msg.sender_id === currentUser?.id;
 
     return (
         <AnimatePresence>
