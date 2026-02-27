@@ -37,51 +37,36 @@ export default function InvitePage() {
         if (!token) return;
 
         const checkInvite = async () => {
-            // First, load invite details (public info)
-            const { data: inviteData, error: inviteError } = await supabase
-                .from('workspace_invitations')
-                .select('id, workspace_id, role, invite_type, expires_at, revoked_at, max_uses, use_count, label')
-                .eq('token', token)
-                .single();
+            // Use RPC to get invite info (bypasses RLS)
+            const { data: info, error: infoError } = await supabase.rpc('get_invite_info', {
+                p_token: token,
+            });
 
-            if (inviteError || !inviteData) {
+            if (infoError || !info || !(info as any).found) {
                 setState('error');
                 setError('Invito non trovato o non valido.');
                 return;
             }
 
-            setInvite(inviteData);
+            const inviteInfo = info as any;
+            setInvite(inviteInfo);
+            setWorkspace({ name: inviteInfo.workspace_name });
 
-            // Check if expired
-            if (inviteData.expires_at && new Date(inviteData.expires_at) < new Date()) {
+            // Check if expired/revoked/exhausted
+            if (inviteInfo.is_expired) {
                 setState('error');
                 setError('Questo invito è scaduto.');
                 return;
             }
-
-            // Check if revoked
-            if (inviteData.revoked_at) {
+            if (inviteInfo.is_revoked) {
                 setState('error');
                 setError('Questo invito è stato revocato.');
                 return;
             }
-
-            // Check max uses
-            if (inviteData.invite_type === 'link' && inviteData.max_uses && inviteData.use_count >= inviteData.max_uses) {
+            if (inviteInfo.is_exhausted) {
                 setState('error');
                 setError('Questo link di invito ha raggiunto il numero massimo di utilizzi.');
                 return;
-            }
-
-            // Load workspace name
-            const { data: wsData } = await supabase
-                .from('workspaces')
-                .select('id, name, description')
-                .eq('id', inviteData.workspace_id)
-                .single();
-
-            if (wsData) {
-                setWorkspace(wsData);
             }
 
             // Check if user is authenticated
@@ -106,7 +91,21 @@ export default function InvitePage() {
             const res = result as any;
             if (res.success) {
                 setWorkspaceId(res.workspace_id);
-                setState(res.already_member ? 'already_member' : 'success');
+                // Auto-redirect to the workspace office
+                const wsId = res.workspace_id;
+                const { data: space } = await supabase
+                    .from('spaces')
+                    .select('id')
+                    .eq('workspace_id', wsId)
+                    .limit(1)
+                    .single();
+
+                if (space) {
+                    router.push(`/office/${space.id}`);
+                } else {
+                    router.push('/office');
+                }
+                return;
             } else {
                 setState('error');
                 setError(res.error || 'Errore sconosciuto.');

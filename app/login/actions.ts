@@ -19,5 +19,11 @@ export async function login(formData: FormData) {
     }
 
     revalidatePath('/', 'layout')
+
+    // Redirect to the invite page or office
+    const redirectTo = formData.get('redirect') as string
+    if (redirectTo && redirectTo.startsWith('/invite/')) {
+        redirect(redirectTo)
+    }
     redirect('/office')
 }
