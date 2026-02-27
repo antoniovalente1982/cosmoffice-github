@@ -54,7 +54,7 @@ export function ChatWindow() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [currentUser, setCurrentUser] = useState<any>(null);
-    const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
+    const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | 'guest' | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [messageMenuOpen, setMessageMenuOpen] = useState<string | null>(null);
     const [spaceName, setSpaceName] = useState<string>('Chat');
@@ -526,8 +526,8 @@ export function ChatWindow() {
                                                         </div>
                                                     )}
                                                     <div className={`relative max-w-[85%] group/message ${isAgent ? 'bg-emerald-500/10 border-emerald-500/20' :
-                                                            own ? 'bg-primary-500/15 border-primary-500/20' :
-                                                                'bg-slate-800/70 border-white/5'
+                                                        own ? 'bg-primary-500/15 border-primary-500/20' :
+                                                            'bg-slate-800/70 border-white/5'
                                                         } rounded-2xl px-3.5 py-2 border ${isAgent ? 'rounded-tl-md' : own ? 'rounded-tr-md' : 'rounded-tl-md'
                                                         }`}>
                                                         {/* Image attachment */}

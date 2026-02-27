@@ -39,7 +39,7 @@ CREATE TABLE organization_members (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  role TEXT DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member')),
+  role TEXT DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member', 'guest')),
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(org_id, user_id)
 );
@@ -94,7 +94,7 @@ CREATE TABLE invitations (
   org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
   space_id UUID REFERENCES spaces(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
-  role TEXT DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+  role TEXT DEFAULT 'member' CHECK (role IN ('admin', 'member', 'guest')),
   token TEXT UNIQUE NOT NULL DEFAULT uuid_generate_v4()::text,
   invited_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
   expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),

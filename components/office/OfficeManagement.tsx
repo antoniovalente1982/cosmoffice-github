@@ -66,7 +66,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
 
     // Invite state
     const [inviteEmail, setInviteEmail] = useState('');
-    const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member');
+    const [inviteRole, setInviteRole] = useState<'member' | 'admin' | 'guest'>('member');
     const [inviting, setInviting] = useState(false);
     const [inviteResult, setInviteResult] = useState<'idle' | 'success' | 'error'>('idle');
     const [inviteError, setInviteError] = useState('');
@@ -311,8 +311,8 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === tab.key
-                                    ? 'bg-primary-500/15 text-primary-300 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                                ? 'bg-primary-500/15 text-primary-300 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                                 }`}
                         >
                             {tab.icon}
@@ -405,8 +405,8 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                                     key={opt.value}
                                                     onClick={() => setUserStatus(opt.value)}
                                                     className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all ${userStatus === opt.value
-                                                            ? 'bg-primary-500/15 text-primary-300 ring-1 ring-primary-500/30'
-                                                            : 'bg-slate-800/40 text-slate-400 hover:bg-slate-800/60 hover:text-slate-300'
+                                                        ? 'bg-primary-500/15 text-primary-300 ring-1 ring-primary-500/30'
+                                                        : 'bg-slate-800/40 text-slate-400 hover:bg-slate-800/60 hover:text-slate-300'
                                                         }`}
                                                 >
                                                     <span>{opt.emoji}</span>
@@ -436,10 +436,10 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                     onClick={saveProfile}
                                     disabled={saving}
                                     className={`w-full gap-2 font-semibold rounded-xl py-2.5 transition-all ${saveResult === 'success'
-                                            ? 'bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
-                                            : saveResult === 'error'
-                                                ? 'bg-red-500 hover:bg-red-400'
-                                                : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
+                                        ? 'bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
+                                        : saveResult === 'error'
+                                            ? 'bg-red-500 hover:bg-red-400'
+                                            : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
                                         }`}
                                 >
                                     {saving ? (
@@ -530,16 +530,16 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                     <div className="space-y-1.5">
                                         <label className="text-xs text-slate-400 font-medium ml-1">Ruolo</label>
                                         <div className="flex gap-2">
-                                            {(['member', 'admin'] as const).map(role => (
+                                            {(['member', 'admin', 'guest'] as const).map(role => (
                                                 <button
                                                     key={role}
                                                     onClick={() => setInviteRole(role)}
                                                     className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${inviteRole === role
-                                                            ? 'bg-primary-500/15 text-primary-300 ring-1 ring-primary-500/30'
-                                                            : 'bg-slate-800/40 text-slate-400 hover:bg-slate-800/60'
+                                                        ? 'bg-primary-500/15 text-primary-300 ring-1 ring-primary-500/30'
+                                                        : 'bg-slate-800/40 text-slate-400 hover:bg-slate-800/60'
                                                         }`}
                                                 >
-                                                    {role === 'member' ? '👤 Membro' : '🛡️ Admin'}
+                                                    {role === 'member' ? '👤 Membro' : role === 'admin' ? '🛡️ Admin' : '🎫 Ospite'}
                                                 </button>
                                             ))}
                                         </div>
@@ -550,10 +550,10 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                     onClick={handleInvite}
                                     disabled={inviting || !inviteEmail}
                                     className={`w-full gap-2 font-semibold rounded-xl py-2.5 ${inviteResult === 'success'
-                                            ? 'bg-emerald-500'
-                                            : inviteResult === 'error'
-                                                ? 'bg-red-500'
-                                                : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
+                                        ? 'bg-emerald-500'
+                                        : inviteResult === 'error'
+                                            ? 'bg-red-500'
+                                            : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
                                         }`}
                                 >
                                     {inviting ? (
