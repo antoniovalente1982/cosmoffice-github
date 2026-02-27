@@ -216,15 +216,29 @@ export default function OfficePage() {
                 </nav>
 
                 <div className="p-4 border-t border-white/5 bg-black/10">
-                    <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors group">
-                        <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold uppercase ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all">
-                            {user?.email?.[0] || 'U'}
-                        </div>
+                    <div
+                        className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer"
+                        onClick={() => setIsManagementOpen(true)}
+                        title="Apri impostazioni profilo"
+                    >
+                        {useOfficeStore.getState().myProfile?.avatar_url ? (
+                            <img
+                                src={useOfficeStore.getState().myProfile.avatar_url}
+                                alt="Avatar"
+                                className="w-10 h-10 rounded-full object-cover ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold uppercase ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all">
+                                {useOfficeStore.getState().myProfile?.display_name?.[0] || useOfficeStore.getState().myProfile?.full_name?.[0] || user?.email?.[0] || 'U'}
+                            </div>
+                        )}
                         <div className="flex-1 overflow-hidden">
-                            <p className="text-sm font-medium truncate text-slate-200">{user?.user_metadata?.full_name || 'Anonymous'}</p>
+                            <p className="text-sm font-medium truncate text-slate-200">
+                                {useOfficeStore.getState().myProfile?.display_name || useOfficeStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || 'Anonymous'}
+                            </p>
                             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
                         </div>
-                        <button onClick={handleSignOut} className="text-slate-500 hover:text-red-400 transition-colors">
+                        <button onClick={(e) => { e.stopPropagation(); handleSignOut(); }} className="text-slate-500 hover:text-red-400 transition-colors">
                             <LogOut className="w-4 h-4" />
                         </button>
                     </div>
