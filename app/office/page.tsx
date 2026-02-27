@@ -24,6 +24,7 @@ import {
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Logo } from '../../components/ui/logo';
+import { WorkspaceSettings } from '../../components/workspace/WorkspaceSettings';
 
 export default function DashboardPage() {
     const supabase = createClient();
@@ -39,6 +40,8 @@ export default function DashboardPage() {
     const [editingSpace, setEditingSpace] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const [spaceMenuOpen, setSpaceMenuOpen] = useState<string | null>(null);
+    const [settingsWorkspace, setSettingsWorkspace] = useState<{ id: string; name: string } | null>(null);
+    const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
 
     useEffect(() => {
         const initDashboard = async () => {
@@ -75,6 +78,21 @@ export default function DashboardPage() {
                     .is('deleted_at', null)
                     .is('archived_at', null);
                 setSpaces(activeSpaces || []);
+
+                // Fetch member counts per workspace
+                const { data: membersData } = await supabase
+                    .from('workspace_members')
+                    .select('workspace_id')
+                    .in('workspace_id', workspaceIds)
+                    .is('removed_at', null);
+
+                if (membersData) {
+                    const counts: Record<string, number> = {};
+                    membersData.forEach((m: any) => {
+                        counts[m.workspace_id] = (counts[m.workspace_id] || 0) + 1;
+                    });
+                    setMemberCounts(counts);
+                }
             }
             setLoading(false);
         };
@@ -188,19 +206,19 @@ export default function DashboardPage() {
         if (!confirm('Sei sicuro di voler cancellare questo ufficio? Questa azione non può essere annullata.')) {
             return;
         }
-        
+
         try {
             // Soft delete invece di delete fisico
             const { error } = await supabase
                 .from('spaces')
-                .update({ 
+                .update({
                     deleted_at: new Date().toISOString(),
                     deleted_by: user?.id
                 })
                 .eq('id', spaceId);
-            
+
             if (error) throw error;
-            
+
             // Aggiorna la lista locale
             setSpaces(spaces.filter(s => s.id !== spaceId));
             setSpaceMenuOpen(null);
@@ -212,15 +230,15 @@ export default function DashboardPage() {
 
     const handleUpdateSpace = async (spaceId: string) => {
         if (!editName.trim()) return;
-        
+
         try {
             const { error } = await supabase
                 .from('spaces')
                 .update({ name: editName.trim() })
                 .eq('id', spaceId);
-            
+
             if (error) throw error;
-            
+
             // Aggiorna la lista locale
             setSpaces(spaces.map(s => s.id === spaceId ? { ...s, name: editName.trim() } : s));
             setEditingSpace(null);
@@ -301,32 +319,46 @@ export default function DashboardPage() {
                         const workspace = workspaces.find(w => w.id === space.workspace_id);
                         const isEditing = editingSpace === space.id;
                         const isMenuOpen = spaceMenuOpen === space.id;
-                        
+
                         return (
-                            <motion.div 
-                                key={space.id} 
-                                whileHover={{ y: -5 }} 
+                            <motion.div
+                                key={space.id}
+                                whileHover={{ y: -5 }}
                                 whileTap={{ scale: 0.98 }}
                                 transition={{ duration: 0.15, ease: "easeOut" }}
                             >
                                 <Card className="p-6 h-full flex flex-col justify-between group hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/10 transition-all duration-200 border-white/5 bg-slate-900/40 backdrop-blur-xl relative overflow-hidden">
                                     {/* Glow effect on hover */}
                                     <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                                    
+
                                     <div className="space-y-4 relative z-10">
                                         <div className="flex items-center justify-between">
                                             <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-400 group-hover:scale-110 transition-transform duration-200">
                                                 <Building2 className="w-6 h-6" />
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <div className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">
-                                                    Active
+                                                {/* Member count */}
+                                                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-700/30 text-slate-400 text-xs font-medium">
+                                                    <Users className="w-3 h-3" />
+                                                    {memberCounts[space.workspace_id] || 1}
                                                 </div>
+                                                {/* Settings button */}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-400 hover:text-cyan-400 transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSettingsWorkspace(workspace ? { id: workspace.id, name: workspace.name } : null);
+                                                    }}
+                                                >
+                                                    <Settings className="w-4 h-4" />
+                                                </Button>
                                                 {/* Menu pulsante */}
                                                 <div className="relative">
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="icon" 
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
                                                         className="h-8 w-8 text-slate-400 hover:text-slate-100"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -379,16 +411,16 @@ export default function DashboardPage() {
                                                         }}
                                                     />
                                                     <div className="flex gap-2">
-                                                        <Button 
-                                                            size="sm" 
+                                                        <Button
+                                                            size="sm"
                                                             className="h-7 px-2 text-xs"
                                                             onClick={() => handleUpdateSpace(space.id)}
                                                         >
                                                             <Check className="w-3 h-3" />
                                                         </Button>
-                                                        <Button 
-                                                            size="sm" 
-                                                            variant="ghost" 
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
                                                             className="h-7 px-2 text-xs"
                                                             onClick={() => {
                                                                 setEditingSpace(null);
@@ -409,11 +441,11 @@ export default function DashboardPage() {
                                             )}
                                         </div>
                                     </div>
-                                    
+
                                     {/* Pulsante Entra - PIU EVIDENTE */}
                                     {!isEditing && (
                                         <div className="mt-6 pt-4 border-t border-white/5">
-                                            <Button 
+                                            <Button
                                                 className="w-full gap-2 font-semibold shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 active:scale-95 transition-all duration-150 bg-gradient-to-r from-primary-500 to-purple-500 hover:from-primary-400 hover:to-purple-400 border-0"
                                                 onClick={() => router.push(`/office/${space.id}`)}
                                             >
@@ -445,6 +477,20 @@ export default function DashboardPage() {
                     </div>
                 )}
             </div>
+
+            {/* Workspace Settings Modal */}
+            {settingsWorkspace && user && (
+                <WorkspaceSettings
+                    workspaceId={settingsWorkspace.id}
+                    workspaceName={settingsWorkspace.name}
+                    currentUserId={user.id}
+                    onClose={() => setSettingsWorkspace(null)}
+                    onWorkspaceUpdated={() => {
+                        // Refresh workspace data
+                        window.location.reload();
+                    }}
+                />
+            )}
         </div>
     );
 }

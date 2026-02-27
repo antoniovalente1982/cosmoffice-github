@@ -46,6 +46,7 @@ const OfficeBuilder = dynamic(() => import('../../../components/office/OfficeBui
 
 import { useOfficeStore } from '../../../stores/useOfficeStore';
 import { useOffice } from '../../../hooks/useOffice';
+import { useWorkspaceRole, getWorkspaceIdFromSpace } from '../../../hooks/useWorkspaceRole';
 
 export default function OfficePage() {
     const supabase = createClient();
@@ -67,6 +68,15 @@ export default function OfficePage() {
     const [isManagementOpen, setIsManagementOpen] = useState(false);
     const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
     const [showInitialSetup, setShowInitialSetup] = useState(false);
+    const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+
+    // Fetch workspace ID from space
+    useEffect(() => {
+        getWorkspaceIdFromSpace(spaceId).then(id => setWorkspaceId(id));
+    }, [spaceId]);
+
+    // Role-based access
+    const { isAdmin, role } = useWorkspaceRole(workspaceId);
 
     // Screen sharing functions - supporta multipli schermi
     const startScreenShare = useCallback(async () => {
@@ -334,16 +344,18 @@ export default function OfficePage() {
 
                             <div className="w-px h-8 bg-white/10 mx-2"></div>
 
-                            {/* Builder Mode Toggle */}
-                            <Button
-                                variant={isBuilderMode ? "default" : "secondary"}
-                                size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isBuilderMode ? 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                onClick={toggleBuilderMode}
-                                title={isBuilderMode ? 'Esci dal Builder' : 'Modifica Ufficio'}
-                            >
-                                <Wrench className="w-5 h-5" />
-                            </Button>
+                            {/* Builder Mode Toggle - only for admins */}
+                            {isAdmin && (
+                                <Button
+                                    variant={isBuilderMode ? "default" : "secondary"}
+                                    size="icon"
+                                    className={`rounded-full w-12 h-12 transition-all glow-button ${isBuilderMode ? 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                    onClick={toggleBuilderMode}
+                                    title={isBuilderMode ? 'Esci dal Builder' : 'Modifica Ufficio'}
+                                >
+                                    <Wrench className="w-5 h-5" />
+                                </Button>
+                            )}
 
                             {/* Pulsante per aprire la Cabina di Regia */}
                             <Button
