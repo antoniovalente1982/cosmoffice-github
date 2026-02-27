@@ -530,7 +530,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                     <div className="space-y-1.5">
                                         <label className="text-xs text-slate-400 font-medium ml-1">Ruolo</label>
                                         <div className="flex gap-2">
-                                            {(['member', 'admin', 'guest'] as const).map(role => (
+                                            {(['admin', 'member', 'guest'] as const).map(role => (
                                                 <button
                                                     key={role}
                                                     onClick={() => setInviteRole(role)}
