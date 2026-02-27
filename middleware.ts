@@ -1,95 +1,106 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+// ============================================
+// MIDDLEWARE NEXT.JS
+// Protezione route e redirect automatici
+// ============================================
 
-export async function middleware(request: NextRequest) {
-    let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
-    })
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                get(name: string) {
-                    return request.cookies.get(name)?.value
-                },
-                set(name: string, value: string, options: CookieOptions) {
-                    request.cookies.set({
-                        name,
-                        value,
-                        ...options,
-                    })
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    response.cookies.set({
-                        name,
-                        value,
-                        ...options,
-                    })
-                },
-                remove(name: string, options: CookieOptions) {
-                    request.cookies.set({
-                        name,
-                        value: '',
-                        ...options,
-                    })
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    response.cookies.set({
-                        name,
-                        value: '',
-                        ...options,
-                    })
-                },
-            },
-        }
-    )
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
 
-    let user = null
-    try {
-        const { data: { user: authUser }, error } = await supabase.auth.getUser()
-        if (!error) {
-            user = authUser
-        }
-    } catch (e) {
-        console.error('Middleware: Error getting user from Supabase:', e)
-        // If Supabase is down or keys are invalid, we treat as not logged in
-        // instead of crashing the whole request
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const pathname = req.nextUrl.pathname;
+
+  // Public routes
+  const isPublicRoute = 
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/invite') ||
+    pathname === '/';
+
+  // API routes
+  const isApiRoute = pathname.startsWith('/api');
+
+  // Static files
+  const isStaticFile = 
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname.includes('.');
+
+  if (isStaticFile || isApiRoute) {
+    return res;
+  }
+
+  // Not authenticated
+  if (!session) {
+    if (isPublicRoute) {
+      return res;
     }
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
 
-    // Protection for /office route
-    if (request.nextUrl.pathname.startsWith('/office')) {
-        if (!user) {
-            return NextResponse.redirect(new URL('/login', request.url))
+  // Authenticated
+  if (isPublicRoute && pathname !== '/') {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
+
+  // Workspace routes - check membership
+  if (pathname.startsWith('/w/')) {
+    const workspaceSlug = pathname.split('/')[2];
+    
+    if (workspaceSlug) {
+      // Get workspace
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('slug', workspaceSlug)
+        .single();
+
+      if (!workspace) {
+        return NextResponse.redirect(new URL('/404', req.url));
+      }
+
+      // Check if member
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('role, is_suspended, removed_at')
+        .eq('workspace_id', workspace.id)
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (!member || member.removed_at || member.is_suspended) {
+        // Check if banned
+        const { data: isBanned } = await supabase.rpc('is_user_banned', {
+          p_workspace_id: workspace.id,
+          p_user_id: session.user.id,
+        });
+
+        if (isBanned) {
+          return NextResponse.redirect(
+            new URL(`/banned?workspace=${workspaceSlug}`, req.url)
+          );
         }
-    }
 
-    // Redirect logged in users away from login/signup
-    if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
-        return NextResponse.redirect(new URL('/office', request.url))
+        // Not a member - redirect to join page
+        return NextResponse.redirect(
+          new URL(`/join/${workspaceSlug}`, req.url)
+        );
+      }
     }
+  }
 
-    return response
+  return res;
 }
 
 export const config = {
-    matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * Feel free to modify this pattern to include more paths.
-         */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-    ],
-}
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};
