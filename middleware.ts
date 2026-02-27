@@ -10,7 +10,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  
+
   // Create Supabase client with cookie handling
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,7 +39,7 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
   // Public routes
-  const isPublicRoute = 
+  const isPublicRoute =
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
     pathname.startsWith('/auth') ||
@@ -50,7 +50,7 @@ export async function middleware(req: NextRequest) {
   const isApiRoute = pathname.startsWith('/api');
 
   // Static files
-  const isStaticFile = 
+  const isStaticFile =
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
     pathname.includes('.');
@@ -68,14 +68,14 @@ export async function middleware(req: NextRequest) {
   }
 
   // Authenticated
-  if (isPublicRoute && pathname !== '/') {
+  if (isPublicRoute && pathname !== '/' && !pathname.startsWith('/invite')) {
     return NextResponse.redirect(new URL('/office', req.url));
   }
 
   // Workspace routes - check membership
   if (pathname.startsWith('/w/')) {
     const workspaceSlug = pathname.split('/')[2];
-    
+
     if (workspaceSlug) {
       // Get workspace
       const { data: workspace } = await supabase
