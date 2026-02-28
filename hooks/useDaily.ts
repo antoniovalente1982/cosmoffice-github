@@ -75,8 +75,8 @@ export function useDaily(spaceId: string | null) {
         const initDaily = async () => {
             try {
                 const callObject = DailyIframe.createCallObject({
-                    audioSource: true,
-                    videoSource: true,
+                    audioSource: false,
+                    videoSource: false,
                 });
 
                 // ─── Event Handlers ──────────────────────────
@@ -124,8 +124,8 @@ export function useDaily(spaceId: string | null) {
                 await call.join({
                     url,
                     userName: profile?.display_name || profile?.full_name || 'Anonymous',
-                    startVideoOff: !useOfficeStore.getState().isVideoEnabled,
-                    startAudioOff: !useOfficeStore.getState().isMicEnabled,
+                    startVideoOff: true,
+                    startAudioOff: true,
                 });
 
                 isJoinedRef.current = true;
