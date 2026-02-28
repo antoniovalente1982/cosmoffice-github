@@ -355,6 +355,6 @@ export default function OfficePage() {
                 />
 
             </main>
-        </div>
+        </div >
     );
 }
