@@ -144,7 +144,7 @@ export function PixiOffice() {
         zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
         myProfile, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight,
-        isPerformanceMode
+        isPerformanceMode, myStatus
     } = useOfficeStore();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -754,7 +754,7 @@ export function PixiOffice() {
                     isMe
                     fullName={myProfile?.full_name || 'You'}
                     avatarUrl={myProfile?.avatar_url}
-                    status="online"
+                    status={myStatus as any}
                     position={getScreenPos(myPosition)}
                     audioEnabled={isMicEnabled}
                     videoEnabled={isVideoEnabled}

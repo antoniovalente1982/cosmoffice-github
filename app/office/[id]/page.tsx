@@ -198,17 +198,23 @@ export default function OfficePage() {
                         onClick={() => setIsManagementOpen(true)}
                         title="Apri impostazioni profilo"
                     >
-                        {useOfficeStore.getState().myProfile?.avatar_url ? (
-                            <img
-                                src={useOfficeStore.getState().myProfile.avatar_url}
-                                alt="Avatar"
-                                className="w-10 h-10 rounded-full object-cover ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all"
-                            />
-                        ) : (
-                            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold uppercase ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all">
-                                {useOfficeStore.getState().myProfile?.display_name?.[0] || useOfficeStore.getState().myProfile?.full_name?.[0] || user?.email?.[0] || 'U'}
-                            </div>
-                        )}
+                        <div className="relative">
+                            {useOfficeStore.getState().myProfile?.avatar_url ? (
+                                <img
+                                    src={useOfficeStore.getState().myProfile.avatar_url}
+                                    alt="Avatar"
+                                    className="w-10 h-10 rounded-full object-cover ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all"
+                                />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold uppercase ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all">
+                                    {useOfficeStore.getState().myProfile?.display_name?.[0] || useOfficeStore.getState().myProfile?.full_name?.[0] || user?.email?.[0] || 'U'}
+                                </div>
+                            )}
+                            <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${myStatus === 'online' ? 'bg-emerald-400' :
+                                    myStatus === 'away' ? 'bg-amber-400' :
+                                        myStatus === 'busy' ? 'bg-red-400' : 'bg-slate-500'
+                                }`} />
+                        </div>
                         <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-medium truncate text-slate-200">
                                 {useOfficeStore.getState().myProfile?.display_name || useOfficeStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || 'Anonymous'}
@@ -329,14 +335,14 @@ export default function OfficePage() {
                                     const next = states[(idx + 1) % states.length];
                                     setMyStatus(next);
                                 }}
-                                className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-all text-xs font-medium"
+                                className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-all text-xs font-medium min-w-[100px] justify-center"
                                 title="Cambia stato"
                             >
                                 <Circle className={`w-3 h-3 fill-current ${myStatus === 'online' ? 'text-emerald-400' :
-                                        myStatus === 'away' ? 'text-amber-400' :
-                                            'text-red-400'
+                                    myStatus === 'away' ? 'text-amber-400' :
+                                        'text-red-400'
                                     }`} />
-                                <span className="text-slate-300 hidden sm:inline">
+                                <span className="text-slate-300 w-[60px] text-center">
                                     {myStatus === 'online' ? 'Online' : myStatus === 'away' ? 'Assente' : 'Occupato'}
                                 </span>
                             </button>
