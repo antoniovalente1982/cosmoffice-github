@@ -69,7 +69,7 @@ export function AIAssistant() {
                     initial={{ x: 400, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 400, opacity: 0 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    transition={{ type: 'tween', duration: 0.3, ease: 'easeOut' }}
                     className="absolute top-0 right-0 w-[340px] h-full z-50 flex flex-col overflow-hidden"
                     style={{
                         background: 'rgba(8, 12, 24, 0.92)',

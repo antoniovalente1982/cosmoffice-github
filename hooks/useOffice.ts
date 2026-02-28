@@ -34,8 +34,15 @@ export function useOffice(spaceId?: string) {
             .select('*')
             .eq('space_id', spaceId);
 
-        if (!roomsError && rooms) {
-            setRooms(rooms);
+        if (roomsError) {
+            console.error('Error fetching rooms:', roomsError);
+            // Don't overwrite existing rooms on error
+        } else if (rooms) {
+            // Only update if we got data or it's the initial load (no rooms in store yet)
+            const currentRooms = useOfficeStore.getState().rooms;
+            if (rooms.length > 0 || currentRooms.length === 0) {
+                setRooms(rooms);
+            }
 
             // Fetch furniture for all rooms in this space
             const roomIds = rooms.map((r: any) => r.id);

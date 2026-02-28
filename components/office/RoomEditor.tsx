@@ -13,15 +13,8 @@ function snapToGrid(value: number): number {
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
 
-// ─── Room Color Palette (consistent with PixiOffice) ─────────
-const ROOM_COLORS: Record<string, string> = {
-    reception: '#3b82f6',
-    open: '#6366f1',
-    meeting: '#8b5cf6',
-    focus: '#06b6d4',
-    break: '#10b981',
-    default: '#6366f1',
-};
+// ─── Room Color (consistent with PixiOffice) ─────────
+import { getRoomColor } from './OfficeBuilder';
 
 interface EditableRoomProps {
     room: any;
@@ -38,7 +31,7 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
     const [resizing, setResizing] = useState<string | null>(null);
     const dragRef = useRef({ startX: 0, startY: 0, roomX: 0, roomY: 0, roomW: 0, roomH: 0 });
 
-    const color = room?.settings?.color || ROOM_COLORS[room.type] || ROOM_COLORS.default;
+    const color = getRoomColor(room);
 
     // World → screen coordinate
     const screenX = room.x * zoom + stagePos.x;
