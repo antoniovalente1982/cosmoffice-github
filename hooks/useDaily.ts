@@ -74,10 +74,7 @@ export function useDaily(spaceId: string | null) {
 
         const initDaily = async () => {
             try {
-                const callObject = DailyIframe.createCallObject({
-                    audioSource: false,
-                    videoSource: false,
-                });
+                const callObject = DailyIframe.createCallObject();
 
                 // ─── Event Handlers ──────────────────────────
                 callObject.on('participant-joined', handleParticipantJoined);
