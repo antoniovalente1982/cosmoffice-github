@@ -32,7 +32,7 @@ import {
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
 // Dynamically import client-heavy components with SSR disabled
-const KonvaOffice = dynamic(() => import('../../../components/office/KonvaOffice').then(mod => mod.KonvaOffice), { ssr: false });
+const PixiOffice = dynamic(() => import('../../../components/office/PixiOffice').then(mod => mod.PixiOffice), { ssr: false });
 const VideoGrid = dynamic(() => import('../../../components/media/VideoGrid').then(mod => mod.VideoGrid), { ssr: false });
 const MediaManager = dynamic(() => import('../../../components/media/MediaManager').then(mod => mod.MediaManager), { ssr: false });
 const ChatWindow = dynamic(() => import('../../../components/chat/ChatWindow').then(mod => mod.ChatWindow), { ssr: false });
@@ -279,7 +279,7 @@ export default function OfficePage() {
                 >
                     {activeTab === 'office' && (
                         <>
-                            <KonvaOffice />
+                            <PixiOffice />
                             <MediaManager />
                             <VideoGrid />
                             {isBuilderMode && <OfficeBuilder />}
