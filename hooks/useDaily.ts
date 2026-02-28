@@ -481,7 +481,11 @@ export function useDaily(spaceId: string | null) {
             // Force leave and destroy async but without waiting to not block unmount UI
             callRef.current.leave().catch(console.error).finally(() => {
                 if (callRef.current) {
-                    callRef.current.destroy().catch(console.error);
+                    try {
+                        callRef.current.destroy();
+                    } catch (e) {
+                        console.error('Error destroying daily call object:', e);
+                    }
                     callRef.current = null;
                 }
             });

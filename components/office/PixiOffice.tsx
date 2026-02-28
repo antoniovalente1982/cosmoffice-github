@@ -634,7 +634,7 @@ export function PixiOffice() {
     return (
         <div
             ref={containerRef}
-            className="w-full h-full overflow-hidden relative"
+            className={`w-full h-full overflow-hidden relative ${isPerformanceMode ? 'low-power-mode' : ''}`}
             style={{
                 cursor: isDraggingAvatar ? 'grabbing' : 'grab',
                 background: `
