@@ -143,7 +143,7 @@ export function PixiOffice() {
         myPosition, setMyPosition, peers, rooms,
         zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
-        myProfile, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight,
+        myProfile, myRole, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight,
         isPerformanceMode, myStatus
     } = useOfficeStore();
 
@@ -752,9 +752,10 @@ export function PixiOffice() {
                 <UserAvatar
                     id="me"
                     isMe
-                    fullName={myProfile?.full_name || 'You'}
+                    fullName={myProfile?.display_name || myProfile?.full_name || 'You'}
                     avatarUrl={myProfile?.avatar_url}
                     status={myStatus as any}
+                    role={myRole || undefined}
                     position={getScreenPos(myPosition)}
                     audioEnabled={isMicEnabled}
                     videoEnabled={isVideoEnabled}

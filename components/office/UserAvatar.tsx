@@ -10,6 +10,7 @@ interface UserAvatarProps {
     avatarUrl?: string;
     position: { x: number; y: number };
     status: 'online' | 'away' | 'busy' | 'offline';
+    role?: 'owner' | 'admin' | 'member' | 'guest';
     isMe?: boolean;
     audioEnabled?: boolean;
     videoEnabled?: boolean;
@@ -27,11 +28,19 @@ const STATUS_COLOR: Record<string, string> = {
     offline: '#64748b',
 };
 
+const ROLE_RING_COLOR: Record<string, string> = {
+    owner: '#f59e0b',
+    admin: '#06b6d4',
+    member: '#94a3b8',
+    guest: '#a855f7',
+};
+
 export function UserAvatar({
     fullName,
     avatarUrl,
     position,
     status,
+    role,
     isMe,
     audioEnabled = false,
     videoEnabled = false,
@@ -165,7 +174,7 @@ export function UserAvatar({
                     </div>
                 </div>
 
-                {/* Status Dot */}
+                {/* Status Dot with Role ring */}
                 <div style={{
                     position: 'absolute',
                     bottom: dotOff,
@@ -173,9 +182,9 @@ export function UserAvatar({
                     width: dot,
                     height: dot,
                     borderRadius: '50%',
-                    border: `${2 * zoom}px solid #0f172a`,
+                    border: `${2 * zoom}px solid ${role ? ROLE_RING_COLOR[role] || '#0f172a' : '#0f172a'}`,
                     backgroundColor: STATUS_COLOR[status] ?? STATUS_COLOR.offline,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    boxShadow: `0 2px 8px rgba(0,0,0,0.3)${role ? `, 0 0 ${4 * zoom}px ${ROLE_RING_COLOR[role] || 'transparent'}40` : ''}`,
                 }} />
             </div>
         </motion.div>

@@ -76,6 +76,7 @@ interface OfficeState {
     myStatus: 'online' | 'away' | 'busy' | 'offline';
     myRoomId?: string;
     myProfile: any;
+    myRole: 'owner' | 'admin' | 'member' | 'guest' | null;
 
     // Camera/View state
     stagePos: { x: number; y: number };
@@ -129,6 +130,7 @@ interface OfficeState {
     setMyStatus: (status: 'online' | 'away' | 'busy' | 'offline') => void;
     setMyRoom: (roomId?: string) => void;
     setMyProfile: (profile: any) => void;
+    setMyRole: (role: 'owner' | 'admin' | 'member' | 'guest' | null) => void;
     updatePeer: (id: string, data: Partial<Peer>) => void;
     removePeer: (id: string) => void;
     toggleSettings: () => void;
@@ -179,6 +181,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     myStatus: 'online',
     myRoomId: undefined,
     myProfile: null,
+    myRole: null,
     stagePos: { x: 0, y: 0 },
     peers: {},
     activeSpaceId: undefined,
@@ -228,6 +231,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     setMyStatus: (status) => set({ myStatus: status }),
     setMyRoom: (roomId) => set({ myRoomId: roomId }),
     setMyProfile: (myProfile) => set({ myProfile }),
+    setMyRole: (myRole) => set({ myRole }),
 
     updatePeer: (id, data) => set((state) => ({
         peers: {

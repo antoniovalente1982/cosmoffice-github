@@ -88,6 +88,11 @@ export default function OfficePage() {
     // Role-based access
     const { isAdmin, role, canInvite, invitableRoles } = useWorkspaceRole(workspaceId);
 
+    // Sync role into store for PixiOffice/UserAvatar
+    useEffect(() => {
+        useOfficeStore.getState().setMyRole(role as any);
+    }, [role]);
+
     // Screen sharing functions - supporta multipli schermi
     const startScreenShare = useCallback(async () => {
         try {
@@ -184,7 +189,7 @@ export default function OfficePage() {
                     </Button>
 
 
-                    <TeamList />
+                    <TeamList spaceId={spaceId} />
                 </nav>
 
                 <div className="p-4 border-t border-white/5 bg-black/10">
