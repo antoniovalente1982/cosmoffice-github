@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const DAILY_API_KEY = process.env.DAILY_API_KEY || '';
+const DAILY_API_KEY = process.env.DAILY_API_KEY || 'e7bcb47aeb2919ee16605fac7a0f8ff37e9bf8f1a95d4f357464b300d24b48bf';
 const DAILY_API_URL = 'https://api.daily.co/v1';
 
 export async function POST(request: NextRequest) {
