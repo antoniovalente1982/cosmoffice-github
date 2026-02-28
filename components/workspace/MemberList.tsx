@@ -6,7 +6,6 @@ import {
     Crown,
     Shield,
     User,
-    Eye,
     UserMinus,
     ChevronDown,
     MoreVertical,
@@ -15,7 +14,7 @@ import {
 import { Button } from '../ui/button';
 import type { WorkspaceMemberWithProfile } from '../../hooks/useWorkspaceMembers';
 
-type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest' | 'viewer';
+type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest';
 
 interface MemberListProps {
     members: WorkspaceMemberWithProfile[];
@@ -30,14 +29,13 @@ const ROLE_CONFIG: Record<WorkspaceRole, { icon: typeof Crown; label: string; co
     admin: { icon: Shield, label: 'Admin', color: 'text-cyan-400', bgColor: 'bg-cyan-500/10', borderColor: 'border-cyan-500/20' },
     member: { icon: User, label: 'Membro', color: 'text-slate-300', bgColor: 'bg-slate-500/10', borderColor: 'border-slate-500/20' },
     guest: { icon: User, label: 'Ospite', color: 'text-purple-400', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/20' },
-    viewer: { icon: Eye, label: 'Viewer', color: 'text-slate-500', bgColor: 'bg-slate-700/30', borderColor: 'border-slate-600/20' },
 };
 
 const ROLE_HIERARCHY: Record<WorkspaceRole, number> = {
-    owner: 4, admin: 3, member: 2, guest: 1, viewer: 0,
+    owner: 3, admin: 2, member: 1, guest: 0,
 };
 
-const ASSIGNABLE_ROLES: WorkspaceRole[] = ['admin', 'member', 'guest', 'viewer'];
+const ASSIGNABLE_ROLES: WorkspaceRole[] = ['admin', 'member', 'guest'];
 
 export function MemberList({ members, currentUserId, currentUserRole, onRemoveMember, onChangeRole }: MemberListProps) {
     const [menuOpen, setMenuOpen] = useState<string | null>(null);

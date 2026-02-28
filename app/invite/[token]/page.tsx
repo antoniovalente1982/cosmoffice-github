@@ -18,7 +18,6 @@ const ROLE_INFO: Record<string, { icon: React.ReactNode; label: string; color: s
     admin: { icon: <Shield className="w-5 h-5" />, label: 'Admin', color: 'text-primary-400', description: 'Gestione workspace e membri' },
     member: { icon: <User className="w-5 h-5" />, label: 'Membro', color: 'text-emerald-400', description: 'Accesso completo alle funzionalità' },
     guest: { icon: <Star className="w-5 h-5" />, label: 'Ospite', color: 'text-purple-400', description: 'Accesso base al workspace' },
-    viewer: { icon: <User className="w-5 h-5" />, label: 'Viewer', color: 'text-slate-400', description: 'Solo visualizzazione' },
 };
 
 export default function InvitePage() {

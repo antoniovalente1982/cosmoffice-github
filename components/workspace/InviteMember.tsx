@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
-type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest' | 'viewer';
+type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest';
 
 interface PendingInvitation {
     id: string;
@@ -34,7 +34,6 @@ const ROLE_OPTIONS: { value: WorkspaceRole; label: string; description: string }
     { value: 'admin', label: 'Admin', description: 'Gestisce membri, stanze e impostazioni' },
     { value: 'member', label: 'Membro', description: 'Accede a spazi e stanze' },
     { value: 'guest', label: 'Ospite', description: 'Accesso limitato' },
-    { value: 'viewer', label: 'Viewer', description: 'Solo visualizzazione' },
 ];
 
 export function InviteMember({ invitations, onInvite, onCancelInvitation, disabled }: InviteMemberProps) {

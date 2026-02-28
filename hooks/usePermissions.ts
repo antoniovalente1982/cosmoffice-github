@@ -23,7 +23,7 @@ export function usePermissions({ workspaceId, targetUserId }: UsePermissionsOpti
   // Check singolo permesso
   const check = useCallback(async (permission: Permission): Promise<boolean> => {
     if (!workspaceId) return false;
-    
+
     try {
       const hasPermission = await checkPermission(workspaceId, permission);
       setPermissions(prev => ({ ...prev, [permission]: hasPermission }));
@@ -37,15 +37,15 @@ export function usePermissions({ workspaceId, targetUserId }: UsePermissionsOpti
   // Check multipli permessi
   const checkMany = useCallback(async (permissionList: Permission[]): Promise<Record<string, boolean>> => {
     if (!workspaceId) return {};
-    
+
     const results: Record<string, boolean> = {};
-    
+
     await Promise.all(
       permissionList.map(async (perm) => {
         results[perm] = await checkPermission(workspaceId, perm);
       })
     );
-    
+
     setPermissions(prev => ({ ...prev, ...results }));
     return results;
   }, [workspaceId]);
@@ -56,7 +56,7 @@ export function usePermissions({ workspaceId, targetUserId }: UsePermissionsOpti
       setCanModerate(false);
       return false;
     }
-    
+
     try {
       const result = await canModerateUser(workspaceId, targetUserId);
       setCanModerate(result);
@@ -78,7 +78,7 @@ export function usePermissions({ workspaceId, targetUserId }: UsePermissionsOpti
     const loadPermissions = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         // Permessi di moderazione più comuni
         const commonPermissions: Permission[] = [
@@ -94,9 +94,9 @@ export function usePermissions({ workspaceId, targetUserId }: UsePermissionsOpti
           'can_delete_any_message',
           'can_moderate_chat',
         ];
-        
+
         await checkMany(commonPermissions);
-        
+
         if (targetUserId) {
           await checkCanModerate();
         }
@@ -118,7 +118,7 @@ export function usePermissions({ workspaceId, targetUserId }: UsePermissionsOpti
     check,
     checkMany,
     checkCanModerate,
-    
+
     // Helper booleani comodi
     canKick: permissions['can_kick_from_rooms'] || false,
     canMute: permissions['can_mute_in_rooms'] || false,
@@ -150,7 +150,7 @@ export function useWorkspaceRole(workspaceId?: string) {
 
     const fetchRole = async () => {
       setIsLoading(true);
-      
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setRole(null);
@@ -197,11 +197,10 @@ export function useWorkspaceRole(workspaceId?: string) {
   }, [workspaceId]);
 
   const roleHierarchy = {
-    owner: 4,
-    admin: 3,
-    member: 2,
-    guest: 1,
-    viewer: 0,
+    owner: 3,
+    admin: 2,
+    member: 1,
+    guest: 0,
   };
 
   const isAtLeast = useCallback((minRole: WorkspaceRole): boolean => {
@@ -216,7 +215,6 @@ export function useWorkspaceRole(workspaceId?: string) {
     isAdmin: role === 'admin' || role === 'owner',
     isMember: role === 'member',
     isGuest: role === 'guest',
-    isViewer: role === 'viewer',
     isAtLeast,
     roleValue: role ? roleHierarchy[role] : -1,
   };
@@ -240,7 +238,7 @@ export function useIsMember(workspaceId?: string) {
 
     const checkMembership = async () => {
       setIsLoading(true);
-      
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setIsMember(false);

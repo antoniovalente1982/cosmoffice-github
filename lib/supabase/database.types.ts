@@ -11,7 +11,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest' | 'viewer';
+export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest';
 
 export type UserStatus = 'online' | 'away' | 'busy' | 'offline' | 'invisible';
 

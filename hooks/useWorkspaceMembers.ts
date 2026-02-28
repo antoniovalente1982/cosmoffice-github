@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '../utils/supabase/client';
 
-type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest' | 'viewer';
+type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest';
 
 export interface WorkspaceMemberWithProfile {
     id: string;
@@ -102,7 +102,7 @@ export function useWorkspaceMembers(workspaceId: string | null): UseWorkspaceMem
             }));
 
             // Sort: owners first, then admins, then members, etc.
-            const roleOrder: Record<string, number> = { owner: 0, admin: 1, member: 2, guest: 3, viewer: 4 };
+            const roleOrder: Record<string, number> = { owner: 0, admin: 1, member: 2, guest: 3 };
             formattedMembers.sort((a, b) => (roleOrder[a.role] || 5) - (roleOrder[b.role] || 5));
 
             setMembers(formattedMembers);

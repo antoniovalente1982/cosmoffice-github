@@ -16,7 +16,7 @@ interface RequestBody {
   reason?: string;
   duration_minutes?: number;
   mute_type?: 'chat' | 'audio' | 'video' | 'all';
-  new_role?: 'owner' | 'admin' | 'member' | 'guest' | 'viewer';
+  new_role?: 'owner' | 'admin' | 'member' | 'guest';
 }
 
 serve(async (req) => {
@@ -36,15 +36,15 @@ serve(async (req) => {
 
     // Parse request
     const body: RequestBody = await req.json();
-    const { 
-      action, 
-      workspace_id, 
-      target_user_id, 
-      room_id, 
+    const {
+      action,
+      workspace_id,
+      target_user_id,
+      room_id,
       reason,
       duration_minutes,
       mute_type = 'chat',
-      new_role 
+      new_role
     } = body;
 
     if (!action || !workspace_id || !target_user_id) {
@@ -79,9 +79,9 @@ serve(async (req) => {
       .is('removed_at', null)
       .single();
 
-    const adminRoleValue = { owner: 4, admin: 3, member: 2, guest: 1, viewer: 0 }[adminMember.role] || 0;
-    const targetRoleValue = targetMember 
-      ? { owner: 4, admin: 3, member: 2, guest: 1, viewer: 0 }[targetMember.role] || 0
+    const adminRoleValue = { owner: 3, admin: 2, member: 1, guest: 0 }[adminMember.role] || 0;
+    const targetRoleValue = targetMember
+      ? { owner: 3, admin: 2, member: 1, guest: 0 }[targetMember.role] || 0
       : -1;
 
     // Check hierarchy - can't moderate equals or higher
@@ -102,7 +102,7 @@ serve(async (req) => {
           .from('room_participants')
           .delete()
           .eq('user_id', target_user_id)
-          .in('room_id', 
+          .in('room_id',
             supabase.from('rooms').select('id').in('space_id',
               supabase.from('spaces').select('id').eq('workspace_id', workspace_id)
             )
@@ -120,7 +120,7 @@ serve(async (req) => {
           .eq('user_id', target_user_id);
 
         // Create ban record
-        const expiresAt = duration_minutes 
+        const expiresAt = duration_minutes
           ? new Date(Date.now() + duration_minutes * 60000).toISOString()
           : null;
 
@@ -304,10 +304,10 @@ serve(async (req) => {
       case 'change_role': {
         if (!new_role) throw new AppError('Nuovo ruolo richiesto', 'MISSING_ROLE');
         if (adminRoleValue < 3) throw Errors.FORBIDDEN; // Admin+
-        
+
         // Owner can do anything
         if (adminMember.role !== 'owner') {
-          // Admin can only manage member/guest/viewer
+          // Admin can only manage member/guest
           if (['owner', 'admin'].includes(new_role)) throw Errors.FORBIDDEN;
           if (targetRoleValue >= 3) throw Errors.CANNOT_MODERATE;
         }

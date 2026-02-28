@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '../utils/supabase/client';
 
-type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest' | 'viewer';
+type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest';
 
 interface WorkspaceRoleData {
     role: WorkspaceRole | null;
@@ -24,11 +24,10 @@ interface WorkspaceRoleData {
 }
 
 const ROLE_HIERARCHY: Record<WorkspaceRole, number> = {
-    owner: 4,
-    admin: 3,
-    member: 2,
-    guest: 1,
-    viewer: 0,
+    owner: 3,
+    admin: 2,
+    member: 1,
+    guest: 0,
 };
 
 export function useWorkspaceRole(workspaceId: string | null): WorkspaceRoleData {
@@ -113,7 +112,6 @@ export function useWorkspaceRole(workspaceId: string | null): WorkspaceRoleData 
  *   admin  → member, guest
  *   member → guest
  *   guest  → (none)
- *   viewer → (none)
  */
 export function getInvitableRoles(myRole: WorkspaceRole): WorkspaceRole[] {
     const myLevel = ROLE_HIERARCHY[myRole];
