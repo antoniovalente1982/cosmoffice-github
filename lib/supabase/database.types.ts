@@ -1,6 +1,7 @@
 // ============================================
-// COSMOFFICE - TIPES GENERATI PER SUPABASE
-// Schema v2 - RBAC + Moderation
+// COSMOFFICE - TIPI GENERATI PER SUPABASE
+// Schema v2 - RBAC + Moderation + Invite Links
+// Ultimo aggiornamento: 2026-02-28
 // ============================================
 
 export type Json =
@@ -405,19 +406,26 @@ export interface AiAgent {
   created_by: string | null;
 }
 
+export type InviteType = 'email' | 'link';
+
 export interface WorkspaceInvitation {
   id: string;
   workspace_id: string;
-  email: string;
+  email: string | null;          // null per link invites
   role: WorkspaceRole;
   token: string;
-  expires_at: string;
+  expires_at: string | null;     // null = mai
   invited_by: string | null;
   invited_at: string;
   accepted_at: string | null;
   accepted_by: string | null;
   revoked_at: string | null;
   revoked_by: string | null;
+  // --- Campi invite links (migration_invite_links) ---
+  invite_type: InviteType;       // 'email' o 'link'
+  max_uses: number | null;       // null = illimitato
+  use_count: number;             // contatore utilizzi
+  label: string | null;          // etichetta descrittiva del link
 }
 
 export interface WorkspaceJoinRequest {
@@ -597,7 +605,7 @@ export interface Database {
       };
       workspace_invitations: {
         Row: WorkspaceInvitation;
-        Insert: Omit<WorkspaceInvitation, 'id' | 'invited_at'>;
+        Insert: Omit<WorkspaceInvitation, 'id' | 'invited_at' | 'use_count'>;
         Update: Partial<Omit<WorkspaceInvitation, 'id'>>;
       };
       workspace_join_requests: {
@@ -742,6 +750,15 @@ export interface Database {
           p_metadata?: Json;
         };
         Returns: void;
+      };
+      // Invite link functions
+      get_invite_info: {
+        Args: { p_token: string };
+        Returns: Json; // { found, workspace_id, workspace_name, role, invite_type, is_expired, is_revoked, is_exhausted }
+      };
+      accept_invite_link: {
+        Args: { p_token: string };
+        Returns: Json; // { success, workspace_id?, role?, error?, already_member? }
       };
     };
   };
