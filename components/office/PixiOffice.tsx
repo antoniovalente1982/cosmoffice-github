@@ -5,6 +5,7 @@ import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEven
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { usePresence } from '../../hooks/usePresence';
 import { useSpatialAudio } from '../../hooks/useSpatialAudio';
+import { useDaily } from '../../hooks/useDaily';
 import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
@@ -169,9 +170,12 @@ export function PixiOffice() {
     // Solar system rotation
     const [solarRotation, setSolarRotation] = useState(0);
 
-    // Initialize presence and spatial audio
+    // Initialize presence, spatial audio, and Daily.co WebRTC
     usePresence();
     useSpatialAudio();
+
+    const { activeSpaceId } = useOfficeStore();
+    useDaily(activeSpaceId || null);
 
     // PixiJS refs for layers
     const worldRef = useRef<Container | null>(null);

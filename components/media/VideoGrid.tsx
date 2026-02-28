@@ -136,7 +136,7 @@ export function VideoGrid() {
                 audioEnabled: peer.audioEnabled,
                 videoEnabled: true,
                 isSpeaking: peer.isSpeaking,
-                stream: null // Remote streams from WebRTC
+                stream: peer.stream || null, // Daily.co remote video stream
             });
         }
     });

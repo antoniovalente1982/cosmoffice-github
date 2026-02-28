@@ -17,6 +17,7 @@ interface Peer {
     audioEnabled?: boolean;
     videoEnabled?: boolean;
     isSpeaking?: boolean;
+    stream?: MediaStream | null; // Daily.co remote video stream
 }
 
 interface Room {
