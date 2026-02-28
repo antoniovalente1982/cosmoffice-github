@@ -30,6 +30,7 @@ let gCall: DailyCall | null = null;
 let gJoined = false;
 let gJoining = false;
 let gRoomUrl: string | null = null;
+let gSpaceId: string | null = null;
 const gPeers = new Map<string, DailyPeerInfo>();
 
 export function useDaily(spaceId: string | null) {
@@ -39,6 +40,9 @@ export function useDaily(spaceId: string | null) {
         myPosition, myRoomId, isMicEnabled, isVideoEnabled,
         setLocalStream, setSpeaking, updatePeer,
     } = useOfficeStore();
+
+    // Whether the user needs Daily.co active (mic or camera on)
+    const needsDaily = isMicEnabled || isVideoEnabled;
 
     // ─── Room name (short, fits Daily's 41-char limit) ───────
     const getRoomName = useCallback(
@@ -135,74 +139,128 @@ export function useDaily(spaceId: string | null) {
 
     const handleError = useCallback((ev: any) => { console.error('[Daily] Error:', ev?.errorMsg || ev); }, []);
 
-    // ─── Initialize Daily.co ─────────────────────────────────
+    // ─── Create call object (no join yet) ────────────────────
     useEffect(() => {
         if (!spaceId || !DAILY_DOMAIN) return;
 
-        let cancelled = false;
+        // Save spaceId for lazy join
+        gSpaceId = spaceId;
 
-        const init = async () => {
-            // Singleton: skip if already created
-            if (gCall) {
-                console.log('[Daily] Singleton already exists, skipping');
-                return;
-            }
+        // Singleton: create call object once, but DON'T join any room
+        if (gCall) {
+            console.log('[Daily] Call object already exists');
+            return;
+        }
 
-            try {
-                const call = DailyIframe.createCallObject();
-                if (cancelled) { call.destroy(); return; }
-
-                call.on('participant-joined', handleParticipantJoined);
-                call.on('participant-left', handleParticipantLeft);
-                call.on('participant-updated', handleParticipantUpdated);
-                call.on('track-started', handleTrackStarted);
-                call.on('track-stopped', handleTrackStopped);
-                call.on('error', handleError);
-
-                gCall = call;
-                console.log('[Daily] Call object created');
-
-                // Create and join lobby
-                const roomName = getRoomName();
-                if (!roomName) return;
-                const url = await ensureRoom(roomName);
-                if (cancelled || !url) { if (!url) console.error('[Daily] Could not create lobby'); return; }
-
-                console.log('[Daily] Joining:', url);
-                const profile = useOfficeStore.getState().myProfile;
-                await call.join({
-                    url,
-                    userName: profile?.display_name || profile?.full_name || 'Anonymous',
-                    startVideoOff: true,
-                    startAudioOff: true,
-                });
-                if (cancelled) return;
-
-                gJoined = true;
-                gRoomUrl = url;
-                console.log('[Daily] ✅ Joined room:', url);
-
-                // Sync current state
-                const state = useOfficeStore.getState();
-                if (state.isMicEnabled) call.setLocalAudio(true);
-                if (state.isVideoEnabled) call.setLocalVideo(true);
-
-                const local = call.participants().local;
-                updateLocalStream(local);
-            } catch (err: any) {
-                if (!cancelled) console.error('[Daily] Init failed:', err?.message || err);
-            }
-        };
-
-        init();
-
-        return () => {
-            cancelled = true;
-            // Don't destroy the singleton on React Strict Mode unmount
-            // It will be reused on the next mount
-        };
+        try {
+            const call = DailyIframe.createCallObject();
+            call.on('participant-joined', handleParticipantJoined);
+            call.on('participant-left', handleParticipantLeft);
+            call.on('participant-updated', handleParticipantUpdated);
+            call.on('track-started', handleTrackStarted);
+            call.on('track-stopped', handleTrackStopped);
+            call.on('error', handleError);
+            gCall = call;
+            console.log('[Daily] Call object created (idle — will join when mic/camera enabled)');
+        } catch (err: any) {
+            console.error('[Daily] Failed to create call object:', err?.message);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [spaceId]);
+
+    // ─── Lazy Join/Leave: connect only when mic or camera is ON ──
+    useEffect(() => {
+        if (!gCall || !spaceId || !DAILY_DOMAIN) return;
+
+        const handleJoinLeave = async () => {
+            if (needsDaily && !gJoined && !gJoining) {
+                // User turned on mic or camera → JOIN Daily.co
+                gJoining = true;
+                try {
+                    const roomName = getRoomName(myRoomId || undefined);
+                    if (!roomName) { gJoining = false; return; }
+                    const url = await ensureRoom(roomName);
+                    if (!url) { gJoining = false; return; }
+
+                    console.log('[Daily] 🔗 Connecting (mic/camera enabled)...');
+                    const profile = useOfficeStore.getState().myProfile;
+                    await gCall!.join({
+                        url,
+                        userName: profile?.display_name || profile?.full_name || 'Anonymous',
+                        startVideoOff: !isVideoEnabled,
+                        startAudioOff: !isMicEnabled,
+                    });
+
+                    gJoined = true;
+                    gRoomUrl = url;
+                    console.log('[Daily] ✅ Joined room:', url);
+
+                    // Update local stream
+                    const local = gCall!.participants().local;
+                    updateLocalStream(local);
+                } catch (err: any) {
+                    console.error('[Daily] Join failed:', err?.message);
+                } finally {
+                    gJoining = false;
+                }
+            } else if (!needsDaily && gJoined && !gJoining) {
+                // User turned off BOTH mic and camera → LEAVE to save minutes
+                console.log('[Daily] 🔌 Disconnecting (both mic & camera off)...');
+                try {
+                    await gCall!.leave();
+                } catch { /* ignore */ }
+                gJoined = false;
+                gRoomUrl = null;
+                setLocalStream(null);
+                console.log('[Daily] ⏸️ Left room — saving participant-minutes');
+            }
+        };
+
+        handleJoinLeave();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [needsDaily, spaceId]);
+
+    // ─── Sync mic/video changes while connected ─────────────
+    useEffect(() => {
+        if (!gCall || !gJoined) return;
+        gCall.setLocalAudio(isMicEnabled);
+        console.log('[Daily] Audio:', isMicEnabled ? 'ON' : 'OFF');
+    }, [isMicEnabled]);
+
+    useEffect(() => {
+        if (!gCall || !gJoined) return;
+        gCall.setLocalVideo(isVideoEnabled);
+        console.log('[Daily] Video:', isVideoEnabled ? 'ON' : 'OFF');
+    }, [isVideoEnabled]);
+
+    // ─── Room switching (only when connected) ────────────────
+    useEffect(() => {
+        if (!gCall || !gJoined || !DAILY_DOMAIN) return;
+        const switchRoom = async () => {
+            const roomName = getRoomName(myRoomId || undefined);
+            if (!roomName) return;
+            const url = await ensureRoom(roomName);
+            if (!url || (gRoomUrl === url && gJoined)) return;
+
+            gJoining = true;
+            try {
+                if (gJoined) { await gCall!.leave(); gJoined = false; gRoomUrl = null; }
+                const profile = useOfficeStore.getState().myProfile;
+                const state = useOfficeStore.getState();
+                await gCall!.join({
+                    url,
+                    userName: profile?.display_name || profile?.full_name || 'Anonymous',
+                    startVideoOff: !state.isVideoEnabled,
+                    startAudioOff: !state.isMicEnabled,
+                });
+                gJoined = true;
+                gRoomUrl = url;
+                console.log('[Daily] ✅ Switched room:', url);
+            } catch (err: any) { console.error('[Daily] Room switch failed:', err?.message); }
+            finally { gJoining = false; }
+        };
+        switchRoom();
+    }, [myRoomId, getRoomName, ensureRoom]);
 
     // ─── Cleanup on page unload ──────────────────────────────
     useEffect(() => {
@@ -218,46 +276,7 @@ export function useDaily(spaceId: string | null) {
         return () => window.removeEventListener('beforeunload', handleUnload);
     }, []);
 
-    // ─── Sync mic/video state ────────────────────────────────
-    useEffect(() => {
-        if (!gCall || !gJoined) return;
-        gCall.setLocalAudio(isMicEnabled);
-        console.log('[Daily] Audio:', isMicEnabled ? 'ON' : 'OFF');
-    }, [isMicEnabled]);
-
-    useEffect(() => {
-        if (!gCall || !gJoined) return;
-        gCall.setLocalVideo(isVideoEnabled);
-        console.log('[Daily] Video:', isVideoEnabled ? 'ON' : 'OFF');
-    }, [isVideoEnabled]);
-
-    // ─── Room switching ──────────────────────────────────────
-    useEffect(() => {
-        if (!gCall || !DAILY_DOMAIN) return;
-        const switchRoom = async () => {
-            const roomName = getRoomName(myRoomId || undefined);
-            if (!roomName) return;
-            const url = await ensureRoom(roomName);
-            if (!url || (gRoomUrl === url && gJoined)) return;
-
-            gJoining = true;
-            try {
-                if (gJoined) { await gCall!.leave(); gJoined = false; gRoomUrl = null; }
-                const profile = useOfficeStore.getState().myProfile;
-                await gCall!.join({ url, userName: profile?.display_name || profile?.full_name || 'Anonymous', startVideoOff: true, startAudioOff: true });
-                gJoined = true;
-                gRoomUrl = url;
-                const state = useOfficeStore.getState();
-                if (state.isMicEnabled) gCall!.setLocalAudio(true);
-                if (state.isVideoEnabled) gCall!.setLocalVideo(true);
-                console.log('[Daily] ✅ Switched room:', url);
-            } catch (err: any) { console.error('[Daily] Room switch failed:', err?.message); }
-            finally { gJoining = false; }
-        };
-        switchRoom();
-    }, [myRoomId, getRoomName, ensureRoom]);
-
-    // ─── Spatial audio ───────────────────────────────────────
+    // ─── Spatial audio (runs only when connected) ────────────
     useEffect(() => {
         if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current);
         proximityIntervalRef.current = setInterval(() => {
