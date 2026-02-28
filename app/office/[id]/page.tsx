@@ -20,7 +20,8 @@ import {
     Headphones,
     Map as MapIcon,
     SlidersHorizontal,
-    Wrench
+    Wrench,
+    Circle
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
@@ -47,6 +48,7 @@ export default function OfficePage() {
         hasCompletedDeviceSetup, toggleMic, toggleVideo, toggleRemoteAudio,
         setActiveSpace, addScreenStream, clearAllScreenStreams,
         isBuilderMode, toggleBuilderMode,
+        myStatus, setMyStatus,
     } = useOfficeStore();
     const params = useParams();
     const spaceId = params.id as string;
@@ -64,10 +66,21 @@ export default function OfficePage() {
     const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
     const [showInitialSetup, setShowInitialSetup] = useState(false);
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+    const [workspaceName, setWorkspaceName] = useState('');
 
     // Fetch workspace ID from space
     useEffect(() => {
         getWorkspaceIdFromSpace(spaceId).then(id => setWorkspaceId(id));
+        // Fetch workspace name
+        const fetchWsName = async () => {
+            const supabaseClient = createClient();
+            const { data: spaceData } = await supabaseClient.from('spaces').select('workspace_id').eq('id', spaceId).single();
+            if (spaceData?.workspace_id) {
+                const { data: ws } = await supabaseClient.from('workspaces').select('name').eq('id', spaceData.workspace_id).single();
+                if (ws) setWorkspaceName(ws.name);
+            }
+        };
+        fetchWsName();
     }, [spaceId]);
 
     // Role-based access
@@ -218,10 +231,15 @@ export default function OfficePage() {
                     transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
                     className="h-16 flex items-center justify-between px-6 glass-dark z-10 shrink-0"
                 >
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-400">🟢 LIVE</span>
-                        <span className="text-sm text-slate-500">•</span>
-                        <span className="text-xs text-slate-500">Trascina il tuo avatar per muoverti</span>
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-sm font-bold text-slate-100">{workspaceName || 'Ufficio'}</span>
+                        </div>
+                        <span className="text-slate-600">|</span>
+                        <span className="text-xs text-slate-400">
+                            {useOfficeStore.getState().myProfile?.display_name || useOfficeStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || 'Utente'}
+                        </span>
                     </div>
                 </motion.header>
 
@@ -301,7 +319,29 @@ export default function OfficePage() {
                                 </Button>
                             )}
 
-                            <div className="w-px h-8 bg-white/10 mx-2"></div>
+                            <div className="w-px h-8 bg-white/10 mx-1"></div>
+
+                            {/* Status Selector */}
+                            <button
+                                onClick={() => {
+                                    const states: Array<'online' | 'away' | 'busy'> = ['online', 'away', 'busy'];
+                                    const idx = states.indexOf(myStatus as any);
+                                    const next = states[(idx + 1) % states.length];
+                                    setMyStatus(next);
+                                }}
+                                className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-all text-xs font-medium"
+                                title="Cambia stato"
+                            >
+                                <Circle className={`w-3 h-3 fill-current ${myStatus === 'online' ? 'text-emerald-400' :
+                                        myStatus === 'away' ? 'text-amber-400' :
+                                            'text-red-400'
+                                    }`} />
+                                <span className="text-slate-300 hidden sm:inline">
+                                    {myStatus === 'online' ? 'Online' : myStatus === 'away' ? 'Assente' : 'Occupato'}
+                                </span>
+                            </button>
+
+                            <div className="w-px h-8 bg-white/10 mx-1"></div>
 
                             {/* Builder Mode Toggle - only for admins */}
                             {isAdmin && (

@@ -39,7 +39,6 @@ const STATUS_OPTIONS = [
     { value: 'online', emoji: '🟢', label: 'Online' },
     { value: 'busy', emoji: '🔴', label: 'Occupato' },
     { value: 'away', emoji: '🟡', label: 'Assente' },
-    { value: 'invisible', emoji: '⚫', label: 'Invisibile' },
 ];
 
 const TIMEZONES = [
