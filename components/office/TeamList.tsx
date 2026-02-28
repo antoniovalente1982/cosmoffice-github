@@ -5,6 +5,7 @@ import { createClient } from '../../utils/supabase/client';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Shield, User, Star, ChevronDown, Users } from 'lucide-react';
+import { Button } from '../ui/button';
 
 const supabase = createClient();
 
@@ -98,13 +99,24 @@ export function TeamList({ spaceId }: TeamListProps) {
         return () => { cancelled = true; };
     }, [spaceId]);
 
+    // For the current user, use real-time myProfile from the store instead of stale DB data
     const getName = (m: WorkspaceMember) => {
+        if (m.user_id === currentUserId && myProfile) {
+            return myProfile.display_name || myProfile.full_name || m.profile?.email || 'Unknown';
+        }
         return m.profile?.display_name || m.profile?.full_name || m.profile?.email || 'Unknown';
+    };
+
+    const getAvatarUrl = (m: WorkspaceMember) => {
+        if (m.user_id === currentUserId && myProfile) {
+            return myProfile.avatar_url || m.profile?.avatar_url || null;
+        }
+        return m.profile?.avatar_url || null;
     };
 
     const getInitials = (m: WorkspaceMember) => {
         const name = getName(m);
-        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
     };
 
     const isOnline = (m: WorkspaceMember) => {
@@ -142,9 +154,9 @@ export function TeamList({ spaceId }: TeamListProps) {
                     }`}
             >
                 <div className="relative flex-shrink-0">
-                    {m.profile?.avatar_url ? (
+                    {getAvatarUrl(m) ? (
                         <img
-                            src={m.profile.avatar_url}
+                            src={getAvatarUrl(m)!}
                             alt={getName(m)}
                             className={`w-7 h-7 rounded-full object-cover ${online ? '' : 'opacity-40 grayscale'}`}
                         />
@@ -167,17 +179,21 @@ export function TeamList({ spaceId }: TeamListProps) {
     };
 
     return (
-        <div className="mt-1 space-y-1 px-2">
+        <div className="mt-1 space-y-1">
             {/* === TEAM MEMBERS (collapsed by default) === */}
-            <button
+            <Button
+                variant="ghost"
                 onClick={() => setShowAllMembers(!showAllMembers)}
-                className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors"
+                className={`w-full justify-start gap-3 transition-all duration-300 ${showAllMembers
+                    ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+                    }`}
             >
-                <Users className="w-4 h-4" />
-                <span className="text-sm font-medium">Team members</span>
-                <span className="text-[10px] text-slate-600 ml-auto mr-1">{members.length}</span>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-600 transition-transform ${showAllMembers ? '' : '-rotate-90'}`} />
-            </button>
+                <Users className="w-5 h-5" />
+                <span>Team members</span>
+                <span className="text-[10px] text-slate-500 ml-auto mr-1">{members.length}</span>
+                <ChevronDown className={`w-3.5 h-3.5 opacity-50 transition-transform ${showAllMembers ? '' : '-rotate-90'}`} />
+            </Button>
 
             <AnimatePresence initial={false}>
                 {showAllMembers && (
