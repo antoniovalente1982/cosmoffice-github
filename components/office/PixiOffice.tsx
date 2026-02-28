@@ -285,16 +285,18 @@ export function PixiOffice() {
                     const pg = particleGfxRef.current;
                     pg.clear();
 
-                    const bw = state.officeWidth || 4000;
-                    const bh = state.officeHeight || 4000;
+                    if (!state.isPerformanceMode) {
+                        const bw = state.officeWidth || 4000;
+                        const bh = state.officeHeight || 4000;
 
-                    particlesRef.current.forEach(p => {
-                        p.x = (p.x + p.vx + bw) % bw;
-                        p.y = (p.y + p.vy + bh) % bh;
+                        particlesRef.current.forEach(p => {
+                            p.x = (p.x + p.vx + bw) % bw;
+                            p.y = (p.y + p.vy + bh) % bh;
 
-                        pg.circle(p.x, p.y, p.size);
-                        pg.fill({ color: 0x6366f1, alpha: p.alpha });
-                    });
+                            pg.circle(p.x, p.y, p.size);
+                            pg.fill({ color: 0x6366f1, alpha: p.alpha });
+                        });
+                    }
                 }
 
                 // ─── Draw room connections ───────────────────
@@ -302,23 +304,25 @@ export function PixiOffice() {
                     const cg = connectionGfxRef.current;
                     cg.clear();
 
-                    const rms = state.rooms;
-                    for (let i = 0; i < rms.length; i++) {
-                        for (let j = i + 1; j < rms.length; j++) {
-                            const r1 = rms[i];
-                            const r2 = rms[j];
-                            const cx1 = r1.x + r1.width / 2;
-                            const cy1 = r1.y + r1.height / 2;
-                            const cx2 = r2.x + r2.width / 2;
-                            const cy2 = r2.y + r2.height / 2;
-                            const dist = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
+                    if (!state.isPerformanceMode) {
+                        const rms = state.rooms;
+                        for (let i = 0; i < rms.length; i++) {
+                            for (let j = i + 1; j < rms.length; j++) {
+                                const r1 = rms[i];
+                                const r2 = rms[j];
+                                const cx1 = r1.x + r1.width / 2;
+                                const cy1 = r1.y + r1.height / 2;
+                                const cx2 = r2.x + r2.width / 2;
+                                const cy2 = r2.y + r2.height / 2;
+                                const dist = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
 
-                            if (dist > 800) continue;
+                                if (dist > 800) continue;
 
-                            const alpha = 0.15 * (1 - dist / 800);
-                            cg.moveTo(cx1, cy1);
-                            cg.lineTo(cx2, cy2);
-                            cg.stroke({ color: 0x6366f1, width: 1, alpha });
+                                const alpha = 0.15 * (1 - dist / 800);
+                                cg.moveTo(cx1, cy1);
+                                cg.lineTo(cx2, cy2);
+                                cg.stroke({ color: 0x6366f1, width: 1, alpha });
+                            }
                         }
                     }
                 }
@@ -646,88 +650,92 @@ export function PixiOffice() {
             }}
         >
             {/* Animated grid overlay */}
-            <div
-                className="absolute inset-0 pointer-events-none opacity-20"
-                style={{
-                    backgroundImage: `
-                        linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px)
-                    `,
-                    backgroundSize: '60px 60px',
-                }}
-            />
+            {!isPerformanceMode && (
+                <div
+                    className="absolute inset-0 pointer-events-none opacity-20"
+                    style={{
+                        backgroundImage: `
+                            linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px)
+                        `,
+                        backgroundSize: '60px 60px',
+                    }}
+                />
+            )}
 
             {/* Solar System Background */}
-            <div className="absolute pointer-events-none z-0 overflow-hidden"
-                style={{
-                    left: `${(officeBounds.width / 2) * zoom + stagePos.x}px`,
-                    top: `${(officeBounds.height / 2) * zoom + stagePos.y}px`,
-                    width: '400vw',
-                    height: '400vw',
-                    transform: `translate(-50%, -50%) scale(${zoom})`,
-                    opacity: bgOpacity,
-                }}>
-                <div className="absolute inset-0" style={{ transform: `rotate(${solarRotation}deg)` }}>
-                    {/* Sun */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-300 to-amber-100 shadow-[0_0_200px_60px_rgba(251,191,36,0.3)] animate-pulse-glow" style={{ zIndex: 10 }} />
+            {!isPerformanceMode && (
+                <div className="absolute pointer-events-none z-0 overflow-hidden"
+                    style={{
+                        left: `${(officeBounds.width / 2) * zoom + stagePos.x}px`,
+                        top: `${(officeBounds.height / 2) * zoom + stagePos.y}px`,
+                        width: '400vw',
+                        height: '400vw',
+                        transform: `translate(-50%, -50%) scale(${zoom})`,
+                        opacity: bgOpacity,
+                    }}>
+                    <div className="absolute inset-0" style={{ transform: `rotate(${solarRotation}deg)` }}>
+                        {/* Sun */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-300 to-amber-100 shadow-[0_0_200px_60px_rgba(251,191,36,0.3)] animate-pulse-glow" style={{ zIndex: 10 }} />
 
-                    {/* Mercury */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] rounded-full border border-white/5" />
-                    <div className="absolute left-1/2 top-[calc(50%-175px)] -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 shadow-[0_0_10px_rgba(156,163,175,0.6)]" />
+                        {/* Mercury */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] rounded-full border border-white/5" />
+                        <div className="absolute left-1/2 top-[calc(50%-175px)] -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 shadow-[0_0_10px_rgba(156,163,175,0.6)]" />
 
-                    {/* Venus */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full border border-white/5" />
-                    <div className="absolute left-[calc(50%+275px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-100 to-orange-400 shadow-[0_0_15px_rgba(253,224,71,0.5)]" />
+                        {/* Venus */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full border border-white/5" />
+                        <div className="absolute left-[calc(50%+275px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-100 to-orange-400 shadow-[0_0_15px_rgba(253,224,71,0.5)]" />
 
-                    {/* Earth */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full border border-cyan-500/10" />
-                    <div className="absolute left-[calc(50%-400px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 via-blue-600 to-green-500 shadow-[0_0_25px_rgba(59,130,246,0.6)]">
-                        <div className="absolute left-1/2 top-1/2 w-[60px] h-[60px] -translate-x-1/2 -translate-y-1/2">
-                            <div className="w-full h-full animate-[spin_2s_linear_infinite]">
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-gray-300 shadow-[0_0_5px_rgba(209,213,219,0.8)]" />
-                            </div>
-                        </div>
-                        <div className="absolute left-1/2 top-1/2 w-full h-full" style={{ transform: `translate(-50%, -50%) rotate(${-solarRotation}deg)` }}>
-                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
-                                <div className="bg-white/20 backdrop-blur-md border border-white/60 px-2 py-0.5 rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.8)] mb-1">
-                                    <span className="text-white text-[11px] font-bold tracking-widest whitespace-nowrap drop-shadow-md" style={{ fontFamily: '"Comic Sans MS", "Chalkboard SE", "Marker Felt", sans-serif' }}>
-                                        you are here!
-                                    </span>
+                        {/* Earth */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full border border-cyan-500/10" />
+                        <div className="absolute left-[calc(50%-400px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 via-blue-600 to-green-500 shadow-[0_0_25px_rgba(59,130,246,0.6)]">
+                            <div className="absolute left-1/2 top-1/2 w-[60px] h-[60px] -translate-x-1/2 -translate-y-1/2">
+                                <div className="w-full h-full animate-[spin_2s_linear_infinite]">
+                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-gray-300 shadow-[0_0_5px_rgba(209,213,219,0.8)]" />
                                 </div>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_8px_rgba(255,255,255,1)] text-white/90 animate-bounce">
-                                    <path d="M12 22L19 12H14V2H10V12H5L12 22Z" fill="currentColor" />
-                                </svg>
+                            </div>
+                            <div className="absolute left-1/2 top-1/2 w-full h-full" style={{ transform: `translate(-50%, -50%) rotate(${-solarRotation}deg)` }}>
+                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+                                    <div className="bg-white/20 backdrop-blur-md border border-white/60 px-2 py-0.5 rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.8)] mb-1">
+                                        <span className="text-white text-[11px] font-bold tracking-widest whitespace-nowrap drop-shadow-md" style={{ fontFamily: '"Comic Sans MS", "Chalkboard SE", "Marker Felt", sans-serif' }}>
+                                            you are here!
+                                        </span>
+                                    </div>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_8px_rgba(255,255,255,1)] text-white/90 animate-bounce">
+                                        <path d="M12 22L19 12H14V2H10V12H5L12 22Z" fill="currentColor" />
+                                    </svg>
+                                </div>
                             </div>
                         </div>
+
+                        {/* Mars */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] rounded-full border border-white/5" />
+                        <div className="absolute left-1/2 top-[calc(50%+550px)] -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gradient-to-br from-red-400 to-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]" />
+
+                        {/* Jupiter */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1600px] h-[1600px] rounded-full border border-white/5" />
+                        <div className="absolute left-[calc(50%+800px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-[72px] h-[72px] rounded-full bg-gradient-to-br from-orange-300 via-orange-600 to-amber-900 shadow-[0_0_40px_rgba(217,119,6,0.5)]">
+                            <div className="absolute top-[60%] left-[30%] w-5 h-2 rounded-full bg-red-900/40" />
+                        </div>
+
+                        {/* Saturn */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[2200px] h-[2200px] rounded-full border border-white/5" />
+                        <div className="absolute left-1/2 top-[calc(50%-1100px)] -translate-x-1/2 -translate-y-1/2 w-[60px] h-[60px] rounded-full bg-gradient-to-br from-yellow-100 to-yellow-700 shadow-[0_0_35px_rgba(234,179,8,0.4)]">
+                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[230%] h-[35%] rounded-[50%] border-[5px] border-yellow-200/40 transform -rotate-12 outline outline-1 outline-yellow-400/20" />
+                        </div>
+
+                        {/* Uranus */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[2800px] h-[2800px] rounded-full border border-white/5" />
+                        <div className="absolute left-[calc(50%-1400px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-200 to-cyan-600 shadow-[0_0_25px_rgba(6,182,212,0.5)]">
+                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[20%] h-[160%] rounded-[50%] border-[2px] border-cyan-100/30 transform rotate-[80deg]" />
+                        </div>
+
+                        {/* Neptune */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[3400px] h-[3400px] rounded-full border border-white/5" />
+                        <div className="absolute left-1/2 top-[calc(50%+1700px)] -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-900 shadow-[0_0_30px_rgba(29,78,216,0.6)]" />
                     </div>
-
-                    {/* Mars */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] rounded-full border border-white/5" />
-                    <div className="absolute left-1/2 top-[calc(50%+550px)] -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gradient-to-br from-red-400 to-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]" />
-
-                    {/* Jupiter */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1600px] h-[1600px] rounded-full border border-white/5" />
-                    <div className="absolute left-[calc(50%+800px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-[72px] h-[72px] rounded-full bg-gradient-to-br from-orange-300 via-orange-600 to-amber-900 shadow-[0_0_40px_rgba(217,119,6,0.5)]">
-                        <div className="absolute top-[60%] left-[30%] w-5 h-2 rounded-full bg-red-900/40" />
-                    </div>
-
-                    {/* Saturn */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[2200px] h-[2200px] rounded-full border border-white/5" />
-                    <div className="absolute left-1/2 top-[calc(50%-1100px)] -translate-x-1/2 -translate-y-1/2 w-[60px] h-[60px] rounded-full bg-gradient-to-br from-yellow-100 to-yellow-700 shadow-[0_0_35px_rgba(234,179,8,0.4)]">
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[230%] h-[35%] rounded-[50%] border-[5px] border-yellow-200/40 transform -rotate-12 outline outline-1 outline-yellow-400/20" />
-                    </div>
-
-                    {/* Uranus */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[2800px] h-[2800px] rounded-full border border-white/5" />
-                    <div className="absolute left-[calc(50%-1400px)] top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-200 to-cyan-600 shadow-[0_0_25px_rgba(6,182,212,0.5)]">
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[20%] h-[160%] rounded-[50%] border-[2px] border-cyan-100/30 transform rotate-[80deg]" />
-                    </div>
-
-                    {/* Neptune */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[3400px] h-[3400px] rounded-full border border-white/5" />
-                    <div className="absolute left-1/2 top-[calc(50%+1700px)] -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-900 shadow-[0_0_30px_rgba(29,78,216,0.6)]" />
                 </div>
-            </div>
+            )}
 
             {/* Mini Map */}
             <MiniMap />
