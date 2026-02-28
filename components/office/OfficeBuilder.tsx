@@ -382,26 +382,18 @@ export function OfficeBuilder() {
                         </div>
 
                         {/* Action Footer */}
-                        <div className="p-4 space-y-2 border-t border-white/5 bg-black/20">
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    onClick={handleDeleteRoom}
-                                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
-                                >
-                                    <Trash2 className="w-3.5 h-3.5" /> Rimuovi
-                                </button>
-                                <button
-                                    onClick={handleSaveProperties} disabled={saving}
-                                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(34,211,238,0.4)] disabled:opacity-50"
-                                >
-                                    <Save className="w-3.5 h-3.5" /> {saving ? '...' : 'Applica'}
-                                </button>
-                            </div>
+                        <div className="p-4 grid grid-cols-2 gap-2 border-t border-white/5 bg-black/20">
                             <button
-                                onClick={() => handleAddRoom(roomTemplates[0])}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-cyan-300 hover:text-cyan-200 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 hover:border-cyan-500/40 transition-all"
+                                onClick={handleDeleteRoom}
+                                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
                             >
-                                <Plus className="w-3.5 h-3.5" /> Aggiungi Stanza
+                                <Trash2 className="w-3.5 h-3.5" /> Rimuovi
+                            </button>
+                            <button
+                                onClick={handleSaveProperties} disabled={saving}
+                                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(34,211,238,0.4)] disabled:opacity-50"
+                            >
+                                <Save className="w-3.5 h-3.5" /> {saving ? '...' : 'Applica'}
                             </button>
                         </div>
                     </>
