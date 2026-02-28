@@ -6,11 +6,12 @@ import {
     X,
     Check,
     Camera,
-    Globe,
     Clock,
     Loader2,
     Shield,
-    Star
+    Star,
+    Crown,
+    User
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useOfficeStore } from '../../stores/useOfficeStore';
@@ -23,11 +24,12 @@ interface Props {
     onClose: () => void;
 }
 
-const STATUS_OPTIONS = [
-    { value: 'online', emoji: '🟢', label: 'Online' },
-    { value: 'busy', emoji: '🔴', label: 'Occupato' },
-    { value: 'away', emoji: '🟡', label: 'Assente' },
-];
+const ROLE_DISPLAY: Record<string, { icon: typeof Crown; label: string; color: string; bg: string }> = {
+    owner: { icon: Crown, label: 'Owner', color: 'text-amber-400', bg: 'bg-amber-500/15' },
+    admin: { icon: Shield, label: 'Admin', color: 'text-cyan-400', bg: 'bg-cyan-500/15' },
+    member: { icon: User, label: 'Membro', color: 'text-slate-300', bg: 'bg-slate-500/15' },
+    guest: { icon: Star, label: 'Ospite', color: 'text-purple-400', bg: 'bg-purple-500/15' },
+};
 
 const TIMEZONES = [
     'Europe/Rome', 'Europe/London', 'Europe/Berlin', 'Europe/Paris',
@@ -42,7 +44,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
     // Profile state — single "name" field syncs both full_name and display_name
     const [name, setName] = useState('');
     const [avatarUrl, setAvatarUrl] = useState('');
-    const [userStatus, setUserStatus] = useState('online');
+    const [userRole, setUserRole] = useState<string | null>(null);
     const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Rome');
     const [userEmail, setUserEmail] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -70,8 +72,26 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                 // Use display_name first, fallback to full_name
                 setName(profile.display_name || profile.full_name || '');
                 setAvatarUrl(profile.avatar_url || '');
-                setUserStatus(profile.status || 'online');
                 setTimezone(profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+            }
+
+            // Fetch user role in this workspace
+            if (!cancelled && user) {
+                const { data: spaceData } = await supabase
+                    .from('spaces')
+                    .select('workspace_id')
+                    .eq('id', spaceId)
+                    .single();
+                if (spaceData?.workspace_id) {
+                    const { data: member } = await supabase
+                        .from('workspace_members')
+                        .select('role')
+                        .eq('workspace_id', spaceData.workspace_id)
+                        .eq('user_id', user.id)
+                        .is('removed_at', null)
+                        .single();
+                    if (!cancelled && member) setUserRole(member.role);
+                }
             }
         };
         load();
@@ -158,7 +178,6 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
             full_name: name,
             display_name: name || null,
             avatar_url: avatarUrl || null,
-            status: userStatus,
             timezone,
         };
 
@@ -233,7 +252,19 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                 />
                             </div>
                             <div className="flex-1 space-y-1">
-                                <h3 className="text-base font-semibold text-slate-100">{name || 'Il tuo profilo'}</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-base font-semibold text-slate-100">{name || 'Il tuo profilo'}</h3>
+                                    {userRole && ROLE_DISPLAY[userRole] && (() => {
+                                        const rd = ROLE_DISPLAY[userRole];
+                                        const RIcon = rd.icon;
+                                        return (
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold ${rd.color} ${rd.bg}`}>
+                                                <RIcon className="w-3 h-3" />
+                                                {rd.label}
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
                                 <p className="text-sm text-slate-500">{userEmail}</p>
                                 <p className="text-xs text-slate-600">Clicca sull&apos;avatar per cambiarlo • Max 5MB</p>
                             </div>
@@ -250,42 +281,20 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                             />
                         </div>
 
-                        {/* Status + Timezone */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                    <Globe className="w-3 h-3" /> Stato
-                                </label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {STATUS_OPTIONS.map(opt => (
-                                        <button
-                                            key={opt.value}
-                                            onClick={() => setUserStatus(opt.value)}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all ${userStatus === opt.value
-                                                ? 'bg-primary-500/15 text-primary-300 ring-1 ring-primary-500/30'
-                                                : 'bg-slate-800/40 text-slate-400 hover:bg-slate-800/60 hover:text-slate-300'
-                                                }`}
-                                        >
-                                            <span>{opt.emoji}</span>
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                    <Clock className="w-3 h-3" /> Fuso orario
-                                </label>
-                                <select
-                                    value={timezone}
-                                    onChange={(e) => setTimezone(e.target.value)}
-                                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
-                                >
-                                    {TIMEZONES.map(tz => (
-                                        <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        {/* Timezone */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
+                                <Clock className="w-3 h-3" /> Fuso orario
+                            </label>
+                            <select
+                                value={timezone}
+                                onChange={(e) => setTimezone(e.target.value)}
+                                className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
+                            >
+                                {TIMEZONES.map(tz => (
+                                    <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
+                                ))}
+                            </select>
                         </div>
 
                         {/* Performance Mode Toggle */}
