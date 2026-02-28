@@ -613,6 +613,25 @@ export function PixiOffice() {
         y: pos.y * zoom + stagePos.y,
     }), [zoom, stagePos]);
 
+    // ─── Viewport culling: only render visible avatars ───────
+    const AVATAR_MARGIN = 100; // px buffer outside viewport
+    const LOD_DISTANCE = 800;  // world-units: beyond this, use simple dot
+
+    const isInViewport = useCallback((screenPos: { x: number; y: number }) => {
+        return (
+            screenPos.x > -AVATAR_MARGIN &&
+            screenPos.x < dimensions.width + AVATAR_MARGIN &&
+            screenPos.y > -AVATAR_MARGIN &&
+            screenPos.y < dimensions.height + AVATAR_MARGIN
+        );
+    }, [dimensions]);
+
+    const getDistanceFromMe = useCallback((peerPos: { x: number; y: number }) => {
+        const dx = myPosition.x - peerPos.x;
+        const dy = myPosition.y - peerPos.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }, [myPosition]);
+
     // ─── Stage click for builder mode ────────────────────────
     const handleStageClick = useCallback(() => {
         if (isBuilderMode) {
@@ -681,21 +700,53 @@ export function PixiOffice() {
 
             {/* Avatars Overlay */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden z-[2]">
-                {/* Peers */}
-                {Object.values(peers).map((peer: any) => (
-                    <UserAvatar
-                        key={peer.id}
-                        id={peer.id}
-                        fullName={peer.full_name}
-                        avatarUrl={peer.avatar_url}
-                        status={peer.status}
-                        position={getScreenPos(peer.position)}
-                        audioEnabled={peer.audioEnabled}
-                        videoEnabled={peer.videoEnabled}
-                        isSpeaking={peer.isSpeaking}
-                        zoom={zoom}
-                    />
-                ))}
+                {/* Peers — with viewport culling & LOD */}
+                {Object.values(peers).map((peer: any) => {
+                    const screenPos = getScreenPos(peer.position);
+                    // Viewport culling: skip peers outside visible area
+                    if (!isInViewport(screenPos)) return null;
+                    const dist = getDistanceFromMe(peer.position);
+                    // LOD: distant peers render as a simple colored dot
+                    if (dist > LOD_DISTANCE) {
+                        return (
+                            <div
+                                key={peer.id}
+                                className="absolute"
+                                style={{
+                                    left: screenPos.x,
+                                    top: screenPos.y,
+                                    width: 12 * zoom,
+                                    height: 12 * zoom,
+                                    marginLeft: -(6 * zoom),
+                                    marginTop: -(6 * zoom),
+                                    borderRadius: '50%',
+                                    backgroundColor: peer.status === 'online' ? '#10b981'
+                                        : peer.status === 'away' ? '#f59e0b'
+                                            : peer.status === 'busy' ? '#ef4444' : '#64748b',
+                                    border: `${1.5 * zoom}px solid rgba(15,23,42,0.8)`,
+                                    boxShadow: `0 0 ${6 * zoom}px rgba(16,185,129,0.4)`,
+                                    transition: 'left 0.15s, top 0.15s',
+                                }}
+                                title={peer.full_name}
+                            />
+                        );
+                    }
+                    // Full avatar: nearby peers
+                    return (
+                        <UserAvatar
+                            key={peer.id}
+                            id={peer.id}
+                            fullName={peer.full_name}
+                            avatarUrl={peer.avatar_url}
+                            status={peer.status}
+                            position={screenPos}
+                            audioEnabled={peer.audioEnabled}
+                            videoEnabled={peer.videoEnabled}
+                            isSpeaking={peer.isSpeaking}
+                            zoom={zoom}
+                        />
+                    );
+                })}
 
                 {/* Me */}
                 <UserAvatar

@@ -6,6 +6,7 @@ export function usePresence() {
     const supabase = createClient();
     const channelRef = useRef<any>(null);
     const userIdRef = useRef<string | null>(null);
+    const lastSentRef = useRef({ x: 0, y: 0, status: '', roomId: '', mic: false, vid: false });
     const {
         myPosition, myStatus, myRoomId, activeSpaceId, updatePeer, removePeer,
         isMicEnabled, isVideoEnabled, isSpeaking
@@ -20,7 +21,7 @@ export function usePresence() {
         const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-            
+
             userIdRef.current = user.id;
 
             const channel = supabase.channel(`office_presence_${activeSpaceId}`, {
@@ -80,12 +81,26 @@ export function usePresence() {
         };
     }, [supabase, activeSpaceId, updatePeer, removePeer]);
 
-    // Update presence when state changes (using the existing channel)
+    // Update presence when state changes — with dead-zone + 200ms throttle
     useEffect(() => {
         if (!channelRef.current || !userIdRef.current || !activeSpaceId) return;
-        
-        // Debounce the update to prevent too many calls
+
+        const last = lastSentRef.current;
+        const dx = Math.abs(myPosition.x - last.x);
+        const dy = Math.abs(myPosition.y - last.y);
+        const posChanged = dx > 2 || dy > 2; // dead-zone: skip tiny movements
+        const stateChanged = last.status !== myStatus || last.roomId !== (myRoomId || '')
+            || last.mic !== isMicEnabled || last.vid !== isVideoEnabled;
+
+        // Skip if nothing meaningful changed
+        if (!posChanged && !stateChanged) return;
+
         const timeoutId = setTimeout(() => {
+            lastSentRef.current = {
+                x: myPosition.x, y: myPosition.y,
+                status: myStatus, roomId: myRoomId || '',
+                mic: isMicEnabled, vid: isVideoEnabled,
+            };
             channelRef.current.track({
                 position: myPosition,
                 status: myStatus,
@@ -96,7 +111,7 @@ export function usePresence() {
                 isSpeaking: isSpeaking,
                 online_at: new Date().toISOString(),
             });
-        }, 100);
+        }, 200); // 200ms throttle (was 100ms)
 
         return () => clearTimeout(timeoutId);
     }, [myPosition, myStatus, myRoomId, activeSpaceId, isMicEnabled, isVideoEnabled, isSpeaking]);
