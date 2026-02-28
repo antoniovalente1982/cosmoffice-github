@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { Map, ZoomIn, ZoomOut, ChevronUp, Users } from 'lucide-react';
+import { Map, ZoomIn, ZoomOut, ChevronUp, Users, Crosshair } from 'lucide-react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 
 // ─── Office size presets ──────────────────────────────────────────
@@ -20,22 +20,22 @@ export function getPresetForSize(w: number, h: number) {
     return OFFICE_PRESETS[3];
 }
 
-interface MiniMapProps {
-    officeWidth?: number;
-    officeHeight?: number;
-}
-
-export function MiniMap({ officeWidth = 3000, officeHeight = 3000 }: MiniMapProps) {
-    const { myPosition, peers, rooms, zoom, stagePos } = useOfficeStore();
+export function MiniMap() {
+    const { myPosition, peers, rooms, zoom, stagePos, officeWidth: storeWidth, officeHeight: storeHeight } = useOfficeStore();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [hoveredPeer, setHoveredPeer] = useState<string | null>(null);
     const [isDraggingViewport, setIsDraggingViewport] = useState(false);
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, vpX: 0, vpY: 0 });
     const svgRef = useRef<SVGSVGElement>(null);
 
-    // Mini-map dimensions
+    // Use actual office dimensions from store
+    const officeWidth = storeWidth || 4000;
+    const officeHeight = storeHeight || 3000;
+
+    // Mini-map dimensions — adapt to office aspect ratio
     const mapWidth = 220;
-    const mapHeight = 150;
+    const aspect = officeHeight / officeWidth;
+    const mapHeight = Math.round(mapWidth * aspect);
 
     // Calculate scale to fit office in mini-map
     const scaleX = mapWidth / officeWidth;
@@ -295,7 +295,7 @@ export function MiniMap({ officeWidth = 3000, officeHeight = 3000 }: MiniMapProp
                             </div>
                         </div>
 
-                        {/* Zoom controls */}
+                        {/* Zoom controls + Find Me */}
                         <div className="flex items-center justify-between px-3 py-2"
                             style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                             <button onClick={handleZoomOut}
@@ -312,6 +312,12 @@ export function MiniMap({ officeWidth = 3000, officeHeight = 3000 }: MiniMapProp
                                 className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-all"
                                 title="Zoom in">
                                 <ZoomIn className="w-3.5 h-3.5" />
+                            </button>
+                            <div className="w-px h-4 bg-white/10 mx-0.5" />
+                            <button onClick={handleCenterOnMe}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-500/20 transition-all"
+                                title="Trova il mio avatar">
+                                <Crosshair className="w-3.5 h-3.5" />
                             </button>
                         </div>
                     </>

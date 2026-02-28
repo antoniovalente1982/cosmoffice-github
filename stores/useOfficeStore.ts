@@ -209,7 +209,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     isBuilderMode: false,
     bgOpacity: 0.8,
     officeWidth: 4000,
-    officeHeight: 4000,
+    officeHeight: 3000,
     selectedRoomId: null,
     furnitureItems: [],
     roomTemplates: [
@@ -324,7 +324,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
             isBuilderMode: false,
             selectedRoomId: null,
             officeWidth: 4000,
-            officeHeight: 4000,
+            officeHeight: 3000,
             bgOpacity: 0.8,
         });
     },
