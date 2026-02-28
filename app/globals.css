@@ -220,3 +220,16 @@
 .low-power-mode body::after {
   display: none !important;
 }
+
+/* Panel slide-in animation */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

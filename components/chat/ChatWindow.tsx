@@ -398,276 +398,274 @@ export function ChatWindow() {
     };
 
     return (
-        <AnimatePresence>
-            {isChatOpen && (
-                <motion.div
-                    initial={{ x: 400, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 400, opacity: 0 }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                    className="absolute right-0 top-0 bottom-0 w-[420px] bg-slate-900/95 backdrop-blur-xl border-l border-white/10 flex flex-col z-50 shadow-2xl overflow-hidden"
-                >
-                    {/* ── Header ── */}
-                    <div className="p-4 border-b border-white/5 flex flex-col gap-3 bg-gradient-to-r from-slate-800/50 to-transparent">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center shadow-lg">
-                                    <MessageSquare className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-100">
-                                        {chatTab === 'room' && myRoomId
-                                            ? rooms.find(r => r.id === myRoomId)?.name || 'Stanza'
-                                            : spaceName}
-                                    </h3>
-                                    <p className="text-xs text-slate-400">{messages.length} messaggi</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                {(userRole === 'owner' || userRole === 'admin') && (
-                                    <Button variant="ghost" size="icon" onClick={handleClearChat}
-                                        disabled={isClearingChat || messages.length === 0}
-                                        className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-full disabled:opacity-30"
-                                        title="Cancella chat">
-                                        <Eraser className="w-4 h-4" />
-                                    </Button>
-                                )}
-                                <Button variant="ghost" size="icon" onClick={toggleChat}
-                                    className="h-8 w-8 text-slate-400 hover:text-slate-100 hover:bg-white/10 rounded-full">
-                                    <X className="w-4 h-4" />
-                                </Button>
-                            </div>
+        <div
+            className="absolute right-0 top-0 bottom-0 w-[420px] bg-slate-900/95 border-l border-white/10 flex flex-col z-50 shadow-2xl overflow-hidden"
+            style={{
+                backdropFilter: isChatOpen ? 'blur(24px)' : 'none',
+                transform: isChatOpen ? 'translateX(0)' : 'translateX(100%)',
+                transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                pointerEvents: isChatOpen ? 'auto' : 'none',
+            }}
+        >
+            {/* ── Header ── */}
+            <div className="p-4 border-b border-white/5 flex flex-col gap-3 bg-gradient-to-r from-slate-800/50 to-transparent">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center shadow-lg">
+                            <MessageSquare className="w-5 h-5 text-white" />
                         </div>
-
-                        {/* Tabs */}
-                        <div className="flex items-center gap-2 p-1 bg-slate-900/50 rounded-xl">
-                            <button onClick={() => setChatTab('office')}
-                                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${chatTab === 'office' ? 'bg-primary-500/20 text-primary-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}>
-                                Ufficio
-                            </button>
-                            <button onClick={() => setChatTab('room')} disabled={!myRoomId}
-                                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${!myRoomId ? 'opacity-40 cursor-not-allowed' : ''} ${chatTab === 'room' ? 'bg-primary-500/20 text-primary-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}
-                                title={!myRoomId ? 'Entra in una stanza' : ''}>
-                                Stanza
-                            </button>
+                        <div>
+                            <h3 className="font-bold text-slate-100">
+                                {chatTab === 'room' && myRoomId
+                                    ? rooms.find(r => r.id === myRoomId)?.name || 'Stanza'
+                                    : spaceName}
+                            </h3>
+                            <p className="text-xs text-slate-400">{messages.length} messaggi</p>
                         </div>
                     </div>
+                    <div className="flex items-center gap-1">
+                        {(userRole === 'owner' || userRole === 'admin') && (
+                            <Button variant="ghost" size="icon" onClick={handleClearChat}
+                                disabled={isClearingChat || messages.length === 0}
+                                className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-full disabled:opacity-30"
+                                title="Cancella chat">
+                                <Eraser className="w-4 h-4" />
+                            </Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={toggleChat}
+                            className="h-8 w-8 text-slate-400 hover:text-slate-100 hover:bg-white/10 rounded-full">
+                            <X className="w-4 h-4" />
+                        </Button>
+                    </div>
+                </div>
 
-                    {/* ── Messages ── */}
-                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                        {isLoading ? (
-                            <div className="h-full flex items-center justify-center">
-                                <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                            </div>
-                        ) : messages.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-60 space-y-3">
-                                <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center">
-                                    <MessageSquare className="w-8 h-8" />
+                {/* Tabs */}
+                <div className="flex items-center gap-2 p-1 bg-slate-900/50 rounded-xl">
+                    <button onClick={() => setChatTab('office')}
+                        className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${chatTab === 'office' ? 'bg-primary-500/20 text-primary-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}>
+                        Ufficio
+                    </button>
+                    <button onClick={() => setChatTab('room')} disabled={!myRoomId}
+                        className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${!myRoomId ? 'opacity-40 cursor-not-allowed' : ''} ${chatTab === 'room' ? 'bg-primary-500/20 text-primary-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                        title={!myRoomId ? 'Entra in una stanza' : ''}>
+                        Stanza
+                    </button>
+                </div>
+            </div>
+
+            {/* ── Messages ── */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                {isLoading ? (
+                    <div className="h-full flex items-center justify-center">
+                        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                ) : messages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-60 space-y-3">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center">
+                            <MessageSquare className="w-8 h-8" />
+                        </div>
+                        <p className="text-sm">Nessun messaggio</p>
+                        <p className="text-xs">Sii il primo a scrivere! 💬</p>
+                    </div>
+                ) : (
+                    Object.entries(groupedMessages).map(([date, dateMessages]) => (
+                        <div key={date} className="space-y-2">
+                            <div className="flex items-center justify-center my-3">
+                                <div className="px-3 py-1 rounded-full bg-slate-800/80 text-[10px] text-slate-500 font-medium">
+                                    {formatDate(dateMessages[0].created_at)}
                                 </div>
-                                <p className="text-sm">Nessun messaggio</p>
-                                <p className="text-xs">Sii il primo a scrivere! 💬</p>
                             </div>
-                        ) : (
-                            Object.entries(groupedMessages).map(([date, dateMessages]) => (
-                                <div key={date} className="space-y-2">
-                                    <div className="flex items-center justify-center my-3">
-                                        <div className="px-3 py-1 rounded-full bg-slate-800/80 text-[10px] text-slate-500 font-medium">
-                                            {formatDate(dateMessages[0].created_at)}
-                                        </div>
-                                    </div>
-                                    {dateMessages.map((msg, index) => {
-                                        const own = isOwnMessage(msg);
-                                        const isAgent = isAgentMessage(msg);
-                                        const showAvatar = index === 0 || dateMessages[index - 1].sender_id !== msg.sender_id;
-                                        const badge = getSenderBadge(msg);
-                                        const imageUrl = getMessageImage(msg);
+                            {dateMessages.map((msg, index) => {
+                                const own = isOwnMessage(msg);
+                                const isAgent = isAgentMessage(msg);
+                                const showAvatar = index === 0 || dateMessages[index - 1].sender_id !== msg.sender_id;
+                                const badge = getSenderBadge(msg);
+                                const imageUrl = getMessageImage(msg);
 
-                                        return (
-                                            <motion.div key={msg.id}
-                                                initial={{ opacity: 0, y: 8 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className={`group flex gap-2.5 ${own ? 'flex-row-reverse' : ''}`}>
-                                                {/* Avatar */}
-                                                <div className="flex-shrink-0 w-8">
-                                                    {showAvatar ? (
-                                                        <div className="relative">
-                                                            {isAgent ? (
-                                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center ring-2 ring-emerald-700/50">
-                                                                    <Bot className="w-4 h-4 text-white" />
-                                                                </div>
-                                                            ) : msg.sender_avatar_url ? (
-                                                                <img src={msg.sender_avatar_url} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-700" />
-                                                            ) : (
-                                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 ring-2 ring-slate-700">
-                                                                    {(msg.sender_name || '?')[0]?.toUpperCase()}
-                                                                </div>
-                                                            )}
-                                                            {badge && (
-                                                                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center ${badge === 'owner' ? 'bg-amber-500' : badge === 'agent' ? 'bg-emerald-500' : 'bg-primary-500'
-                                                                    }`}>
-                                                                    {badge === 'owner' ? <Crown className="w-2.5 h-2.5 text-white" /> :
-                                                                        badge === 'agent' ? <Bot className="w-2.5 h-2.5 text-white" /> :
-                                                                            <Shield className="w-2.5 h-2.5 text-white" />}
-                                                                </div>
-                                                            )}
+                                return (
+                                    <motion.div key={msg.id}
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className={`group flex gap-2.5 ${own ? 'flex-row-reverse' : ''}`}>
+                                        {/* Avatar */}
+                                        <div className="flex-shrink-0 w-8">
+                                            {showAvatar ? (
+                                                <div className="relative">
+                                                    {isAgent ? (
+                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center ring-2 ring-emerald-700/50">
+                                                            <Bot className="w-4 h-4 text-white" />
                                                         </div>
-                                                    ) : <div className="w-8" />}
-                                                </div>
-
-                                                {/* Message */}
-                                                <div className={`flex-1 flex flex-col ${own ? 'items-end' : 'items-start'}`}>
-                                                    {showAvatar && (
-                                                        <div className={`flex items-center gap-2 mb-1 ${own ? 'flex-row-reverse' : ''}`}>
-                                                            <span className={`text-[11px] font-semibold ${isAgent ? 'text-emerald-400' : 'text-slate-300'}`}>
-                                                                {isAgent ? (msg.agent_name || 'AI') : (msg.sender_name || 'Utente')}
-                                                            </span>
-                                                            {isAgent && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium">BOT</span>}
-                                                            <span className="text-[10px] text-slate-600">{formatTime(msg.created_at)}</span>
+                                                    ) : msg.sender_avatar_url ? (
+                                                        <img src={msg.sender_avatar_url} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-700" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 ring-2 ring-slate-700">
+                                                            {(msg.sender_name || '?')[0]?.toUpperCase()}
                                                         </div>
                                                     )}
-                                                    <div className={`relative max-w-[85%] group/message ${isAgent ? 'bg-emerald-500/10 border-emerald-500/20' :
-                                                        own ? 'bg-primary-500/15 border-primary-500/20' :
-                                                            'bg-slate-800/70 border-white/5'
-                                                        } rounded-2xl px-3.5 py-2 border ${isAgent ? 'rounded-tl-md' : own ? 'rounded-tr-md' : 'rounded-tl-md'
-                                                        }`}>
-                                                        {/* Image attachment */}
-                                                        {imageUrl && (
-                                                            <div className="mb-2 -mx-1 -mt-0.5 cursor-pointer" onClick={() => setLightboxUrl(imageUrl)}>
-                                                                <img src={imageUrl} alt="" className="rounded-xl max-w-full max-h-48 object-cover hover:opacity-90 transition-opacity" />
-                                                                <div className="absolute top-2 right-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                                                                    <ZoomIn className="w-4 h-4 text-white drop-shadow-lg" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {(!imageUrl || msg.content !== '📷 Immagine') && (
-                                                            <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
-                                                        )}
+                                                    {badge && (
+                                                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center ${badge === 'owner' ? 'bg-amber-500' : badge === 'agent' ? 'bg-emerald-500' : 'bg-primary-500'
+                                                            }`}>
+                                                            {badge === 'owner' ? <Crown className="w-2.5 h-2.5 text-white" /> :
+                                                                badge === 'agent' ? <Bot className="w-2.5 h-2.5 text-white" /> :
+                                                                    <Shield className="w-2.5 h-2.5 text-white" />}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : <div className="w-8" />}
+                                        </div>
 
-                                                        {/* Delete menu */}
-                                                        {canDeleteMessage(msg) && (
-                                                            <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/message:opacity-100 transition-opacity ${own ? '-left-8' : '-right-8'}`}>
-                                                                <button onClick={(e) => { e.stopPropagation(); setMessageMenuOpen(messageMenuOpen === msg.id ? null : msg.id); }}
-                                                                    className="p-1.5 rounded-full hover:bg-slate-700/50 text-slate-500 hover:text-slate-300">
-                                                                    <MoreHorizontal className="w-3.5 h-3.5" />
+                                        {/* Message */}
+                                        <div className={`flex-1 flex flex-col ${own ? 'items-end' : 'items-start'}`}>
+                                            {showAvatar && (
+                                                <div className={`flex items-center gap-2 mb-1 ${own ? 'flex-row-reverse' : ''}`}>
+                                                    <span className={`text-[11px] font-semibold ${isAgent ? 'text-emerald-400' : 'text-slate-300'}`}>
+                                                        {isAgent ? (msg.agent_name || 'AI') : (msg.sender_name || 'Utente')}
+                                                    </span>
+                                                    {isAgent && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium">BOT</span>}
+                                                    <span className="text-[10px] text-slate-600">{formatTime(msg.created_at)}</span>
+                                                </div>
+                                            )}
+                                            <div className={`relative max-w-[85%] group/message ${isAgent ? 'bg-emerald-500/10 border-emerald-500/20' :
+                                                own ? 'bg-primary-500/15 border-primary-500/20' :
+                                                    'bg-slate-800/70 border-white/5'
+                                                } rounded-2xl px-3.5 py-2 border ${isAgent ? 'rounded-tl-md' : own ? 'rounded-tr-md' : 'rounded-tl-md'
+                                                }`}>
+                                                {/* Image attachment */}
+                                                {imageUrl && (
+                                                    <div className="mb-2 -mx-1 -mt-0.5 cursor-pointer" onClick={() => setLightboxUrl(imageUrl)}>
+                                                        <img src={imageUrl} alt="" className="rounded-xl max-w-full max-h-48 object-cover hover:opacity-90 transition-opacity" />
+                                                        <div className="absolute top-2 right-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                                                            <ZoomIn className="w-4 h-4 text-white drop-shadow-lg" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {(!imageUrl || msg.content !== '📷 Immagine') && (
+                                                    <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                                                )}
+
+                                                {/* Delete menu */}
+                                                {canDeleteMessage(msg) && (
+                                                    <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/message:opacity-100 transition-opacity ${own ? '-left-8' : '-right-8'}`}>
+                                                        <button onClick={(e) => { e.stopPropagation(); setMessageMenuOpen(messageMenuOpen === msg.id ? null : msg.id); }}
+                                                            className="p-1.5 rounded-full hover:bg-slate-700/50 text-slate-500 hover:text-slate-300">
+                                                            <MoreHorizontal className="w-3.5 h-3.5" />
+                                                        </button>
+                                                        {messageMenuOpen === msg.id && (
+                                                            <div className={`absolute top-full mt-1 ${own ? 'right-0' : 'left-0'} w-28 bg-slate-800 border border-white/10 rounded-xl shadow-xl z-20 py-1`}>
+                                                                <button onClick={() => handleDeleteMessage(msg.id)}
+                                                                    className="w-full px-3 py-1.5 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
+                                                                    <Trash2 className="w-3 h-3" /> Elimina
                                                                 </button>
-                                                                {messageMenuOpen === msg.id && (
-                                                                    <div className={`absolute top-full mt-1 ${own ? 'right-0' : 'left-0'} w-28 bg-slate-800 border border-white/10 rounded-xl shadow-xl z-20 py-1`}>
-                                                                        <button onClick={() => handleDeleteMessage(msg.id)}
-                                                                            className="w-full px-3 py-1.5 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
-                                                                            <Trash2 className="w-3 h-3" /> Elimina
-                                                                        </button>
-                                                                    </div>
-                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
-                                                </div>
-                                            </motion.div>
-                                        );
-                                    })}
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    {/* ── Input Area ── */}
-                    <div className="p-3 bg-slate-800/30 border-t border-white/5">
-                        {/* Agent mention dropdown */}
-                        <AnimatePresence>
-                            {showAgentMenu && agents.length > 0 && (
-                                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-                                    className="mb-2 p-1 bg-slate-800 border border-white/10 rounded-xl shadow-xl">
-                                    <div className="text-[10px] text-slate-500 px-2 py-1 uppercase tracking-wider font-medium">Agenti AI</div>
-                                    {agents.map(agent => (
-                                        <button key={agent.id} onClick={() => insertAgentMention(agent)}
-                                            className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 rounded-lg">
-                                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
-                                                <Bot className="w-3 h-3 text-white" />
+                                                )}
                                             </div>
-                                            <span className="text-xs font-medium text-emerald-400">{agent.name}</span>
-                                        </button>
-                                    ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
+                    ))
+                )}
+            </div>
 
-                        {/* Emoji Picker */}
-                        <AnimatePresence>
-                            {showEmojiPicker && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                    className="emoji-picker-container mb-2 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
-                                >
-                                    <EmojiPicker onSelect={insertEmoji} />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {/* Upload progress */}
-                        {uploadingImage && (
-                            <div className="mb-2 flex items-center gap-2 text-xs text-primary-400">
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                Caricamento immagine...
-                            </div>
-                        )}
-
-                        <form onSubmit={handleSendMessage} className="relative">
-                            <div className="flex items-center gap-1.5 bg-slate-950/80 border border-white/8 rounded-2xl px-3 py-2 focus-within:border-primary-500/40 focus-within:ring-1 focus-within:ring-primary-500/20 focus-within:shadow-[0_0_20px_rgba(99,102,241,0.1)] transition-all">
-                                <button type="button"
-                                    onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(!showEmojiPicker); }}
-                                    className={`p-1.5 rounded-lg transition-colors ${showEmojiPicker ? 'text-primary-400 bg-primary-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
-                                    <Smile className="w-5 h-5" />
+            {/* ── Input Area ── */}
+            <div className="p-3 bg-slate-800/30 border-t border-white/5">
+                {/* Agent mention dropdown */}
+                <AnimatePresence>
+                    {showAgentMenu && agents.length > 0 && (
+                        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+                            className="mb-2 p-1 bg-slate-800 border border-white/10 rounded-xl shadow-xl">
+                            <div className="text-[10px] text-slate-500 px-2 py-1 uppercase tracking-wider font-medium">Agenti AI</div>
+                            {agents.map(agent => (
+                                <button key={agent.id} onClick={() => insertAgentMention(agent)}
+                                    className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 rounded-lg">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                                        <Bot className="w-3 h-3 text-white" />
+                                    </div>
+                                    <span className="text-xs font-medium text-emerald-400">{agent.name}</span>
                                 </button>
+                            ))}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-                                <input ref={inputRef} type="text" value={inputValue}
-                                    onChange={handleInputChange}
-                                    placeholder={agents.length > 0 ? 'Messaggio... (@ per agenti)' : 'Scrivi un messaggio...'}
-                                    className="flex-1 bg-transparent text-sm text-slate-200 placeholder:text-slate-600 outline-none min-w-0"
-                                    maxLength={2000} />
+                {/* Emoji Picker */}
+                <AnimatePresence>
+                    {showEmojiPicker && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="emoji-picker-container mb-2 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+                        >
+                            <EmojiPicker onSelect={insertEmoji} />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-                                <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                                <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage}
-                                    className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-40">
-                                    <ImageIcon className="w-5 h-5" />
-                                </button>
-
-                                <button type="submit"
-                                    disabled={!inputValue.trim() || (chatTab === 'room' && !myRoomId) || isSending}
-                                    className="p-2 rounded-xl bg-gradient-to-r from-primary-500 to-purple-500 hover:from-primary-400 hover:to-purple-400 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all active:scale-95 shadow-lg shadow-primary-500/20">
-                                    <Send className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </form>
-
-                        {userRole && (
-                            <div className="mt-1.5 flex items-center justify-center gap-1.5">
-                                {userRole === 'owner' && <><Crown className="w-3 h-3 text-amber-500" /><span className="text-[10px] text-amber-500/70 uppercase tracking-wider font-medium">Proprietario</span></>}
-                                {userRole === 'admin' && <><Shield className="w-3 h-3 text-primary-400" /><span className="text-[10px] text-primary-400/70 uppercase tracking-wider font-medium">Admin</span></>}
-                            </div>
-                        )}
+                {/* Upload progress */}
+                {uploadingImage && (
+                    <div className="mb-2 flex items-center gap-2 text-xs text-primary-400">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Caricamento immagine...
                     </div>
+                )}
 
-                    {/* ── Lightbox ── */}
-                    <AnimatePresence>
-                        {lightboxUrl && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="absolute inset-0 z-50 bg-black/90 flex items-center justify-center p-6 cursor-pointer"
-                                onClick={() => setLightboxUrl(null)}>
-                                <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" />
-                                <button className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </motion.div>
-            )}
-        </AnimatePresence>
+                <form onSubmit={handleSendMessage} className="relative">
+                    <div className="flex items-center gap-1.5 bg-slate-950/80 border border-white/8 rounded-2xl px-3 py-2 focus-within:border-primary-500/40 focus-within:ring-1 focus-within:ring-primary-500/20 focus-within:shadow-[0_0_20px_rgba(99,102,241,0.1)] transition-all">
+                        <button type="button"
+                            onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(!showEmojiPicker); }}
+                            className={`p-1.5 rounded-lg transition-colors ${showEmojiPicker ? 'text-primary-400 bg-primary-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
+                            <Smile className="w-5 h-5" />
+                        </button>
+
+                        <input ref={inputRef} type="text" value={inputValue}
+                            onChange={handleInputChange}
+                            placeholder={agents.length > 0 ? 'Messaggio... (@ per agenti)' : 'Scrivi un messaggio...'}
+                            className="flex-1 bg-transparent text-sm text-slate-200 placeholder:text-slate-600 outline-none min-w-0"
+                            maxLength={2000} />
+
+                        <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                        <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage}
+                            className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-40">
+                            <ImageIcon className="w-5 h-5" />
+                        </button>
+
+                        <button type="submit"
+                            disabled={!inputValue.trim() || (chatTab === 'room' && !myRoomId) || isSending}
+                            className="p-2 rounded-xl bg-gradient-to-r from-primary-500 to-purple-500 hover:from-primary-400 hover:to-purple-400 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all active:scale-95 shadow-lg shadow-primary-500/20">
+                            <Send className="w-4 h-4" />
+                        </button>
+                    </div>
+                </form>
+
+                {userRole && (
+                    <div className="mt-1.5 flex items-center justify-center gap-1.5">
+                        {userRole === 'owner' && <><Crown className="w-3 h-3 text-amber-500" /><span className="text-[10px] text-amber-500/70 uppercase tracking-wider font-medium">Proprietario</span></>}
+                        {userRole === 'admin' && <><Shield className="w-3 h-3 text-primary-400" /><span className="text-[10px] text-primary-400/70 uppercase tracking-wider font-medium">Admin</span></>}
+                    </div>
+                )}
+            </div>
+
+            {/* ── Lightbox ── */}
+            <AnimatePresence>
+                {lightboxUrl && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-50 bg-black/90 flex items-center justify-center p-6 cursor-pointer"
+                        onClick={() => setLightboxUrl(null)}>
+                        <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" />
+                        <button className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }
 
