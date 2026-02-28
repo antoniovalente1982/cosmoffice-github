@@ -184,10 +184,7 @@ export function TeamList({ spaceId }: TeamListProps) {
             <Button
                 variant="ghost"
                 onClick={() => setShowAllMembers(!showAllMembers)}
-                className={`w-full justify-start gap-3 transition-all duration-300 ${showAllMembers
-                    ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
-                    }`}
+                className="w-full justify-start gap-3 transition-all duration-300 bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]"
             >
                 <Users className="w-5 h-5 flex-shrink-0" />
                 <span className="whitespace-nowrap">Team members</span>
