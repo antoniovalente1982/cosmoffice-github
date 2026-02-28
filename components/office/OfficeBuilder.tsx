@@ -399,134 +399,54 @@ export function OfficeBuilder() {
                     </>
                 ) : (
                     <>
-                        {/* Glass Tabs Header for Builder Actions */}
-                        <div className="flex border-b border-white/5"
-                            style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%)' }}>
-                            <button
-                                onClick={() => setBuilderTab('rooms')}
-                                className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors ${builderTab === 'rooms' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-500/5' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Stanze
-                            </button>
-                            <button
-                                onClick={() => setBuilderTab('environment')}
-                                className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors ${builderTab === 'environment' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-500/5' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Ambiente
-                            </button>
-                        </div>
-
                         <div className="p-4 flex-1 flex flex-col justify-start items-center h-full min-h-[160px] relative overflow-y-auto custom-scrollbar">
-                            {builderTab === 'rooms' ? (
-                                <>
-                                    <div className="grid grid-cols-2 gap-3 w-full">
-                                        <button
-                                            onClick={() => handleAddRoom(roomTemplates[0])}
-                                            className="w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group relative overflow-hidden"
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
-                                                <Plus className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
-                                            </div>
-                                            <span className="relative text-xs font-bold text-cyan-50 tracking-wide text-center">
-                                                Nuova Stanza
-                                            </span>
-                                        </button>
-
-                                        <button
-                                            onClick={() => setShowRoomsList(!showRoomsList)}
-                                            className={`w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all transform hover:-translate-y-1 group relative overflow-hidden ${showRoomsList ? 'bg-purple-500/20 border-purple-500/50 shadow-[0_10px_30px_rgba(168,85,247,0.2)]' : 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 hover:border-purple-500/50 hover:shadow-[0_10px_30px_rgba(168,85,247,0.15)]'}`}
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-purple-500/20 group-hover:bg-purple-500/30 transition-colors">
-                                                <PenTool className="w-6 h-6 text-purple-400 group-hover:scale-110 transition-transform" />
-                                            </div>
-                                            <span className="relative text-xs font-bold text-purple-50 tracking-wide text-center">
-                                                Modifica Stanza
-                                            </span>
-                                        </button>
+                            <div className="grid grid-cols-2 gap-3 w-full">
+                                <button
+                                    onClick={() => handleAddRoom(roomTemplates[0])}
+                                    className="w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group relative overflow-hidden"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
+                                        <Plus className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
                                     </div>
+                                    <span className="relative text-xs font-bold text-cyan-50 tracking-wide text-center">
+                                        Nuova Stanza
+                                    </span>
+                                </button>
 
-                                    {showRoomsList && (
-                                        <div className="w-full mt-4 space-y-2">
-                                            <p className="text-xs text-slate-400 font-medium mb-2 uppercase tracking-wider">Seleziona una stanza da modificare</p>
-                                            {rooms.map(room => (
-                                                <button
-                                                    key={room.id}
-                                                    onClick={() => setSelectedRoom(room.id)}
-                                                    className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 border border-white/5 hover:border-white/10 transition-colors"
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getRoomColor(room) }} />
-                                                        <span className="text-sm text-slate-200 font-medium">{room.name}</span>
-                                                    </div>
-                                                    <Edit2 className="w-4 h-4 text-slate-500" />
-                                                </button>
-                                            ))}
-                                            {rooms.length === 0 && (
-                                                <p className="text-sm text-slate-500 text-center py-4">Nessuna stanza presente.</p>
-                                            )}
-                                        </div>
+                                <button
+                                    onClick={() => setShowRoomsList(!showRoomsList)}
+                                    className={`w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all transform hover:-translate-y-1 group relative overflow-hidden ${showRoomsList ? 'bg-purple-500/20 border-purple-500/50 shadow-[0_10px_30px_rgba(168,85,247,0.2)]' : 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 hover:border-purple-500/50 hover:shadow-[0_10px_30px_rgba(168,85,247,0.15)]'}`}
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-purple-500/20 group-hover:bg-purple-500/30 transition-colors">
+                                        <PenTool className="w-6 h-6 text-purple-400 group-hover:scale-110 transition-transform" />
+                                    </div>
+                                    <span className="relative text-xs font-bold text-purple-50 tracking-wide text-center">
+                                        Modifica Stanza
+                                    </span>
+                                </button>
+                            </div>
+
+                            {showRoomsList && (
+                                <div className="w-full mt-4 space-y-2">
+                                    <p className="text-xs text-slate-400 font-medium mb-2 uppercase tracking-wider">Seleziona una stanza da modificare</p>
+                                    {rooms.map(room => (
+                                        <button
+                                            key={room.id}
+                                            onClick={() => setSelectedRoom(room.id)}
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 border border-white/5 hover:border-white/10 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getRoomColor(room) }} />
+                                                <span className="text-sm text-slate-200 font-medium">{room.name}</span>
+                                            </div>
+                                            <Edit2 className="w-4 h-4 text-slate-500" />
+                                        </button>
+                                    ))}
+                                    {rooms.length === 0 && (
+                                        <p className="text-sm text-slate-500 text-center py-4">Nessuna stanza presente.</p>
                                     )}
-                                </>
-                            ) : (
-                                <div className="w-full space-y-5">
-                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5 w-full">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Trasparenza Spazio</label>
-                                            <span className="text-xs text-cyan-400 font-mono">{Math.round((useOfficeStore.getState().bgOpacity ?? 0.8) * 100)}%</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            step="5"
-                                            value={Math.round((useOfficeStore.getState().bgOpacity ?? 0.8) * 100)}
-                                            onChange={(e) => useOfficeStore.getState().setBgOpacity(parseFloat(e.target.value) / 100)}
-                                            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors mb-2"
-                                            style={{ accentColor: '#22d3ee' }}
-                                        />
-                                        <p className="text-[10px] text-slate-500 leading-snug">
-                                            Regola l&apos;opacità dello sfondo cosmico.
-                                        </p>
-                                    </div>
-
-                                    {/* Office Size Presets */}
-                                    <div className="w-full">
-                                        <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 block">Dimensione Ufficio</label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {OFFICE_PRESETS.map((preset) => {
-                                                const currentW = useOfficeStore.getState().officeWidth || 4000;
-                                                const currentH = useOfficeStore.getState().officeHeight || 4000;
-                                                const isActive = currentW === preset.width && currentH === preset.height;
-                                                return (
-                                                    <button
-                                                        key={preset.id}
-                                                        onClick={() => {
-                                                            useOfficeStore.getState().setOfficeDimensions(preset.width, preset.height);
-                                                        }}
-                                                        className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${isActive
-                                                            ? 'bg-cyan-500/15 border-cyan-500/50 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
-                                                            : 'bg-slate-800/50 border-white/5 hover:bg-slate-700/50 hover:border-white/15'
-                                                            }`}
-                                                    >
-                                                        <span className="text-lg">{preset.icon}</span>
-                                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-cyan-400' : 'text-slate-300'}`}>
-                                                            {preset.label}
-                                                        </span>
-                                                        <span className="text-[9px] text-slate-500">{preset.capacity} utenti</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={handleSaveEnvironment} disabled={saving}
-                                        className="w-full flex items-center justify-center gap-2 py-3 mt-4 rounded-xl text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(34,211,238,0.4)] disabled:opacity-50"
-                                    >
-                                        <Save className="w-4 h-4" /> {saving ? 'Salvataggio...' : 'Salva Ambiente'}
-                                    </button>
                                 </div>
                             )}
                         </div>

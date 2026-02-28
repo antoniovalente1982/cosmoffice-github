@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { Map, Target, ZoomIn, ZoomOut, ChevronUp, Users, Maximize2 } from 'lucide-react';
+import { Map, ZoomIn, ZoomOut, ChevronUp, Users } from 'lucide-react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 
 // ─── Office size presets ──────────────────────────────────────────
@@ -152,22 +152,7 @@ export function MiniMap({ officeWidth = 3000, officeHeight = 3000 }: MiniMapProp
                         </div>
                         <span className="text-[9px] text-slate-500 font-medium">{currentPreset.icon} {currentPreset.label}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <button
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
-                            title="Centra su di me"
-                            onClick={handleCenterOnMe}
-                        >
-                            <Target className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-all"
-                            title="Fit all"
-                            onClick={handleResetZoom}
-                        >
-                            <Maximize2 className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
+
                 </div>
 
                 {/* Map Canvas */}

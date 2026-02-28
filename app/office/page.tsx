@@ -25,6 +25,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Logo } from '../../components/ui/logo';
 import { WorkspaceSettings } from '../../components/workspace/WorkspaceSettings';
+import { OFFICE_PRESETS } from '../../components/office/MiniMap';
 
 export default function DashboardPage() {
     const supabase = createClient();
@@ -108,12 +109,15 @@ export default function DashboardPage() {
         }
     }, [spaceMenuOpen]);
 
+    const [selectedPreset, setSelectedPreset] = useState('team');
+
     const handleCreateWorkspace = async () => {
         if (!newWorkspaceName || !user || isSubmitting) return;
 
         setIsSubmitting(true);
         setError(null);
 
+        const preset = OFFICE_PRESETS.find(p => p.id === selectedPreset) || OFFICE_PRESETS[1];
         const baseSlug = newWorkspaceName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
         let slug = baseSlug || 'workspace';
 
@@ -151,14 +155,22 @@ export default function DashboardPage() {
             if (wsError) throw wsError;
             if (!workspace) throw new Error('Failed to create workspace');
 
-            // STEP 2: Create default space
+            // STEP 2: Create space with layout_data from the selected preset
+            const layout_data = {
+                officeWidth: preset.width,
+                officeHeight: preset.height,
+                bgOpacity: 0.8,
+                preset: preset.id,
+            };
+
             const { data: space, error: spaceError } = await supabase
                 .from('spaces')
                 .insert({
                     workspace_id: workspace.id,
                     name: 'General Office',
                     slug: 'general-office',
-                    created_by: user.id
+                    created_by: user.id,
+                    layout_data,
                 })
                 .select()
                 .single();
@@ -166,12 +178,14 @@ export default function DashboardPage() {
             if (spaceError) throw spaceError;
             if (!space) throw new Error('Failed to create default space');
 
-            // STEP 3: Create default rooms for the space
+            // STEP 3: Create default rooms scaled to office size
+            const scaleX = preset.width / 4000;
+            const scaleY = preset.height / 3000;
             const defaultRooms = [
-                { space_id: space.id, name: 'Lobby', type: 'reception', x: 400, y: 400, width: 250, height: 200, created_by: user.id },
-                { space_id: space.id, name: 'Coffee Break', type: 'break', x: 700, y: 400, width: 200, height: 200, created_by: user.id },
-                { space_id: space.id, name: 'Deep Work', type: 'focus', x: 400, y: 700, width: 300, height: 250, created_by: user.id },
-                { space_id: space.id, name: 'Design Hub', type: 'meeting', x: 750, y: 700, width: 250, height: 250, created_by: user.id }
+                { space_id: space.id, name: 'Lobby', type: 'reception', x: Math.round(400 * scaleX), y: Math.round(400 * scaleY), width: Math.round(250 * scaleX), height: Math.round(200 * scaleY), created_by: user.id },
+                { space_id: space.id, name: 'Coffee Break', type: 'break', x: Math.round(700 * scaleX), y: Math.round(400 * scaleY), width: Math.round(200 * scaleX), height: Math.round(200 * scaleY), created_by: user.id },
+                { space_id: space.id, name: 'Deep Work', type: 'focus', x: Math.round(400 * scaleX), y: Math.round(700 * scaleY), width: Math.round(300 * scaleX), height: Math.round(250 * scaleY), created_by: user.id },
+                { space_id: space.id, name: 'Design Hub', type: 'meeting', x: Math.round(750 * scaleX), y: Math.round(700 * scaleY), width: Math.round(250 * scaleX), height: Math.round(250 * scaleY), created_by: user.id }
             ];
 
             const { error: roomsError } = await supabase
@@ -290,15 +304,38 @@ export default function DashboardPage() {
                 </div>
 
                 {isCreatingWorkspace && (
-                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="glass p-6 rounded-2xl border border-primary-500/20 max-w-md mx-auto">
-                        <h2 className="text-lg font-semibold mb-4">Create New Workspace</h2>
+                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="glass p-6 rounded-2xl border border-primary-500/20 max-w-lg mx-auto">
+                        <h2 className="text-lg font-semibold mb-4">Crea Nuovo Ufficio</h2>
                         <input
                             type="text"
-                            placeholder="Workspace Name (e.g. Acme Corp)"
+                            placeholder="Nome dell'ufficio (es. Acme Corp)"
                             className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2 mb-4 focus:border-primary-500 outline-none"
                             value={newWorkspaceName}
                             onChange={(e) => setNewWorkspaceName(e.target.value)}
                         />
+
+                        {/* Office Size Preset Selection */}
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Dimensione Ufficio</label>
+                        <div className="grid grid-cols-2 gap-2 mb-4">
+                            {OFFICE_PRESETS.map((preset) => (
+                                <button
+                                    key={preset.id}
+                                    type="button"
+                                    onClick={() => setSelectedPreset(preset.id)}
+                                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${selectedPreset === preset.id
+                                            ? 'bg-primary-500/15 border-primary-500/50 shadow-[0_0_12px_rgba(99,102,241,0.2)]'
+                                            : 'bg-slate-800/50 border-white/5 hover:bg-slate-700/50 hover:border-white/15'
+                                        }`}
+                                >
+                                    <span className="text-lg">{preset.icon}</span>
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedPreset === preset.id ? 'text-primary-400' : 'text-slate-300'}`}>
+                                        {preset.label}
+                                    </span>
+                                    <span className="text-[9px] text-slate-500">{preset.capacity} utenti</span>
+                                </button>
+                            ))}
+                        </div>
+
                         {error && (
                             <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                                 {error}
@@ -306,9 +343,9 @@ export default function DashboardPage() {
                         )}
                         <div className="flex gap-2">
                             <Button className="flex-1" onClick={handleCreateWorkspace} disabled={isSubmitting}>
-                                {isSubmitting ? 'Creating...' : 'Create'}
+                                {isSubmitting ? 'Creazione...' : 'Crea Ufficio'}
                             </Button>
-                            <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingWorkspace(false)} disabled={isSubmitting}>Cancel</Button>
+                            <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingWorkspace(false)} disabled={isSubmitting}>Annulla</Button>
                         </div>
                     </motion.div>
                 )}
