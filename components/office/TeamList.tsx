@@ -180,7 +180,7 @@ export function TeamList({ spaceId }: TeamListProps) {
 
     return (
         <div className="mt-1 space-y-1">
-            {/* === TEAM MEMBERS (collapsed by default) === */}
+            {/* === TEAM MEMBERS (styled like Virtual Office button) === */}
             <Button
                 variant="ghost"
                 onClick={() => setShowAllMembers(!showAllMembers)}
@@ -189,10 +189,10 @@ export function TeamList({ spaceId }: TeamListProps) {
                     : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
                     }`}
             >
-                <Users className="w-5 h-5" />
-                <span>Team members</span>
-                <span className="text-[10px] text-slate-500 ml-auto mr-1">{members.length}</span>
-                <ChevronDown className={`w-3.5 h-3.5 opacity-50 transition-transform ${showAllMembers ? '' : '-rotate-90'}`} />
+                <Users className="w-5 h-5 flex-shrink-0" />
+                <span className="whitespace-nowrap">Team members</span>
+                <span className="text-[10px] text-slate-500 ml-auto">{members.length}</span>
+                <ChevronDown className={`w-3 h-3 flex-shrink-0 opacity-50 transition-transform ${showAllMembers ? '' : '-rotate-90'}`} />
             </Button>
 
             <AnimatePresence initial={false}>
