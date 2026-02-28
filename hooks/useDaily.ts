@@ -13,6 +13,8 @@ import { useOfficeStore } from '../stores/useOfficeStore';
 const DAILY_DOMAIN = process.env.NEXT_PUBLIC_DAILY_DOMAIN || 'antoniovalente.daily.co';
 const PROXIMITY_RANGE = 300;
 const ROOM_CHECK_INTERVAL = 500;
+const TRACK_SYNC_POLL_MS = 100;     // Was 500ms — faster track detection
+const TRACK_SYNC_MAX_ATTEMPTS = 30; // ~3s max wait at 100ms intervals
 
 // ─── Types ───────────────────────────────────────────────────────
 interface DailyPeerInfo {
@@ -34,6 +36,11 @@ let gSpaceId: string | null = null;
 const gPeers = new Map<string, DailyPeerInfo>();
 // Track local tracks separately — participants().local has stale data at track-started time
 const gLocalTracks = new Map<string, MediaStreamTrack>(); // kind → track
+// ─── Room URL cache — avoids redundant API calls ─────────────────
+const gRoomUrlCache = new Map<string, { url: string; ts: number }>();
+const ROOM_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+// ─── Instant preview stream (getUserMedia before Daily join completes)
+let gPreviewStream: MediaStream | null = null;
 
 export function useDaily(spaceId: string | null) {
     const proximityIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -56,8 +63,15 @@ export function useDaily(spaceId: string | null) {
         [spaceId]
     );
 
-    // ─── Create or get room via API ──────────────────────────
+    // ─── Create or get room via API (with cache) ─────────────
     const ensureRoom = useCallback(async (roomName: string): Promise<string | null> => {
+        // Check cache first — avoids ~300-800ms API round-trip
+        const cached = gRoomUrlCache.get(roomName);
+        if (cached && (Date.now() - cached.ts) < ROOM_CACHE_TTL_MS) {
+            console.log(`[Daily] Room cache hit: ${roomName}`);
+            return cached.url;
+        }
+
         try {
             const res = await fetch('/api/daily/room', {
                 method: 'POST',
@@ -73,6 +87,8 @@ export function useDaily(spaceId: string | null) {
             }
             const data = await res.json();
             console.log(`[Daily] Room ready: ${data.name} (${data.created ? 'new' : 'existing'})`);
+            // Cache the URL
+            gRoomUrlCache.set(roomName, { url: data.url, ts: Date.now() });
             return data.url;
         } catch (err: any) {
             const msg = err?.message?.includes('ENOTFOUND') || err?.message?.includes('fetch')
@@ -193,7 +209,7 @@ export function useDaily(spaceId: string | null) {
 
     const handleError = useCallback((ev: any) => { console.error('[Daily] Error:', ev?.errorMsg || ev); }, []);
 
-    // ─── Create call object (no join yet) ────────────────────
+    // ─── Create call object + pre-warm room URL ──────────────
     useEffect(() => {
         if (!spaceId || !DAILY_DOMAIN) return;
 
@@ -203,24 +219,58 @@ export function useDaily(spaceId: string | null) {
         // Singleton: create call object once, but DON'T join any room
         if (gCall) {
             console.log('[Daily] Call object already exists');
-            return;
+        } else {
+            try {
+                const call = DailyIframe.createCallObject();
+                call.on('participant-joined', handleParticipantJoined);
+                call.on('participant-left', handleParticipantLeft);
+                call.on('participant-updated', handleParticipantUpdated);
+                call.on('track-started', handleTrackStarted);
+                call.on('track-stopped', handleTrackStopped);
+                call.on('error', handleError);
+                gCall = call;
+                console.log('[Daily] Call object created (idle — will join when mic/camera enabled)');
+            } catch (err: any) {
+                console.error('[Daily] Failed to create call object:', err?.message);
+            }
         }
 
-        try {
-            const call = DailyIframe.createCallObject();
-            call.on('participant-joined', handleParticipantJoined);
-            call.on('participant-left', handleParticipantLeft);
-            call.on('participant-updated', handleParticipantUpdated);
-            call.on('track-started', handleTrackStarted);
-            call.on('track-stopped', handleTrackStopped);
-            call.on('error', handleError);
-            gCall = call;
-            console.log('[Daily] Call object created (idle — will join when mic/camera enabled)');
-        } catch (err: any) {
-            console.error('[Daily] Failed to create call object:', err?.message);
+        // Pre-warm: resolve room URL in background so it's cached when user clicks mic/cam
+        const roomName = getRoomName(myRoomId || undefined);
+        if (roomName && !gRoomUrlCache.has(roomName)) {
+            ensureRoom(roomName).then((url) => {
+                if (url) console.log('[Daily] 🔥 Room pre-warmed:', roomName);
+            });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [spaceId]);
+
+    // ─── Instant preview: grab local media BEFORE Daily.co finishes joining ──
+    const startInstantPreview = useCallback(async () => {
+        try {
+            const state = useOfficeStore.getState();
+            const constraints: MediaStreamConstraints = {};
+            if (state.isMicEnabled) constraints.audio = state.selectedAudioInput ? { deviceId: { exact: state.selectedAudioInput } } : true;
+            if (state.isVideoEnabled) constraints.video = state.selectedVideoInput ? { deviceId: { exact: state.selectedVideoInput } } : true;
+            if (!constraints.audio && !constraints.video) return;
+
+            console.log('[Daily] 🚀 Instant preview: requesting getUserMedia...');
+            gPreviewStream = await navigator.mediaDevices.getUserMedia(constraints);
+            // Show preview immediately — Daily.co tracks will replace this when ready
+            setLocalStream(gPreviewStream);
+            console.log('[Daily] 🚀 Instant preview active (tracks:', gPreviewStream.getTracks().length + ')');
+        } catch (err) {
+            console.warn('[Daily] Instant preview failed (will fall back to Daily.co):', err);
+            gPreviewStream = null;
+        }
+    }, [setLocalStream]);
+
+    const stopInstantPreview = useCallback(() => {
+        if (gPreviewStream) {
+            gPreviewStream.getTracks().forEach(t => t.stop());
+            gPreviewStream = null;
+        }
+    }, []);
 
     // ─── Lazy Join/Leave: connect only when mic or camera is ON ──
     useEffect(() => {
@@ -228,16 +278,22 @@ export function useDaily(spaceId: string | null) {
 
         const handleJoinLeave = async () => {
             if (needsDaily && !gJoined && !gJoining) {
-                // User turned on mic or camera → JOIN Daily.co
+                // User turned on mic or camera → INSTANT preview + JOIN Daily.co
                 gJoining = true;
+
+                // Step 1: Instant local preview (shows video/plays audio within ~50-200ms)
+                await startInstantPreview();
+
                 try {
+                    // Step 2: Get room URL (likely cached from pre-warm → ~0ms)
                     const roomName = getRoomName(myRoomId || undefined);
                     if (!roomName) { gJoining = false; return; }
                     const url = await ensureRoom(roomName);
-                    if (!url) { gJoining = false; return; } // Error already set by ensureRoom
+                    if (!url) { gJoining = false; return; }
 
+                    // Step 3: Join Daily.co room
                     console.log('[Daily] 🔗 Connecting (mic/camera enabled)...');
-                    useOfficeStore.getState().clearDailyError(); // Clear previous errors
+                    useOfficeStore.getState().clearDailyError();
                     const profile = useOfficeStore.getState().myProfile;
                     await gCall!.join({
                         url,
@@ -251,8 +307,7 @@ export function useDaily(spaceId: string | null) {
                     useOfficeStore.getState().clearDailyError();
                     console.log('[Daily] ✅ Joined room:', url);
 
-                    // Explicitly enable audio/video AFTER join — Daily.co may not
-                    // auto-start tracks despite startVideoOff/startAudioOff flags
+                    // Explicitly enable audio/video AFTER join
                     if (isVideoEnabled) {
                         gCall!.setLocalVideo(true);
                         console.log('[Daily] Forced video ON after join');
@@ -262,12 +317,13 @@ export function useDaily(spaceId: string | null) {
                         console.log('[Daily] Forced audio ON after join');
                     }
 
-                    // Poll for tracks: Daily.co populates persistentTrack asynchronously
+                    // Step 4: Poll for Daily.co tracks to replace preview stream
                     let attempts = 0;
-                    const maxAttempts = 10;
                     const syncInterval = setInterval(() => {
-                        if (!gCall || !gJoined || attempts >= maxAttempts) {
+                        if (!gCall || !gJoined || attempts >= TRACK_SYNC_MAX_ATTEMPTS) {
                             clearInterval(syncInterval);
+                            // If Daily tracks arrived, stop preview; otherwise keep it
+                            if (gLocalTracks.size > 0) stopInstantPreview();
                             return;
                         }
                         attempts++;
@@ -290,8 +346,10 @@ export function useDaily(spaceId: string | null) {
                         }
 
                         if (changed) {
+                            // Daily.co tracks ready — replace preview stream with real tracks
+                            stopInstantPreview();
                             const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
-                            console.log('[Daily] Sync poll: rebuilding localStream with', liveTracks.length, 'tracks');
+                            console.log('[Daily] Sync poll: replacing preview → Daily tracks (' + liveTracks.length + ')');
                             setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
                         }
 
@@ -302,10 +360,11 @@ export function useDaily(spaceId: string | null) {
                             console.log('[Daily] Sync poll: all tracks found, stopping poll');
                             clearInterval(syncInterval);
                         }
-                    }, 500);
+                    }, TRACK_SYNC_POLL_MS);
                 } catch (err: any) {
                     const msg = err?.message || 'Errore sconosciuto';
                     console.error('[Daily] Join failed:', msg);
+                    stopInstantPreview();
                     const userMsg = msg.includes('payment') ? 'Account Daily.co: metodo di pagamento mancante'
                         : msg.includes('destroy') ? 'Sessione Daily.co corrotta — ricarica la pagina'
                             : msg.includes('Duplicate') ? 'Sessione duplicata — ricarica la pagina'
@@ -317,6 +376,7 @@ export function useDaily(spaceId: string | null) {
             } else if (!needsDaily && gJoined && !gJoining) {
                 // User turned off BOTH mic and camera → LEAVE to save minutes
                 console.log('[Daily] 🔌 Disconnecting (both mic & camera off)...');
+                stopInstantPreview();
                 try {
                     await gCall!.leave();
                 } catch { /* ignore */ }
