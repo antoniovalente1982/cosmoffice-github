@@ -52,35 +52,43 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({
                 name: sanitized,
                 properties: {
-                    // Room expires after 24h of no use
                     exp: Math.floor(Date.now() / 1000) + 86400,
-                    // Allow anyone to join (no token needed for now)
-                    enable_chat: false,
-                    enable_knocking: false,
-                    // Start with mic/cam off
                     start_audio_off: true,
                     start_video_off: true,
-                    // Max 50 participants
-                    max_participants: 50,
                 },
             }),
         });
 
-        if (!createRes.ok) {
-            const errorData = await createRes.json().catch(() => ({}));
-            console.error('[Daily API] Room creation failed:', errorData);
-            return NextResponse.json(
-                { error: 'Failed to create Daily.co room', details: errorData },
-                { status: createRes.status }
-            );
+        if (createRes.ok) {
+            const newRoom = await createRes.json();
+            console.log('[Daily API] Room created:', newRoom.name);
+            return NextResponse.json({
+                url: newRoom.url,
+                name: newRoom.name,
+                created: true,
+            });
         }
 
-        const newRoom = await createRes.json();
-        return NextResponse.json({
-            url: newRoom.url,
-            name: newRoom.name,
-            created: true,
+        // If creation failed because room already exists (race condition), try GET again
+        const retryGet = await fetch(`${DAILY_API_URL}/rooms/${sanitized}`, {
+            headers: { Authorization: `Bearer ${DAILY_API_KEY}` },
         });
+
+        if (retryGet.ok) {
+            const existingRoom = await retryGet.json();
+            return NextResponse.json({
+                url: existingRoom.url,
+                name: existingRoom.name,
+                created: false,
+            });
+        }
+
+        const errorData = await createRes.json().catch(() => ({}));
+        console.error('[Daily API] Room creation failed:', errorData);
+        return NextResponse.json(
+            { error: 'Failed to create Daily.co room', details: errorData },
+            { status: createRes.status }
+        );
     } catch (err) {
         console.error('[Daily API] Error:', err);
         return NextResponse.json(
