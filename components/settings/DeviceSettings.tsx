@@ -237,9 +237,8 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         if (!isOpen) {
             hasInitialized.current = false;
             streamInitializedRef.current = false;
-            // Cleanup solo se non abbiamo applicato (non c'è localStream)
-            const currentLocalStream = useOfficeStore.getState().localStream;
-            if (previewStream && previewStream !== currentLocalStream) {
+            // Always stop preview stream — Daily.co manages its own hardware
+            if (previewStream) {
                 previewStream.getTracks().forEach(t => t.stop());
                 setPreviewStream(null);
             }
@@ -678,19 +677,22 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
     // Applica le impostazioni
     const applySettings = useCallback(() => {
-        // Ferma lo stream precedente se esiste
+        // Stop any existing local stream
         const currentStream = useOfficeStore.getState().localStream;
         if (currentStream) {
             currentStream.getTracks().forEach(t => t.stop());
         }
 
-        // Se abbiamo uno stream di preview, usiamo quello come stream locale
+        // IMPORTANT: Stop the preview stream — Daily.co will create its own
+        // stream when the user enables mic/camera. Keeping this alive would
+        // leave the hardware (camera LED) on even with isVideoEnabled=false.
         if (previewStream) {
-            stopAudioMonitoring();
-            setLocalStream(previewStream);
+            previewStream.getTracks().forEach(t => t.stop());
             setPreviewStream(null);
         }
 
+        stopAudioMonitoring();
+        setLocalStream(null); // Clear — Daily.co will set this when joining
         setHasCompletedDeviceSetup(true);
         onClose();
     }, [previewStream, setLocalStream, setHasCompletedDeviceSetup, onClose]);
