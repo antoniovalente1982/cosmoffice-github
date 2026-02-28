@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { createClient } from '../../utils/supabase/client';
+import { OFFICE_PRESETS } from './MiniMap';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2
@@ -490,36 +491,34 @@ export function OfficeBuilder() {
                                         </p>
                                     </div>
 
-                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5 w-full">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Larghezza Ufficio</label>
-                                            <span className="text-xs text-indigo-400 font-mono">{useOfficeStore.getState().officeWidth || 4000}px</span>
+                                    {/* Office Size Presets */}
+                                    <div className="w-full">
+                                        <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 block">Dimensione Ufficio</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {OFFICE_PRESETS.map((preset) => {
+                                                const currentW = useOfficeStore.getState().officeWidth || 4000;
+                                                const currentH = useOfficeStore.getState().officeHeight || 4000;
+                                                const isActive = currentW === preset.width && currentH === preset.height;
+                                                return (
+                                                    <button
+                                                        key={preset.id}
+                                                        onClick={() => {
+                                                            useOfficeStore.getState().setOfficeDimensions(preset.width, preset.height);
+                                                        }}
+                                                        className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${isActive
+                                                            ? 'bg-cyan-500/15 border-cyan-500/50 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
+                                                            : 'bg-slate-800/50 border-white/5 hover:bg-slate-700/50 hover:border-white/15'
+                                                            }`}
+                                                    >
+                                                        <span className="text-lg">{preset.icon}</span>
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-cyan-400' : 'text-slate-300'}`}>
+                                                            {preset.label}
+                                                        </span>
+                                                        <span className="text-[9px] text-slate-500">{preset.capacity} utenti</span>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                        <input
-                                            type="range"
-                                            min="2000"
-                                            max="10000"
-                                            step="500"
-                                            value={useOfficeStore.getState().officeWidth || 4000}
-                                            onChange={handleResizeOfficeWidth}
-                                            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
-                                            style={{ accentColor: '#818cf8' }}
-                                        />
-
-                                        <div className="flex justify-between items-center mb-2 mt-5">
-                                            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Altezza Ufficio</label>
-                                            <span className="text-xs text-indigo-400 font-mono">{useOfficeStore.getState().officeHeight || 4000}px</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="2000"
-                                            max="10000"
-                                            step="500"
-                                            value={useOfficeStore.getState().officeHeight || 4000}
-                                            onChange={handleResizeOfficeHeight}
-                                            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer hover:bg-slate-600 transition-colors"
-                                            style={{ accentColor: '#818cf8' }}
-                                        />
                                     </div>
 
                                     <button
