@@ -417,456 +417,436 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
 
                 {/* Content */}
                 <div className="p-5 overflow-y-auto max-h-[65vh]">
-                    <AnimatePresence mode="wait">
-                        {/* ── PROFILE TAB ── */}
-                        {activeTab === 'profile' && (
-                            <motion.div
-                                key="profile"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 10 }}
-                                className="space-y-6"
-                            >
-                                {/* Avatar section */}
-                                <div className="flex items-center gap-5">
-                                    <div className="relative group">
-                                        <div className="w-24 h-24 rounded-2xl overflow-hidden ring-2 ring-primary-500/30 shadow-xl">
-                                            {avatarUrl ? (
-                                                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-3xl font-bold text-slate-400">
-                                                    {(displayName || fullName || '?')[0]?.toUpperCase()}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={() => fileInputRef.current?.click()}
-                                            disabled={uploading}
-                                            className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer disabled:cursor-wait"
-                                        >
-                                            {uploading ? (
-                                                <Loader2 className="w-6 h-6 text-white animate-spin" />
-                                            ) : (
-                                                <Camera className="w-6 h-6 text-white" />
-                                            )}
-                                        </button>
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            onChange={uploadAvatar}
-                                            accept="image/*"
-                                            className="hidden"
-                                        />
+                    {/* ── PROFILE TAB ── */}
+                    {activeTab === 'profile' && (
+                        <div className="space-y-6 animate-[fadeIn_0.15s_ease-out]">
+                            {/* Avatar section */}
+                            <div className="flex items-center gap-5">
+                                <div className="relative group">
+                                    <div className="w-24 h-24 rounded-2xl overflow-hidden ring-2 ring-primary-500/30 shadow-xl">
+                                        {avatarUrl ? (
+                                            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-3xl font-bold text-slate-400">
+                                                {(displayName || fullName || '?')[0]?.toUpperCase()}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="flex-1 space-y-1">
-                                        <h3 className="text-base font-semibold text-slate-100">{displayName || fullName || 'Il tuo profilo'}</h3>
-                                        <p className="text-sm text-slate-500">{userEmail}</p>
-                                        <p className="text-xs text-slate-600">Clicca sull&apos;avatar per cambiarlo • Max 5MB</p>
-                                    </div>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploading}
+                                        className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer disabled:cursor-wait"
+                                    >
+                                        {uploading ? (
+                                            <Loader2 className="w-6 h-6 text-white animate-spin" />
+                                        ) : (
+                                            <Camera className="w-6 h-6 text-white" />
+                                        )}
+                                    </button>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={uploadAvatar}
+                                        accept="image/*"
+                                        className="hidden"
+                                    />
                                 </div>
-
-                                {/* Name fields */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs text-slate-400 font-medium ml-1">Nome completo</label>
-                                        <input
-                                            value={fullName}
-                                            onChange={(e) => setFullName(e.target.value)}
-                                            placeholder="Mario Rossi"
-                                            className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs text-slate-400 font-medium ml-1">Display name</label>
-                                        <input
-                                            value={displayName}
-                                            onChange={(e) => setDisplayName(e.target.value)}
-                                            placeholder="Mario"
-                                            className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
-                                        />
-                                    </div>
+                                <div className="flex-1 space-y-1">
+                                    <h3 className="text-base font-semibold text-slate-100">{displayName || fullName || 'Il tuo profilo'}</h3>
+                                    <p className="text-sm text-slate-500">{userEmail}</p>
+                                    <p className="text-xs text-slate-600">Clicca sull&apos;avatar per cambiarlo • Max 5MB</p>
                                 </div>
+                            </div>
 
-                                {/* Status + Timezone */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                            <Globe className="w-3 h-3" /> Stato
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {STATUS_OPTIONS.map(opt => (
-                                                <button
-                                                    key={opt.value}
-                                                    onClick={() => setUserStatus(opt.value)}
-                                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all ${userStatus === opt.value
-                                                        ? 'bg-primary-500/15 text-primary-300 ring-1 ring-primary-500/30'
-                                                        : 'bg-slate-800/40 text-slate-400 hover:bg-slate-800/60 hover:text-slate-300'
-                                                        }`}
-                                                >
-                                                    <span>{opt.emoji}</span>
-                                                    {opt.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                            <Clock className="w-3 h-3" /> Fuso orario
-                                        </label>
-                                        <select
-                                            value={timezone}
-                                            onChange={(e) => setTimezone(e.target.value)}
-                                            className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
-                                        >
-                                            {TIMEZONES.map(tz => (
-                                                <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                            {/* Name fields */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs text-slate-400 font-medium ml-1">Nome completo</label>
+                                    <input
+                                        value={fullName}
+                                        onChange={(e) => setFullName(e.target.value)}
+                                        placeholder="Mario Rossi"
+                                        className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
+                                    />
                                 </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs text-slate-400 font-medium ml-1">Display name</label>
+                                    <input
+                                        value={displayName}
+                                        onChange={(e) => setDisplayName(e.target.value)}
+                                        placeholder="Mario"
+                                        className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
+                                    />
+                                </div>
+                            </div>
 
-                                {/* Performance Mode Toggle */}
+                            {/* Status + Timezone */}
+                            <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                     <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                        <Shield className="w-3 h-3" /> Prestazioni e Risparmio Energetico
+                                        <Globe className="w-3 h-3" /> Stato
                                     </label>
-                                    <button
-                                        onClick={togglePerformanceMode}
-                                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${isPerformanceMode
-                                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-                                            : 'bg-slate-800/60 border-white/10 hover:bg-slate-800/80 text-slate-300'
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-lg ${isPerformanceMode ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-slate-400'}`}>
-                                                <Star className="w-4 h-4" />
-                                            </div>
-                                            <div className="text-left">
-                                                <div className="text-sm font-medium">{isPerformanceMode ? 'Low-power Mode Attivata' : 'Alta Qualità Grafica'}</div>
-                                                <div className="text-[10px] sm:text-xs opacity-70 mt-0.5">
-                                                    {isPerformanceMode ? 'Prestazioni massime su vecchi PC. Effetti ridotti.' : 'Grafica avanzata attiva. Sconsigliato su vecchi PC.'}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Simple Toggle relative to state */}
-                                        <div className={`w-10 h-5.5 rounded-full p-0.5 flex items-center transition-colors ${isPerformanceMode ? 'bg-amber-500' : 'bg-slate-700'}`}>
-                                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isPerformanceMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                                        </div>
-                                    </button>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {STATUS_OPTIONS.map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => setUserStatus(opt.value)}
+                                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all ${userStatus === opt.value
+                                                    ? 'bg-primary-500/15 text-primary-300 ring-1 ring-primary-500/30'
+                                                    : 'bg-slate-800/40 text-slate-400 hover:bg-slate-800/60 hover:text-slate-300'
+                                                    }`}
+                                            >
+                                                <span>{opt.emoji}</span>
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
+                                        <Clock className="w-3 h-3" /> Fuso orario
+                                    </label>
+                                    <select
+                                        value={timezone}
+                                        onChange={(e) => setTimezone(e.target.value)}
+                                        className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
+                                    >
+                                        {TIMEZONES.map(tz => (
+                                            <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
 
-                                {/* Save button */}
-                                <Button
-                                    onClick={saveProfile}
-                                    disabled={saving}
-                                    className={`w-full gap-2 font-semibold rounded-xl py-2.5 transition-all ${saveResult === 'success'
-                                        ? 'bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
-                                        : saveResult === 'error'
-                                            ? 'bg-red-500 hover:bg-red-400'
-                                            : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
+                            {/* Performance Mode Toggle */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
+                                    <Shield className="w-3 h-3" /> Prestazioni e Risparmio Energetico
+                                </label>
+                                <button
+                                    onClick={togglePerformanceMode}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${isPerformanceMode
+                                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                                        : 'bg-slate-800/60 border-white/10 hover:bg-slate-800/80 text-slate-300'
                                         }`}
                                 >
-                                    {saving ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : saveResult === 'success' ? (
-                                        <><Check className="w-4 h-4" /> Salvato!</>
-                                    ) : saveResult === 'error' ? (
-                                        'Errore nel salvataggio'
-                                    ) : (
-                                        'Salva profilo'
-                                    )}
-                                </Button>
-                            </motion.div>
-                        )}
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-lg ${isPerformanceMode ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-slate-400'}`}>
+                                            <Star className="w-4 h-4" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="text-sm font-medium">{isPerformanceMode ? 'Low-power Mode Attivata' : 'Alta Qualità Grafica'}</div>
+                                            <div className="text-[10px] sm:text-xs opacity-70 mt-0.5">
+                                                {isPerformanceMode ? 'Prestazioni massime su vecchi PC. Effetti ridotti.' : 'Grafica avanzata attiva. Sconsigliato su vecchi PC.'}
+                                            </div>
+                                        </div>
+                                    </div>
 
-                        {/* ── WORKSPACE TAB ── */}
-                        {activeTab === 'workspace' && (
-                            <motion.div
-                                key="workspace"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 10 }}
-                                className="space-y-5"
+                                    {/* Simple Toggle relative to state */}
+                                    <div className={`w-10 h-5.5 rounded-full p-0.5 flex items-center transition-colors ${isPerformanceMode ? 'bg-amber-500' : 'bg-slate-700'}`}>
+                                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isPerformanceMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                    </div>
+                                </button>
+                            </div>
+
+                            {/* Save button */}
+                            <Button
+                                onClick={saveProfile}
+                                disabled={saving}
+                                className={`w-full gap-2 font-semibold rounded-xl py-2.5 transition-all ${saveResult === 'success'
+                                    ? 'bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
+                                    : saveResult === 'error'
+                                        ? 'bg-red-500 hover:bg-red-400'
+                                        : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
+                                    }`}
                             >
-                                {isAdmin ? (
-                                    <>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs text-slate-400 font-medium ml-1">Nome workspace</label>
-                                            <input
-                                                value={workspaceName}
-                                                onChange={(e) => setWorkspaceName(e.target.value)}
-                                                className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs text-slate-400 font-medium ml-1">Descrizione</label>
-                                            <textarea
-                                                value={workspaceDescription}
-                                                onChange={(e) => setWorkspaceDescription(e.target.value)}
-                                                rows={3}
-                                                placeholder="Descrivi il tuo workspace..."
-                                                className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all resize-none"
-                                            />
-                                        </div>
-                                        <Button
-                                            onClick={saveWorkspace}
-                                            disabled={saving}
-                                            className={`w-full gap-2 font-semibold rounded-xl py-2.5 ${saveResult === 'success' ? 'bg-emerald-500' : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
+                                {saving ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : saveResult === 'success' ? (
+                                    <><Check className="w-4 h-4" /> Salvato!</>
+                                ) : saveResult === 'error' ? (
+                                    'Errore nel salvataggio'
+                                ) : (
+                                    'Salva profilo'
+                                )}
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* ── WORKSPACE TAB ── */}
+                    {activeTab === 'workspace' && (
+                        <div className="space-y-5 animate-[fadeIn_0.15s_ease-out]">
+                            {isAdmin ? (
+                                <>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs text-slate-400 font-medium ml-1">Nome workspace</label>
+                                        <input
+                                            value={workspaceName}
+                                            onChange={(e) => setWorkspaceName(e.target.value)}
+                                            className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs text-slate-400 font-medium ml-1">Descrizione</label>
+                                        <textarea
+                                            value={workspaceDescription}
+                                            onChange={(e) => setWorkspaceDescription(e.target.value)}
+                                            rows={3}
+                                            placeholder="Descrivi il tuo workspace..."
+                                            className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all resize-none"
+                                        />
+                                    </div>
+                                    <Button
+                                        onClick={saveWorkspace}
+                                        disabled={saving}
+                                        className={`w-full gap-2 font-semibold rounded-xl py-2.5 ${saveResult === 'success' ? 'bg-emerald-500' : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
+                                            }`}
+                                    >
+                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveResult === 'success' ? <><Check className="w-4 h-4" /> Salvato!</> : 'Salva workspace'}
+                                    </Button>
+                                </>
+                            ) : (
+                                <div className="text-center py-12 space-y-3 text-slate-500">
+                                    <Building2 className="w-10 h-10 mx-auto opacity-40" />
+                                    <p className="text-sm">Solo gli admin possono modificare le impostazioni del workspace</p>
+                                    <p className="text-xs">Workspace: <span className="text-slate-300 font-medium">{workspaceName}</span></p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ── INVITES TAB ── */}
+                    {activeTab === 'invites' && (
+                        <div className="space-y-5 animate-[fadeIn_0.15s_ease-out]">
+                            {!canInvite ? (
+                                <div className="text-center py-12 space-y-3 text-slate-500">
+                                    <UserPlus className="w-10 h-10 mx-auto opacity-40" />
+                                    <p className="text-sm">Solo i membri, admin e owner possono invitare.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Mode toggle */}
+                                    <div className="flex items-center gap-2 p-1 bg-slate-800/50 rounded-xl">
+                                        <button
+                                            onClick={() => setInviteMode('link')}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all ${inviteMode === 'link' ? 'bg-primary-500/20 text-primary-300 shadow' : 'text-slate-400 hover:text-slate-200'
                                                 }`}
                                         >
-                                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveResult === 'success' ? <><Check className="w-4 h-4" /> Salvato!</> : 'Salva workspace'}
-                                        </Button>
-                                    </>
-                                ) : (
-                                    <div className="text-center py-12 space-y-3 text-slate-500">
-                                        <Building2 className="w-10 h-10 mx-auto opacity-40" />
-                                        <p className="text-sm">Solo gli admin possono modificare le impostazioni del workspace</p>
-                                        <p className="text-xs">Workspace: <span className="text-slate-300 font-medium">{workspaceName}</span></p>
+                                            <Link2 className="w-3.5 h-3.5" />
+                                            Link invito
+                                        </button>
+                                        <button
+                                            onClick={() => setInviteMode('email')}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all ${inviteMode === 'email' ? 'bg-primary-500/20 text-primary-300 shadow' : 'text-slate-400 hover:text-slate-200'
+                                                }`}
+                                        >
+                                            <Mail className="w-3.5 h-3.5" />
+                                            Email
+                                        </button>
                                     </div>
-                                )}
-                            </motion.div>
-                        )}
 
-                        {/* ── INVITES TAB ── */}
-                        {activeTab === 'invites' && (
-                            <motion.div
-                                key="invites"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 10 }}
-                                className="space-y-5"
-                            >
-                                {!canInvite ? (
-                                    <div className="text-center py-12 space-y-3 text-slate-500">
-                                        <UserPlus className="w-10 h-10 mx-auto opacity-40" />
-                                        <p className="text-sm">Solo i membri, admin e owner possono invitare.</p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {/* Mode toggle */}
-                                        <div className="flex items-center gap-2 p-1 bg-slate-800/50 rounded-xl">
-                                            <button
-                                                onClick={() => setInviteMode('link')}
-                                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all ${inviteMode === 'link' ? 'bg-primary-500/20 text-primary-300 shadow' : 'text-slate-400 hover:text-slate-200'
-                                                    }`}
-                                            >
-                                                <Link2 className="w-3.5 h-3.5" />
-                                                Link invito
-                                            </button>
-                                            <button
-                                                onClick={() => setInviteMode('email')}
-                                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all ${inviteMode === 'email' ? 'bg-primary-500/20 text-primary-300 shadow' : 'text-slate-400 hover:text-slate-200'
-                                                    }`}
-                                            >
-                                                <Mail className="w-3.5 h-3.5" />
-                                                Email
-                                            </button>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {/* Email input (only for email mode) */}
-                                            {inviteMode === 'email' && (
-                                                <div className="space-y-1.5">
-                                                    <label className="text-xs text-slate-400 font-medium ml-1">Email</label>
-                                                    <input
-                                                        type="email"
-                                                        value={inviteEmail}
-                                                        onChange={(e) => setInviteEmail(e.target.value)}
-                                                        placeholder="collega@azienda.com"
-                                                        className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
-                                                        onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
-                                                    />
-                                                </div>
-                                            )}
-
-                                            {/* Role selection */}
+                                    <div className="space-y-3">
+                                        {/* Email input (only for email mode) */}
+                                        {inviteMode === 'email' && (
                                             <div className="space-y-1.5">
-                                                <label className="text-xs text-slate-400 font-medium ml-1">Ruolo</label>
-                                                <div className="flex gap-2">
-                                                    {availableRoles.map(role => (
-                                                        <button
-                                                            key={role}
-                                                            onClick={() => setInviteRole(role)}
-                                                            className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all ${inviteRole === role
-                                                                ? 'bg-primary-500/15 text-primary-300 ring-1 ring-primary-500/30'
-                                                                : 'bg-slate-800/40 text-slate-400 hover:bg-slate-800/60'
-                                                                }`}
-                                                        >
-                                                            {role === 'admin' ? '🛡️ Admin' : role === 'member' ? '👤 Membro' : '🎫 Ospite'}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Link options */}
-                                            {inviteMode === 'link' && (
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1">
-                                                            <Clock className="w-3 h-3" /> Scadenza
-                                                        </label>
-                                                        <select
-                                                            value={linkExpiry}
-                                                            onChange={(e) => setLinkExpiry(e.target.value as any)}
-                                                            className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
-                                                        >
-                                                            <option value="1d">1 giorno</option>
-                                                            <option value="7d">7 giorni</option>
-                                                            <option value="30d">30 giorni</option>
-                                                            <option value="never">Mai</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1">
-                                                            <Users className="w-3 h-3" /> Max utilizzi
-                                                        </label>
-                                                        <select
-                                                            value={linkMaxUses ?? 'unlimited'}
-                                                            onChange={(e) => setLinkMaxUses(e.target.value === 'unlimited' ? null : parseInt(e.target.value))}
-                                                            className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
-                                                        >
-                                                            <option value="1">1 persona</option>
-                                                            <option value="5">5 persone</option>
-                                                            <option value="10">10 persone</option>
-                                                            <option value="25">25 persone</option>
-                                                            <option value="unlimited">Illimitato</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Generated link display */}
-                                        {generatedLink && (
-                                            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                                                    <span className="text-xs text-emerald-300 font-medium">Link creato e copiato!</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        readOnly
-                                                        value={generatedLink}
-                                                        className="flex-1 bg-slate-900/50 border border-white/5 rounded-lg px-3 py-1.5 text-[11px] text-slate-300 outline-none font-mono"
-                                                    />
-                                                    <button
-                                                        onClick={() => { navigator.clipboard.writeText(generatedLink); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); }}
-                                                        className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 transition-colors"
-                                                    >
-                                                        {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                                    </button>
-                                                </div>
+                                                <label className="text-xs text-slate-400 font-medium ml-1">Email</label>
+                                                <input
+                                                    type="email"
+                                                    value={inviteEmail}
+                                                    onChange={(e) => setInviteEmail(e.target.value)}
+                                                    placeholder="collega@azienda.com"
+                                                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
+                                                />
                                             </div>
                                         )}
 
-                                        {/* Action button */}
-                                        <Button
-                                            onClick={handleInvite}
-                                            disabled={inviting || (inviteMode === 'email' && !inviteEmail)}
-                                            className={`w-full gap-2 font-semibold rounded-xl py-2.5 ${inviteResult === 'success' && !generatedLink
-                                                ? 'bg-emerald-500'
-                                                : inviteResult === 'error'
-                                                    ? 'bg-red-500'
-                                                    : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
-                                                }`}
-                                        >
-                                            {inviting ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : inviteResult === 'success' && inviteMode === 'email' ? (
-                                                <><Check className="w-4 h-4" /> Invito inviato!</>
-                                            ) : inviteResult === 'error' ? (
-                                                inviteError || 'Errore'
-                                            ) : inviteMode === 'link' ? (
-                                                <><Link2 className="w-4 h-4" /> Genera link invito</>
-                                            ) : (
-                                                <><UserPlus className="w-4 h-4" /> Invia invito</>
-                                            )}
-                                        </Button>
+                                        {/* Role selection */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs text-slate-400 font-medium ml-1">Ruolo</label>
+                                            <div className="flex gap-2">
+                                                {availableRoles.map(role => (
+                                                    <button
+                                                        key={role}
+                                                        onClick={() => setInviteRole(role)}
+                                                        className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all ${inviteRole === role
+                                                            ? 'bg-primary-500/15 text-primary-300 ring-1 ring-primary-500/30'
+                                                            : 'bg-slate-800/40 text-slate-400 hover:bg-slate-800/60'
+                                                            }`}
+                                                    >
+                                                        {role === 'admin' ? '🛡️ Admin' : role === 'member' ? '👤 Membro' : '🎫 Ospite'}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
 
-                                        {/* Active invites list */}
-                                        {activeInvites.length > 0 && (
-                                            <div className="space-y-2 pt-2">
-                                                <div className="flex items-center justify-between">
-                                                    <h4 className="text-xs text-slate-400 font-medium">Inviti attivi</h4>
-                                                    <span className="text-[10px] text-slate-600">{activeInvites.length}</span>
+                                        {/* Link options */}
+                                        {inviteMode === 'link' && (
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1">
+                                                        <Clock className="w-3 h-3" /> Scadenza
+                                                    </label>
+                                                    <select
+                                                        value={linkExpiry}
+                                                        onChange={(e) => setLinkExpiry(e.target.value as any)}
+                                                        className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
+                                                    >
+                                                        <option value="1d">1 giorno</option>
+                                                        <option value="7d">7 giorni</option>
+                                                        <option value="30d">30 giorni</option>
+                                                        <option value="never">Mai</option>
+                                                    </select>
                                                 </div>
-                                                <div className="space-y-1.5 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
-                                                    {activeInvites.map(inv => {
-                                                        const isExpired = inv.expires_at && new Date(inv.expires_at) < new Date();
-                                                        const isAccepted = inv.invite_type === 'email' && inv.accepted_at;
-                                                        const isExhausted = inv.invite_type === 'link' && inv.max_uses && inv.use_count >= inv.max_uses;
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1">
+                                                        <Users className="w-3 h-3" /> Max utilizzi
+                                                    </label>
+                                                    <select
+                                                        value={linkMaxUses ?? 'unlimited'}
+                                                        onChange={(e) => setLinkMaxUses(e.target.value === 'unlimited' ? null : parseInt(e.target.value))}
+                                                        className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
+                                                    >
+                                                        <option value="1">1 persona</option>
+                                                        <option value="5">5 persone</option>
+                                                        <option value="10">10 persone</option>
+                                                        <option value="25">25 persone</option>
+                                                        <option value="unlimited">Illimitato</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
 
-                                                        return (
-                                                            <div key={inv.id}
-                                                                className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${isExpired || isAccepted || isExhausted
-                                                                    ? 'bg-slate-800/20 border-white/5 opacity-60'
-                                                                    : 'bg-slate-800/40 border-white/5 hover:border-white/10'
-                                                                    }`}
-                                                            >
-                                                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${inv.invite_type === 'link' ? 'bg-purple-500/15 text-purple-400' : 'bg-primary-500/15 text-primary-400'
-                                                                    }`}>
-                                                                    {inv.invite_type === 'link' ? <Link2 className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+                                    {/* Generated link display */}
+                                    {generatedLink && (
+                                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                                                <span className="text-xs text-emerald-300 font-medium">Link creato e copiato!</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    readOnly
+                                                    value={generatedLink}
+                                                    className="flex-1 bg-slate-900/50 border border-white/5 rounded-lg px-3 py-1.5 text-[11px] text-slate-300 outline-none font-mono"
+                                                />
+                                                <button
+                                                    onClick={() => { navigator.clipboard.writeText(generatedLink); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); }}
+                                                    className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 transition-colors"
+                                                >
+                                                    {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Action button */}
+                                    <Button
+                                        onClick={handleInvite}
+                                        disabled={inviting || (inviteMode === 'email' && !inviteEmail)}
+                                        className={`w-full gap-2 font-semibold rounded-xl py-2.5 ${inviteResult === 'success' && !generatedLink
+                                            ? 'bg-emerald-500'
+                                            : inviteResult === 'error'
+                                                ? 'bg-red-500'
+                                                : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
+                                            }`}
+                                    >
+                                        {inviting ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : inviteResult === 'success' && inviteMode === 'email' ? (
+                                            <><Check className="w-4 h-4" /> Invito inviato!</>
+                                        ) : inviteResult === 'error' ? (
+                                            inviteError || 'Errore'
+                                        ) : inviteMode === 'link' ? (
+                                            <><Link2 className="w-4 h-4" /> Genera link invito</>
+                                        ) : (
+                                            <><UserPlus className="w-4 h-4" /> Invia invito</>
+                                        )}
+                                    </Button>
+
+                                    {/* Active invites list */}
+                                    {activeInvites.length > 0 && (
+                                        <div className="space-y-2 pt-2">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-xs text-slate-400 font-medium">Inviti attivi</h4>
+                                                <span className="text-[10px] text-slate-600">{activeInvites.length}</span>
+                                            </div>
+                                            <div className="space-y-1.5 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+                                                {activeInvites.map(inv => {
+                                                    const isExpired = inv.expires_at && new Date(inv.expires_at) < new Date();
+                                                    const isAccepted = inv.invite_type === 'email' && inv.accepted_at;
+                                                    const isExhausted = inv.invite_type === 'link' && inv.max_uses && inv.use_count >= inv.max_uses;
+
+                                                    return (
+                                                        <div key={inv.id}
+                                                            className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${isExpired || isAccepted || isExhausted
+                                                                ? 'bg-slate-800/20 border-white/5 opacity-60'
+                                                                : 'bg-slate-800/40 border-white/5 hover:border-white/10'
+                                                                }`}
+                                                        >
+                                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${inv.invite_type === 'link' ? 'bg-purple-500/15 text-purple-400' : 'bg-primary-500/15 text-primary-400'
+                                                                }`}>
+                                                                {inv.invite_type === 'link' ? <Link2 className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-xs text-slate-200 truncate">
+                                                                        {inv.email || inv.label || 'Link invito'}
+                                                                    </span>
+                                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${inv.role === 'admin' ? 'bg-primary-500/15 text-primary-300'
+                                                                        : inv.role === 'guest' ? 'bg-purple-500/15 text-purple-300'
+                                                                            : 'bg-emerald-500/15 text-emerald-300'
+                                                                        }`}>
+                                                                        {inv.role}
+                                                                    </span>
                                                                 </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-xs text-slate-200 truncate">
-                                                                            {inv.email || inv.label || 'Link invito'}
+                                                                <div className="flex items-center gap-2 mt-0.5">
+                                                                    {isExpired && <span className="text-[9px] text-red-400">Scaduto</span>}
+                                                                    {isAccepted && <span className="text-[9px] text-emerald-400">Accettato</span>}
+                                                                    {isExhausted && <span className="text-[9px] text-amber-400">Esaurito</span>}
+                                                                    {!isExpired && !isAccepted && !isExhausted && inv.invite_type === 'link' && (
+                                                                        <span className="text-[9px] text-slate-500">
+                                                                            {inv.use_count || 0}{inv.max_uses ? `/${inv.max_uses}` : ''} usi
                                                                         </span>
-                                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${inv.role === 'admin' ? 'bg-primary-500/15 text-primary-300'
-                                                                            : inv.role === 'guest' ? 'bg-purple-500/15 text-purple-300'
-                                                                                : 'bg-emerald-500/15 text-emerald-300'
-                                                                            }`}>
-                                                                            {inv.role}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                                        {isExpired && <span className="text-[9px] text-red-400">Scaduto</span>}
-                                                                        {isAccepted && <span className="text-[9px] text-emerald-400">Accettato</span>}
-                                                                        {isExhausted && <span className="text-[9px] text-amber-400">Esaurito</span>}
-                                                                        {!isExpired && !isAccepted && !isExhausted && inv.invite_type === 'link' && (
-                                                                            <span className="text-[9px] text-slate-500">
-                                                                                {inv.use_count || 0}{inv.max_uses ? `/${inv.max_uses}` : ''} usi
-                                                                            </span>
-                                                                        )}
-                                                                        {inv.expires_at && !isExpired && (
-                                                                            <span className="text-[9px] text-slate-600">
-                                                                                scade {new Date(inv.expires_at).toLocaleDateString('it-IT')}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    {inv.invite_type === 'link' && !isExpired && !isExhausted && (
-                                                                        <button
-                                                                            onClick={() => copyLink(inv.token)}
-                                                                            className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
-                                                                            title="Copia link"
-                                                                        >
-                                                                            <Copy className="w-3 h-3" />
-                                                                        </button>
                                                                     )}
-                                                                    {!isAccepted && (
-                                                                        <button
-                                                                            onClick={() => revokeInvite(inv.id)}
-                                                                            className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
-                                                                            title="Revoca"
-                                                                        >
-                                                                            <Trash2 className="w-3 h-3" />
-                                                                        </button>
+                                                                    {inv.expires_at && !isExpired && (
+                                                                        <span className="text-[9px] text-slate-600">
+                                                                            scade {new Date(inv.expires_at).toLocaleDateString('it-IT')}
+                                                                        </span>
                                                                     )}
                                                                 </div>
                                                             </div>
-                                                        );
-                                                    })}
-                                                </div>
+                                                            <div className="flex items-center gap-1">
+                                                                {inv.invite_type === 'link' && !isExpired && !isExhausted && (
+                                                                    <button
+                                                                        onClick={() => copyLink(inv.token)}
+                                                                        className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
+                                                                        title="Copia link"
+                                                                    >
+                                                                        <Copy className="w-3 h-3" />
+                                                                    </button>
+                                                                )}
+                                                                {!isAccepted && (
+                                                                    <button
+                                                                        onClick={() => revokeInvite(inv.id)}
+                                                                        className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
+                                                                        title="Revoca"
+                                                                    >
+                                                                        <Trash2 className="w-3 h-3" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        )}
-                                    </>
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
             </motion.div>
         </div>
