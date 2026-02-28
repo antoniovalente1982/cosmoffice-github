@@ -184,10 +184,6 @@ export default function OfficePage() {
                     >
                         <MapIcon className="w-5 h-5" /> Virtual Office
                     </Button>
-                    <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors">
-                        <Users className="w-5 h-5" /> Team members
-                    </Button>
-
 
                     <TeamList spaceId={spaceId} />
                 </nav>

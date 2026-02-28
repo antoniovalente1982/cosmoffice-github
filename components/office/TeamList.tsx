@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '../../utils/supabase/client';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Shield, User, Star, ChevronDown } from 'lucide-react';
+import { Crown, Shield, User, Star, ChevronDown, Users } from 'lucide-react';
 
 const supabase = createClient();
 
@@ -45,7 +45,7 @@ interface TeamListProps {
 export function TeamList({ spaceId }: TeamListProps) {
     const { peers, myProfile } = useOfficeStore();
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
-    const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+    const [showAllMembers, setShowAllMembers] = useState(false); // collapsed by default
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     const peerList = Object.values(peers);
@@ -60,7 +60,6 @@ export function TeamList({ spaceId }: TeamListProps) {
             if (cancelled || !user) return;
             setCurrentUserId(user.id);
 
-            // Get workspace_id from space
             const { data: space } = await supabase
                 .from('spaces')
                 .select('workspace_id')
@@ -109,7 +108,7 @@ export function TeamList({ spaceId }: TeamListProps) {
     };
 
     const isOnline = (m: WorkspaceMember) => {
-        if (m.user_id === currentUserId) return true; // I'm always online here
+        if (m.user_id === currentUserId) return true;
         return onlinePeerIds.has(m.user_id);
     };
 
@@ -126,145 +125,108 @@ export function TeamList({ spaceId }: TeamListProps) {
         members: members.filter(m => m.role === role),
     })).filter(g => g.members.length > 0);
 
-    // Online members (me + peers)
+    // Online members
     const onlineMembers = members.filter(m => isOnline(m));
-    const onlineCount = onlineMembers.length;
 
-    const toggleCollapse = (role: string) => {
-        setCollapsed(prev => ({ ...prev, [role]: !prev[role] }));
+    // Member row component
+    const MemberRow = ({ m, showRole = false }: { m: WorkspaceMember; showRole?: boolean }) => {
+        const online = isOnline(m);
+        const status = getMemberStatus(m);
+        const isMe = m.user_id === currentUserId;
+        const roleConfig = ROLE_CONFIG[m.role];
+        const RIcon = roleConfig.icon;
+
+        return (
+            <div
+                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${isMe ? 'bg-primary-500/5' : 'hover:bg-white/5'
+                    }`}
+            >
+                <div className="relative flex-shrink-0">
+                    {m.profile?.avatar_url ? (
+                        <img
+                            src={m.profile.avatar_url}
+                            alt={getName(m)}
+                            className={`w-7 h-7 rounded-full object-cover ${online ? '' : 'opacity-40 grayscale'}`}
+                        />
+                    ) : (
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold ${online ? 'bg-slate-700 text-slate-200' : 'bg-slate-800 text-slate-600'
+                            }`}>
+                            {getInitials(m)}
+                        </div>
+                    )}
+                    <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 ${STATUS_DOT[status] || STATUS_DOT.offline}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className={`text-[11px] font-medium truncate ${online ? 'text-slate-200' : 'text-slate-500'}`}>
+                        {isMe ? `${getName(m)} (Tu)` : getName(m)}
+                    </p>
+                </div>
+                {showRole && <RIcon className={`w-3 h-3 ${roleConfig.color} opacity-40 flex-shrink-0`} />}
+            </div>
+        );
     };
 
     return (
-        <div className="mt-2 space-y-3 px-2">
-            {/* === ALL MEMBERS BY ROLE === */}
-            {grouped.map(({ role, config, members: groupMembers }) => {
-                const RIcon = config.icon;
-                const isCollapsed = collapsed[role];
+        <div className="mt-1 space-y-1 px-2">
+            {/* === TEAM MEMBERS (collapsed by default) === */}
+            <button
+                onClick={() => setShowAllMembers(!showAllMembers)}
+                className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors"
+            >
+                <Users className="w-4 h-4" />
+                <span className="text-sm font-medium">Team members</span>
+                <span className="text-[10px] text-slate-600 ml-auto mr-1">{members.length}</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-600 transition-transform ${showAllMembers ? '' : '-rotate-90'}`} />
+            </button>
 
-                return (
-                    <div key={role}>
-                        <button
-                            onClick={() => toggleCollapse(role)}
-                            className="w-full flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/5 transition-colors"
-                        >
-                            <RIcon className={`w-3 h-3 ${config.color}`} />
-                            <span className={`text-[10px] font-bold uppercase tracking-widest ${config.color}`}>
-                                {config.label}
-                            </span>
-                            <span className="text-[10px] text-slate-600 ml-auto mr-1">
-                                {groupMembers.length}
-                            </span>
-                            <ChevronDown className={`w-3 h-3 text-slate-600 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
-                        </button>
-
-                        <AnimatePresence initial={false}>
-                            {!isCollapsed && (
-                                <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="overflow-hidden"
-                                >
-                                    <div className="space-y-0.5 mt-1">
-                                        {groupMembers.map(m => {
-                                            const online = isOnline(m);
-                                            const status = getMemberStatus(m);
-                                            const isMe = m.user_id === currentUserId;
-
-                                            return (
-                                                <div
-                                                    key={m.user_id}
-                                                    className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${isMe ? 'bg-primary-500/5' : 'hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    {/* Avatar */}
-                                                    <div className="relative flex-shrink-0">
-                                                        {m.profile?.avatar_url ? (
-                                                            <img
-                                                                src={m.profile.avatar_url}
-                                                                alt={getName(m)}
-                                                                className={`w-7 h-7 rounded-full object-cover ${online ? '' : 'opacity-40 grayscale'}`}
-                                                            />
-                                                        ) : (
-                                                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold ${online ? 'bg-slate-700 text-slate-200' : 'bg-slate-800 text-slate-600'
-                                                                }`}>
-                                                                {getInitials(m)}
-                                                            </div>
-                                                        )}
-                                                        {/* Status dot */}
-                                                        <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 ${STATUS_DOT[status] || STATUS_DOT.offline}`} />
-                                                    </div>
-
-                                                    {/* Name */}
-                                                    <div className="flex-1 min-w-0 overflow-hidden">
-                                                        <p className={`text-[11px] font-medium truncate ${online ? 'text-slate-200' : 'text-slate-500'
-                                                            }`}>
-                                                            {getName(m)}
-                                                            {isMe && <span className="text-primary-400 ml-1 text-[9px]">(Tu)</span>}
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Role dot */}
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${config.dotColor} flex-shrink-0 opacity-50`} />
-                                                </div>
-                                            );
-                                        })}
+            <AnimatePresence initial={false}>
+                {showAllMembers && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="space-y-2 pl-2 pb-2">
+                            {grouped.map(({ role, config, members: groupMembers }) => {
+                                const RIcon = config.icon;
+                                return (
+                                    <div key={role}>
+                                        <div className="flex items-center gap-1.5 px-2 py-1">
+                                            <RIcon className={`w-3 h-3 ${config.color}`} />
+                                            <span className={`text-[10px] font-bold uppercase tracking-widest ${config.color}`}>
+                                                {config.label}
+                                            </span>
+                                            <span className="text-[10px] text-slate-600 ml-auto">{groupMembers.length}</span>
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            {groupMembers.map(m => (
+                                                <MemberRow key={m.user_id} m={m} />
+                                            ))}
+                                        </div>
                                     </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                );
-            })}
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            {/* === ONLINE NOW === */}
-            {onlineCount > 0 && (
-                <div className="pt-2 border-t border-white/5">
-                    <div className="flex items-center gap-2 px-2 py-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-bold text-emerald-400/80 uppercase tracking-widest">
-                            Online ({onlineCount})
-                        </span>
-                    </div>
-                    <div className="space-y-0.5 mt-1">
-                        {onlineMembers.map(m => {
-                            const isMe = m.user_id === currentUserId;
-                            const roleConfig = ROLE_CONFIG[m.role];
-                            const RIcon = roleConfig.icon;
-
-                            return (
-                                <div
-                                    key={`online-${m.user_id}`}
-                                    className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg ${isMe ? 'bg-primary-500/5' : 'hover:bg-white/5'
-                                        } transition-colors`}
-                                >
-                                    <div className="relative flex-shrink-0">
-                                        {m.profile?.avatar_url ? (
-                                            <img
-                                                src={m.profile.avatar_url}
-                                                alt={getName(m)}
-                                                className="w-7 h-7 rounded-full object-cover ring-1 ring-emerald-500/30"
-                                            />
-                                        ) : (
-                                            <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[9px] font-bold text-slate-200 ring-1 ring-emerald-500/30">
-                                                {getInitials(m)}
-                                            </div>
-                                        )}
-                                        <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 bg-emerald-500" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[11px] font-medium text-slate-200 truncate">
-                                            {isMe ? 'Tu' : getName(m)}
-                                        </p>
-                                    </div>
-                                    <RIcon className={`w-3 h-3 ${roleConfig.color} opacity-40`} />
-                                </div>
-                            );
-                        })}
-                    </div>
+            {/* === ONLINE (always visible) === */}
+            <div className="pt-1">
+                <div className="flex items-center gap-2 px-2 py-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-bold text-emerald-400/80 uppercase tracking-widest">
+                        Online ({onlineMembers.length})
+                    </span>
                 </div>
-            )}
+                <div className="space-y-0.5">
+                    {onlineMembers.map(m => (
+                        <MemberRow key={`online-${m.user_id}`} m={m} showRole />
+                    ))}
+                </div>
+            </div>
         </div>
     );
 }
