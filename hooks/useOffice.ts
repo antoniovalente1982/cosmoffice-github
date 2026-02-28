@@ -28,7 +28,7 @@ export function useOffice(spaceId?: string) {
             }
         }
 
-        // Fetch rooms
+        // Fetch rooms for THIS space only
         const { data: rooms, error: roomsError } = await supabase
             .from('rooms')
             .select('*')
@@ -36,16 +36,12 @@ export function useOffice(spaceId?: string) {
 
         if (roomsError) {
             console.error('Error fetching rooms:', roomsError);
-            // Don't overwrite existing rooms on error
-        } else if (rooms) {
-            // Only update if we got data or it's the initial load (no rooms in store yet)
-            const currentRooms = useOfficeStore.getState().rooms;
-            if (rooms.length > 0 || currentRooms.length === 0) {
-                setRooms(rooms);
-            }
+        } else {
+            // Always set rooms from DB — store was already reset by setActiveSpace
+            setRooms(rooms || []);
 
             // Fetch furniture for all rooms in this space
-            const roomIds = rooms.map((r: any) => r.id);
+            const roomIds = (rooms || []).map((r: any) => r.id);
             if (roomIds.length > 0) {
                 const { data: furniture, error: furnError } = await supabase
                     .from('furniture')
@@ -58,7 +54,7 @@ export function useOffice(spaceId?: string) {
             }
         }
 
-        // Fetch connections
+        // Fetch connections for THIS space only
         const { data: connections, error: connError } = await supabase
             .from('room_connections')
             .select('*')
@@ -74,7 +70,7 @@ export function useOffice(spaceId?: string) {
 
         if (!spaceId) return;
 
-        // Subscribe to changes
+        // Subscribe to changes for THIS space
         const roomsChannel = supabase
             .channel(`rooms_${spaceId}`)
             .on('postgres_changes', {
@@ -113,4 +109,3 @@ export function useOffice(spaceId?: string) {
 
     return { refresh: fetchOfficeData };
 }
-

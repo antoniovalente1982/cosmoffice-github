@@ -307,7 +307,27 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     setLocalStream: (localStream) => set({ localStream }),
     setZoom: (zoom) => set({ zoom }),
     setStagePos: (stagePos) => set({ stagePos }),
-    setActiveSpace: (activeSpaceId) => set({ activeSpaceId }),
+    setActiveSpace: (activeSpaceId) => {
+        const current = get().activeSpaceId;
+        if (current === activeSpaceId) return; // same space, no reset needed
+        // Reset all space-specific state when switching offices
+        set({
+            activeSpaceId,
+            rooms: [],
+            roomConnections: [],
+            peers: {},
+            furnitureItems: [],
+            myPosition: { x: 500, y: 500 },
+            myRoomId: undefined,
+            stagePos: { x: 0, y: 0 },
+            zoom: 1,
+            isBuilderMode: false,
+            selectedRoomId: null,
+            officeWidth: 4000,
+            officeHeight: 4000,
+            bgOpacity: 0.8,
+        });
+    },
     setRooms: (rooms) => set({ rooms }),
     setRoomConnections: (roomConnections) => set({ roomConnections }),
 

@@ -51,7 +51,12 @@ export default function OfficePage() {
     const params = useParams();
     const spaceId = params.id as string;
 
-    // Use the office hook to fetch and sync data
+    // Set active space FIRST — this resets store when switching offices
+    useEffect(() => {
+        if (spaceId) setActiveSpace(spaceId);
+    }, [spaceId, setActiveSpace]);
+
+    // Then fetch and sync data for this space
     useOffice(spaceId);
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -95,9 +100,6 @@ export default function OfficePage() {
                 router.push('/login');
             } else {
                 setUser(user);
-                if (spaceId) {
-                    setActiveSpace(spaceId);
-                }
 
                 // Fetch profile
                 const { data: profile } = await supabase
