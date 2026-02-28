@@ -6,7 +6,6 @@ import {
     X,
     Settings,
     Users,
-    Mail,
     Building2,
     Save,
     AlertCircle,
@@ -15,7 +14,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { MemberList } from './MemberList';
-import { InviteMember } from './InviteMember';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
 import { useWorkspaceRole } from '../../hooks/useWorkspaceRole';
 import { createClient } from '../../utils/supabase/client';
@@ -28,7 +26,7 @@ interface WorkspaceSettingsProps {
     onWorkspaceUpdated?: () => void;
 }
 
-type Tab = 'general' | 'members' | 'invites';
+type Tab = 'general' | 'members';
 
 export function WorkspaceSettings({
     workspaceId,
@@ -57,7 +55,6 @@ export function WorkspaceSettings({
     const tabs: { id: Tab; label: string; icon: typeof Settings; count?: number }[] = [
         { id: 'general', label: 'Generale', icon: Building2 },
         { id: 'members', label: 'Membri', icon: Users, count: members.length },
-        { id: 'invites', label: 'Inviti', icon: Mail, count: invitations.length },
     ];
 
     const handleSaveGeneral = async () => {
@@ -124,8 +121,7 @@ export function WorkspaceSettings({
                         {tabs.map(tab => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
-                            // Only show invites tab to admins
-                            if (tab.id === 'invites' && !isAdmin) return null;
+
                             return (
                                 <button
                                     key={tab.id}
@@ -188,14 +184,10 @@ export function WorkspaceSettings({
                                             </div>
 
                                             {/* Stats */}
-                                            <div className="grid grid-cols-3 gap-3">
+                                            <div className="grid grid-cols-2 gap-3">
                                                 <div className="p-3 rounded-xl bg-slate-800/30 border border-white/5 text-center">
                                                     <p className="text-lg font-bold text-slate-100">{members.length}</p>
                                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider">Membri</p>
-                                                </div>
-                                                <div className="p-3 rounded-xl bg-slate-800/30 border border-white/5 text-center">
-                                                    <p className="text-lg font-bold text-slate-100">{invitations.length}</p>
-                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Inviti</p>
                                                 </div>
                                                 <div className="p-3 rounded-xl bg-slate-800/30 border border-white/5 text-center">
                                                     <p className="text-lg font-bold text-cyan-400 capitalize">Free</p>
@@ -250,14 +242,7 @@ export function WorkspaceSettings({
                                     </div>
                                 )}
 
-                                {/* Invites Tab */}
-                                {activeTab === 'invites' && isAdmin && (
-                                    <InviteMember
-                                        invitations={invitations}
-                                        onInvite={inviteMember}
-                                        onCancelInvitation={cancelInvitation}
-                                    />
-                                )}
+
                             </>
                         )}
                     </div>
