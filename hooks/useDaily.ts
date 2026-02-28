@@ -62,11 +62,24 @@ export function useDaily(spaceId: string | null) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ roomName }),
             });
-            if (!res.ok) { console.error('[Daily] Room API error:', res.status); return null; }
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                const detail = errData?.details?.info || errData?.error || `HTTP ${res.status}`;
+                console.error('[Daily] Room API error:', detail);
+                useOfficeStore.getState().setDailyError(`Errore creazione stanza Daily.co: ${detail}`);
+                return null;
+            }
             const data = await res.json();
             console.log(`[Daily] Room ready: ${data.name} (${data.created ? 'new' : 'existing'})`);
             return data.url;
-        } catch (err) { console.error('[Daily] Room API failed:', err); return null; }
+        } catch (err: any) {
+            const msg = err?.message?.includes('ENOTFOUND') || err?.message?.includes('fetch')
+                ? 'Connessione internet assente o instabile'
+                : err?.message || 'Errore sconosciuto';
+            console.error('[Daily] Room API failed:', msg);
+            useOfficeStore.getState().setDailyError(`Impossibile raggiungere Daily.co: ${msg}`);
+            return null;
+        }
     }, []);
 
     // ─── Update local stream in store ────────────────────────
@@ -180,9 +193,10 @@ export function useDaily(spaceId: string | null) {
                     const roomName = getRoomName(myRoomId || undefined);
                     if (!roomName) { gJoining = false; return; }
                     const url = await ensureRoom(roomName);
-                    if (!url) { gJoining = false; return; }
+                    if (!url) { gJoining = false; return; } // Error already set by ensureRoom
 
                     console.log('[Daily] 🔗 Connecting (mic/camera enabled)...');
+                    useOfficeStore.getState().clearDailyError(); // Clear previous errors
                     const profile = useOfficeStore.getState().myProfile;
                     await gCall!.join({
                         url,
@@ -193,13 +207,20 @@ export function useDaily(spaceId: string | null) {
 
                     gJoined = true;
                     gRoomUrl = url;
+                    useOfficeStore.getState().clearDailyError();
                     console.log('[Daily] ✅ Joined room:', url);
 
                     // Update local stream
                     const local = gCall!.participants().local;
                     updateLocalStream(local);
                 } catch (err: any) {
-                    console.error('[Daily] Join failed:', err?.message);
+                    const msg = err?.message || 'Errore sconosciuto';
+                    console.error('[Daily] Join failed:', msg);
+                    const userMsg = msg.includes('payment') ? 'Account Daily.co: metodo di pagamento mancante'
+                        : msg.includes('destroy') ? 'Sessione Daily.co corrotta — ricarica la pagina'
+                            : msg.includes('Duplicate') ? 'Sessione duplicata — ricarica la pagina'
+                                : `Connessione Daily.co fallita: ${msg}`;
+                    useOfficeStore.getState().setDailyError(userMsg);
                 } finally {
                     gJoining = false;
                 }
@@ -303,8 +324,8 @@ export function useDaily(spaceId: string | null) {
     }, [myPosition]);
 
     // ─── Public API ──────────────────────────────────────────
-    const startScreenShare = useCallback(async () => { if (gCall && gJoined) await gCall.startScreenShare().catch(console.error); }, []);
-    const stopScreenShare = useCallback(async () => { if (gCall && gJoined) await gCall.stopScreenShare().catch(console.error); }, []);
+    const startScreenShare = useCallback(async () => { if (gCall && gJoined) { try { gCall.startScreenShare(); } catch (e) { console.error(e); } } }, []);
+    const stopScreenShare = useCallback(async () => { if (gCall && gJoined) { try { gCall.stopScreenShare(); } catch (e) { console.error(e); } } }, []);
     const setAudioDevice = useCallback(async (id: string) => { if (gCall) await gCall.setInputDevicesAsync({ audioDeviceId: id }); }, []);
     const setVideoDevice = useCallback(async (id: string) => { if (gCall) await gCall.setInputDevicesAsync({ videoDeviceId: id }); }, []);
 

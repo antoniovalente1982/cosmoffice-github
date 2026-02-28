@@ -114,6 +114,9 @@ interface OfficeState {
     isRemoteAudioEnabled: boolean;  // Mute/unmute audio from other users
     isPerformanceMode: boolean; // Disables expensive CSS and limits videos for older PCs
 
+    // Daily.co error state
+    dailyError: string | null;
+
     // Builder State
     isBuilderMode: boolean;
     bgOpacity: number;
@@ -152,6 +155,8 @@ interface OfficeState {
     setHasCompletedDeviceSetup: (completed: boolean) => void;
     setSpeaking: (isSpeaking: boolean) => void;
     setLocalStream: (stream: MediaStream | null) => void;
+    setDailyError: (error: string | null) => void;
+    clearDailyError: () => void;
     setZoom: (zoom: number) => void;
     setStagePos: (stagePos: { x: number; y: number }) => void;
     setActiveSpace: (spaceId: string) => void;
@@ -203,7 +208,8 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     availableDevices: [],
     hasCompletedDeviceSetup: false,
     isRemoteAudioEnabled: true,  // Default: hear others (can be muted for focus mode)
-    isPerformanceMode: typeof window !== 'undefined' ? localStorage.getItem('isPerformanceMode') === 'true' : false, // Default high performance
+    isPerformanceMode: typeof window !== 'undefined' ? localStorage.getItem('isPerformanceMode') === 'true' : false,
+    dailyError: null,
 
     // Builder defaults
     isBuilderMode: false,
@@ -271,6 +277,8 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     },
     setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
     toggleRemoteAudio: () => set((state) => ({ isRemoteAudioEnabled: !state.isRemoteAudioEnabled })),
+    setDailyError: (error) => set({ dailyError: error }),
+    clearDailyError: () => set({ dailyError: null }),
     addScreenStream: (stream) => set((state) => ({
         screenStreams: [...state.screenStreams, stream],
         isScreenSharing: true

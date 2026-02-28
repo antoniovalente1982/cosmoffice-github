@@ -35,6 +35,7 @@ import { Logo } from '../../../components/ui/logo';
 const PixiOffice = dynamic(() => import('../../../components/office/PixiOffice').then(mod => mod.PixiOffice), { ssr: false });
 const VideoGrid = dynamic(() => import('../../../components/media/VideoGrid').then(mod => mod.VideoGrid), { ssr: false });
 const MediaManager = dynamic(() => import('../../../components/media/MediaManager').then(mod => mod.MediaManager), { ssr: false });
+const DailyErrorToast = dynamic(() => import('../../../components/media/DailyErrorToast'), { ssr: false });
 const ChatWindow = dynamic(() => import('../../../components/chat/ChatWindow').then(mod => mod.ChatWindow), { ssr: false });
 const AIAssistant = dynamic(() => import('../../../components/ai/AIAssistant').then(mod => mod.AIAssistant), { ssr: false });
 const OfficeAnalytics = dynamic(() => import('../../../components/office/OfficeAnalytics').then(mod => mod.OfficeAnalytics), { ssr: false });
@@ -281,6 +282,7 @@ export default function OfficePage() {
                         <>
                             <PixiOffice />
                             <MediaManager />
+                            <DailyErrorToast />
                             <VideoGrid />
                             {isBuilderMode && <OfficeBuilder />}
                         </>

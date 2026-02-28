@@ -21,12 +21,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Sanitize room name for Daily.co (lowercase, alphanumeric + hyphens, max 41 chars)
+        // Sanitize room name for Daily.co:
+        // - Only lowercase/uppercase ASCII, numbers, dashes, underscores
+        // - Max 128 characters
         const sanitized = roomName
             .toLowerCase()
-            .replace(/[^a-z0-9-]/g, '-')
+            .replace(/[^a-z0-9_-]/g, '-')
             .replace(/-+/g, '-')
-            .slice(0, 41);
+            .replace(/^-|-$/g, '') // no leading/trailing hyphens
+            .slice(0, 128);
 
         // Try to get existing room first
         const getRes = await fetch(`${DAILY_API_URL}/rooms/${sanitized}`, {
