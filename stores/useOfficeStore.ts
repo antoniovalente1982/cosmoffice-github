@@ -203,7 +203,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     availableDevices: [],
     hasCompletedDeviceSetup: false,
     isRemoteAudioEnabled: true,  // Default: hear others (can be muted for focus mode)
-    isPerformanceMode: false, // Default high performance
+    isPerformanceMode: typeof window !== 'undefined' ? localStorage.getItem('isPerformanceMode') === 'true' : false, // Default high performance
 
     // Builder defaults
     isBuilderMode: false,
@@ -253,7 +253,13 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen, isSettingsOpen: false, isAIPanelOpen: false })),
     toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen, isChatOpen: false, isAIPanelOpen: false })),
     toggleAIPanel: () => set((state) => ({ isAIPanelOpen: !state.isAIPanelOpen, isChatOpen: false, isSettingsOpen: false })),
-    togglePerformanceMode: () => set((state) => ({ isPerformanceMode: !state.isPerformanceMode })),
+    togglePerformanceMode: () => set((state) => {
+        const newValue = !state.isPerformanceMode;
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('isPerformanceMode', String(newValue));
+        }
+        return { isPerformanceMode: newValue };
+    }),
     setActiveTab: (tab) => set({ activeTab: tab, isChatOpen: false, isSettingsOpen: false, isAIPanelOpen: false }),
     toggleMic: async () => {
         const state = get();
