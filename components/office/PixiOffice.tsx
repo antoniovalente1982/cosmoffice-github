@@ -142,7 +142,8 @@ export function PixiOffice() {
         myPosition, setMyPosition, peers, rooms,
         zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
-        myProfile, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight
+        myProfile, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight,
+        isPerformanceMode
     } = useOfficeStore();
 
     const containerRef = useRef<HTMLDivElement>(null);

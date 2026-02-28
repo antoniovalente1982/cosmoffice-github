@@ -112,6 +112,7 @@ interface OfficeState {
 
     // Audio State
     isRemoteAudioEnabled: boolean;  // Mute/unmute audio from other users
+    isPerformanceMode: boolean; // Disables expensive CSS and limits videos for older PCs
 
     // Builder State
     isBuilderMode: boolean;
@@ -132,6 +133,7 @@ interface OfficeState {
     toggleChat: () => void;
     toggleSettings: () => void;
     toggleAIPanel: () => void;
+    togglePerformanceMode: () => void;
     setActiveTab: (tab: 'office' | 'analytics' | 'badges') => void;
     toggleMic: () => Promise<void>;
     toggleVideo: () => Promise<void>;
@@ -201,6 +203,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     availableDevices: [],
     hasCompletedDeviceSetup: false,
     isRemoteAudioEnabled: true,  // Default: hear others (can be muted for focus mode)
+    isPerformanceMode: false, // Default high performance
 
     // Builder defaults
     isBuilderMode: false,
@@ -250,6 +253,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen, isSettingsOpen: false, isAIPanelOpen: false })),
     toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen, isChatOpen: false, isAIPanelOpen: false })),
     toggleAIPanel: () => set((state) => ({ isAIPanelOpen: !state.isAIPanelOpen, isChatOpen: false, isSettingsOpen: false })),
+    togglePerformanceMode: () => set((state) => ({ isPerformanceMode: !state.isPerformanceMode })),
     setActiveTab: (tab) => set({ activeTab: tab, isChatOpen: false, isSettingsOpen: false, isAIPanelOpen: false }),
     toggleMic: async () => {
         const state = get();

@@ -478,9 +478,13 @@ export function useDaily(spaceId: string | null) {
         peerTracksRef.current.clear();
 
         if (callRef.current) {
-            callRef.current.leave();
-            callRef.current.destroy();
-            callRef.current = null;
+            // Force leave and destroy async but without waiting to not block unmount UI
+            callRef.current.leave().catch(console.error).finally(() => {
+                if (callRef.current) {
+                    callRef.current.destroy().catch(console.error);
+                    callRef.current = null;
+                }
+            });
         }
 
         isJoinedRef.current = false;

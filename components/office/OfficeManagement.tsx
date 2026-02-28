@@ -50,7 +50,7 @@ const TIMEZONES = [
 ];
 
 export function OfficeManagement({ spaceId, onClose }: Props) {
-    const { setMyProfile } = useOfficeStore();
+    const { setMyProfile, isPerformanceMode, togglePerformanceMode } = useOfficeStore();
     const [activeTab, setActiveTab] = useState<Tab>('profile');
 
     // Profile state
@@ -525,6 +525,37 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                     </div>
                                 </div>
 
+                                {/* Performance Mode Toggle */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
+                                        <Shield className="w-3 h-3" /> Prestazioni e Risparmio Energetico
+                                    </label>
+                                    <button
+                                        onClick={togglePerformanceMode}
+                                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${isPerformanceMode
+                                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                                            : 'bg-slate-800/60 border-white/10 hover:bg-slate-800/80 text-slate-300'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg ${isPerformanceMode ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-slate-400'}`}>
+                                                <Star className="w-4 h-4" />
+                                            </div>
+                                            <div className="text-left">
+                                                <div className="text-sm font-medium">{isPerformanceMode ? 'Low-power Mode Attivata' : 'Alta Qualità Grafica'}</div>
+                                                <div className="text-[10px] sm:text-xs opacity-70 mt-0.5">
+                                                    {isPerformanceMode ? 'Prestazioni massime su vecchi PC. Effetti ridotti.' : 'Grafica avanzata attiva. Sconsigliato su vecchi PC.'}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Simple Toggle relative to state */}
+                                        <div className={`w-10 h-5.5 rounded-full p-0.5 flex items-center transition-colors ${isPerformanceMode ? 'bg-amber-500' : 'bg-slate-700'}`}>
+                                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isPerformanceMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                        </div>
+                                    </button>
+                                </div>
+
                                 {/* Save button */}
                                 <Button
                                     onClick={saveProfile}
@@ -769,8 +800,8 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                                         return (
                                                             <div key={inv.id}
                                                                 className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${isExpired || isAccepted || isExhausted
-                                                                        ? 'bg-slate-800/20 border-white/5 opacity-60'
-                                                                        : 'bg-slate-800/40 border-white/5 hover:border-white/10'
+                                                                    ? 'bg-slate-800/20 border-white/5 opacity-60'
+                                                                    : 'bg-slate-800/40 border-white/5 hover:border-white/10'
                                                                     }`}
                                                             >
                                                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${inv.invite_type === 'link' ? 'bg-purple-500/15 text-purple-400' : 'bg-primary-500/15 text-primary-400'
@@ -783,8 +814,8 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                                                             {inv.email || inv.label || 'Link invito'}
                                                                         </span>
                                                                         <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${inv.role === 'admin' ? 'bg-primary-500/15 text-primary-300'
-                                                                                : inv.role === 'guest' ? 'bg-purple-500/15 text-purple-300'
-                                                                                    : 'bg-emerald-500/15 text-emerald-300'
+                                                                            : inv.role === 'guest' ? 'bg-purple-500/15 text-purple-300'
+                                                                                : 'bg-emerald-500/15 text-emerald-300'
                                                                             }`}>
                                                                             {inv.role}
                                                                         </span>

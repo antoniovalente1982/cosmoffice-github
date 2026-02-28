@@ -92,7 +92,7 @@ const TILE_SIZE = 160;
 
 export function VideoGrid() {
     const {
-        localStream, isMicEnabled, isVideoEnabled, isSpeaking, peers, myProfile
+        localStream, isMicEnabled, isVideoEnabled, isSpeaking, peers, myProfile, isPerformanceMode
     } = useOfficeStore();
 
     // Stato locale per forzare il re-render
@@ -107,7 +107,7 @@ export function VideoGrid() {
     }, []);
 
     // Build participants — only include users with active video
-    const participants: VideoTileProps[] = [];
+    let participants: VideoTileProps[] = [];
 
     // Add myself only if my video is enabled and the track is live
     const currentStream = localStream;
@@ -140,6 +140,25 @@ export function VideoGrid() {
             });
         }
     });
+
+    // --- GRACEFUL DEGRADATION: VIDEO DECIMATION ---
+    // In Performance Mode, limit max concurrent video decodes to save CPU/GPU.
+    // We prioritize people who are currently speaking.
+    const maxVisibleVideos = isPerformanceMode ? 4 : 8;
+
+    if (participants.length > maxVisibleVideos) {
+        // Sort: speaking first, then 'me', then random/others
+        participants.sort((a, b) => {
+            if (a.isSpeaking && !b.isSpeaking) return -1;
+            if (!a.isSpeaking && b.isSpeaking) return 1;
+            if (a.isMe && !b.isMe) return -1;
+            if (!a.isMe && b.isMe) return 1;
+            return 0;
+        });
+
+        // Keep only top N active speakers
+        participants = participants.slice(0, maxVisibleVideos);
+    }
 
     // If nobody has video on, don't render anything
     if (participants.length === 0) {
