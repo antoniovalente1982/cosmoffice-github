@@ -6,14 +6,13 @@ import DailyIframe, {
     DailyEventObjectParticipant,
     DailyEventObjectParticipantLeft,
     DailyParticipant,
-    DailyTrackState,
 } from '@daily-co/daily-js';
 import { useOfficeStore } from '../stores/useOfficeStore';
 
 // ─── Configuration ───────────────────────────────────────────────
 const DAILY_DOMAIN = process.env.NEXT_PUBLIC_DAILY_DOMAIN || '';
-const PROXIMITY_RANGE = 300; // px — range for auto-joining audio/video
-const ROOM_CHECK_INTERVAL = 500; // ms — interval for proximity checks
+const PROXIMITY_RANGE = 300;
+const ROOM_CHECK_INTERVAL = 500;
 
 // ─── Types ───────────────────────────────────────────────────────
 interface DailyPeerInfo {
@@ -28,20 +27,18 @@ interface DailyPeerInfo {
 
 /**
  * useDaily — Core Daily.co WebRTC hook
- * 
- * Architecture:
- * - Creates a single Daily.co call object per session
- * - Uses the spaceId to create/join a Daily.co room
- * - Manages local mic/camera through Daily.co instead of raw getUserMedia
- * - Maps Daily.co remote participants to Zustand peer store
- * - Applies spatial audio (distance-based volume) to remote audio tracks
- * - When user enters a Cosmoffice room, joins the corresponding Daily room
+ *
+ * Single source of truth for all media hardware (camera, mic).
+ * Creates rooms via server-side API, joins them, and manages
+ * local + remote media through Daily.co's call object.
  */
 export function useDaily(spaceId: string | null) {
     const callRef = useRef<DailyCall | null>(null);
     const isJoinedRef = useRef(false);
+    const isJoiningRef = useRef(false);
     const proximityIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const peerTracksRef = useRef<Map<string, DailyPeerInfo>>(new Map());
+    const currentRoomUrlRef = useRef<string | null>(null);
 
     const {
         myPosition,
@@ -55,28 +52,262 @@ export function useDaily(spaceId: string | null) {
         updatePeer,
     } = useOfficeStore();
 
-    // ─── Get or Create Daily.co Room URL ─────────────────────
-    const getDailyRoomUrl = useCallback(
+    // ─── Create room name from spaceId + optional roomId ─────
+    const getRoomName = useCallback(
         (roomId?: string) => {
-            if (!DAILY_DOMAIN) return null;
-            // Use spaceId as the base room name, roomId as sub-room
-            const roomName = roomId
+            if (!spaceId) return null;
+            return roomId
                 ? `cosmo-${spaceId}-room-${roomId}`
                 : `cosmo-${spaceId}-lobby`;
-            return `https://${DAILY_DOMAIN}/${roomName}`;
         },
         [spaceId]
     );
 
-    // ─── Initialize Daily.co Call Object ─────────────────────
+    // ─── Create or get a Daily.co room via our API ───────────
+    const ensureRoom = useCallback(async (roomName: string): Promise<string | null> => {
+        try {
+            const res = await fetch('/api/daily/room', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roomName }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                console.error('[Daily.co] Room creation failed:', err);
+                return null;
+            }
+
+            const data = await res.json();
+            console.log(`[Daily.co] Room ready: ${data.name} (${data.created ? 'created' : 'existing'})`);
+            return data.url;
+        } catch (err) {
+            console.error('[Daily.co] Failed to ensure room:', err);
+            return null;
+        }
+    }, []);
+
+    // ─── Update local stream in store from Daily participant ──
+    const updateLocalStream = useCallback(
+        (participant: DailyParticipant) => {
+            const tracks: MediaStreamTrack[] = [];
+
+            const audioState = participant.tracks.audio;
+            if (audioState?.persistentTrack && !audioState.off) {
+                tracks.push(audioState.persistentTrack);
+            }
+
+            const videoState = participant.tracks.video;
+            if (videoState?.persistentTrack && !videoState.off) {
+                tracks.push(videoState.persistentTrack);
+            }
+
+            if (tracks.length > 0) {
+                setLocalStream(new MediaStream(tracks));
+            } else {
+                setLocalStream(null);
+            }
+        },
+        [setLocalStream]
+    );
+
+    // ─── Event Handlers ──────────────────────────────────────
+
+    const handleParticipantJoined = useCallback(
+        (event: DailyEventObjectParticipant | undefined) => {
+            if (!event?.participant || event.participant.local) return;
+            const p = event.participant;
+            const peerId = p.user_id || p.session_id;
+
+            peerTracksRef.current.set(peerId, {
+                sessionId: p.session_id,
+                participantId: peerId,
+                audioTrack: null,
+                videoTrack: null,
+                audioEnabled: !p.tracks.audio?.off,
+                videoEnabled: !p.tracks.video?.off,
+                userName: p.user_name || 'Anonymous',
+            });
+            console.log('[Daily.co] Participant joined:', p.user_name);
+        },
+        []
+    );
+
+    const handleParticipantLeft = useCallback(
+        (event: DailyEventObjectParticipantLeft | undefined) => {
+            if (!event?.participant) return;
+            const p = event.participant;
+            const peerId = p.user_id || p.session_id;
+
+            const audioEl = document.getElementById(`daily-audio-${peerId}`);
+            if (audioEl) audioEl.remove();
+
+            peerTracksRef.current.delete(peerId);
+            console.log('[Daily.co] Participant left:', p.user_name);
+        },
+        []
+    );
+
+    const handleParticipantUpdated = useCallback(
+        (event: DailyEventObjectParticipant | undefined) => {
+            if (!event?.participant) return;
+            const p = event.participant;
+
+            if (p.local) {
+                updateLocalStream(p);
+                return;
+            }
+
+            const peerId = p.user_id || p.session_id;
+            const existing = peerTracksRef.current.get(peerId);
+            if (existing) {
+                existing.audioEnabled = !p.tracks.audio?.off;
+                existing.videoEnabled = !p.tracks.video?.off;
+            }
+
+            const peerState = useOfficeStore.getState().peers[peerId];
+            if (peerState) {
+                updatePeer(peerId, {
+                    ...peerState,
+                    audioEnabled: !p.tracks.audio?.off,
+                    videoEnabled: !p.tracks.video?.off,
+                });
+            }
+        },
+        [updatePeer, updateLocalStream]
+    );
+
+    const handleTrackStarted = useCallback(
+        (event: any) => {
+            if (!event?.participant || event.participant.local) return;
+            const p = event.participant;
+            const peerId = p.user_id || p.session_id;
+            const track = event.track as MediaStreamTrack;
+            if (!track) return;
+
+            const existing = peerTracksRef.current.get(peerId);
+            if (!existing) return;
+
+            if (track.kind === 'audio') {
+                existing.audioTrack = track;
+                let audioEl = document.getElementById(`daily-audio-${peerId}`) as HTMLAudioElement;
+                if (!audioEl) {
+                    audioEl = document.createElement('audio');
+                    audioEl.id = `daily-audio-${peerId}`;
+                    audioEl.autoplay = true;
+                    audioEl.style.display = 'none';
+                    document.body.appendChild(audioEl);
+                }
+                audioEl.srcObject = new MediaStream([track]);
+            }
+
+            if (track.kind === 'video') {
+                existing.videoTrack = track;
+                const peerState = useOfficeStore.getState().peers[peerId];
+                if (peerState) {
+                    updatePeer(peerId, {
+                        ...peerState,
+                        videoEnabled: true,
+                        stream: new MediaStream([track]),
+                    });
+                }
+            }
+        },
+        [updatePeer]
+    );
+
+    const handleTrackStopped = useCallback(
+        (event: any) => {
+            if (!event?.participant || event.participant.local) return;
+            const p = event.participant;
+            const peerId = p.user_id || p.session_id;
+            const track = event.track as MediaStreamTrack;
+
+            const existing = peerTracksRef.current.get(peerId);
+            if (!existing) return;
+
+            if (track?.kind === 'audio') {
+                existing.audioTrack = null;
+                const audioEl = document.getElementById(`daily-audio-${peerId}`);
+                if (audioEl) (audioEl as HTMLAudioElement).srcObject = null;
+            }
+
+            if (track?.kind === 'video') {
+                existing.videoTrack = null;
+                const peerState = useOfficeStore.getState().peers[peerId];
+                if (peerState) {
+                    updatePeer(peerId, { ...peerState, videoEnabled: false, stream: null });
+                }
+            }
+        },
+        [updatePeer]
+    );
+
+    const handleError = useCallback((event: any) => {
+        console.error('[Daily.co] Error:', event?.errorMsg || event);
+    }, []);
+
+    // ─── Join a Daily.co Room ────────────────────────────────
+    const joinRoom = useCallback(
+        async (url: string) => {
+            const call = callRef.current;
+            if (!call || isJoiningRef.current) return;
+            if (currentRoomUrlRef.current === url && isJoinedRef.current) return; // Already in this room
+
+            isJoiningRef.current = true;
+
+            try {
+                // Leave current room if in one
+                if (isJoinedRef.current) {
+                    await call.leave();
+                    isJoinedRef.current = false;
+                    currentRoomUrlRef.current = null;
+                }
+
+                const profile = useOfficeStore.getState().myProfile;
+                await call.join({
+                    url,
+                    userName: profile?.display_name || profile?.full_name || 'Anonymous',
+                    startVideoOff: true,
+                    startAudioOff: true,
+                });
+
+                isJoinedRef.current = true;
+                currentRoomUrlRef.current = url;
+
+                // Sync current mic/video state to Daily
+                const state = useOfficeStore.getState();
+                if (state.isMicEnabled) call.setLocalAudio(true);
+                if (state.isVideoEnabled) call.setLocalVideo(true);
+
+                // Update local stream from Daily's participant
+                const localParticipant = call.participants().local;
+                updateLocalStream(localParticipant);
+
+                console.log('[Daily.co] ✅ Joined room:', url);
+            } catch (err) {
+                console.error('[Daily.co] ❌ Failed to join room:', err);
+                isJoinedRef.current = false;
+                currentRoomUrlRef.current = null;
+            } finally {
+                isJoiningRef.current = false;
+            }
+        },
+        [updateLocalStream]
+    );
+
+    // ─── Initialize Daily.co ─────────────────────────────────
     useEffect(() => {
-        if (!spaceId || !DAILY_DOMAIN) return;
+        if (!spaceId || !DAILY_DOMAIN) {
+            console.warn('[Daily.co] Missing spaceId or DAILY_DOMAIN, skipping init');
+            return;
+        }
 
         const initDaily = async () => {
             try {
+                // Create call object (no media acquired yet)
                 const callObject = DailyIframe.createCallObject();
 
-                // ─── Event Handlers ──────────────────────────
                 callObject.on('participant-joined', handleParticipantJoined);
                 callObject.on('participant-left', handleParticipantLeft);
                 callObject.on('participant-updated', handleParticipantUpdated);
@@ -85,11 +316,17 @@ export function useDaily(spaceId: string | null) {
                 callObject.on('error', handleError);
 
                 callRef.current = callObject;
+                console.log('[Daily.co] Call object created');
 
-                // Auto-join the lobby room for this space
-                const lobbyUrl = getDailyRoomUrl();
-                if (lobbyUrl) {
-                    await joinRoom(lobbyUrl);
+                // Create and join the lobby room
+                const roomName = getRoomName();
+                if (roomName) {
+                    const url = await ensureRoom(roomName);
+                    if (url) {
+                        await joinRoom(url);
+                    } else {
+                        console.error('[Daily.co] Could not create lobby room');
+                    }
                 }
             } catch (err) {
                 console.error('[Daily.co] Failed to initialize:', err);
@@ -104,70 +341,39 @@ export function useDaily(spaceId: string | null) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [spaceId]);
 
-    // ─── Join a Daily.co Room ────────────────────────────────
-    const joinRoom = useCallback(
-        async (url: string) => {
-            const call = callRef.current;
-            if (!call) return;
-
-            try {
-                // Leave current room if in one
-                if (isJoinedRef.current) {
-                    await call.leave();
-                    isJoinedRef.current = false;
-                }
-
-                const profile = useOfficeStore.getState().myProfile;
-                await call.join({
-                    url,
-                    userName: profile?.display_name || profile?.full_name || 'Anonymous',
-                    startVideoOff: true,
-                    startAudioOff: true,
-                });
-
-                isJoinedRef.current = true;
-
-                // Get local tracks and update store
-                const localParticipant = call.participants().local;
-                updateLocalStream(localParticipant);
-
-                console.log('[Daily.co] Joined room:', url);
-            } catch (err) {
-                console.error('[Daily.co] Failed to join room:', err);
-            }
-        },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        []
-    );
-
-    // ─── Sync local mic/video state to Daily.co ──────────────
+    // ─── Sync mic/video state to Daily.co ────────────────────
     useEffect(() => {
         const call = callRef.current;
         if (!call || !isJoinedRef.current) return;
-
         call.setLocalAudio(isMicEnabled);
+        console.log('[Daily.co] Audio:', isMicEnabled ? 'ON' : 'OFF');
     }, [isMicEnabled]);
 
     useEffect(() => {
         const call = callRef.current;
         if (!call || !isJoinedRef.current) return;
-
         call.setLocalVideo(isVideoEnabled);
+        console.log('[Daily.co] Video:', isVideoEnabled ? 'ON' : 'OFF');
     }, [isVideoEnabled]);
 
     // ─── Room-based call switching ───────────────────────────
-    // When user enters/exits a Cosmoffice room, switch Daily.co room
     useEffect(() => {
         if (!callRef.current || !DAILY_DOMAIN) return;
 
-        const url = getDailyRoomUrl(myRoomId || undefined);
-        if (url && isJoinedRef.current) {
-            joinRoom(url);
-        }
-    }, [myRoomId, getDailyRoomUrl, joinRoom]);
+        const switchRoom = async () => {
+            const roomName = getRoomName(myRoomId || undefined);
+            if (!roomName) return;
 
-    // ─── Proximity-Based Audio/Video ─────────────────────────
-    // Adjust remote audio volume based on distance (spatial audio)
+            const url = await ensureRoom(roomName);
+            if (url) {
+                await joinRoom(url);
+            }
+        };
+
+        switchRoom();
+    }, [myRoomId, getRoomName, ensureRoom, joinRoom]);
+
+    // ─── Proximity-Based Spatial Audio ───────────────────────
     useEffect(() => {
         if (proximityIntervalRef.current) {
             clearInterval(proximityIntervalRef.current);
@@ -185,33 +391,17 @@ export function useDaily(spaceId: string | null) {
                 const peer = state.peers[peerId];
                 if (!peer) return;
 
-                // Calculate distance
                 const dx = myPos.x - peer.position.x;
                 const dy = myPos.y - peer.position.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                // Base volume from distance
                 let volume = Math.max(0, 1 - distance / PROXIMITY_RANGE);
+                if (state.myRoomId !== peer.roomId) volume *= 0.3;
+                if (!isRemoteAudioEnabled) volume = 0;
 
-                // Room dampening: different rooms = 70% reduction
-                if (state.myRoomId !== peer.roomId) {
-                    volume *= 0.3;
-                }
+                const audioEl = document.getElementById(`daily-audio-${peerId}`) as HTMLAudioElement;
+                if (audioEl) audioEl.volume = Math.min(1, Math.max(0, volume));
 
-                // Focus mode: mute all
-                if (!isRemoteAudioEnabled) {
-                    volume = 0;
-                }
-
-                // Apply volume to the audio element
-                const audioEl = document.getElementById(
-                    `daily-audio-${peerId}`
-                ) as HTMLAudioElement;
-                if (audioEl) {
-                    audioEl.volume = Math.min(1, Math.max(0, volume));
-                }
-
-                // Bandwidth optimization: unsubscribe from far-away peers
                 try {
                     if (distance > PROXIMITY_RANGE * 1.5) {
                         call.updateParticipant(peerInfo.sessionId, {
@@ -229,202 +419,14 @@ export function useDaily(spaceId: string | null) {
         }, ROOM_CHECK_INTERVAL);
 
         return () => {
-            if (proximityIntervalRef.current) {
-                clearInterval(proximityIntervalRef.current);
-            }
+            if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current);
         };
     }, [myPosition]);
-
-    // ─── Event Handlers ──────────────────────────────────────
-
-    const handleParticipantJoined = useCallback(
-        (event: DailyEventObjectParticipant | undefined) => {
-            if (!event?.participant || event.participant.local) return;
-
-            const p = event.participant;
-            const peerId = p.user_id || p.session_id;
-
-            peerTracksRef.current.set(peerId, {
-                sessionId: p.session_id,
-                participantId: peerId,
-                audioTrack: null,
-                videoTrack: null,
-                audioEnabled: !p.tracks.audio?.off,
-                videoEnabled: !p.tracks.video?.off,
-                userName: p.user_name || 'Anonymous',
-            });
-
-            console.log('[Daily.co] Participant joined:', p.user_name);
-        },
-        []
-    );
-
-    const handleParticipantLeft = useCallback(
-        (event: DailyEventObjectParticipantLeft | undefined) => {
-            if (!event?.participant) return;
-
-            const p = event.participant;
-            const peerId = p.user_id || p.session_id;
-
-            // Clean up audio element
-            const audioEl = document.getElementById(`daily-audio-${peerId}`);
-            if (audioEl) audioEl.remove();
-
-            peerTracksRef.current.delete(peerId);
-            console.log('[Daily.co] Participant left:', p.user_name);
-        },
-        []
-    );
-
-    const handleParticipantUpdated = useCallback(
-        (event: DailyEventObjectParticipant | undefined) => {
-            if (!event?.participant) return;
-
-            const p = event.participant;
-
-            if (p.local) {
-                // Update local state
-                updateLocalStream(p);
-                return;
-            }
-
-            const peerId = p.user_id || p.session_id;
-            const existing = peerTracksRef.current.get(peerId);
-            if (existing) {
-                existing.audioEnabled = !p.tracks.audio?.off;
-                existing.videoEnabled = !p.tracks.video?.off;
-            }
-
-            // Update peer in Zustand store
-            const peerState = useOfficeStore.getState().peers[peerId];
-            if (peerState) {
-                updatePeer(peerId, {
-                    ...peerState,
-                    audioEnabled: !p.tracks.audio?.off,
-                    videoEnabled: !p.tracks.video?.off,
-                });
-            }
-        },
-        [updatePeer]
-    );
-
-    const handleTrackStarted = useCallback(
-        (event: any) => {
-            if (!event?.participant || event.participant.local) return;
-
-            const p = event.participant;
-            const peerId = p.user_id || p.session_id;
-            const track = event.track as MediaStreamTrack;
-
-            if (!track) return;
-
-            const existing = peerTracksRef.current.get(peerId);
-            if (!existing) return;
-
-            if (track.kind === 'audio') {
-                existing.audioTrack = track;
-
-                // Create/update hidden audio element for spatial audio
-                let audioEl = document.getElementById(
-                    `daily-audio-${peerId}`
-                ) as HTMLAudioElement;
-                if (!audioEl) {
-                    audioEl = document.createElement('audio');
-                    audioEl.id = `daily-audio-${peerId}`;
-                    audioEl.autoplay = true;
-                    audioEl.style.display = 'none';
-                    document.body.appendChild(audioEl);
-                }
-                const stream = new MediaStream([track]);
-                audioEl.srcObject = stream;
-            }
-
-            if (track.kind === 'video') {
-                existing.videoTrack = track;
-
-                // Create a MediaStream from the video track and update peer
-                const peerState = useOfficeStore.getState().peers[peerId];
-                if (peerState) {
-                    const videoStream = new MediaStream([track]);
-                    updatePeer(peerId, {
-                        ...peerState,
-                        videoEnabled: true,
-                        stream: videoStream,
-                    });
-                }
-            }
-        },
-        [updatePeer]
-    );
-
-    const handleTrackStopped = useCallback(
-        (event: any) => {
-            if (!event?.participant || event.participant.local) return;
-
-            const p = event.participant;
-            const peerId = p.user_id || p.session_id;
-            const track = event.track as MediaStreamTrack;
-
-            const existing = peerTracksRef.current.get(peerId);
-            if (!existing) return;
-
-            if (track?.kind === 'audio') {
-                existing.audioTrack = null;
-                const audioEl = document.getElementById(`daily-audio-${peerId}`);
-                if (audioEl) {
-                    (audioEl as HTMLAudioElement).srcObject = null;
-                }
-            }
-
-            if (track?.kind === 'video') {
-                existing.videoTrack = null;
-                const peerState = useOfficeStore.getState().peers[peerId];
-                if (peerState) {
-                    updatePeer(peerId, {
-                        ...peerState,
-                        videoEnabled: false,
-                        stream: null,
-                    });
-                }
-            }
-        },
-        [updatePeer]
-    );
-
-    const handleError = useCallback((event: any) => {
-        console.error('[Daily.co] Error:', event?.errorMsg || event);
-    }, []);
-
-    // ─── Local Stream Management ─────────────────────────────
-    const updateLocalStream = useCallback(
-        (participant: DailyParticipant) => {
-            const tracks: MediaStreamTrack[] = [];
-
-            const audioTrackState = participant.tracks.audio;
-            if (audioTrackState?.persistentTrack && !audioTrackState.off) {
-                tracks.push(audioTrackState.persistentTrack);
-            }
-
-            const videoTrackState = participant.tracks.video;
-            if (videoTrackState?.persistentTrack && !videoTrackState.off) {
-                tracks.push(videoTrackState.persistentTrack);
-            }
-
-            if (tracks.length > 0) {
-                const stream = new MediaStream(tracks);
-                setLocalStream(stream);
-            } else {
-                setLocalStream(null);
-            }
-        },
-        [setLocalStream]
-    );
 
     // ─── Screen Sharing ──────────────────────────────────────
     const startScreenShare = useCallback(async () => {
         const call = callRef.current;
         if (!call || !isJoinedRef.current) return;
-
         try {
             await call.startScreenShare();
         } catch (err) {
@@ -435,7 +437,6 @@ export function useDaily(spaceId: string | null) {
     const stopScreenShare = useCallback(async () => {
         const call = callRef.current;
         if (!call || !isJoinedRef.current) return;
-
         try {
             await call.stopScreenShare();
         } catch (err) {
@@ -447,19 +448,13 @@ export function useDaily(spaceId: string | null) {
     const setAudioDevice = useCallback(async (deviceId: string) => {
         const call = callRef.current;
         if (!call) return;
-
-        await call.setInputDevicesAsync({
-            audioDeviceId: deviceId,
-        });
+        await call.setInputDevicesAsync({ audioDeviceId: deviceId });
     }, []);
 
     const setVideoDevice = useCallback(async (deviceId: string) => {
         const call = callRef.current;
         if (!call) return;
-
-        await call.setInputDevicesAsync({
-            videoDeviceId: deviceId,
-        });
+        await call.setInputDevicesAsync({ videoDeviceId: deviceId });
     }, []);
 
     // ─── Cleanup ─────────────────────────────────────────────
@@ -469,7 +464,6 @@ export function useDaily(spaceId: string | null) {
             proximityIntervalRef.current = null;
         }
 
-        // Clean up all audio elements
         peerTracksRef.current.forEach((_, peerId) => {
             const audioEl = document.getElementById(`daily-audio-${peerId}`);
             if (audioEl) audioEl.remove();
@@ -477,20 +471,17 @@ export function useDaily(spaceId: string | null) {
         peerTracksRef.current.clear();
 
         if (callRef.current) {
-            // Force leave and destroy async but without waiting to not block unmount UI
             callRef.current.leave().catch(console.error).finally(() => {
                 if (callRef.current) {
-                    try {
-                        callRef.current.destroy();
-                    } catch (e) {
-                        console.error('Error destroying daily call object:', e);
-                    }
+                    try { callRef.current.destroy(); } catch (e) { /* ignore */ }
                     callRef.current = null;
                 }
             });
         }
 
         isJoinedRef.current = false;
+        isJoiningRef.current = false;
+        currentRoomUrlRef.current = null;
     }, []);
 
     return {

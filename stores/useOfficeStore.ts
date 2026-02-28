@@ -261,98 +261,13 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
         return { isPerformanceMode: newValue };
     }),
     setActiveTab: (tab) => set({ activeTab: tab, isChatOpen: false, isSettingsOpen: false, isAIPanelOpen: false }),
+    // Camera/mic hardware is managed by Daily.co (useDaily.ts).
+    // These toggles just set the flag — useDaily syncs it to call.setLocalVideo/Audio().
     toggleMic: async () => {
-        const state = get();
-        const newMicEnabled = !state.isMicEnabled;
-
-        if (newMicEnabled) {
-            // Turning ON — acquire mic if no audio track exists
-            const currentStream = state.localStream;
-            const existingAudio = currentStream?.getAudioTracks()[0];
-            if (existingAudio && existingAudio.readyState === 'live') {
-                existingAudio.enabled = true;
-                set({ isMicEnabled: true });
-            } else {
-                try {
-                    const audioConstraints = state.selectedAudioInput && state.selectedAudioInput !== 'default'
-                        ? { deviceId: { exact: state.selectedAudioInput } }
-                        : true;
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
-                    const newAudioTrack = stream.getAudioTracks()[0];
-                    if (newAudioTrack) {
-                        // Merge into existing stream or create new one
-                        if (currentStream) {
-                            currentStream.addTrack(newAudioTrack);
-                            set({ isMicEnabled: true, localStream: new MediaStream(currentStream.getTracks()) });
-                        } else {
-                            set({ isMicEnabled: true, localStream: stream });
-                        }
-                    }
-                } catch (err) {
-                    console.error('Failed to access microphone:', err);
-                }
-            }
-        } else {
-            // Turning OFF — stop all audio tracks to release hardware
-            const currentStream = state.localStream;
-            if (currentStream) {
-                currentStream.getAudioTracks().forEach(t => t.stop());
-                // Keep video tracks if any
-                const remainingTracks = currentStream.getVideoTracks().filter(t => t.readyState === 'live');
-                set({
-                    isMicEnabled: false,
-                    localStream: remainingTracks.length > 0 ? new MediaStream(remainingTracks) : null,
-                });
-            } else {
-                set({ isMicEnabled: false });
-            }
-        }
+        set((state) => ({ isMicEnabled: !state.isMicEnabled }));
     },
     toggleVideo: async () => {
-        const state = get();
-        const newVideoEnabled = !state.isVideoEnabled;
-
-        if (newVideoEnabled) {
-            // Turning ON — acquire camera
-            try {
-                const videoConstraints: MediaStreamConstraints['video'] = state.selectedVideoInput && state.selectedVideoInput !== 'default'
-                    ? { deviceId: { exact: state.selectedVideoInput }, width: { ideal: 1280 }, height: { ideal: 720 } }
-                    : { width: { ideal: 1280 }, height: { ideal: 720 } };
-
-                const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
-                const newVideoTrack = stream.getVideoTracks()[0];
-                if (newVideoTrack) {
-                    const currentStream = state.localStream;
-                    if (currentStream) {
-                        currentStream.addTrack(newVideoTrack);
-                        set({ isVideoEnabled: true, localStream: new MediaStream(currentStream.getTracks()) });
-                    } else {
-                        set({ isVideoEnabled: true, localStream: stream });
-                    }
-                }
-            } catch (err: any) {
-                console.error('Failed to access camera:', err);
-                let msg = 'Impossibile accedere alla telecamera.';
-                if (err.name === 'NotReadableError') msg = 'La telecamera è in uso da un\'altra applicazione.';
-                else if (err.name === 'NotAllowedError') msg = 'Permesso negato per la telecamera.';
-                else if (err.name === 'NotFoundError') msg = 'Telecamera non trovata.';
-                alert(msg);
-            }
-        } else {
-            // Turning OFF — STOP all video tracks to fully release camera hardware
-            const currentStream = state.localStream;
-            if (currentStream) {
-                currentStream.getVideoTracks().forEach(t => t.stop());
-                // Keep audio tracks if any
-                const remainingTracks = currentStream.getAudioTracks().filter(t => t.readyState === 'live');
-                set({
-                    isVideoEnabled: false,
-                    localStream: remainingTracks.length > 0 ? new MediaStream(remainingTracks) : null,
-                });
-            } else {
-                set({ isVideoEnabled: false });
-            }
-        }
+        set((state) => ({ isVideoEnabled: !state.isVideoEnabled }));
     },
     setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
     toggleRemoteAudio: () => set((state) => ({ isRemoteAudioEnabled: !state.isRemoteAudioEnabled })),
