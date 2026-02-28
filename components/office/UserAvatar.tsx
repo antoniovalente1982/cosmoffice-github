@@ -109,7 +109,7 @@ export function UserAvatar({
                         textShadow: '0 1px 6px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)',
                         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
                     }}>
-                        {(fullName?.split(' ')[0]) || 'User'}
+                        {fullName || 'User'}
                     </span>
                 </div>
 
