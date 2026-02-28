@@ -405,7 +405,7 @@ export function ChatWindow() {
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 400, opacity: 0 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                    className="absolute right-4 top-4 bottom-4 w-[420px] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl flex flex-col z-50 shadow-2xl overflow-hidden"
+                    className="absolute right-0 top-0 bottom-0 w-[420px] bg-slate-900/95 backdrop-blur-xl border-l border-white/10 flex flex-col z-50 shadow-2xl overflow-hidden"
                 >
                     {/* ── Header ── */}
                     <div className="p-4 border-b border-white/5 flex flex-col gap-3 bg-gradient-to-r from-slate-800/50 to-transparent">

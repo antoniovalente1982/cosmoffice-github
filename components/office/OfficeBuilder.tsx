@@ -290,7 +290,7 @@ export function OfficeBuilder() {
             <AnimatePresence>
                 <motion.div
                     initial={{ x: 400, opacity: 0 }}
-                    animate={{ x: -24, opacity: 1 }}
+                    animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 400, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                     className="pointer-events-auto absolute top-24 right-0 w-80 rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[80vh]"

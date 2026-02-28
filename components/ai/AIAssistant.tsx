@@ -70,7 +70,7 @@ export function AIAssistant() {
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 400, opacity: 0 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    className="absolute top-0 right-0 w-[340px] h-full z-50 flex flex-col"
+                    className="absolute top-0 right-0 w-[340px] h-full z-50 flex flex-col overflow-hidden"
                     style={{
                         background: 'rgba(8, 12, 24, 0.92)',
                         backdropFilter: 'blur(24px)',
@@ -299,8 +299,8 @@ export function AIAssistant() {
                             >
                                 <div
                                     className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${msg.role === 'user'
-                                            ? 'text-white'
-                                            : 'text-slate-200'
+                                        ? 'text-white'
+                                        : 'text-slate-200'
                                         }`}
                                     style={{
                                         background:

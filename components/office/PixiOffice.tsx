@@ -9,6 +9,7 @@ import { useDaily } from '../../hooks/useDaily';
 import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
+import { getRoomColor } from './OfficeBuilder';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 function lerp(a: number, b: number, t: number) {
@@ -68,7 +69,7 @@ function drawRoom(container: Container, room: any, isHovered: boolean) {
     // Clear old children
     container.removeChildren();
 
-    const color = ROOM_COLORS[room.type] || ROOM_COLORS.default;
+    const color = getRoomColor(room);
     const colorNum = hexColor(color);
 
     // Room body

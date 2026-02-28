@@ -161,8 +161,6 @@ export function KonvaOffice() {
             const newY = Math.max(bounds.y + avatarRadius, Math.min(rawY, bounds.y + bounds.height - avatarRadius));
 
             setMyPosition({ x: newX, y: newY });
-
-            setMyPosition({ x: newX, y: newY });
         };
 
         const handleMouseUp = (e: MouseEvent) => {

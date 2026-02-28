@@ -250,9 +250,9 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
         return { peers: rest };
     }),
 
-    toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen, isSettingsOpen: false, isAIPanelOpen: false })),
-    toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen, isChatOpen: false, isAIPanelOpen: false })),
-    toggleAIPanel: () => set((state) => ({ isAIPanelOpen: !state.isAIPanelOpen, isChatOpen: false, isSettingsOpen: false })),
+    toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen, isAIPanelOpen: state.isChatOpen ? state.isAIPanelOpen : false })),
+    toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen })),
+    toggleAIPanel: () => set((state) => ({ isAIPanelOpen: !state.isAIPanelOpen, isChatOpen: state.isAIPanelOpen ? state.isChatOpen : false })),
     togglePerformanceMode: () => set((state) => {
         const newValue = !state.isPerformanceMode;
         if (typeof window !== 'undefined') {
