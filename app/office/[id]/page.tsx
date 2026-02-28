@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
     Users,
-    Settings,
     LogOut,
     Mic,
     MicOff,
@@ -184,13 +183,6 @@ export default function OfficePage() {
                         <Users className="w-5 h-5" /> Team members
                     </Button>
 
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-3 text-slate-400 hover:text-primary-300 hover:bg-primary-500/5 transition-all"
-                        onClick={() => setIsManagementOpen(true)}
-                    >
-                        <Settings className="w-5 h-5" /> User Settings
-                    </Button>
 
                     <TeamList />
                 </nav>
@@ -250,8 +242,8 @@ export default function OfficePage() {
                                 <button
                                     onClick={() => setIsInvitePanelOpen(!isInvitePanelOpen)}
                                     className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${isInvitePanelOpen
-                                            ? 'bg-primary-500/30 text-primary-200 shadow-primary-500/20'
-                                            : 'bg-gradient-to-r from-primary-500/20 to-indigo-500/20 text-primary-300 hover:from-primary-500/30 hover:to-indigo-500/30 hover:shadow-primary-500/15 border border-primary-500/20 hover:border-primary-500/40'
+                                        ? 'bg-primary-500/30 text-primary-200 shadow-primary-500/20'
+                                        : 'bg-gradient-to-r from-primary-500/20 to-indigo-500/20 text-primary-300 hover:from-primary-500/30 hover:to-indigo-500/30 hover:shadow-primary-500/15 border border-primary-500/20 hover:border-primary-500/40'
                                         }`}
                                     title="Genera link di invito"
                                 >
