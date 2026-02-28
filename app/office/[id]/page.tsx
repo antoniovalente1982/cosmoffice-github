@@ -246,7 +246,7 @@ export default function OfficePage() {
             </motion.aside>
 
             {/* Main Content */}
-            <main className="flex-1 relative flex flex-col gap-4 min-w-0">
+            <main className="flex-1 relative flex flex-col gap-4 min-w-0 overflow-hidden">
                 {/* Top Header */}
                 <motion.header
                     initial={{ y: -20, opacity: 0 }}
