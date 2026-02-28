@@ -87,7 +87,7 @@ export default function OfficePage() {
     }, [spaceId]);
 
     // Role-based access
-    const { isAdmin, role } = useWorkspaceRole(workspaceId);
+    const { isAdmin, role, canInvite, invitableRoles } = useWorkspaceRole(workspaceId);
 
     // Screen sharing functions - supporta multipli schermi
     const startScreenShare = useCallback(async () => {
@@ -245,22 +245,27 @@ export default function OfficePage() {
                             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                             <span className="text-sm font-bold text-slate-100">{workspaceName || 'Ufficio'}</span>
                         </div>
-                        <button
-                            onClick={() => setIsInvitePanelOpen(!isInvitePanelOpen)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isInvitePanelOpen
-                                ? 'bg-primary-500/20 text-primary-300'
-                                : 'text-slate-400 hover:text-primary-300 hover:bg-primary-500/10'
-                                }`}
-                            title="Invita nel workspace"
-                        >
-                            <UserPlus className="w-3.5 h-3.5" />
-                            <span>Invita</span>
-                        </button>
-                        <InvitePanel
-                            spaceId={spaceId}
-                            isOpen={isInvitePanelOpen}
-                            onClose={() => setIsInvitePanelOpen(false)}
-                        />
+                        {canInvite && (
+                            <>
+                                <button
+                                    onClick={() => setIsInvitePanelOpen(!isInvitePanelOpen)}
+                                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${isInvitePanelOpen
+                                            ? 'bg-primary-500/30 text-primary-200 shadow-primary-500/20'
+                                            : 'bg-gradient-to-r from-primary-500/20 to-indigo-500/20 text-primary-300 hover:from-primary-500/30 hover:to-indigo-500/30 hover:shadow-primary-500/15 border border-primary-500/20 hover:border-primary-500/40'
+                                        }`}
+                                    title="Genera link di invito"
+                                >
+                                    <UserPlus className="w-3.5 h-3.5" />
+                                    <span>Invita</span>
+                                </button>
+                                <InvitePanel
+                                    spaceId={spaceId}
+                                    isOpen={isInvitePanelOpen}
+                                    onClose={() => setIsInvitePanelOpen(false)}
+                                    invitableRoles={invitableRoles}
+                                />
+                            </>
+                        )}
                     </div>
                 </motion.header>
 

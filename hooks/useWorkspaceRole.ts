@@ -17,6 +17,7 @@ interface WorkspaceRoleData {
     canModerateChat: boolean;
     canManageWorkspace: boolean;
     canInvite: boolean;
+    invitableRoles: WorkspaceRole[];
     canKick: boolean;
     canBan: boolean;
     refetch: () => Promise<void>;
@@ -82,6 +83,10 @@ export function useWorkspaceRole(workspaceId: string | null): WorkspaceRoleData 
 
     const level = role ? ROLE_HIERARCHY[role] : -1;
 
+    // Which roles can this user assign to invitees?
+    // Rule: you can only invite roles strictly below yours
+    const invitableRoles: WorkspaceRole[] = role ? getInvitableRoles(role) : [];
+
     return {
         role,
         loading,
@@ -93,11 +98,27 @@ export function useWorkspaceRole(workspaceId: string | null): WorkspaceRoleData 
         canEditRooms: level >= ROLE_HIERARCHY.admin,
         canModerateChat: level >= ROLE_HIERARCHY.admin,
         canManageWorkspace: level >= ROLE_HIERARCHY.admin,
-        canInvite: level >= ROLE_HIERARCHY.admin,
+        canInvite: level >= ROLE_HIERARCHY.member, // members+ can invite
+        invitableRoles,
         canKick: level >= ROLE_HIERARCHY.admin,
         canBan: level >= ROLE_HIERARCHY.admin,
         refetch: fetchRole,
     };
+}
+
+/**
+ * Returns the roles a given user role can assign to invitees.
+ * Rule: you can invite anyone with a role strictly below yours.
+ *   owner  → admin, member, guest
+ *   admin  → member, guest
+ *   member → guest
+ *   guest  → (none)
+ *   viewer → (none)
+ */
+export function getInvitableRoles(myRole: WorkspaceRole): WorkspaceRole[] {
+    const myLevel = ROLE_HIERARCHY[myRole];
+    const all: WorkspaceRole[] = ['admin', 'member', 'guest'];
+    return all.filter(r => ROLE_HIERARCHY[r] < myLevel);
 }
 
 // Helper to get workspace_id from a space_id
