@@ -39,7 +39,7 @@ const TIMEZONES = [
 ];
 
 export function OfficeManagement({ spaceId, onClose }: Props) {
-    const { setMyProfile, isPerformanceMode, togglePerformanceMode } = useOfficeStore();
+    const { setMyProfile, myProfile, isPerformanceMode, togglePerformanceMode } = useOfficeStore();
 
     // Profile state — single "name" field syncs both full_name and display_name
     const [name, setName] = useState('');
@@ -187,7 +187,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
             .eq('id', user.id);
 
         if (!error) {
-            setMyProfile(updates);
+            setMyProfile({ ...myProfile, ...updates });
             setSaveResult('success');
         } else {
             console.error('Error saving profile:', error);
