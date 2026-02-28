@@ -32,6 +32,8 @@ let gJoining = false;
 let gRoomUrl: string | null = null;
 let gSpaceId: string | null = null;
 const gPeers = new Map<string, DailyPeerInfo>();
+// Track local tracks separately — participants().local has stale data at track-started time
+const gLocalTracks = new Map<string, MediaStreamTrack>(); // kind → track
 
 export function useDaily(spaceId: string | null) {
     const proximityIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -86,8 +88,23 @@ export function useDaily(spaceId: string | null) {
     const updateLocalStream = useCallback(
         (p: DailyParticipant) => {
             const tracks: MediaStreamTrack[] = [];
-            if (p.tracks.audio?.persistentTrack && !p.tracks.audio.off) tracks.push(p.tracks.audio.persistentTrack);
-            if (p.tracks.video?.persistentTrack && !p.tracks.video.off) tracks.push(p.tracks.video.persistentTrack);
+            const audioTrack = p.tracks.audio?.persistentTrack;
+            const videoTrack = p.tracks.video?.persistentTrack;
+
+            // Include tracks that are alive — Daily.co's `off` can be an object or boolean
+            if (audioTrack && audioTrack.readyState === 'live') {
+                tracks.push(audioTrack);
+            }
+            if (videoTrack && videoTrack.readyState === 'live') {
+                tracks.push(videoTrack);
+            }
+
+            console.log('[Daily] updateLocalStream:', {
+                hasAudio: !!audioTrack, audioState: audioTrack?.readyState, audioOff: p.tracks.audio?.off,
+                hasVideo: !!videoTrack, videoState: videoTrack?.readyState, videoOff: p.tracks.video?.off,
+                totalTracks: tracks.length,
+            });
+
             setLocalStream(tracks.length > 0 ? new MediaStream(tracks) : null);
         },
         [setLocalStream]
@@ -121,10 +138,23 @@ export function useDaily(spaceId: string | null) {
     }, [updatePeer, updateLocalStream]);
 
     const handleTrackStarted = useCallback((ev: any) => {
-        if (!ev?.participant || ev.participant.local) return;
-        const id = ev.participant.user_id || ev.participant.session_id;
+        if (!ev?.participant) return;
         const track = ev.track as MediaStreamTrack;
         if (!track) return;
+
+        // ─── Local participant: directly build stream from tracks ───
+        if (ev.participant.local) {
+            console.log(`[Daily] Local track started: ${track.kind}, readyState: ${track.readyState}`);
+            gLocalTracks.set(track.kind, track);
+            // Build localStream from all known local tracks
+            const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
+            console.log('[Daily] Rebuilding localStream with', liveTracks.length, 'tracks');
+            setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+            return;
+        }
+
+        // ─── Remote participant ───
+        const id = ev.participant.user_id || ev.participant.session_id;
         const ex = gPeers.get(id);
         if (!ex) return;
         if (track.kind === 'audio') {
@@ -138,17 +168,28 @@ export function useDaily(spaceId: string | null) {
             const ps = useOfficeStore.getState().peers[id];
             if (ps) updatePeer(id, { ...ps, videoEnabled: true, stream: new MediaStream([track]) });
         }
-    }, [updatePeer]);
+    }, [updatePeer, setLocalStream]);
 
     const handleTrackStopped = useCallback((ev: any) => {
-        if (!ev?.participant || ev.participant.local) return;
-        const id = ev.participant.user_id || ev.participant.session_id;
+        if (!ev?.participant) return;
         const track = ev.track as MediaStreamTrack;
+
+        // ─── Local participant: remove from local tracks map ───
+        if (ev.participant.local) {
+            console.log(`[Daily] Local track stopped: ${track?.kind}`);
+            if (track?.kind) gLocalTracks.delete(track.kind);
+            const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
+            setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+            return;
+        }
+
+        // ─── Remote participant ───
+        const id = ev.participant.user_id || ev.participant.session_id;
         const ex = gPeers.get(id);
         if (!ex) return;
         if (track?.kind === 'audio') { ex.audioTrack = null; const el = document.getElementById(`daily-audio-${id}`); if (el) (el as HTMLAudioElement).srcObject = null; }
         if (track?.kind === 'video') { ex.videoTrack = null; const ps = useOfficeStore.getState().peers[id]; if (ps) updatePeer(id, { ...ps, videoEnabled: false, stream: null }); }
-    }, [updatePeer]);
+    }, [updatePeer, setLocalStream]);
 
     const handleError = useCallback((ev: any) => { console.error('[Daily] Error:', ev?.errorMsg || ev); }, []);
 
@@ -210,9 +251,58 @@ export function useDaily(spaceId: string | null) {
                     useOfficeStore.getState().clearDailyError();
                     console.log('[Daily] ✅ Joined room:', url);
 
-                    // Update local stream
-                    const local = gCall!.participants().local;
-                    updateLocalStream(local);
+                    // Explicitly enable audio/video AFTER join — Daily.co may not
+                    // auto-start tracks despite startVideoOff/startAudioOff flags
+                    if (isVideoEnabled) {
+                        gCall!.setLocalVideo(true);
+                        console.log('[Daily] Forced video ON after join');
+                    }
+                    if (isMicEnabled) {
+                        gCall!.setLocalAudio(true);
+                        console.log('[Daily] Forced audio ON after join');
+                    }
+
+                    // Poll for tracks: Daily.co populates persistentTrack asynchronously
+                    let attempts = 0;
+                    const maxAttempts = 10;
+                    const syncInterval = setInterval(() => {
+                        if (!gCall || !gJoined || attempts >= maxAttempts) {
+                            clearInterval(syncInterval);
+                            return;
+                        }
+                        attempts++;
+                        const local = gCall.participants()?.local;
+                        if (!local) return;
+
+                        const audioTrack = local.tracks?.audio?.persistentTrack;
+                        const videoTrack = local.tracks?.video?.persistentTrack;
+
+                        let changed = false;
+                        if (audioTrack && audioTrack.readyState === 'live' && !gLocalTracks.has('audio')) {
+                            gLocalTracks.set('audio', audioTrack);
+                            changed = true;
+                            console.log('[Daily] Sync poll: found audio track (attempt', attempts + ')');
+                        }
+                        if (videoTrack && videoTrack.readyState === 'live' && !gLocalTracks.has('video')) {
+                            gLocalTracks.set('video', videoTrack);
+                            changed = true;
+                            console.log('[Daily] Sync poll: found video track (attempt', attempts + ')');
+                        }
+
+                        if (changed) {
+                            const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
+                            console.log('[Daily] Sync poll: rebuilding localStream with', liveTracks.length, 'tracks');
+                            setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+                        }
+
+                        // Stop polling once we have all expected tracks
+                        const hasAllTracks = (!isVideoEnabled || gLocalTracks.has('video')) &&
+                            (!isMicEnabled || gLocalTracks.has('audio'));
+                        if (hasAllTracks) {
+                            console.log('[Daily] Sync poll: all tracks found, stopping poll');
+                            clearInterval(syncInterval);
+                        }
+                    }, 500);
                 } catch (err: any) {
                     const msg = err?.message || 'Errore sconosciuto';
                     console.error('[Daily] Join failed:', msg);
@@ -232,6 +322,7 @@ export function useDaily(spaceId: string | null) {
                 } catch { /* ignore */ }
                 gJoined = false;
                 gRoomUrl = null;
+                gLocalTracks.clear();
                 setLocalStream(null);
                 console.log('[Daily] ⏸️ Left room — saving participant-minutes');
             }

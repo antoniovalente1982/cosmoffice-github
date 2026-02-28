@@ -89,10 +89,8 @@ interface OfficeState {
     roomConnections: RoomConnection[];
 
     // UI State
-    isChatOpen: boolean;
     isSettingsOpen: boolean;
-    isAIPanelOpen: boolean;
-    activeTab: 'office' | 'analytics' | 'badges';
+    activeTab: 'office';
     zoom: number;
 
     // Media State
@@ -133,11 +131,9 @@ interface OfficeState {
     setMyProfile: (profile: any) => void;
     updatePeer: (id: string, data: Partial<Peer>) => void;
     removePeer: (id: string) => void;
-    toggleChat: () => void;
     toggleSettings: () => void;
-    toggleAIPanel: () => void;
     togglePerformanceMode: () => void;
-    setActiveTab: (tab: 'office' | 'analytics' | 'badges') => void;
+    setActiveTab: (tab: 'office') => void;
     toggleMic: () => Promise<void>;
     toggleVideo: () => Promise<void>;
     setScreenSharing: (isSharing: boolean) => void;
@@ -188,9 +184,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     activeSpaceId: undefined,
     rooms: [],
     roomConnections: [],
-    isChatOpen: false,
     isSettingsOpen: false,
-    isAIPanelOpen: false,
     activeTab: 'office',
     zoom: 1,
     // Default: all media OFF when entering - user must enable manually
@@ -256,9 +250,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
         return { peers: rest };
     }),
 
-    toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen, isAIPanelOpen: state.isChatOpen ? state.isAIPanelOpen : false })),
     toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen })),
-    toggleAIPanel: () => set((state) => ({ isAIPanelOpen: !state.isAIPanelOpen, isChatOpen: state.isAIPanelOpen ? state.isChatOpen : false })),
     togglePerformanceMode: () => set((state) => {
         const newValue = !state.isPerformanceMode;
         if (typeof window !== 'undefined') {
@@ -266,7 +258,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
         }
         return { isPerformanceMode: newValue };
     }),
-    setActiveTab: (tab) => set({ activeTab: tab, isChatOpen: false, isSettingsOpen: false, isAIPanelOpen: false }),
+    setActiveTab: (tab) => set({ activeTab: tab, isSettingsOpen: false }),
     // Camera/mic hardware is managed by Daily.co (useDaily.ts).
     // These toggles just set the flag — useDaily syncs it to call.setLocalVideo/Audio().
     toggleMic: async () => {

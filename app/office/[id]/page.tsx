@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
     Users,
-    MessageSquare,
     Settings,
     LogOut,
     Mic,
@@ -17,15 +16,11 @@ import {
     VideoOff,
     Monitor,
     MonitorStop,
-    Volume2,
     VolumeX,
     Headphones,
     Map as MapIcon,
     Bell,
     Search,
-    Sparkles,
-    BarChart3,
-    Trophy,
     SlidersHorizontal,
     Wrench
 } from 'lucide-react';
@@ -36,10 +31,6 @@ const PixiOffice = dynamic(() => import('../../../components/office/PixiOffice')
 const VideoGrid = dynamic(() => import('../../../components/media/VideoGrid').then(mod => mod.VideoGrid), { ssr: false });
 const MediaManager = dynamic(() => import('../../../components/media/MediaManager').then(mod => mod.MediaManager), { ssr: false });
 const DailyErrorToast = dynamic(() => import('../../../components/media/DailyErrorToast'), { ssr: false });
-const ChatWindow = dynamic(() => import('../../../components/chat/ChatWindow').then(mod => mod.ChatWindow), { ssr: false });
-const AIAssistant = dynamic(() => import('../../../components/ai/AIAssistant').then(mod => mod.AIAssistant), { ssr: false });
-const OfficeAnalytics = dynamic(() => import('../../../components/office/OfficeAnalytics').then(mod => mod.OfficeAnalytics), { ssr: false });
-const GamificationSystem = dynamic(() => import('../../../components/office/GamificationSystem').then(mod => mod.GamificationSystem), { ssr: false });
 const TeamList = dynamic(() => import('../../../components/office/TeamList').then(mod => mod.TeamList), { ssr: false });
 const OfficeManagement = dynamic(() => import('../../../components/office/OfficeManagement'), { ssr: false });
 const DeviceSettings = dynamic(() => import('../../../components/settings/DeviceSettings').then(mod => mod.DeviceSettings), { ssr: false });
@@ -53,7 +44,7 @@ export default function OfficePage() {
     const supabase = createClient();
     const router = useRouter();
     const {
-        toggleChat, toggleAIPanel, isAIPanelOpen, activeTab, setActiveTab,
+        activeTab, setActiveTab,
         isMicEnabled, isVideoEnabled, isScreenSharing, isRemoteAudioEnabled, screenStreams,
         hasCompletedDeviceSetup, toggleMic, toggleVideo, toggleRemoteAudio,
         setActiveSpace, addScreenStream, clearAllScreenStreams,
@@ -176,34 +167,6 @@ export default function OfficePage() {
                     <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors">
                         <Users className="w-5 h-5" /> Team members
                     </Button>
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-3 text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors"
-                        onClick={toggleChat}
-                    >
-                        <MessageSquare className="w-5 h-5" /> Chat
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 ${isAIPanelOpen ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'}`}
-                        onClick={toggleAIPanel}
-                    >
-                        <Sparkles className="w-5 h-5" /> AI Assistant
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 ${activeTab === 'analytics' ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'}`}
-                        onClick={() => setActiveTab('analytics')}
-                    >
-                        <BarChart3 className="w-5 h-5" /> Analytics
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 ${activeTab === 'badges' ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'}`}
-                        onClick={() => setActiveTab('badges')}
-                    >
-                        <Trophy className="w-5 h-5" /> Badges
-                    </Button>
 
                     <Button
                         variant="ghost"
@@ -288,17 +251,6 @@ export default function OfficePage() {
                         </>
                     )}
 
-                    {activeTab === 'analytics' && (
-                        <div className="flex-1 w-full h-full overflow-y-auto">
-                            <OfficeAnalytics />
-                        </div>
-                    )}
-
-                    {activeTab === 'badges' && (
-                        <div className="flex-1 w-full h-full overflow-y-auto">
-                            <GamificationSystem />
-                        </div>
-                    )}
 
                     {/* Bottom Controls */}
                     {activeTab === 'office' && (
@@ -402,8 +354,6 @@ export default function OfficePage() {
                     isInitialSetup={true}
                 />
 
-                <ChatWindow />
-                <AIAssistant />
             </main>
         </div>
     );
