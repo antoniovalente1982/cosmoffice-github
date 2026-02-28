@@ -84,18 +84,23 @@ export function UserAvatar({
             {/* Outer group — exact pixel size, no scaling transforms */}
             <div className="group" style={{ position: 'relative', width: sz, height: sz }}>
 
-                {/* Name Tag */}
+                {/* Name Label — always visible below avatar */}
                 <div
-                    className="absolute left-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all rounded-full border border-white/10 backdrop-blur-md shadow-xl"
+                    className="absolute left-1/2 whitespace-nowrap pointer-events-none"
                     style={{
-                        bottom: sz + 4,
+                        top: sz + 6 * zoom,
                         transform: 'translateX(-50%)',
-                        background: 'rgba(15,23,42,0.8)',
-                        padding: `${4 * zoom}px ${12 * zoom}px`,
                     }}
                 >
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#f1f5f9', fontStyle: 'italic' }}>
-                        {fullName} {isMe && '(You)'}
+                    <span style={{
+                        fontSize: Math.max(11, 12 * zoom),
+                        fontWeight: 700,
+                        color: '#f1f5f9',
+                        letterSpacing: '0.02em',
+                        textShadow: '0 1px 6px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)',
+                        fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
+                    }}>
+                        {(fullName?.split(' ')[0]) || 'User'}
                     </span>
                 </div>
 
