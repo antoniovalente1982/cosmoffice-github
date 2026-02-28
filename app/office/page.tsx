@@ -316,22 +316,22 @@ export default function DashboardPage() {
 
                         {/* Office Size Preset Selection */}
                         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Dimensione Ufficio</label>
-                        <div className="grid grid-cols-2 gap-2 mb-4">
+                        <div className="grid grid-cols-2 gap-3 mb-5">
                             {OFFICE_PRESETS.map((preset) => (
                                 <button
                                     key={preset.id}
                                     type="button"
                                     onClick={() => setSelectedPreset(preset.id)}
-                                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${selectedPreset === preset.id
-                                            ? 'bg-primary-500/15 border-primary-500/50 shadow-[0_0_12px_rgba(99,102,241,0.2)]'
-                                            : 'bg-slate-800/50 border-white/5 hover:bg-slate-700/50 hover:border-white/15'
+                                    className={`flex flex-col items-center gap-2 p-5 rounded-2xl border-2 transition-all ${selectedPreset === preset.id
+                                        ? 'bg-primary-500/15 border-primary-500/50 shadow-[0_0_20px_rgba(99,102,241,0.25)]'
+                                        : 'bg-slate-800/50 border-white/5 hover:bg-slate-700/50 hover:border-white/15'
                                         }`}
                                 >
-                                    <span className="text-lg">{preset.icon}</span>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedPreset === preset.id ? 'text-primary-400' : 'text-slate-300'}`}>
+                                    <span className="text-3xl">{preset.icon}</span>
+                                    <span className={`text-sm font-bold uppercase tracking-wider ${selectedPreset === preset.id ? 'text-primary-400' : 'text-slate-200'}`}>
                                         {preset.label}
                                     </span>
-                                    <span className="text-[9px] text-slate-500">{preset.capacity} utenti</span>
+                                    <span className={`text-xs font-medium ${selectedPreset === preset.id ? 'text-primary-300/70' : 'text-slate-400'}`}>{preset.capacity} utenti</span>
                                 </button>
                             ))}
                         </div>
