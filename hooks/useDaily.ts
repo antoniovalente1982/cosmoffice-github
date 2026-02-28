@@ -10,7 +10,7 @@ import DailyIframe, {
 import { useOfficeStore } from '../stores/useOfficeStore';
 
 // ─── Configuration ───────────────────────────────────────────────
-const DAILY_DOMAIN = process.env.NEXT_PUBLIC_DAILY_DOMAIN || '';
+const DAILY_DOMAIN = process.env.NEXT_PUBLIC_DAILY_DOMAIN || 'antoniovalente.daily.co';
 const PROXIMITY_RANGE = 300;
 const ROOM_CHECK_INTERVAL = 500;
 
