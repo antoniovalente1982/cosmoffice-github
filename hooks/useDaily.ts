@@ -401,18 +401,20 @@ export function useDaily(spaceId: string | null) {
             const tracks: MediaStreamTrack[] = [];
 
             const audioTrackState = participant.tracks.audio;
-            if (audioTrackState?.persistentTrack) {
+            if (audioTrackState?.persistentTrack && !audioTrackState.off) {
                 tracks.push(audioTrackState.persistentTrack);
             }
 
             const videoTrackState = participant.tracks.video;
-            if (videoTrackState?.persistentTrack) {
+            if (videoTrackState?.persistentTrack && !videoTrackState.off) {
                 tracks.push(videoTrackState.persistentTrack);
             }
 
             if (tracks.length > 0) {
                 const stream = new MediaStream(tracks);
                 setLocalStream(stream);
+            } else {
+                setLocalStream(null);
             }
         },
         [setLocalStream]
