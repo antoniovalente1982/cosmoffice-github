@@ -21,7 +21,8 @@ import {
     Map as MapIcon,
     SlidersHorizontal,
     Wrench,
-    Circle
+    Circle,
+    UserPlus
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
@@ -34,6 +35,7 @@ const TeamList = dynamic(() => import('../../../components/office/TeamList').the
 const OfficeManagement = dynamic(() => import('../../../components/office/OfficeManagement'), { ssr: false });
 const DeviceSettings = dynamic(() => import('../../../components/settings/DeviceSettings').then(mod => mod.DeviceSettings), { ssr: false });
 const OfficeBuilder = dynamic(() => import('../../../components/office/OfficeBuilder').then(mod => mod.OfficeBuilder), { ssr: false });
+const InvitePanel = dynamic(() => import('../../../components/office/InvitePanel'), { ssr: false });
 
 import { useOfficeStore } from '../../../stores/useOfficeStore';
 import { useOffice } from '../../../hooks/useOffice';
@@ -65,6 +67,7 @@ export default function OfficePage() {
     const [isManagementOpen, setIsManagementOpen] = useState(false);
     const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
     const [showInitialSetup, setShowInitialSetup] = useState(false);
+    const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
     const [workspaceName, setWorkspaceName] = useState('');
 
@@ -186,7 +189,7 @@ export default function OfficePage() {
                         className="w-full justify-start gap-3 text-slate-400 hover:text-primary-300 hover:bg-primary-500/5 transition-all"
                         onClick={() => setIsManagementOpen(true)}
                     >
-                        <Settings className="w-5 h-5" /> Management
+                        <Settings className="w-5 h-5" /> User Settings
                     </Button>
 
                     <TeamList />
@@ -211,8 +214,8 @@ export default function OfficePage() {
                                 </div>
                             )}
                             <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${myStatus === 'online' ? 'bg-emerald-400' :
-                                    myStatus === 'away' ? 'bg-amber-400' :
-                                        myStatus === 'busy' ? 'bg-red-400' : 'bg-slate-500'
+                                myStatus === 'away' ? 'bg-amber-400' :
+                                    myStatus === 'busy' ? 'bg-red-400' : 'bg-slate-500'
                                 }`} />
                         </div>
                         <div className="flex-1 overflow-hidden">
@@ -237,15 +240,27 @@ export default function OfficePage() {
                     transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
                     className="h-16 flex items-center justify-between px-6 glass-dark z-10 shrink-0"
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 relative">
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                             <span className="text-sm font-bold text-slate-100">{workspaceName || 'Ufficio'}</span>
                         </div>
-                        <span className="text-slate-600">|</span>
-                        <span className="text-xs text-slate-400">
-                            {useOfficeStore.getState().myProfile?.display_name || useOfficeStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || 'Utente'}
-                        </span>
+                        <button
+                            onClick={() => setIsInvitePanelOpen(!isInvitePanelOpen)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isInvitePanelOpen
+                                ? 'bg-primary-500/20 text-primary-300'
+                                : 'text-slate-400 hover:text-primary-300 hover:bg-primary-500/10'
+                                }`}
+                            title="Invita nel workspace"
+                        >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>Invita</span>
+                        </button>
+                        <InvitePanel
+                            spaceId={spaceId}
+                            isOpen={isInvitePanelOpen}
+                            onClose={() => setIsInvitePanelOpen(false)}
+                        />
                     </div>
                 </motion.header>
 
