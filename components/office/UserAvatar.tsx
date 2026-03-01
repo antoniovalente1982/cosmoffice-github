@@ -68,13 +68,15 @@ export function UserAvatar({
     const dotOff = 4 * zoom;   // status dot offset from corner
     const iconSz = 12 * zoom;   // mic/video icon size
     const ringOff = 2 * zoom;   // ring-offset gap
-    const ring = 4 * zoom;   // ring thickness
+    const ring = 3 * zoom;   // role ring thickness
 
+    // Role color for the main ring
+    const roleColor = role ? ROLE_RING_COLOR[role] || '#94a3b8' : '#94a3b8';
+
+    // Ring = role color (speaking overrides with green)
     const ringBoxShadow = isSpeaking
-        ? `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px #34d399, 0 0 ${20 * zoom}px rgba(52,211,153,0.4)`
-        : isMe
-            ? `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px rgba(99,102,241,0.5)`
-            : `0 0 0 ${2 * zoom}px #334155`;
+        ? `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px #34d399, 0 0 ${20 * zoom}px rgba(52,211,153,0.5)`
+        : `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px ${roleColor}`;
 
     return (
         <motion.div
@@ -113,7 +115,7 @@ export function UserAvatar({
                     </span>
                 </div>
 
-                {/* Avatar Circle */}
+                {/* Avatar Circle — ring = ROLE color */}
                 <div
                     style={{
                         width: sz,
@@ -174,7 +176,7 @@ export function UserAvatar({
                     </div>
                 </div>
 
-                {/* Status Dot with Role ring */}
+                {/* Status Dot — clean, no role border */}
                 <div style={{
                     position: 'absolute',
                     bottom: dotOff,
@@ -182,9 +184,9 @@ export function UserAvatar({
                     width: dot,
                     height: dot,
                     borderRadius: '50%',
-                    border: `${2 * zoom}px solid ${role ? ROLE_RING_COLOR[role] || '#0f172a' : '#0f172a'}`,
+                    border: `${2 * zoom}px solid #0f172a`,
                     backgroundColor: STATUS_COLOR[status] ?? STATUS_COLOR.offline,
-                    boxShadow: `0 2px 8px rgba(0,0,0,0.3)${role ? `, 0 0 ${4 * zoom}px ${ROLE_RING_COLOR[role] || 'transparent'}40` : ''}`,
+                    boxShadow: `0 2px 6px rgba(0,0,0,0.4)`,
                 }} />
             </div>
         </motion.div>

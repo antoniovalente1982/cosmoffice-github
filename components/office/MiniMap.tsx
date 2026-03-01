@@ -197,18 +197,6 @@ export function MiniMap() {
                                                 rx={3 * scale} stroke={roomFill(room.type)}
                                                 strokeWidth={0.8} strokeOpacity={0.5}
                                             />
-                                            {/* Room name (only if big enough) */}
-                                            {rw > 20 && rh > 12 && (
-                                                <text
-                                                    x={rx + rw / 2} y={ry + rh / 2}
-                                                    textAnchor="middle" dominantBaseline="central"
-                                                    fontSize={Math.min(8, rw / 6)}
-                                                    fill="rgba(255,255,255,0.5)"
-                                                    fontWeight="600"
-                                                >
-                                                    {room.name?.slice(0, 8)}
-                                                </text>
-                                            )}
                                             {/* Peer count badge */}
                                             {count > 0 && (
                                                 <>

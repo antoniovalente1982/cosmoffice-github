@@ -30,6 +30,8 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
     const [isDragging, setIsDragging] = useState(false);
     const [resizing, setResizing] = useState<string | null>(null);
     const dragRef = useRef({ startX: 0, startY: 0, roomX: 0, roomY: 0, roomW: 0, roomH: 0 });
+    const roomIdRef = useRef(room.id);
+    roomIdRef.current = room.id;
 
     const color = getRoomColor(room);
 
@@ -53,34 +55,40 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
             roomW: room.width,
             roomH: room.height,
         };
-    }, [room, onSelect]);
+    }, [room.id, room.x, room.y, room.width, room.height, onSelect]);
 
     useEffect(() => {
         if (!isDragging) return;
 
         const handleMove = (e: MouseEvent) => {
-            const { startX, startY, roomX, roomY } = dragRef.current;
+            const { startX, startY, roomX, roomY, roomW } = dragRef.current;
             const dx = (e.clientX - startX) / zoom;
             const dy = (e.clientY - startY) / zoom;
-            let newX = snapToGrid(roomX + dx);
-            let newY = snapToGrid(roomY + dy);
-            newX = Math.max(0, Math.min(newX, (officeWidth || 4000) - room.width));
-            newY = Math.max(0, Math.min(newY, (officeHeight || 4000) - room.height));
-            updateRoomPosition(room.id, newX, newY);
+            // No snap during drag — smooth movement
+            let newX = Math.round(roomX + dx);
+            let newY = Math.round(roomY + dy);
+            const maxW = officeWidth || 4000;
+            const maxH = officeHeight || 4000;
+            newX = Math.max(0, Math.min(newX, maxW - roomW));
+            newY = Math.max(0, Math.min(newY, maxH - dragRef.current.roomH));
+            updateRoomPosition(roomIdRef.current, newX, newY);
         };
 
         const handleUp = async (e: MouseEvent) => {
             setIsDragging(false);
-            const { startX, startY, roomX, roomY } = dragRef.current;
+            const { startX, startY, roomX, roomY, roomW } = dragRef.current;
             const dx = (e.clientX - startX) / zoom;
             const dy = (e.clientY - startY) / zoom;
+            // Snap only on release
             let newX = snapToGrid(roomX + dx);
             let newY = snapToGrid(roomY + dy);
-            newX = Math.max(0, Math.min(newX, (officeWidth || 4000) - room.width));
-            newY = Math.max(0, Math.min(newY, (officeHeight || 4000) - room.height));
-            updateRoomPosition(room.id, newX, newY);
-            if (!room.id.startsWith('temp_')) {
-                await supabase.from('rooms').update({ x: newX, y: newY }).eq('id', room.id);
+            const maxW = officeWidth || 4000;
+            const maxH = officeHeight || 4000;
+            newX = Math.max(0, Math.min(newX, maxW - roomW));
+            newY = Math.max(0, Math.min(newY, maxH - dragRef.current.roomH));
+            updateRoomPosition(roomIdRef.current, newX, newY);
+            if (!roomIdRef.current.startsWith('temp_')) {
+                await supabase.from('rooms').update({ x: newX, y: newY }).eq('id', roomIdRef.current);
             }
         };
 
@@ -90,7 +98,8 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
             window.removeEventListener('mousemove', handleMove);
             window.removeEventListener('mouseup', handleUp);
         };
-    }, [isDragging, room, zoom, updateRoomPosition, officeWidth, officeHeight, supabase]);
+        // Only depend on isDragging — refs handle the rest
+    }, [isDragging, zoom, updateRoomPosition, officeWidth, officeHeight, supabase]);
 
     // ─── Resize handling ──────────────────────────────────
     const handleResizeStart = useCallback((pos: string, e: React.MouseEvent) => {
@@ -106,7 +115,7 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
             roomW: room.width,
             roomH: room.height,
         };
-    }, [room, onSelect]);
+    }, [room.id, room.x, room.y, room.width, room.height, onSelect]);
 
     useEffect(() => {
         if (!resizing) return;
@@ -117,15 +126,15 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
             const dy = (e.clientY - startY) / zoom;
             let newX = roomX, newY = roomY, newW = roomW, newH = roomH;
 
-            if (resizing.includes('right')) newW = snapToGrid(Math.max(MIN_ROOM_W, roomW + dx));
-            if (resizing.includes('bottom')) newH = snapToGrid(Math.max(MIN_ROOM_H, roomH + dy));
+            if (resizing.includes('right')) newW = Math.round(Math.max(MIN_ROOM_W, roomW + dx));
+            if (resizing.includes('bottom')) newH = Math.round(Math.max(MIN_ROOM_H, roomH + dy));
             if (resizing.includes('left')) {
-                const d = snapToGrid(dx);
+                const d = Math.round(dx);
                 newX = Math.max(0, roomX + d);
                 newW = Math.max(MIN_ROOM_W, roomW - d);
             }
             if (resizing.includes('top')) {
-                const d = snapToGrid(dy);
+                const d = Math.round(dy);
                 newY = Math.max(0, roomY + d);
                 newH = Math.max(MIN_ROOM_H, roomH - d);
             }
@@ -133,18 +142,27 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
             if (newX + newW > (officeWidth || 4000)) newW = (officeWidth || 4000) - newX;
             if (newY + newH > (officeHeight || 4000)) newH = (officeHeight || 4000) - newY;
 
-            updateRoomPosition(room.id, newX, newY);
-            updateRoomSize(room.id, newW, newH);
+            updateRoomPosition(roomIdRef.current, newX, newY);
+            updateRoomSize(roomIdRef.current, newW, newH);
         };
 
         const handleUp = async () => {
             setResizing(null);
+            // Snap to grid on release
             const state = useOfficeStore.getState();
-            const r = state.rooms.find((rm: any) => rm.id === room.id);
-            if (r && !room.id.startsWith('temp_')) {
-                await supabase.from('rooms').update({
-                    x: r.x, y: r.y, width: r.width, height: r.height,
-                }).eq('id', room.id);
+            const r = state.rooms.find((rm: any) => rm.id === roomIdRef.current);
+            if (r) {
+                const snappedX = snapToGrid(r.x);
+                const snappedY = snapToGrid(r.y);
+                const snappedW = snapToGrid(r.width);
+                const snappedH = snapToGrid(r.height);
+                updateRoomPosition(roomIdRef.current, snappedX, snappedY);
+                updateRoomSize(roomIdRef.current, snappedW, snappedH);
+                if (!roomIdRef.current.startsWith('temp_')) {
+                    await supabase.from('rooms').update({
+                        x: snappedX, y: snappedY, width: snappedW, height: snappedH,
+                    }).eq('id', roomIdRef.current);
+                }
             }
         };
 
@@ -154,7 +172,8 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
             window.removeEventListener('mousemove', handleMove);
             window.removeEventListener('mouseup', handleUp);
         };
-    }, [resizing, room, zoom, updateRoomPosition, updateRoomSize, officeWidth, officeHeight, supabase]);
+        // Only depend on resizing — refs handle the rest
+    }, [resizing, zoom, updateRoomPosition, updateRoomSize, officeWidth, officeHeight, supabase]);
 
     // Handle positions (relative to room's screen coords)
     const handles = isSelected ? [
