@@ -196,7 +196,7 @@ export function UserAvatar({
                                 height={mediaDotIconSz}
                                 viewBox="0 0 24 24"
                                 fill="none"
-                                stroke="#f59e0b"
+                                stroke="#0f172a"
                                 strokeWidth="2.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -215,7 +215,7 @@ export function UserAvatar({
                                 height={mediaDotIconSz}
                                 viewBox="0 0 24 24"
                                 fill="none"
-                                stroke="#ef4444"
+                                stroke="#0f172a"
                                 strokeWidth="2.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
