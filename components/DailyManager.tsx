@@ -359,11 +359,35 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     useEffect(() => {
         if (!callRef.current || !joinedRef.current) return;
         callRef.current.setLocalAudio(isAudioOn);
+
+        if (!isAudioOn) {
+            // Same Safari fix as video: stop the hardware mic track
+            const audioTrack = gLocalTracks.get('audio');
+            if (audioTrack) {
+                audioTrack.stop();
+                gLocalTracks.delete('audio');
+                const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
+                useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+            }
+        }
     }, [isAudioOn]);
 
     useEffect(() => {
         if (!callRef.current || !joinedRef.current) return;
         callRef.current.setLocalVideo(isVideoOn);
+
+        if (!isVideoOn) {
+            // Safari fix: setLocalVideo(false) only mutes the track at the SFU level
+            // but does NOT stop the hardware camera. We must explicitly stop() the track
+            // and rebuild the localStream without it.
+            const videoTrack = gLocalTracks.get('video');
+            if (videoTrack) {
+                videoTrack.stop(); // This turns off the green camera indicator
+                gLocalTracks.delete('video');
+                const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
+                useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+            }
+        }
     }, [isVideoOn]);
 
     // Room switching removed — all users share one Daily room per workspace
