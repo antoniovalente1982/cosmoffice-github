@@ -91,6 +91,15 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 avatarUrl,
                 status,
             }));
+            // Immediately send current position so other users see us at the right spot
+            const { myPosition, myRoomId } = useAvatarStore.getState();
+            socket.send(JSON.stringify({
+                type: 'move',
+                userId,
+                x: myPosition.x,
+                y: myPosition.y,
+                roomId: myRoomId || null,
+            }));
         };
 
         socket.onmessage = (ev) => {
