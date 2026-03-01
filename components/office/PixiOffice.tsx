@@ -30,12 +30,14 @@ const ROOM_COLORS: Record<string, string> = {
     default: '#6366f1',
 };
 
-const ROOM_ICONS: Record<string, string> = {
-    reception: '🏢',
-    open: '💻',
-    meeting: '🤝',
-    focus: '🎯',
-    break: '☕',
+// Room type labels (clean, no emoji)
+const ROOM_TYPE_LABELS: Record<string, string> = {
+    reception: 'RECEPTION',
+    open: 'OPEN SPACE',
+    meeting: 'MEETING',
+    focus: 'FOCUS',
+    break: 'BREAK',
+    default: 'ROOM',
 };
 
 // ─── Particle System (GPU) ───────────────────────────────────────
@@ -65,84 +67,142 @@ function drawRoundedRect(g: Graphics, x: number, y: number, w: number, h: number
     g.fill({ color: fill, alpha });
 }
 
-function drawRoom(container: Container, room: any, isHovered: boolean) {
+function drawRoom(container: Container, room: any, isHovered: boolean, occupants: number = 0) {
     // Clear old children
     container.removeChildren();
 
     const color = getRoomColor(room);
     const colorNum = hexColor(color);
+    const capacity = room.settings?.capacity || room.capacity || Math.max(1, Math.floor((room.width * room.height) / (128 * 128)));
+    const department = room.settings?.department || room.department || null;
+    const typeLabel = ROOM_TYPE_LABELS[room.type] || ROOM_TYPE_LABELS.default;
 
-    // Room body
+    // ─── Background layers ───────────────────────────────────
     const body = new Graphics();
 
-    // Outer glow — always visible, stronger on hover
-    body.roundRect(room.x - 6, room.y - 6, room.width + 12, room.height + 12, 22);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.25 : 0.15 });
+    // Outer soft glow
+    body.roundRect(room.x - 8, room.y - 8, room.width + 16, room.height + 16, 24);
+    body.fill({ color: colorNum, alpha: isHovered ? 0.20 : 0.10 });
 
-    // Second glow layer for extra visibility
-    body.roundRect(room.x - 2, room.y - 2, room.width + 4, room.height + 4, 18);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.18 : 0.10 });
+    // Mid glow
+    body.roundRect(room.x - 3, room.y - 3, room.width + 6, room.height + 6, 19);
+    body.fill({ color: colorNum, alpha: isHovered ? 0.14 : 0.07 });
 
-    // Main background — slightly lighter than platform to stand out
+    // Main card background — dark glass
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.fill({ color: 0x111827, alpha: 0.92 });
+    body.fill({ color: 0x0c1222, alpha: 0.94 });
 
-    // Subtle inner fill with room color for identity
+    // Color tint overlay
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.fill({ color: colorNum, alpha: 0.06 });
+    body.fill({ color: colorNum, alpha: isHovered ? 0.08 : 0.04 });
 
-    // Border — always clearly visible
+    // Border — crisp and glowing
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.stroke({ color: colorNum, width: isHovered ? 2.5 : 2, alpha: isHovered ? 0.9 : 0.7 });
+    body.stroke({ color: colorNum, width: isHovered ? 2 : 1.5, alpha: isHovered ? 0.85 : 0.55 });
 
-    // Inner gradient line top — accent bar
-    body.roundRect(room.x + 1, room.y + 1, room.width - 2, 4, 16);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.8 : 0.6 });
+    // Top accent bar — thin gradient strip
+    body.roundRect(room.x + 2, room.y + 2, room.width - 4, 3, 8);
+    body.fill({ color: colorNum, alpha: isHovered ? 0.9 : 0.65 });
+
+    // Bottom subtle line
+    body.rect(room.x + 16, room.y + room.height - 28, room.width - 32, 1);
+    body.fill({ color: 0xffffff, alpha: 0.04 });
 
     container.addChild(body);
 
-    // Room name text
+    // ─── Room name — large, bold, modern ─────────────────────
     const nameStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 14,
-        fontWeight: '600',
-        fill: 0xf1f5f9,
+        fontSize: 15,
+        fontWeight: '700',
+        fill: 0xf8fafc,
+        letterSpacing: 0.3,
     });
     const nameText = new Text({ text: room.name, style: nameStyle });
-    nameText.position.set(room.x + 16, room.y + 14);
+    nameText.position.set(room.x + 16, room.y + 16);
     container.addChild(nameText);
 
-    // Room type icon
-    const iconStyle = new TextStyle({
-        fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 18,
-    });
-    const icon = ROOM_ICONS[room.type] || '💻';
-    const iconText = new Text({ text: icon, style: iconStyle });
-    iconText.position.set(room.x + room.width - 36, room.y + 10);
-    container.addChild(iconText);
+    // ─── Type label — pill style ─────────────────────────────
+    const typePillBg = new Graphics();
+    const typePillW = typeLabel.length * 6.5 + 14;
+    typePillBg.roundRect(room.x + 16, room.y + 38, typePillW, 18, 9);
+    typePillBg.fill({ color: colorNum, alpha: 0.18 });
+    typePillBg.stroke({ color: colorNum, width: 0.8, alpha: 0.35 });
+    container.addChild(typePillBg);
 
-    // Room type label
     const typeStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 10,
+        fontSize: 9,
+        fontWeight: '700',
         fill: hexColor(color),
-        fontWeight: '500',
+        letterSpacing: 1.2,
     });
-    const typeLabel = new Text({ text: room.type.toUpperCase(), style: typeStyle });
-    typeLabel.position.set(room.x + 16, room.y + 34);
-    container.addChild(typeLabel);
+    const typeLabelText = new Text({ text: typeLabel, style: typeStyle });
+    typeLabelText.position.set(room.x + 23, room.y + 42);
+    container.addChild(typeLabelText);
 
-    // Counter badge
-    const badgeStyle = new TextStyle({
+    // ─── Department label (if present) ───────────────────────
+    if (department) {
+        const deptStyle = new TextStyle({
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: 10,
+            fontWeight: '500',
+            fill: 0x94a3b8,
+            fontStyle: 'italic',
+        });
+        const deptText = new Text({ text: department, style: deptStyle });
+        deptText.position.set(room.x + 16 + typePillW + 8, room.y + 42);
+        container.addChild(deptText);
+    }
+
+    // ─── Occupancy badge (top-right) ─────────────────────────
+    const badgeW = 52;
+    const badgeH = 22;
+    const badgeX = room.x + room.width - badgeW - 12;
+    const badgeY = room.y + 12;
+
+    const badgeBg = new Graphics();
+    badgeBg.roundRect(badgeX, badgeY, badgeW, badgeH, 11);
+    if (occupants > 0) {
+        // Active — colored pill
+        badgeBg.fill({ color: colorNum, alpha: 0.25 });
+        badgeBg.stroke({ color: colorNum, width: 1, alpha: 0.5 });
+    } else {
+        // Empty — muted pill
+        badgeBg.fill({ color: 0x334155, alpha: 0.4 });
+        badgeBg.stroke({ color: 0x475569, width: 0.8, alpha: 0.3 });
+    }
+    container.addChild(badgeBg);
+
+    // Dot indicator inside badge
+    const dotGfx = new Graphics();
+    dotGfx.circle(badgeX + 10, badgeY + badgeH / 2, 3);
+    dotGfx.fill({ color: occupants > 0 ? 0x34d399 : 0x475569, alpha: occupants > 0 ? 1 : 0.6 });
+    container.addChild(dotGfx);
+
+    // Occupancy text
+    const occStyle = new TextStyle({
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: 10,
+        fontWeight: '700',
+        fill: occupants > 0 ? 0xf1f5f9 : 0x64748b,
+    });
+    const occText = new Text({ text: `${occupants}/${capacity}`, style: occStyle });
+    occText.position.set(badgeX + 18, badgeY + 5);
+    container.addChild(occText);
+
+    // ─── Bottom status line ──────────────────────────────────
+    const statusStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 9,
-        fill: 0x94a3b8,
         fontWeight: '600',
+        fill: occupants > 0 ? 0x34d399 : 0x475569,
+        letterSpacing: 0.5,
     });
-    const badge = new Text({ text: '0 online', style: badgeStyle });
-    badge.position.set(room.x + 16, room.y + room.height - 22);
-    container.addChild(badge);
+    const statusText = occupants > 0 ? `${occupants} online` : 'Vuota';
+    const status = new Text({ text: statusText, style: statusStyle });
+    status.position.set(room.x + 16, room.y + room.height - 22);
+    container.addChild(status);
 }
 
 // ─── Main Component ──────────────────────────────────────────────
@@ -364,6 +424,15 @@ export function PixiOffice() {
             }
         });
 
+        // Count occupants per room
+        const state = useOfficeStore.getState();
+        const peersByRoom: Record<string, number> = {};
+        Object.values(state.peers).forEach((p: any) => {
+            if (p.roomId) peersByRoom[p.roomId] = (peersByRoom[p.roomId] || 0) + 1;
+        });
+        // Count myself too
+        if (state.myRoomId) peersByRoom[state.myRoomId] = (peersByRoom[state.myRoomId] || 0) + 1;
+
         // Create/update room containers
         rooms.forEach((room: any) => {
             let rc = existingContainers.get(room.id);
@@ -376,9 +445,10 @@ export function PixiOffice() {
                 existingContainers.set(room.id, rc);
             }
             const isHovered = hoveredRoomId === room.id;
-            drawRoom(rc, room, isHovered);
+            const occupants = peersByRoom[room.id] || 0;
+            drawRoom(rc, room, isHovered, occupants);
         });
-    }, [rooms, hoveredRoomId]);
+    }, [rooms, hoveredRoomId, peers]);
 
     // ─── Resize observer ─────────────────────────────────────
     useEffect(() => {
