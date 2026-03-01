@@ -206,6 +206,7 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
                     pointerEvents: 'auto',
                 }}
                 onMouseDown={handleMouseDown}
+                data-room-editor="true"
             >
                 {/* Grid overlay when selected */}
                 {isSelected && (
@@ -262,6 +263,7 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
                         pointerEvents: 'auto',
                     }}
                     onMouseDown={(e) => handleResizeStart(pos, e)}
+                    data-room-editor="true"
                 />
             ))}
         </>

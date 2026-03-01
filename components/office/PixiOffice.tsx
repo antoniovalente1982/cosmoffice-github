@@ -452,6 +452,8 @@ export function PixiOffice() {
             // Don't pan if dragging avatar (handled separately)
             if (isDraggingAvatarRef.current) return;
             if ((e.target as HTMLElement).closest('[data-avatar]')) return;
+            // Don't pan if interacting with room editor (drag/resize in builder mode)
+            if ((e.target as HTMLElement).closest('[data-room-editor]')) return;
 
             isPanningRef.current = true;
             panStartRef.current = {
