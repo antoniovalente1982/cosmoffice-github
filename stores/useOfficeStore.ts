@@ -113,6 +113,7 @@ interface OfficeState {
     // Audio State
     isRemoteAudioEnabled: boolean;  // Mute/unmute audio from other users
     isPerformanceMode: boolean; // Disables expensive CSS and limits videos for older PCs
+    isGridViewOpen: boolean; // Fullscreen video grid view
 
     // Daily.co error state
     dailyError: string | null;
@@ -141,6 +142,7 @@ interface OfficeState {
     toggleVideo: () => Promise<void>;
     setScreenSharing: (isSharing: boolean) => void;
     toggleRemoteAudio: () => void;  // Toggle hearing other users
+    toggleGridView: () => void;  // Toggle fullscreen grid view
     addScreenStream: (stream: MediaStream) => void;
     removeScreenStream: (streamId: string) => void;
     clearAllScreenStreams: () => void;
@@ -207,6 +209,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     hasCompletedDeviceSetup: false,
     isRemoteAudioEnabled: true,  // Default: hear others (can be muted for focus mode)
     isPerformanceMode: typeof window !== 'undefined' ? localStorage.getItem('isPerformanceMode') === 'true' : false,
+    isGridViewOpen: false,
     dailyError: null,
 
     // Builder defaults
@@ -274,6 +277,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     },
     setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
     toggleRemoteAudio: () => set((state) => ({ isRemoteAudioEnabled: !state.isRemoteAudioEnabled })),
+    toggleGridView: () => set((state) => ({ isGridViewOpen: !state.isGridViewOpen })),
     setDailyError: (error) => set({ dailyError: error }),
     clearDailyError: () => set({ dailyError: null }),
     addScreenStream: (stream) => set((state) => ({

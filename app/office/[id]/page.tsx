@@ -21,7 +21,8 @@ import {
     SlidersHorizontal,
     Wrench,
     Circle,
-    UserPlus
+    UserPlus,
+    Grid3X3
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
@@ -35,6 +36,7 @@ const OfficeManagement = dynamic(() => import('../../../components/office/Office
 const DeviceSettings = dynamic(() => import('../../../components/settings/DeviceSettings').then(mod => mod.DeviceSettings), { ssr: false });
 const OfficeBuilder = dynamic(() => import('../../../components/office/OfficeBuilder').then(mod => mod.OfficeBuilder), { ssr: false });
 const InvitePanel = dynamic(() => import('../../../components/office/InvitePanel'), { ssr: false });
+const FullscreenGrid = dynamic(() => import('../../../components/media/FullscreenGrid').then(mod => mod.FullscreenGrid), { ssr: false });
 
 import { useOfficeStore } from '../../../stores/useOfficeStore';
 import { useOffice } from '../../../hooks/useOffice';
@@ -50,6 +52,7 @@ export default function OfficePage() {
         setActiveSpace, addScreenStream, clearAllScreenStreams,
         isBuilderMode, toggleBuilderMode,
         myStatus, setMyStatus,
+        isGridViewOpen, toggleGridView,
     } = useOfficeStore();
     const params = useParams();
     const spaceId = params.id as string;
@@ -325,7 +328,6 @@ export default function OfficePage() {
                                 {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                             </Button>
 
-                            {/* Pulsante + per aggiungere altri schermi quando già ne stai condividendo */}
                             {isScreenSharing && (
                                 <Button
                                     variant="secondary"
@@ -337,6 +339,17 @@ export default function OfficePage() {
                                     <span className="text-lg font-bold">+</span>
                                 </Button>
                             )}
+
+                            {/* Grid View Toggle */}
+                            <Button
+                                variant={isGridViewOpen ? "default" : "secondary"}
+                                size="icon"
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isGridViewOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                onClick={toggleGridView}
+                                title={isGridViewOpen ? 'Chiudi vista griglia' : 'Apri vista griglia videocall'}
+                            >
+                                <Grid3X3 className="w-5 h-5" />
+                            </Button>
 
                             <div className="w-px h-8 bg-white/10 mx-1"></div>
 
@@ -390,6 +403,9 @@ export default function OfficePage() {
                     )}
                 </motion.div>
                 {isManagementOpen && <OfficeManagement spaceId={spaceId} onClose={() => setIsManagementOpen(false)} />}
+
+                {/* Fullscreen Video Grid */}
+                <FullscreenGrid />
 
                 {/* Cabina di Regia - Accessibile durante la sessione */}
                 <DeviceSettings
