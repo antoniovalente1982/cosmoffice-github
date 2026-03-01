@@ -99,9 +99,6 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
     body.roundRect(room.x, room.y, room.width, room.height, 16);
     body.stroke({ color: colorNum, width: isHovered ? 3.5 : 3, alpha: isHovered ? 0.9 : 0.6 });
 
-    // Top accent bar — thin gradient strip
-    body.roundRect(room.x + 2, room.y + 2, room.width - 4, 3, 8);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.9 : 0.65 });
 
     // Bottom subtle line
     body.rect(room.x + 16, room.y + room.height - 28, room.width - 32, 1);
