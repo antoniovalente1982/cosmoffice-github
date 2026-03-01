@@ -173,15 +173,21 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         }
         if (track.kind === 'video') {
             const videoStream = new MediaStream([track]);
-            // Store video track in dailyStore participants
+            // Store video track in dailyStore participants (always — VideoGrid fallback uses this)
             useDailyStore.getState().setParticipant(dailyId, { videoTrack: track, videoEnabled: true });
-            // Always update avatarStore peer with video — create peer if it doesn't exist yet
-            useAvatarStore.getState().updatePeer(supabaseId, {
-                id: supabaseId,
-                videoEnabled: true,
-                stream: videoStream,
-            });
-            console.log('[Daily] Video track stored for peer:', supabaseId);
+            // Only update avatarStore if we have a REAL supabaseId mapping (not the dailyId fallback)
+            const realSupabaseId = gDailyToSupabase.get(dailyId);
+            if (realSupabaseId) {
+                const avatarState = useAvatarStore.getState();
+                if (avatarState.peers[realSupabaseId]) {
+                    useAvatarStore.getState().updatePeer(realSupabaseId, {
+                        id: realSupabaseId,
+                        videoEnabled: true,
+                        stream: videoStream,
+                    });
+                }
+            }
+            console.log('[Daily] Video track stored for peer:', realSupabaseId || dailyId);
         }
     }, []);
 
@@ -210,12 +216,15 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         }
         if (track?.kind === 'video') {
             useDailyStore.getState().setParticipant(dailyId, { videoTrack: null, videoEnabled: false });
-            // Update avatarStore peer
-            useAvatarStore.getState().updatePeer(supabaseId, {
-                id: supabaseId,
-                videoEnabled: false,
-                stream: null,
-            });
+            // Only update existing avatarStore peer
+            const realSupabaseId = gDailyToSupabase.get(dailyId);
+            if (realSupabaseId && useAvatarStore.getState().peers[realSupabaseId]) {
+                useAvatarStore.getState().updatePeer(realSupabaseId, {
+                    id: realSupabaseId,
+                    videoEnabled: false,
+                    stream: null,
+                });
+            }
         }
     }, []);
 
