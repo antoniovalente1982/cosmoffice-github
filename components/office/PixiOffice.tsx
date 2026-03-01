@@ -96,9 +96,9 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
     body.roundRect(room.x, room.y, room.width, room.height, 16);
     body.fill({ color: colorNum, alpha: isHovered ? 0.08 : 0.04 });
 
-    // Border — crisp and glowing
+    // Border — thick and glowing
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.stroke({ color: colorNum, width: isHovered ? 2 : 1.5, alpha: isHovered ? 0.85 : 0.55 });
+    body.stroke({ color: colorNum, width: isHovered ? 3.5 : 3, alpha: isHovered ? 0.9 : 0.6 });
 
     // Top accent bar — thin gradient strip
     body.roundRect(room.x + 2, room.y + 2, room.width - 4, 3, 8);
@@ -122,38 +122,27 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
     nameText.position.set(room.x + 16, room.y + 16);
     container.addChild(nameText);
 
-    // ─── Type label — pill style ─────────────────────────────
+    // ─── Pill label — shows department (white) or type (colored) ─────
+    const pillText = department ? department.toUpperCase() : typeLabel;
+    const pillIsDepart = !!department;
+
     const typePillBg = new Graphics();
-    const typePillW = typeLabel.length * 6.5 + 14;
+    const typePillW = pillText.length * 6.5 + 14;
     typePillBg.roundRect(room.x + 16, room.y + 38, typePillW, 18, 9);
-    typePillBg.fill({ color: colorNum, alpha: 0.18 });
-    typePillBg.stroke({ color: colorNum, width: 0.8, alpha: 0.35 });
+    typePillBg.fill({ color: pillIsDepart ? 0x1e293b : colorNum, alpha: pillIsDepart ? 0.6 : 0.18 });
+    typePillBg.stroke({ color: pillIsDepart ? 0x475569 : colorNum, width: 0.8, alpha: pillIsDepart ? 0.5 : 0.35 });
     container.addChild(typePillBg);
 
     const typeStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 9,
         fontWeight: '700',
-        fill: hexColor(color),
+        fill: pillIsDepart ? 0xf1f5f9 : hexColor(color),
         letterSpacing: 1.2,
     });
-    const typeLabelText = new Text({ text: typeLabel, style: typeStyle });
+    const typeLabelText = new Text({ text: pillText, style: typeStyle });
     typeLabelText.position.set(room.x + 23, room.y + 42);
     container.addChild(typeLabelText);
-
-    // ─── Department label (if present) ───────────────────────
-    if (department) {
-        const deptStyle = new TextStyle({
-            fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 10,
-            fontWeight: '500',
-            fill: 0x94a3b8,
-            fontStyle: 'italic',
-        });
-        const deptText = new Text({ text: department, style: deptStyle });
-        deptText.position.set(room.x + 16 + typePillW + 8, room.y + 42);
-        container.addChild(deptText);
-    }
 
     // ─── Occupancy badge (top-right) ─────────────────────────
     const badgeW = 52;

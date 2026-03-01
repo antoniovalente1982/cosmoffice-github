@@ -365,19 +365,6 @@ export function OfficeBuilder() {
                                         ))}
                                     </div>
                                 </div>
-
-                                <div>
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5"><Users className="w-3 h-3" /> Capacità Massima</div>
-                                        {/* Dynamic Calculation matching ModernRoom */}
-                                        <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold">
-                                            {Math.max(1, Math.floor((selectedRoom.width * selectedRoom.height) / (128 * 128)))}
-                                        </span>
-                                    </label>
-                                    <p className="text-[10px] text-slate-400 mt-1 leading-snug">
-                                        La capienza viene calcolata automaticamente in base alle dimensioni della stanza per garantire lo spazio vitale necessario ad ogni utente.
-                                    </p>
-                                </div>
                             </div>
                         </div>
 
