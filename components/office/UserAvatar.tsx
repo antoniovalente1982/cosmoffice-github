@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useRef, memo } from 'react';
 
 interface UserAvatarProps {
     id: string;
@@ -35,7 +34,7 @@ const ROLE_RING_COLOR: Record<string, string> = {
     guest: '#a855f7',
 };
 
-export function UserAvatar({
+function UserAvatarInner({
     fullName,
     avatarUrl,
     position,
@@ -85,16 +84,16 @@ export function UserAvatar({
     const mediaDotIconSz = 9 * zoom;
 
     return (
-        <motion.div
-            initial={false}
+        <div
             className="absolute z-30"
             style={{
-                x: position.x,
-                y: position.y,
+                left: position.x,
+                top: position.y,
                 marginLeft: -(sz / 2),
                 marginTop: -(sz / 2),
                 pointerEvents: onMouseDown ? 'auto' : 'none',
                 cursor: isDragging ? 'grabbing' : onMouseDown ? 'grab' : 'default',
+                transition: 'left 0.1s ease-out, top 0.1s ease-out',
             }}
             onMouseDown={onMouseDown}
         >
@@ -245,6 +244,8 @@ export function UserAvatar({
                     boxShadow: `0 2px 6px rgba(0,0,0,0.4)`,
                 }} />
             </div>
-        </motion.div>
+        </div>
     );
 }
+
+export const UserAvatar = memo(UserAvatarInner);

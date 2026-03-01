@@ -299,85 +299,49 @@ export function PixiOffice() {
             const oH = useWorkspaceStore.getState().officeHeight || 4000;
             particlesRef.current = createParticles(60, oW, oH);
 
-            // ─── Render loop ─────────────────────────────────
+            // ─── Draw platform ONCE (static — never changes at 60fps) ───
+            if (platformGfxRef.current) {
+                const pg = platformGfxRef.current;
+                const bw = oW;
+                const bh = oH;
+                pg.roundRect(0, 0, bw, bh, 120);
+                pg.fill({ color: 0x06b6d4, alpha: 0.02 });
+                pg.roundRect(40, 40, bw - 80, bh - 80, 80);
+                pg.fill({ color: 0x0a0f1e, alpha: 0.75 });
+                pg.roundRect(40, 40, bw - 80, bh - 80, 80);
+                pg.stroke({ color: 0x06b6d4, width: 1, alpha: 0.15 });
+            }
+
+            // ─── Render loop (OPTIMIZED — only transform + throttled particles) ───
+            let frameCount = 0;
             app.ticker.add(() => {
-                const state = useWorkspaceStore.getState();
                 const curZoom = zoomRef.current;
                 const curPos = stagePosRef.current;
 
-                // Update world transform
+                // Update world transform (lightweight — just setting position/scale)
                 if (worldRef.current) {
                     worldRef.current.position.set(curPos.x, curPos.y);
                     worldRef.current.scale.set(curZoom);
                 }
 
-                // ─── Draw platform ───────────────────────────
-                if (platformGfxRef.current) {
-                    const pg = platformGfxRef.current;
-                    pg.clear();
-
-                    const bw = state.officeWidth || 4000;
-                    const bh = state.officeHeight || 4000;
-
-                    // Outer glow
-                    pg.roundRect(0, 0, bw, bh, 120);
-                    pg.fill({ color: 0x06b6d4, alpha: 0.02 });
-
-                    // Inner dark area
-                    pg.roundRect(40, 40, bw - 80, bh - 80, 80);
-                    pg.fill({ color: 0x0a0f1e, alpha: 0.75 });
-
-                    // Dashed border (simplified — solid thin line)
-                    pg.roundRect(40, 40, bw - 80, bh - 80, 80);
-                    pg.stroke({ color: 0x06b6d4, width: 1, alpha: 0.15 });
-                }
-
-                // ─── Update particles ────────────────────────
-                if (particleGfxRef.current) {
+                // ─── Update particles at ~15fps (every 4 frames) ────
+                frameCount++;
+                if (frameCount % 4 === 0 && particleGfxRef.current) {
                     const pg = particleGfxRef.current;
                     pg.clear();
 
-                    if (!state.isPerformanceMode) {
-                        const bw = state.officeWidth || 4000;
-                        const bh = state.officeHeight || 4000;
-
+                    const isPerf = useWorkspaceStore.getState().isPerformanceMode;
+                    if (!isPerf) {
                         particlesRef.current.forEach(p => {
-                            p.x = (p.x + p.vx + bw) % bw;
-                            p.y = (p.y + p.vy + bh) % bh;
-
+                            p.x = (p.x + p.vx * 4 + oW) % oW;
+                            p.y = (p.y + p.vy * 4 + oH) % oH;
                             pg.circle(p.x, p.y, p.size);
                             pg.fill({ color: 0x6366f1, alpha: p.alpha });
                         });
                     }
                 }
 
-                // ─── Draw room connections ───────────────────
-                if (connectionGfxRef.current) {
-                    const cg = connectionGfxRef.current;
-                    cg.clear();
-
-                    if (!state.isPerformanceMode) {
-                        const rms = state.rooms;
-                        for (let i = 0; i < rms.length; i++) {
-                            for (let j = i + 1; j < rms.length; j++) {
-                                const r1 = rms[i];
-                                const r2 = rms[j];
-                                const cx1 = r1.x + r1.width / 2;
-                                const cy1 = r1.y + r1.height / 2;
-                                const cx2 = r2.x + r2.width / 2;
-                                const cy2 = r2.y + r2.height / 2;
-                                const dist = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
-
-                                if (dist > 800) continue;
-
-                                const alpha = 0.15 * (1 - dist / 800);
-                                cg.moveTo(cx1, cy1);
-                                cg.lineTo(cx2, cy2);
-                                cg.stroke({ color: 0x6366f1, width: 1, alpha });
-                            }
-                        }
-                    }
-                }
+                // Room connections are now drawn in the rooms useEffect (static)
             });
         };
 
@@ -464,6 +428,31 @@ export function PixiOffice() {
             const occupants = peersByRoom[room.id] || 0;
             drawRoom(rc, room, isHovered, occupants);
         });
+
+        // ─── Draw room connections (static — only when rooms change) ───
+        if (connectionGfxRef.current) {
+            const cg = connectionGfxRef.current;
+            cg.clear();
+            const isPerf = useWorkspaceStore.getState().isPerformanceMode;
+            if (!isPerf) {
+                for (let i = 0; i < rooms.length; i++) {
+                    for (let j = i + 1; j < rooms.length; j++) {
+                        const r1 = rooms[i];
+                        const r2 = rooms[j];
+                        const cx1 = r1.x + r1.width / 2;
+                        const cy1 = r1.y + r1.height / 2;
+                        const cx2 = r2.x + r2.width / 2;
+                        const cy2 = r2.y + r2.height / 2;
+                        const dist = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
+                        if (dist > 800) continue;
+                        const alpha = 0.15 * (1 - dist / 800);
+                        cg.moveTo(cx1, cy1);
+                        cg.lineTo(cx2, cy2);
+                        cg.stroke({ color: 0x6366f1, width: 1, alpha });
+                    }
+                }
+            }
+        }
     }, [rooms, hoveredRoomId, appReady]);
 
     // ─── Resize observer ─────────────────────────────────────

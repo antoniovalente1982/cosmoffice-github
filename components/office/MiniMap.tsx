@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo, memo } from 'react';
 import { Map, ZoomIn, ZoomOut, ChevronUp, Users, Crosshair } from 'lucide-react';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
@@ -21,7 +21,7 @@ export function getPresetForSize(w: number, h: number) {
     return OFFICE_PRESETS[3];
 }
 
-export function MiniMap() {
+function MiniMapInner() {
     const myPosition = useAvatarStore(s => s.myPosition);
     const peers = useAvatarStore(s => s.peers);
     const rooms = useWorkspaceStore(s => s.rooms);
@@ -324,3 +324,5 @@ export function MiniMap() {
         </div>
     );
 }
+
+export const MiniMap = memo(MiniMapInner);

@@ -8,12 +8,14 @@ import { createClient } from '../../utils/supabase/client';
 const screenContainersMap = new Map<string, HTMLDivElement>();
 
 export function MediaManager() {
-    const {
-        isScreenSharing, screenStreams, isSpeaking,
-        selectedAudioInput, hasCompletedDeviceSetup,
-        localStream, setLocalStream,
-        setSpeaking, removeScreenStream, clearAllScreenStreams
-    } = useDailyStore();
+    // Granular selectors to avoid re-render on every store change
+    const isScreenSharing = useDailyStore(s => s.isScreenSharing);
+    const screenStreams = useDailyStore(s => s.screenStreams);
+    const isSpeaking = useDailyStore(s => s.isSpeaking);
+    const localStream = useDailyStore(s => s.localStream);
+    const setSpeaking = useDailyStore(s => s.setSpeaking);
+    const removeScreenStream = useDailyStore(s => s.removeScreenStream);
+    const clearAllScreenStreams = useDailyStore(s => s.clearAllScreenStreams);
     const isMicEnabled = useDailyStore(s => s.isAudioOn);
     const isVideoEnabled = useDailyStore(s => s.isVideoOn);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -373,11 +375,10 @@ export function MediaManager() {
         };
     }, [stopAllScreens]);
 
-    // Volume detection for speaking indicator - OTTIMIZZATO
+    // Volume detection for speaking indicator - OPTIMIZED (setInterval instead of rAF)
     useEffect(() => {
-        let animationFrame: number;
+        let speakingInterval: ReturnType<typeof setInterval> | null = null;
         let audioContext: AudioContext | null = null;
-        let isChecking = false;
 
         const startDetection = async () => {
             try {
@@ -395,36 +396,26 @@ export function MediaManager() {
                 const analyzer = audioContext.createAnalyser();
                 const source = audioContext.createMediaStreamSource(micStream);
                 source.connect(analyzer);
-                // Aumentato fftSize per migliore risoluzione e reattività
-                analyzer.fftSize = 512;
+                // Reduced FFT size: 256 is sufficient for speech detection
+                analyzer.fftSize = 256;
                 analyzer.smoothingTimeConstant = 0.3;
 
                 const bufferLength = analyzer.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
                 let speakCount = 0;
-                let lastUpdateTime = 0;
 
-                const checkVolume = (timestamp: number) => {
+                const checkVolume = () => {
                     if (!audioContext || audioContext.state === 'closed') return;
-
-                    // Limita gli aggiornamenti a ~30fps per evitare sovraccarico
-                    if (timestamp - lastUpdateTime < 33) {
-                        animationFrame = requestAnimationFrame(checkVolume);
-                        return;
-                    }
-                    lastUpdateTime = timestamp;
 
                     analyzer.getByteFrequencyData(dataArray);
 
-                    // Calcolo ottimizzato della media
+                    // Optimized average calculation
                     let total = 0;
-                    // Campiona solo metà dei dati per performance
                     for (let i = 0; i < bufferLength; i += 2) {
                         total += dataArray[i];
                     }
                     const average = total / (bufferLength / 2);
 
-                    // Soglia ridotta per maggiore sensibilità
                     if (average > 15) {
                         speakCount = Math.min(speakCount + 1, 5);
                     } else {
@@ -436,10 +427,10 @@ export function MediaManager() {
                     if (speakingNow !== prevSpeaking) {
                         setSpeaking(speakingNow);
                     }
-                    animationFrame = requestAnimationFrame(checkVolume);
                 };
 
-                animationFrame = requestAnimationFrame(checkVolume);
+                // 250ms = 4 checks/sec — plenty for speech detection
+                speakingInterval = setInterval(checkVolume, 250);
                 audioContextRef.current = audioContext;
                 analyzerRef.current = analyzer;
             } catch (err) {
@@ -451,7 +442,7 @@ export function MediaManager() {
         startDetection();
 
         return () => {
-            if (animationFrame) cancelAnimationFrame(animationFrame);
+            if (speakingInterval) clearInterval(speakingInterval);
             if (audioContext && audioContext.state !== 'closed') {
                 audioContext.close().catch(console.error);
             }

@@ -43,7 +43,7 @@ export function useSpatialAudio() {
             });
         };
 
-        const interval = setInterval(calculateVolume, 500);
+        const interval = setInterval(calculateVolume, 1000);
         return () => clearInterval(interval);
     }, []);
 }
