@@ -73,7 +73,6 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
 
     const color = getRoomColor(room);
     const colorNum = hexColor(color);
-    const capacity = room.settings?.capacity || room.capacity || Math.max(1, Math.floor((room.width * room.height) / (128 * 128)));
     const department = room.settings?.department || room.department || null;
     const typeLabel = ROOM_TYPE_LABELS[room.type] || ROOM_TYPE_LABELS.default;
 
@@ -145,7 +144,7 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
     container.addChild(typeLabelText);
 
     // ─── Occupancy badge (top-right) ─────────────────────────
-    const badgeW = 52;
+    const badgeW = 40;
     const badgeH = 22;
     const badgeX = room.x + room.width - badgeW - 12;
     const badgeY = room.y + 12;
@@ -153,45 +152,44 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
     const badgeBg = new Graphics();
     badgeBg.roundRect(badgeX, badgeY, badgeW, badgeH, 11);
     if (occupants > 0) {
-        // Active — colored pill
-        badgeBg.fill({ color: colorNum, alpha: 0.25 });
-        badgeBg.stroke({ color: colorNum, width: 1, alpha: 0.5 });
+        badgeBg.fill({ color: 0x065f46, alpha: 0.6 });
+        badgeBg.stroke({ color: 0x34d399, width: 1, alpha: 0.5 });
     } else {
-        // Empty — muted pill
-        badgeBg.fill({ color: 0x334155, alpha: 0.4 });
-        badgeBg.stroke({ color: 0x475569, width: 0.8, alpha: 0.3 });
+        badgeBg.fill({ color: 0x334155, alpha: 0.35 });
+        badgeBg.stroke({ color: 0x475569, width: 0.8, alpha: 0.25 });
     }
     container.addChild(badgeBg);
 
-    // Dot indicator inside badge
+    // Person icon dot
     const dotGfx = new Graphics();
     dotGfx.circle(badgeX + 10, badgeY + badgeH / 2, 3);
-    dotGfx.fill({ color: occupants > 0 ? 0x34d399 : 0x475569, alpha: occupants > 0 ? 1 : 0.6 });
+    dotGfx.fill({ color: occupants > 0 ? 0x34d399 : 0x475569, alpha: occupants > 0 ? 1 : 0.5 });
     container.addChild(dotGfx);
 
-    // Occupancy text
+    // Count text only
     const occStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 10,
         fontWeight: '700',
         fill: occupants > 0 ? 0xf1f5f9 : 0x64748b,
     });
-    const occText = new Text({ text: `${occupants}/${capacity}`, style: occStyle });
+    const occText = new Text({ text: `${occupants}`, style: occStyle });
     occText.position.set(badgeX + 18, badgeY + 5);
     container.addChild(occText);
 
     // ─── Bottom status line ──────────────────────────────────
-    const statusStyle = new TextStyle({
-        fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 9,
-        fontWeight: '600',
-        fill: occupants > 0 ? 0x34d399 : 0x475569,
-        letterSpacing: 0.5,
-    });
-    const statusText = occupants > 0 ? `${occupants} online` : 'Vuota';
-    const status = new Text({ text: statusText, style: statusStyle });
-    status.position.set(room.x + 16, room.y + room.height - 22);
-    container.addChild(status);
+    if (occupants > 0) {
+        const statusStyle = new TextStyle({
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: 9,
+            fontWeight: '600',
+            fill: 0x34d399,
+            letterSpacing: 0.5,
+        });
+        const status = new Text({ text: `${occupants} online`, style: statusStyle });
+        status.position.set(room.x + 16, room.y + room.height - 22);
+        container.addChild(status);
+    }
 }
 
 // ─── Main Component ──────────────────────────────────────────────

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 import { createClient } from '../../utils/supabase/client';
 import { OFFICE_PRESETS } from './MiniMap';
@@ -72,13 +72,41 @@ export function OfficeBuilder() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedRoomId]);
 
+    // ─── Live preview: instantly update room in store when editing ───
+    const isLoadingPropsRef = useRef(false);
+    useEffect(() => {
+        if (!selectedRoomId || isLoadingPropsRef.current) return;
+        const currentRooms = useOfficeStore.getState().rooms;
+        const room = currentRooms.find(r => r.id === selectedRoomId);
+        if (!room) return;
+
+        // Only update if something actually changed
+        const currentColor = getRoomColor(room);
+        const currentDept = getRoomDepartment(room) || '';
+        if (room.name === editName && currentColor === editColor && currentDept === editDepartment) return;
+
+        setRooms(currentRooms.map(r => r.id === selectedRoomId
+            ? {
+                ...r,
+                name: editName,
+                settings: { ...r.settings, color: editColor, department: editDepartment || null },
+                color: editColor,
+                department: editDepartment || null
+            }
+            : r
+        ));
+    }, [editName, editColor, editDepartment, selectedRoomId, setRooms]);
+
     function loadRoomProperties(roomId: string) {
+        isLoadingPropsRef.current = true;
         const room = useOfficeStore.getState().rooms.find(r => r.id === roomId);
         if (room) {
             setEditName(room.name || '');
             setEditDepartment(getRoomDepartment(room) || '');
             setEditColor(getRoomColor(room));
         }
+        // Defer flag reset to avoid live-preview triggering on load
+        requestAnimationFrame(() => { isLoadingPropsRef.current = false; });
     }
 
     function getViewportCenter() {
@@ -168,21 +196,17 @@ export function OfficeBuilder() {
         if (!selectedRoomId) return;
         setSaving(true);
         const newSettings = {
+            ...useOfficeStore.getState().rooms.find(r => r.id === selectedRoomId)?.settings,
             color: editColor,
             department: editDepartment || null,
         };
-        const currentRooms = useOfficeStore.getState().rooms;
-        setRooms(currentRooms.map(r => r.id === selectedRoomId
-            ? { ...r, name: editName, settings: { ...r.settings, ...newSettings }, color: editColor, department: editDepartment || null }
-            : r
-        ));
 
         const dbUpdates: any = { name: editName, settings: newSettings };
         const { error } = await supabase.from('rooms').update(dbUpdates).eq('id', selectedRoomId);
         if (error) { setToast({ msg: `❌ ${error.message}`, type: 'err' }); }
-        else { setToast({ msg: '✅ Proprietà salvate!', type: 'ok' }); }
+        else { setToast({ msg: '✅ Salvato!', type: 'ok' }); }
         setSaving(false);
-    }, [selectedRoomId, editName, editDepartment, editColor, supabase, setRooms]);
+    }, [selectedRoomId, editName, editDepartment, editColor, supabase]);
 
     const handleSaveEnvironment = useCallback(async () => {
         if (!activeSpaceId) return;
