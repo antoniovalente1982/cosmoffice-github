@@ -29,21 +29,16 @@ export {
   useBannedUsers,
 } from './useModeration';
 
-// Room & Presence
+// Room
 export {
   useRoom,
   useRoomChat,
-  usePresence,
 } from './useRoom';
 
 // Edge Functions
 export { useEdgeFunctions } from './useEdgeFunctions';
 
-// Presence Manager
-export {
-  usePresenceManager,
-  useOnlineUsers,
-} from './usePresenceManager';
+
 
 // Re-export types
 export type { ModerationState } from './useModeration';

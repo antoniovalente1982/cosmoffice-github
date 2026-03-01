@@ -52,7 +52,7 @@ export function useRoom(roomId?: string) {
             .eq('room_id', roomId)
             .eq('user_id', user.id)
             .single();
-          
+
           if (participant) {
             setIsJoined(true);
             setMyPosition({ x: participant.x, y: participant.y });
@@ -104,7 +104,7 @@ export function useRoom(roomId?: string) {
     try {
       const posX = x ?? myPosition.x;
       const posY = y ?? myPosition.y;
-      
+
       await joinRoom(roomId, posX, posY);
       setIsJoined(true);
       setMyPosition({ x: posX, y: posY });
@@ -199,7 +199,7 @@ export function useRoomChat(roomId?: string) {
       const conversation = await getRoomConversation(roomId);
       if (conversation) {
         setConversationId(conversation.id);
-        
+
         // Load messages
         const msgs = await getConversationMessages(conversation.id, 50);
         setMessages(msgs);
@@ -244,8 +244,8 @@ export function useRoomChat(roomId?: string) {
 
     const oldestMessage = messages[0];
     const moreMessages = await getConversationMessages(
-      conversationId, 
-      50, 
+      conversationId,
+      50,
       oldestMessage?.created_at
     );
 
@@ -265,103 +265,4 @@ export function useRoomChat(roomId?: string) {
   };
 }
 
-// ============================================
-// HOOK: usePresence
-// Stato online degli utenti
-// ============================================
 
-export function usePresence(workspaceId?: string) {
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
-  const [presenceData, setPresenceData] = useState<Map<string, any>>(new Map());
-
-  useEffect(() => {
-    if (!workspaceId) return;
-
-    const fetchPresence = async () => {
-      const { data } = await supabase
-        .from('user_presence')
-        .select('*')
-        .eq('workspace_id', workspaceId);
-
-      const presenceMap = new Map();
-      data?.forEach(p => {
-        presenceMap.set(p.user_id, p);
-      });
-      
-      setPresenceData(presenceMap);
-      setOnlineUsers(data?.map(p => p.user_id) || []);
-    };
-
-    fetchPresence();
-
-    const subscription = supabase
-      .channel(`presence:${workspaceId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_presence',
-          filter: `workspace_id=eq.${workspaceId}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'DELETE') {
-            const userId = payload.old.user_id;
-            setOnlineUsers(prev => prev.filter(id => id !== userId));
-            setPresenceData(prev => {
-              const next = new Map(prev);
-              next.delete(userId);
-              return next;
-            });
-          } else {
-            const userId = payload.new.user_id;
-            setOnlineUsers(prev => [...new Set([...prev, userId])]);
-            setPresenceData(prev => {
-              const next = new Map(prev);
-              next.set(userId, payload.new);
-              return next;
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [workspaceId]);
-
-  const updateMyPresence = useCallback(async (status: string, message?: string) => {
-    if (!workspaceId) return;
-
-    await supabase
-      .from('user_presence')
-      .upsert({
-        workspace_id: workspaceId,
-        status,
-        status_message: message,
-      });
-  }, [workspaceId]);
-
-  const setLocation = useCallback(async (spaceId: string | null, roomId: string | null) => {
-    if (!workspaceId) return;
-
-    await supabase
-      .from('user_presence')
-      .upsert({
-        workspace_id: workspaceId,
-        space_id: spaceId,
-        room_id: roomId,
-      });
-  }, [workspaceId]);
-
-  return {
-    onlineUsers,
-    presenceData,
-    isOnline: (userId: string) => onlineUsers.includes(userId),
-    getUserPresence: (userId: string) => presenceData.get(userId),
-    updateMyPresence,
-    setLocation,
-    onlineCount: onlineUsers.length,
-  };
-}
