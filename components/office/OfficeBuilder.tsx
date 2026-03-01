@@ -4,9 +4,11 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { createClient } from '../../utils/supabase/client';
 import { OFFICE_PRESETS } from './MiniMap';
+import { OFFICE_TEMPLATES, OfficeTemplate } from '../../lib/officeTemplates';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2
+    Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2,
+    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle
 } from 'lucide-react';
 
 
@@ -47,6 +49,9 @@ export function OfficeBuilder() {
     const [editColor, setEditColor] = useState('#3b82f6');
     const [builderTab, setBuilderTab] = useState<'rooms' | 'environment'>('rooms');
     const [showRoomsList, setShowRoomsList] = useState(false);
+    const [showTemplates, setShowTemplates] = useState(false);
+    const [applyingTemplate, setApplyingTemplate] = useState(false);
+    const [confirmTemplate, setConfirmTemplate] = useState<OfficeTemplate | null>(null);
 
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -251,6 +256,65 @@ export function OfficeBuilder() {
         state.setOfficeDimensions(state.officeWidth || 4000, newHeight);
     };
 
+    // ─── Apply Office Template ───────────────────────────────
+    const handleApplyTemplate = useCallback(async (template: OfficeTemplate) => {
+        if (!activeSpaceId) { setToast({ msg: '❌ Nessuno spazio attivo', type: 'err' }); return; }
+        setApplyingTemplate(true);
+        setConfirmTemplate(null);
+
+        try {
+            // 1. Delete all existing rooms
+            const existingRooms = useWorkspaceStore.getState().rooms;
+            for (const room of existingRooms) {
+                await supabase.from('room_connections').delete().or(`room_a_id.eq.${room.id},room_b_id.eq.${room.id}`);
+                await supabase.from('rooms').delete().eq('id', room.id);
+            }
+            setRooms([]);
+
+            // 2. Resize office
+            useWorkspaceStore.getState().setOfficeDimensions(template.officeWidth, template.officeHeight);
+            await supabase.from('spaces').update({
+                layout_data: { officeWidth: template.officeWidth, officeHeight: template.officeHeight, bgOpacity: useWorkspaceStore.getState().bgOpacity }
+            }).eq('id', activeSpaceId);
+
+            // 3. Create all template rooms
+            const newRooms: any[] = [];
+            for (const tRoom of template.rooms) {
+                const roomSettings = {
+                    capacity: tRoom.capacity,
+                    color: tRoom.color,
+                    department: tRoom.department || null,
+                };
+                const dbPayload = {
+                    space_id: activeSpaceId,
+                    name: tRoom.name,
+                    type: tRoom.type,
+                    x: tRoom.x,
+                    y: tRoom.y,
+                    width: tRoom.width,
+                    height: tRoom.height,
+                    capacity: tRoom.capacity,
+                    settings: roomSettings,
+                };
+                const { data, error } = await supabase.from('rooms').insert(dbPayload).select().single();
+                if (error) {
+                    console.error('Template room insert error:', error);
+                } else if (data) {
+                    newRooms.push({ ...data, color: tRoom.color, department: tRoom.department || null });
+                }
+            }
+
+            setRooms(newRooms);
+            setShowTemplates(false);
+            setToast({ msg: `✅ Template "${template.name}" applicato! (${newRooms.length} stanze create)`, type: 'ok' });
+        } catch (err: any) {
+            console.error('Apply template error:', err);
+            setToast({ msg: `❌ Errore: ${err?.message || 'Sconosciuto'}`, type: 'err' });
+        } finally {
+            setApplyingTemplate(false);
+        }
+    }, [activeSpaceId, supabase, setRooms]);
+
     if (!isBuilderMode) return null;
 
     return (
@@ -411,35 +475,122 @@ export function OfficeBuilder() {
                 ) : (
                     <>
                         <div className="p-4 flex-1 flex flex-col justify-start items-center h-full min-h-[160px] relative overflow-y-auto custom-scrollbar">
-                            <div className="grid grid-cols-2 gap-3 w-full">
-                                <button
-                                    onClick={() => handleAddRoom(roomTemplates[0])}
-                                    className="w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group relative overflow-hidden"
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
-                                        <Plus className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
+                            {/* Confirmation dialog for template */}
+                            {confirmTemplate && (
+                                <div className="w-full mb-4 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                                        <span className="text-sm font-bold text-amber-300">Attenzione</span>
                                     </div>
-                                    <span className="relative text-xs font-bold text-cyan-50 tracking-wide text-center">
-                                        Nuova Stanza
-                                    </span>
-                                </button>
-
-                                <button
-                                    onClick={() => setShowRoomsList(!showRoomsList)}
-                                    className={`w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all transform hover:-translate-y-1 group relative overflow-hidden ${showRoomsList ? 'bg-purple-500/20 border-purple-500/50 shadow-[0_10px_30px_rgba(168,85,247,0.2)]' : 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 hover:border-purple-500/50 hover:shadow-[0_10px_30px_rgba(168,85,247,0.15)]'}`}
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-purple-500/20 group-hover:bg-purple-500/30 transition-colors">
-                                        <PenTool className="w-6 h-6 text-purple-400 group-hover:scale-110 transition-transform" />
+                                    <p className="text-xs text-slate-300 mb-3">Tutte le stanze esistenti verranno sostituite con il template <strong className="text-white">"{confirmTemplate.name}"</strong>. Questa azione non è reversibile.</p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setConfirmTemplate(null)}
+                                            className="flex-1 py-2 rounded-xl text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 transition-colors"
+                                        >Annulla</button>
+                                        <button
+                                            onClick={() => handleApplyTemplate(confirmTemplate)}
+                                            disabled={applyingTemplate}
+                                            className="flex-1 py-2 rounded-xl text-xs font-bold text-black bg-amber-400 hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                        >
+                                            {applyingTemplate ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                            Conferma
+                                        </button>
                                     </div>
-                                    <span className="relative text-xs font-bold text-purple-50 tracking-wide text-center">
-                                        Modifica Stanza
-                                    </span>
-                                </button>
-                            </div>
+                                </div>
+                            )}
 
-                            {showRoomsList && (
+                            {!showTemplates ? (
+                                <>
+                                    <div className="grid grid-cols-2 gap-3 w-full">
+                                        <button
+                                            onClick={() => handleAddRoom(roomTemplates[0])}
+                                            className="w-full flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group relative overflow-hidden"
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
+                                                <Plus className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                                            </div>
+                                            <span className="relative text-[11px] font-bold text-cyan-50 tracking-wide text-center">Nuova Stanza</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => setShowRoomsList(!showRoomsList)}
+                                            className={`w-full flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border transition-all transform hover:-translate-y-1 group relative overflow-hidden ${showRoomsList ? 'bg-purple-500/20 border-purple-500/50' : 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 hover:border-purple-500/50'}`}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-purple-500/20 group-hover:bg-purple-500/30 transition-colors">
+                                                <PenTool className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
+                                            </div>
+                                            <span className="relative text-[11px] font-bold text-purple-50 tracking-wide text-center">Modifica Stanza</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Template button — full width below */}
+                                    <button
+                                        onClick={() => { setShowTemplates(true); setShowRoomsList(false); }}
+                                        className="w-full mt-3 flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-orange-500/20 hover:border-amber-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] group relative overflow-hidden"
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 to-orange-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <LayoutTemplate className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                                        <span className="text-xs font-bold text-amber-50 tracking-wide">Applica Template Ufficio</span>
+                                    </button>
+                                </>
+                            ) : (
+                                /* Templates List */
+                                <div className="w-full">
+                                    <button
+                                        onClick={() => setShowTemplates(false)}
+                                        className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 transition-colors mb-4"
+                                    >
+                                        <ArrowLeft className="w-3.5 h-3.5" />
+                                        <span className="font-medium">Torna indietro</span>
+                                    </button>
+
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Scegli un template</p>
+
+                                    <div className="space-y-3">
+                                        {OFFICE_TEMPLATES.map((template) => (
+                                            <button
+                                                key={template.id}
+                                                onClick={() => setConfirmTemplate(template)}
+                                                disabled={applyingTemplate}
+                                                className="w-full text-left p-4 rounded-2xl border border-white/5 hover:border-white/15 bg-white/[0.02] hover:bg-white/[0.05] transition-all group disabled:opacity-50"
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <span className="text-2xl flex-shrink-0 mt-0.5">{template.icon}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-sm font-bold text-white group-hover:text-cyan-200 transition-colors">{template.name}</h4>
+                                                        <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{template.description}</p>
+                                                        <div className="flex items-center gap-3 mt-2">
+                                                            <span className="text-[10px] font-medium text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">
+                                                                {template.rooms.length} stanze
+                                                            </span>
+                                                            <span className="text-[10px] font-medium text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">
+                                                                {template.officeWidth}×{template.officeHeight}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Mini room color preview */}
+                                                        <div className="flex gap-1 mt-2">
+                                                            {template.rooms.map((r, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="w-3 h-3 rounded-sm opacity-70 group-hover:opacity-100 transition-opacity"
+                                                                    style={{ backgroundColor: r.color }}
+                                                                    title={r.name}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {showRoomsList && !showTemplates && (
                                 <div className="w-full mt-4 space-y-2">
                                     <p className="text-xs text-slate-400 font-medium mb-2 uppercase tracking-wider">Seleziona una stanza da modificare</p>
                                     {rooms.map(room => (
