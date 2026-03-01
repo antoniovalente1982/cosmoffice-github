@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { useOfficeStore } from '../stores/useOfficeStore';
+import { useAvatarStore } from '../stores/avatarStore';
+import { useDailyStore } from '../stores/dailyStore';
 
 export function useSpatialAudio() {
     const lastPosRef = useRef({ x: 0, y: 0 });
@@ -7,8 +8,8 @@ export function useSpatialAudio() {
 
     useEffect(() => {
         const calculateVolume = () => {
-            // Read all state from getState() — NOT from closure/deps
-            const { myPosition, myRoomId, peers, isRemoteAudioEnabled } = useOfficeStore.getState();
+            const { myPosition, myRoomId, peers } = useAvatarStore.getState();
+            const { isRemoteAudioEnabled } = useDailyStore.getState();
 
             // Skip if position hasn't changed significantly (> 3px)
             const dx = Math.abs(myPosition.x - lastPosRef.current.x);
@@ -17,12 +18,9 @@ export function useSpatialAudio() {
             lastPosRef.current = { x: myPosition.x, y: myPosition.y };
 
             Object.values(peers).forEach(peer => {
-                // If remote audio is disabled (focus mode), mute all peers
                 if (!isRemoteAudioEnabled) {
                     const audioElement = document.getElementById(`audio-${peer.id}`) as HTMLAudioElement;
-                    if (audioElement) {
-                        audioElement.volume = 0;
-                    }
+                    if (audioElement) audioElement.volume = 0;
                     return;
                 }
 
@@ -31,30 +29,21 @@ export function useSpatialAudio() {
                     Math.pow(myPosition.y - peer.position.y, 2)
                 );
 
-                // Max distance for hearing is 500 units
                 const maxDistance = 500;
                 let volume = Math.max(0, 1 - distance / maxDistance);
 
-                // Room-based dampening
-                // If in different rooms, reduce volume by 70%
-                if (myRoomId !== peer.roomId) {
-                    volume *= 0.3;
-                }
+                if (myRoomId !== peer.roomId) volume *= 0.3;
 
-                // Only update DOM if volume actually changed
                 const prevVol = lastVolumesRef.current.get(peer.id) ?? -1;
                 if (Math.abs(volume - prevVol) > 0.01) {
                     lastVolumesRef.current.set(peer.id, volume);
                     const audioElement = document.getElementById(`daily-audio-${peer.id}`) as HTMLAudioElement;
-                    if (audioElement) {
-                        audioElement.volume = volume;
-                    }
+                    if (audioElement) audioElement.volume = volume;
                 }
             });
         };
 
         const interval = setInterval(calculateVolume, 500);
         return () => clearInterval(interval);
-    }, []); // No deps — reads from getState() inside
+    }, []);
 }
-

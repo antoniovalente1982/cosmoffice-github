@@ -2,12 +2,16 @@
 
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useAvatarStore } from '../../stores/avatarStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { usePresence } from '../../hooks/usePresence';
 import { UserAvatar } from './UserAvatar';
 
 export function SpatialOffice() {
-    const { myPosition, setMyPosition, peers, zoom } = useOfficeStore();
+    const myPosition = useAvatarStore(s => s.myPosition);
+    const setMyPosition = useAvatarStore(s => s.setMyPosition);
+    const peers = useAvatarStore(s => s.peers);
+    const zoom = useWorkspaceStore(s => s.zoom);
     const containerRef = useRef<HTMLDivElement>(null);
     const officeSize = { width: 2000, height: 2000 };
 
@@ -114,13 +118,13 @@ export function SpatialOffice() {
             {/* Zoom Controls */}
             <div className="absolute top-6 left-6 z-40 flex flex-col gap-2">
                 <button
-                    onClick={() => useOfficeStore.getState().setZoom(Math.min(2, zoom + 0.1))}
+                    onClick={() => useWorkspaceStore.getState().setZoom(Math.min(2, zoom + 0.1))}
                     className="w-10 h-10 bg-slate-900/60 backdrop-blur rounded-lg border border-slate-700/50 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
                 >
                     +
                 </button>
                 <button
-                    onClick={() => useOfficeStore.getState().setZoom(Math.max(0.5, zoom - 0.1))}
+                    onClick={() => useWorkspaceStore.getState().setZoom(Math.max(0.5, zoom - 0.1))}
                     className="w-10 h-10 bg-slate-900/60 backdrop-blur rounded-lg border border-slate-700/50 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
                 >
                     -

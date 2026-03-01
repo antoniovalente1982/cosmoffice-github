@@ -38,22 +38,44 @@ const OfficeBuilder = dynamic(() => import('../../../components/office/OfficeBui
 const InvitePanel = dynamic(() => import('../../../components/office/InvitePanel'), { ssr: false });
 const FullscreenGrid = dynamic(() => import('../../../components/media/FullscreenGrid').then(mod => mod.FullscreenGrid), { ssr: false });
 
-import { useOfficeStore } from '../../../stores/useOfficeStore';
+import { useAvatarStore } from '../../../stores/avatarStore';
+import { useDailyStore } from '../../../stores/dailyStore';
+import { useWorkspaceStore } from '../../../stores/workspaceStore';
 import { useOffice } from '../../../hooks/useOffice';
 import { useWorkspaceRole, getWorkspaceIdFromSpace } from '../../../hooks/useWorkspaceRole';
+
+// DailyManager singleton — manages Daily.co lifecycle
+const DailyManager = dynamic(() => import('../../../components/DailyManager').then(mod => ({ default: mod.DailyManager })), { ssr: false });
 
 export default function OfficePage() {
     const supabase = createClient();
     const router = useRouter();
-    const {
-        activeTab, setActiveTab,
-        isMicEnabled, isVideoEnabled, isScreenSharing, isRemoteAudioEnabled, screenStreams,
-        hasCompletedDeviceSetup, toggleMic, toggleVideo, toggleRemoteAudio,
-        setActiveSpace, addScreenStream, clearAllScreenStreams,
-        isBuilderMode, toggleBuilderMode,
-        myStatus, setMyStatus,
-        isGridViewOpen, toggleGridView,
-    } = useOfficeStore();
+
+    // Daily store
+    const isMicEnabled = useDailyStore(s => s.isAudioOn);
+    const isVideoEnabled = useDailyStore(s => s.isVideoOn);
+    const isScreenSharing = useDailyStore(s => s.isScreenSharing);
+    const isRemoteAudioEnabled = useDailyStore(s => s.isRemoteAudioEnabled);
+    const screenStreams = useDailyStore(s => s.screenStreams);
+    const hasCompletedDeviceSetup = useDailyStore(s => s.hasCompletedDeviceSetup);
+    const toggleMic = useDailyStore(s => s.toggleAudio);
+    const toggleVideo = useDailyStore(s => s.toggleVideo);
+    const toggleRemoteAudio = useDailyStore(s => s.toggleRemoteAudio);
+    const addScreenStream = useDailyStore(s => s.addScreenStream);
+    const clearAllScreenStreams = useDailyStore(s => s.clearAllScreenStreams);
+    const isGridViewOpen = useDailyStore(s => s.isGridViewOpen);
+    const toggleGridView = useDailyStore(s => s.toggleGridView);
+
+    // Avatar store
+    const myStatus = useAvatarStore(s => s.myStatus);
+    const setMyStatus = useAvatarStore(s => s.setMyStatus);
+
+    // Workspace store
+    const activeTab = useWorkspaceStore(s => s.activeTab);
+    const setActiveTab = useWorkspaceStore(s => s.setActiveTab);
+    const setActiveSpace = useWorkspaceStore(s => s.setActiveSpace);
+    const isBuilderMode = useWorkspaceStore(s => s.isBuilderMode);
+    const toggleBuilderMode = useWorkspaceStore(s => s.toggleBuilderMode);
     const params = useParams();
     const spaceId = params.id as string;
 
@@ -93,7 +115,7 @@ export default function OfficePage() {
 
     // Sync role into store for PixiOffice/UserAvatar
     useEffect(() => {
-        useOfficeStore.getState().setMyRole(role as any);
+        useAvatarStore.getState().setMyRole(role as any);
     }, [role]);
 
     // Screen sharing via Daily.co WebRTC — NOT local getDisplayMedia
@@ -145,11 +167,11 @@ export default function OfficePage() {
                     .single();
 
                 if (profile) {
-                    useOfficeStore.getState().setMyProfile(profile);
+                    useAvatarStore.getState().setMyProfile(profile);
                 }
 
                 // Controlla se l'utente ha già completato il setup dispositivi
-                const hasSetup = useOfficeStore.getState().hasCompletedDeviceSetup;
+                const hasSetup = useDailyStore.getState().hasCompletedDeviceSetup;
                 if (!hasSetup) {
                     setShowInitialSetup(true);
                 }
@@ -211,15 +233,15 @@ export default function OfficePage() {
                         title="Apri impostazioni profilo"
                     >
                         <div className="relative">
-                            {useOfficeStore.getState().myProfile?.avatar_url ? (
+                            {useAvatarStore.getState().myProfile?.avatar_url ? (
                                 <img
-                                    src={useOfficeStore.getState().myProfile.avatar_url}
+                                    src={useAvatarStore.getState().myProfile.avatar_url}
                                     alt="Avatar"
                                     className="w-10 h-10 rounded-full object-cover ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all"
                                 />
                             ) : (
                                 <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold uppercase ring-2 ring-primary-500/30 group-hover:ring-primary-400 transition-all">
-                                    {useOfficeStore.getState().myProfile?.display_name?.[0] || useOfficeStore.getState().myProfile?.full_name?.[0] || user?.email?.[0] || 'U'}
+                                    {useAvatarStore.getState().myProfile?.display_name?.[0] || useAvatarStore.getState().myProfile?.full_name?.[0] || user?.email?.[0] || 'U'}
                                 </div>
                             )}
                             <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${myStatus === 'online' ? 'bg-emerald-400' :
@@ -229,7 +251,7 @@ export default function OfficePage() {
                         </div>
                         <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-medium truncate text-slate-200">
-                                {useOfficeStore.getState().myProfile?.display_name || useOfficeStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || 'Anonymous'}
+                                {useAvatarStore.getState().myProfile?.display_name || useAvatarStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || 'Anonymous'}
                             </p>
                             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
                         </div>

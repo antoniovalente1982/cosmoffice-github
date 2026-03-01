@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Map, ZoomIn, ZoomOut, ChevronUp, Users, Crosshair } from 'lucide-react';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useAvatarStore } from '../../stores/avatarStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 
 // ─── Office size presets ──────────────────────────────────────────
 export const OFFICE_PRESETS = [
@@ -21,7 +22,13 @@ export function getPresetForSize(w: number, h: number) {
 }
 
 export function MiniMap() {
-    const { myPosition, peers, rooms, zoom, stagePos, officeWidth: storeWidth, officeHeight: storeHeight } = useOfficeStore();
+    const myPosition = useAvatarStore(s => s.myPosition);
+    const peers = useAvatarStore(s => s.peers);
+    const rooms = useWorkspaceStore(s => s.rooms);
+    const zoom = useWorkspaceStore(s => s.zoom);
+    const stagePos = useWorkspaceStore(s => s.stagePos);
+    const storeWidth = useWorkspaceStore(s => s.officeWidth);
+    const storeHeight = useWorkspaceStore(s => s.officeHeight);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [hoveredPeer, setHoveredPeer] = useState<string | null>(null);
     const [isDraggingViewport, setIsDraggingViewport] = useState(false);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useDailyStore } from '../../stores/dailyStore';
 
 /**
  * DailyErrorToast — Shows a prominent error notification
@@ -9,8 +9,8 @@ import { useOfficeStore } from '../../stores/useOfficeStore';
  * Renders as a fixed overlay at the top of the screen.
  */
 export default function DailyErrorToast() {
-    const dailyError = useOfficeStore((s) => s.dailyError);
-    const clearDailyError = useOfficeStore((s) => s.clearDailyError);
+    const dailyError = useDailyStore((s) => s.dailyError);
+    const clearDailyError = useDailyStore((s) => s.clearDailyError);
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {

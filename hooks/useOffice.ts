@@ -2,11 +2,15 @@
 
 import { useEffect, useCallback } from 'react';
 import { createClient } from '../utils/supabase/client';
-import { useOfficeStore } from '../stores/useOfficeStore';
+import { useWorkspaceStore } from '../stores/workspaceStore';
 
 export function useOffice(spaceId?: string) {
     const supabase = createClient();
-    const { setRooms, setRoomConnections, setFurnitureItems, setOfficeDimensions, setBgOpacity } = useOfficeStore();
+    const setRooms = useWorkspaceStore(s => s.setRooms);
+    const setRoomConnections = useWorkspaceStore(s => s.setRoomConnections);
+    const setFurnitureItems = useWorkspaceStore(s => s.setFurnitureItems);
+    const setOfficeDimensions = useWorkspaceStore(s => s.setOfficeDimensions);
+    const setBgOpacity = useWorkspaceStore(s => s.setBgOpacity);
 
     const fetchOfficeData = useCallback(async () => {
         if (!spaceId) return;
@@ -37,7 +41,6 @@ export function useOffice(spaceId?: string) {
         if (roomsError) {
             console.error('Error fetching rooms:', roomsError);
         } else {
-            // Always set rooms from DB — store was already reset by setActiveSpace
             setRooms(rooms || []);
 
             // Fetch furniture for all rooms in this space
@@ -70,7 +73,6 @@ export function useOffice(spaceId?: string) {
 
         if (!spaceId) return;
 
-        // Subscribe to changes for THIS space
         const roomsChannel = supabase
             .channel(`rooms_${spaceId}`)
             .on('postgres_changes', {

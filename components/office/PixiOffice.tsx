@@ -2,10 +2,11 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEvent } from 'pixi.js';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useAvatarStore } from '../../stores/avatarStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
+import { useDailyStore } from '../../stores/dailyStore';
 import { usePresence } from '../../hooks/usePresence';
 import { useSpatialAudio } from '../../hooks/useSpatialAudio';
-import { useDaily } from '../../hooks/useDaily';
 import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
@@ -163,28 +164,33 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
 
 // ─── Main Component ──────────────────────────────────────────────
 export function PixiOffice() {
-    const myPosition = useOfficeStore(s => s.myPosition);
-    const setMyPosition = useOfficeStore(s => s.setMyPosition);
-    const peers = useOfficeStore(s => s.peers);
-    const rooms = useOfficeStore(s => s.rooms);
-    const zoom = useOfficeStore(s => s.zoom);
-    const setZoom = useOfficeStore(s => s.setZoom);
-    const setStagePos = useOfficeStore(s => s.setStagePos);
-    const setMyRoom = useOfficeStore(s => s.setMyRoom);
-    const isMicEnabled = useOfficeStore(s => s.isMicEnabled);
-    const isVideoEnabled = useOfficeStore(s => s.isVideoEnabled);
-    const isSpeaking = useOfficeStore(s => s.isSpeaking);
-    const localStream = useOfficeStore(s => s.localStream);
-    const myProfile = useOfficeStore(s => s.myProfile);
-    const myRole = useOfficeStore(s => s.myRole);
-    const isBuilderMode = useOfficeStore(s => s.isBuilderMode);
-    const bgOpacity = useOfficeStore(s => s.bgOpacity);
-    const stagePos = useOfficeStore(s => s.stagePos);
-    const officeWidth = useOfficeStore(s => s.officeWidth);
-    const officeHeight = useOfficeStore(s => s.officeHeight);
-    const isPerformanceMode = useOfficeStore(s => s.isPerformanceMode);
-    const myStatus = useOfficeStore(s => s.myStatus);
-    const isRemoteAudioEnabled = useOfficeStore(s => s.isRemoteAudioEnabled);
+    // Avatar store (positions, peers, profile)
+    const myPosition = useAvatarStore(s => s.myPosition);
+    const setMyPosition = useAvatarStore(s => s.setMyPosition);
+    const peers = useAvatarStore(s => s.peers);
+    const myProfile = useAvatarStore(s => s.myProfile);
+    const myRole = useAvatarStore(s => s.myRole);
+    const myStatus = useAvatarStore(s => s.myStatus);
+    const setMyRoom = useAvatarStore(s => s.setMyRoom);
+
+    // Workspace store (rooms, view, builder)
+    const rooms = useWorkspaceStore(s => s.rooms);
+    const zoom = useWorkspaceStore(s => s.zoom);
+    const setZoom = useWorkspaceStore(s => s.setZoom);
+    const setStagePos = useWorkspaceStore(s => s.setStagePos);
+    const isBuilderMode = useWorkspaceStore(s => s.isBuilderMode);
+    const bgOpacity = useWorkspaceStore(s => s.bgOpacity);
+    const stagePos = useWorkspaceStore(s => s.stagePos);
+    const officeWidth = useWorkspaceStore(s => s.officeWidth);
+    const officeHeight = useWorkspaceStore(s => s.officeHeight);
+    const isPerformanceMode = useWorkspaceStore(s => s.isPerformanceMode);
+
+    // Daily store (media state)
+    const isMicEnabled = useDailyStore(s => s.isAudioOn);
+    const isVideoEnabled = useDailyStore(s => s.isVideoOn);
+    const isSpeaking = useDailyStore(s => s.isSpeaking);
+    const localStream = useDailyStore(s => s.localStream);
+    const isRemoteAudioEnabled = useDailyStore(s => s.isRemoteAudioEnabled);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -214,8 +220,7 @@ export function PixiOffice() {
     usePresence();
     useSpatialAudio();
 
-    const { activeSpaceId } = useOfficeStore();
-    useDaily(activeSpaceId || null);
+    // DailyManager is mounted in page.tsx — no hook call needed here
 
     // PixiJS refs for layers
     const worldRef = useRef<Container | null>(null);
@@ -290,13 +295,13 @@ export function PixiOffice() {
             roomLayerRef.current = roomLayer;
 
             // Initialize particles
-            const oW = useOfficeStore.getState().officeWidth || 4000;
-            const oH = useOfficeStore.getState().officeHeight || 4000;
+            const oW = useWorkspaceStore.getState().officeWidth || 4000;
+            const oH = useWorkspaceStore.getState().officeHeight || 4000;
             particlesRef.current = createParticles(60, oW, oH);
 
             // ─── Render loop ─────────────────────────────────
             app.ticker.add(() => {
-                const state = useOfficeStore.getState();
+                const state = useWorkspaceStore.getState();
                 const curZoom = zoomRef.current;
                 const curPos = stagePosRef.current;
 
@@ -394,12 +399,12 @@ export function PixiOffice() {
     useEffect(() => {
         if (!appReady) return;
         const updateOccupants = () => {
-            const state = useOfficeStore.getState();
+            const avatarState = useAvatarStore.getState();
             const counts: Record<string, number> = {};
-            Object.values(state.peers).forEach((p: any) => {
+            Object.values(avatarState.peers).forEach((p: any) => {
                 if (p.roomId) counts[p.roomId] = (counts[p.roomId] || 0) + 1;
             });
-            if (state.myRoomId) counts[state.myRoomId] = (counts[state.myRoomId] || 0) + 1;
+            if (avatarState.myRoomId) counts[avatarState.myRoomId] = (counts[avatarState.myRoomId] || 0) + 1;
 
             // Only redraw if counts actually changed
             const prev = peersByRoomRef.current;
@@ -412,7 +417,7 @@ export function PixiOffice() {
                 const layer = roomLayerRef.current;
                 const existingContainers = roomContainersRef.current;
                 if (layer) {
-                    useOfficeStore.getState().rooms.forEach((room: any) => {
+                    useWorkspaceStore.getState().rooms.forEach((room: any) => {
                         const rc = existingContainers.get(room.id);
                         if (rc) {
                             const isHovered = false; // Hover is handled by the main draw
@@ -518,7 +523,7 @@ export function PixiOffice() {
                 const rawX = posX + (e.clientX - mouseX) / startZoom;
                 const rawY = posY + (e.clientY - mouseY) / startZoom;
 
-                const bounds = useOfficeStore.getState();
+                const bounds = useWorkspaceStore.getState();
                 const bw = bounds.officeWidth || 4000;
                 const bh = bounds.officeHeight || 4000;
                 const r = 24;
@@ -549,7 +554,7 @@ export function PixiOffice() {
                 const worldY = (e.clientY - rect.top - curStagePos.y) / curZoom;
 
                 let foundRoom: string | null = null;
-                const currentRooms = useOfficeStore.getState().rooms;
+                const currentRooms = useWorkspaceStore.getState().rooms;
                 for (const room of currentRooms) {
                     if (worldX >= room.x && worldX <= room.x + room.width &&
                         worldY >= room.y && worldY <= room.y + room.height) {
@@ -571,7 +576,7 @@ export function PixiOffice() {
                 const finalX = posX + (e.clientX - mouseX) / startZoom;
                 const finalY = posY + (e.clientY - mouseY) / startZoom;
                 let found: string | undefined;
-                useOfficeStore.getState().rooms.forEach((room: any) => {
+                useWorkspaceStore.getState().rooms.forEach((room: any) => {
                     if (finalX >= room.x && finalX <= room.x + room.width &&
                         finalY >= room.y && finalY <= room.y + room.height) {
                         found = room.id;
@@ -746,7 +751,7 @@ export function PixiOffice() {
     // ─── Stage click for builder mode ────────────────────────
     const handleStageClick = useCallback(() => {
         if (isBuilderMode) {
-            useOfficeStore.getState().setSelectedRoom(null);
+            useWorkspaceStore.getState().setSelectedRoom(null);
         }
     }, [isBuilderMode]);
 

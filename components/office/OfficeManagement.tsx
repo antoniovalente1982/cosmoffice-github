@@ -14,7 +14,8 @@ import {
     User
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useAvatarStore } from '../../stores/avatarStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { motion } from 'framer-motion';
 
 const supabase = createClient();
@@ -39,7 +40,10 @@ const TIMEZONES = [
 ];
 
 export function OfficeManagement({ spaceId, onClose }: Props) {
-    const { setMyProfile, myProfile, isPerformanceMode, togglePerformanceMode } = useOfficeStore();
+    const setMyProfile = useAvatarStore(s => s.setMyProfile);
+    const myProfile = useAvatarStore(s => s.myProfile);
+    const isPerformanceMode = useWorkspaceStore(s => s.isPerformanceMode);
+    const togglePerformanceMode = useWorkspaceStore(s => s.togglePerformanceMode);
 
     // Profile state — single "name" field syncs both full_name and display_name
     const [name, setName] = useState('');

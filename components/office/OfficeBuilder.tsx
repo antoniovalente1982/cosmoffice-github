@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { createClient } from '../../utils/supabase/client';
 import { OFFICE_PRESETS } from './MiniMap';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,7 +36,7 @@ export function OfficeBuilder() {
         isBuilderMode, rooms, selectedRoomId, roomTemplates,
         activeSpaceId, stagePos, zoom, addRoom, setSelectedRoom, removeRoom,
         setRooms, toggleBuilderMode,
-    } = useOfficeStore();
+    } = useWorkspaceStore();
 
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
@@ -76,7 +76,7 @@ export function OfficeBuilder() {
     const isLoadingPropsRef = useRef(false);
     useEffect(() => {
         if (!selectedRoomId || isLoadingPropsRef.current) return;
-        const currentRooms = useOfficeStore.getState().rooms;
+        const currentRooms = useWorkspaceStore.getState().rooms;
         const room = currentRooms.find(r => r.id === selectedRoomId);
         if (!room) return;
 
@@ -99,7 +99,7 @@ export function OfficeBuilder() {
 
     function loadRoomProperties(roomId: string) {
         isLoadingPropsRef.current = true;
-        const room = useOfficeStore.getState().rooms.find(r => r.id === roomId);
+        const room = useWorkspaceStore.getState().rooms.find(r => r.id === roomId);
         if (room) {
             setEditName(room.name || '');
             setEditDepartment(getRoomDepartment(room) || '');
@@ -124,7 +124,7 @@ export function OfficeBuilder() {
             color: template.color,
             department: template.department || null,
         };
-        const state = useOfficeStore.getState();
+        const state = useWorkspaceStore.getState();
         const maxW = state.officeWidth || 4000;
         const maxH = state.officeHeight || 4000;
 
@@ -164,7 +164,7 @@ export function OfficeBuilder() {
             console.error('Room insert error:', error);
             setToast({ msg: `❌ Errore DB: ${error.message}`, type: 'err' });
         } else if (data) {
-            const currentRooms = useOfficeStore.getState().rooms;
+            const currentRooms = useWorkspaceStore.getState().rooms;
             setRooms(currentRooms.map(r => r.id === tId ? { ...r, ...data, color: template.color, department: template.department || null } : r));
             setSelectedRoom(data.id);
             setToast({ msg: `✅ ${template.name} creata!`, type: 'ok' });
@@ -196,7 +196,7 @@ export function OfficeBuilder() {
         if (!selectedRoomId) return;
         setSaving(true);
         const newSettings = {
-            ...useOfficeStore.getState().rooms.find(r => r.id === selectedRoomId)?.settings,
+            ...useWorkspaceStore.getState().rooms.find(r => r.id === selectedRoomId)?.settings,
             color: editColor,
             department: editDepartment || null,
         };
@@ -211,7 +211,7 @@ export function OfficeBuilder() {
     const handleSaveEnvironment = useCallback(async () => {
         if (!activeSpaceId) return;
         setSaving(true);
-        const state = useOfficeStore.getState();
+        const state = useWorkspaceStore.getState();
         const layout_data = {
             officeWidth: state.officeWidth,
             officeHeight: state.officeHeight,
@@ -225,7 +225,7 @@ export function OfficeBuilder() {
 
     const handleResizeOfficeWidth = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newWidth = parseInt(e.target.value);
-        const state = useOfficeStore.getState();
+        const state = useWorkspaceStore.getState();
 
         // Verifica costrizioni stanze
         const outOfBounds = state.rooms.some(r => r.x + r.width > newWidth);
@@ -239,7 +239,7 @@ export function OfficeBuilder() {
 
     const handleResizeOfficeHeight = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newHeight = parseInt(e.target.value);
-        const state = useOfficeStore.getState();
+        const state = useWorkspaceStore.getState();
 
         // Verifica costrizioni stanze
         const outOfBounds = state.rooms.some(r => r.y + r.height > newHeight);

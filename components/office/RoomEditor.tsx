@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useState, useRef, useEffect } from 'react';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { createClient } from '../../utils/supabase/client';
 
 const GRID_SIZE = 20;
@@ -26,7 +26,7 @@ interface EditableRoomProps {
 
 function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRoomProps) {
     const supabase = createClient();
-    const { updateRoomPosition, updateRoomSize, officeWidth, officeHeight } = useOfficeStore();
+    const { updateRoomPosition, updateRoomSize, officeWidth, officeHeight } = useWorkspaceStore();
     const [isDragging, setIsDragging] = useState(false);
     const [resizing, setResizing] = useState<string | null>(null);
     const dragRef = useRef({ startX: 0, startY: 0, roomX: 0, roomY: 0, roomW: 0, roomH: 0 });
@@ -149,7 +149,7 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
         const handleUp = async () => {
             setResizing(null);
             // Snap to grid on release
-            const state = useOfficeStore.getState();
+            const state = useWorkspaceStore.getState();
             const r = state.rooms.find((rm: any) => rm.id === roomIdRef.current);
             if (r) {
                 const snappedX = snapToGrid(r.x);
@@ -275,7 +275,7 @@ interface RoomEditorProps {
 }
 
 export function RoomEditor({ rooms }: RoomEditorProps) {
-    const { selectedRoomId, setSelectedRoom, zoom, stagePos } = useOfficeStore();
+    const { selectedRoomId, setSelectedRoom, zoom, stagePos } = useWorkspaceStore();
 
     const handleSelect = useCallback((id: string) => {
         setSelectedRoom(id);

@@ -3,7 +3,8 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, X, Grid3X3, Video, VideoOff } from 'lucide-react';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useAvatarStore } from '../../stores/avatarStore';
+import { useDailyStore } from '../../stores/dailyStore';
 
 interface GridParticipant {
     id: string;
@@ -102,11 +103,15 @@ function GridTile({ participant }: { participant: GridParticipant }) {
 }
 
 export function FullscreenGrid() {
-    const {
-        isGridViewOpen, toggleGridView,
-        localStream, isMicEnabled, isVideoEnabled, isSpeaking,
-        peers, myProfile, toggleVideo
-    } = useOfficeStore();
+    const isGridViewOpen = useDailyStore(s => s.isGridViewOpen);
+    const toggleGridView = useDailyStore(s => s.toggleGridView);
+    const localStream = useDailyStore(s => s.localStream);
+    const isMicEnabled = useDailyStore(s => s.isAudioOn);
+    const isVideoEnabled = useDailyStore(s => s.isVideoOn);
+    const isSpeaking = useDailyStore(s => s.isSpeaking);
+    const toggleVideo = useDailyStore(s => s.toggleVideo);
+    const peers = useAvatarStore(s => s.peers);
+    const myProfile = useAvatarStore(s => s.myProfile);
 
     const participants = useMemo(() => {
         const list: GridParticipant[] = [];

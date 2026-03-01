@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '../../utils/supabase/client';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useAvatarStore } from '../../stores/avatarStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Shield, User, Star, ChevronDown, Users } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -44,7 +44,9 @@ interface TeamListProps {
 }
 
 export function TeamList({ spaceId }: TeamListProps) {
-    const { peers, myProfile, myStatus } = useOfficeStore();
+    const peers = useAvatarStore(s => s.peers);
+    const myProfile = useAvatarStore(s => s.myProfile);
+    const myStatus = useAvatarStore(s => s.myStatus);
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [showAllMembers, setShowAllMembers] = useState(false); // collapsed by default
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);

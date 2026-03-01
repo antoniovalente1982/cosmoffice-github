@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { useOfficeStore } from '../../stores/useOfficeStore';
+import { useDailyStore } from '../../stores/dailyStore';
 import { createClient } from '../../utils/supabase/client';
 
 // Map per tracciare i container degli schermi condivisi
@@ -9,11 +9,13 @@ const screenContainersMap = new Map<string, HTMLDivElement>();
 
 export function MediaManager() {
     const {
-        isMicEnabled, isVideoEnabled, isScreenSharing, screenStreams, isSpeaking,
-        selectedAudioInput, selectedVideoInput, hasCompletedDeviceSetup,
+        isScreenSharing, screenStreams, isSpeaking,
+        selectedAudioInput, hasCompletedDeviceSetup,
         localStream, setLocalStream,
         setSpeaking, removeScreenStream, clearAllScreenStreams
-    } = useOfficeStore();
+    } = useDailyStore();
+    const isMicEnabled = useDailyStore(s => s.isAudioOn);
+    const isVideoEnabled = useDailyStore(s => s.isVideoOn);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyzerRef = useRef<AnalyserNode | null>(null);
     const initializedRef = useRef(false);
@@ -179,7 +181,7 @@ export function MediaManager() {
                         video: true,
                         audio: false
                     });
-                    useOfficeStore.getState().addScreenStream(newStream);
+                    useDailyStore.getState().addScreenStream(newStream);
                 } catch (err) {
                     console.error('Failed to add screen:', err);
                 }
@@ -430,7 +432,7 @@ export function MediaManager() {
                     }
 
                     const speakingNow = speakCount > 1;
-                    const prevSpeaking = useOfficeStore.getState().isSpeaking;
+                    const prevSpeaking = useDailyStore.getState().isSpeaking;
                     if (speakingNow !== prevSpeaking) {
                         setSpeaking(speakingNow);
                     }
