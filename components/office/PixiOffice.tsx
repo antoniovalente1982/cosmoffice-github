@@ -171,7 +171,7 @@ export function PixiOffice() {
         zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
         myProfile, myRole, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight,
-        isPerformanceMode, myStatus
+        isPerformanceMode, myStatus, isRemoteAudioEnabled
     } = useOfficeStore();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -807,6 +807,7 @@ export function PixiOffice() {
                             position={screenPos}
                             audioEnabled={peer.audioEnabled}
                             videoEnabled={peer.videoEnabled}
+                            remoteAudioEnabled={peer.remoteAudioEnabled}
                             isSpeaking={peer.isSpeaking}
                             zoom={zoom}
                         />
@@ -824,6 +825,7 @@ export function PixiOffice() {
                     position={getScreenPos(myPosition)}
                     audioEnabled={isMicEnabled}
                     videoEnabled={isVideoEnabled}
+                    remoteAudioEnabled={isRemoteAudioEnabled}
                     isSpeaking={isSpeaking}
                     stream={localStream}
                     zoom={zoom}

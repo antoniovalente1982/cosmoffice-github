@@ -46,7 +46,8 @@ export function KonvaOffice() {
         myPosition, setMyPosition, peers, rooms,
         zoom, setZoom, setStagePos, setMyRoom,
         isMicEnabled, isVideoEnabled, isSpeaking, localStream,
-        myProfile, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight
+        myProfile, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight,
+        isRemoteAudioEnabled
     } = useOfficeStore();
     const stageRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -599,6 +600,7 @@ export function KonvaOffice() {
                                 position={getScreenPos(peer.position)}
                                 audioEnabled={peer.audioEnabled}
                                 videoEnabled={peer.videoEnabled}
+                                remoteAudioEnabled={peer.remoteAudioEnabled}
                                 isSpeaking={peer.isSpeaking}
                                 zoom={zoom}
                             />
@@ -614,6 +616,7 @@ export function KonvaOffice() {
                             position={getScreenPos(myPosition)}
                             audioEnabled={isMicEnabled}
                             videoEnabled={isVideoEnabled}
+                            remoteAudioEnabled={isRemoteAudioEnabled}
                             isSpeaking={isSpeaking}
                             stream={localStream}
                             zoom={zoom}

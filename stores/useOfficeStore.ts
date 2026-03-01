@@ -16,6 +16,7 @@ interface Peer {
     roomId?: string;
     audioEnabled?: boolean;
     videoEnabled?: boolean;
+    remoteAudioEnabled?: boolean; // Whether the user can hear others (headphones on/off)
     isSpeaking?: boolean;
     stream?: MediaStream | null; // Daily.co remote video stream
 }

@@ -6,10 +6,10 @@ export function usePresence() {
     const supabase = createClient();
     const channelRef = useRef<any>(null);
     const userIdRef = useRef<string | null>(null);
-    const lastSentRef = useRef({ x: 0, y: 0, status: '', roomId: '', mic: false, vid: false });
+    const lastSentRef = useRef({ x: 0, y: 0, status: '', roomId: '', mic: false, vid: false, remoteAudio: true });
     const {
         myPosition, myStatus, myRoomId, activeSpaceId, updatePeer, removePeer,
-        isMicEnabled, isVideoEnabled, isSpeaking
+        isMicEnabled, isVideoEnabled, isSpeaking, isRemoteAudioEnabled
     } = useOfficeStore();
 
     // Initialize presence channel once
@@ -61,6 +61,7 @@ export function usePresence() {
                             roomId: myRoomId,
                             audioEnabled: isMicEnabled,
                             videoEnabled: isVideoEnabled,
+                            remoteAudioEnabled: isRemoteAudioEnabled,
                             isSpeaking: isSpeaking,
                             online_at: new Date().toISOString(),
                         });
@@ -90,7 +91,8 @@ export function usePresence() {
         const dy = Math.abs(myPosition.y - last.y);
         const posChanged = dx > 2 || dy > 2; // dead-zone: skip tiny movements
         const stateChanged = last.status !== myStatus || last.roomId !== (myRoomId || '')
-            || last.mic !== isMicEnabled || last.vid !== isVideoEnabled;
+            || last.mic !== isMicEnabled || last.vid !== isVideoEnabled
+            || last.remoteAudio !== isRemoteAudioEnabled;
 
         // Skip if nothing meaningful changed
         if (!posChanged && !stateChanged) return;
@@ -100,6 +102,7 @@ export function usePresence() {
                 x: myPosition.x, y: myPosition.y,
                 status: myStatus, roomId: myRoomId || '',
                 mic: isMicEnabled, vid: isVideoEnabled,
+                remoteAudio: isRemoteAudioEnabled,
             };
             channelRef.current.track({
                 position: myPosition,
@@ -108,11 +111,12 @@ export function usePresence() {
                 spaceId: activeSpaceId,
                 audioEnabled: isMicEnabled,
                 videoEnabled: isVideoEnabled,
+                remoteAudioEnabled: isRemoteAudioEnabled,
                 isSpeaking: isSpeaking,
                 online_at: new Date().toISOString(),
             });
         }, 200); // 200ms throttle (was 100ms)
 
         return () => clearTimeout(timeoutId);
-    }, [myPosition, myStatus, myRoomId, activeSpaceId, isMicEnabled, isVideoEnabled, isSpeaking]);
+    }, [myPosition, myStatus, myRoomId, activeSpaceId, isMicEnabled, isVideoEnabled, isSpeaking, isRemoteAudioEnabled]);
 }

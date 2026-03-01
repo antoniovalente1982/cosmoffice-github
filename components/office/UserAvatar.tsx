@@ -14,6 +14,7 @@ interface UserAvatarProps {
     isMe?: boolean;
     audioEnabled?: boolean;
     videoEnabled?: boolean;
+    remoteAudioEnabled?: boolean;
     isSpeaking?: boolean;
     stream?: MediaStream | null;
     zoom?: number;
@@ -44,6 +45,7 @@ export function UserAvatar({
     isMe,
     audioEnabled = false,
     videoEnabled = false,
+    remoteAudioEnabled = true,
     isSpeaking = false,
     stream,
     zoom = 1,
@@ -77,6 +79,11 @@ export function UserAvatar({
     const ringBoxShadow = isSpeaking
         ? `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px #34d399, 0 0 ${20 * zoom}px rgba(52,211,153,0.5)`
         : `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px ${roleColor}`;
+
+    // ─── Left-side media indicator logic ─────────────────────
+    // Priority: 1) remoteAudio off (headphones) → 2) mic off → 3) hide
+    const showMediaDot = !remoteAudioEnabled || !audioEnabled;
+    const mediaDotIconSz = 9 * zoom;
 
     return (
         <motion.div
@@ -163,7 +170,7 @@ export function UserAvatar({
                         </span>
                     )}
 
-                    {/* Media indicators */}
+                    {/* Media indicators inside avatar */}
                     <div style={{
                         position: 'absolute', bottom: 0, left: 0, right: 0,
                         background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)',
@@ -176,7 +183,69 @@ export function UserAvatar({
                     </div>
                 </div>
 
-                {/* Status Dot — clean, no role border */}
+                {/* ─── Media Indicator Dot (LEFT) — symmetrical to status dot ─── */}
+                {showMediaDot && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: dotOff,
+                        left: dotOff,
+                        width: dot,
+                        height: dot,
+                        borderRadius: '50%',
+                        border: `${2 * zoom}px solid #0f172a`,
+                        backgroundColor: !remoteAudioEnabled ? '#f59e0b' : '#ef4444',
+                        boxShadow: !remoteAudioEnabled
+                            ? `0 2px 6px rgba(0,0,0,0.4), 0 0 8px rgba(245,158,11,0.4)`
+                            : `0 2px 6px rgba(0,0,0,0.4), 0 0 8px rgba(239,68,68,0.4)`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.3s, box-shadow 0.3s',
+                    }}>
+                        {!remoteAudioEnabled ? (
+                            /* Headphones off — SVG icon (lucide HeadphoneOff not always available) */
+                            <svg
+                                width={mediaDotIconSz}
+                                height={mediaDotIconSz}
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#0f172a"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                {/* Headphones shape */}
+                                <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+                                <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+                                {/* Slash line */}
+                                <line x1="2" y1="2" x2="22" y2="22" />
+                            </svg>
+                        ) : (
+                            /* Mic off icon */
+                            <svg
+                                width={mediaDotIconSz}
+                                height={mediaDotIconSz}
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#0f172a"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <line x1="2" y1="2" x2="22" y2="22" />
+                                <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2" />
+                                <path d="M5 10v2a7 7 0 0 0 12 5" />
+                                <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33" />
+                                <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
+                                <line x1="12" y1="19" x2="12" y2="23" />
+                                <line x1="8" y1="23" x2="16" y2="23" />
+                            </svg>
+                        )}
+                    </div>
+                )}
+
+                {/* Status Dot (RIGHT) — clean, no role border */}
                 <div style={{
                     position: 'absolute',
                     bottom: dotOff,
