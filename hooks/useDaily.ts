@@ -209,39 +209,11 @@ export function useDaily(spaceId: string | null) {
 
     const handleError = useCallback((ev: any) => { console.error('[Daily] Error:', ev?.errorMsg || ev); }, []);
 
-    // ─── Create call object + pre-warm room URL ──────────────
+    // ─── Save spaceId — no SDK or API calls at mount ─────────
     useEffect(() => {
         if (!spaceId || !DAILY_DOMAIN) return;
-
-        // Save spaceId for lazy join
         gSpaceId = spaceId;
-
-        // Singleton: create call object once, but DON'T join any room
-        if (gCall) {
-            console.log('[Daily] Call object already exists');
-        } else {
-            try {
-                const call = DailyIframe.createCallObject();
-                call.on('participant-joined', handleParticipantJoined);
-                call.on('participant-left', handleParticipantLeft);
-                call.on('participant-updated', handleParticipantUpdated);
-                call.on('track-started', handleTrackStarted);
-                call.on('track-stopped', handleTrackStopped);
-                call.on('error', handleError);
-                gCall = call;
-                console.log('[Daily] Call object created (idle — will join when mic/camera enabled)');
-            } catch (err: any) {
-                console.error('[Daily] Failed to create call object:', err?.message);
-            }
-        }
-
-        // Pre-warm: resolve room URL in background so it's cached when user clicks mic/cam
-        const roomName = getRoomName(myRoomId || undefined);
-        if (roomName && !gRoomUrlCache.has(roomName)) {
-            ensureRoom(roomName).then((url) => {
-                if (url) console.log('[Daily] 🔥 Room pre-warmed:', roomName);
-            });
-        }
+        console.log('[Daily] SpaceId saved (idle — no SDK loaded until mic/camera enabled)');
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [spaceId]);
 
@@ -274,18 +246,37 @@ export function useDaily(spaceId: string | null) {
 
     // ─── Lazy Join/Leave: connect only when mic or camera is ON ──
     useEffect(() => {
-        if (!gCall || !spaceId || !DAILY_DOMAIN) return;
+        if (!spaceId || !DAILY_DOMAIN) return;
 
         const handleJoinLeave = async () => {
             if (needsDaily && !gJoined && !gJoining) {
-                // User turned on mic or camera → INSTANT preview + JOIN Daily.co
+                // User turned on mic or camera → CREATE call object (if needed) + JOIN
                 gJoining = true;
+
+                // Step 0: Create call object on-demand (deferred from mount)
+                if (!gCall) {
+                    try {
+                        const call = DailyIframe.createCallObject();
+                        call.on('participant-joined', handleParticipantJoined);
+                        call.on('participant-left', handleParticipantLeft);
+                        call.on('participant-updated', handleParticipantUpdated);
+                        call.on('track-started', handleTrackStarted);
+                        call.on('track-stopped', handleTrackStopped);
+                        call.on('error', handleError);
+                        gCall = call;
+                        console.log('[Daily] Call object created on-demand');
+                    } catch (err: any) {
+                        console.error('[Daily] Failed to create call object:', err?.message);
+                        gJoining = false;
+                        return;
+                    }
+                }
 
                 // Step 1: Instant local preview (shows video/plays audio within ~50-200ms)
                 await startInstantPreview();
 
                 try {
-                    // Step 2: Get room URL (likely cached from pre-warm → ~0ms)
+                    // Step 2: Get room URL (first call may take ~300ms, subsequent ones are cached)
                     const roomName = getRoomName(myRoomId || undefined);
                     if (!roomName) { gJoining = false; return; }
                     const url = await ensureRoom(roomName);
@@ -450,9 +441,22 @@ export function useDaily(spaceId: string | null) {
 
     // ─── Spatial audio (runs only when connected) ────────────
     useEffect(() => {
+        // Don't even start the interval if not connected
+        if (!gJoined || !gCall) {
+            if (proximityIntervalRef.current) {
+                clearInterval(proximityIntervalRef.current);
+                proximityIntervalRef.current = null;
+            }
+            return;
+        }
+
         if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current);
         proximityIntervalRef.current = setInterval(() => {
-            if (!gCall || !gJoined) return;
+            if (!gCall || !gJoined) {
+                if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current);
+                proximityIntervalRef.current = null;
+                return;
+            }
             const state = useOfficeStore.getState();
             const myPos = state.myPosition;
             gPeers.forEach((info, id) => {
@@ -472,7 +476,7 @@ export function useDaily(spaceId: string | null) {
             });
         }, ROOM_CHECK_INTERVAL);
         return () => { if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current); };
-    }, [myPosition]);
+    }, [myPosition, needsDaily]);
 
     // ─── Public API ──────────────────────────────────────────
     const startScreenShare = useCallback(async () => { if (gCall && gJoined) { try { gCall.startScreenShare(); } catch (e) { console.error(e); } } }, []);
