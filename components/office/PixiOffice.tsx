@@ -531,6 +531,9 @@ export function PixiOffice() {
                 const newX = Math.max(r, Math.min(rawX, bw - r));
                 const newY = Math.max(r, Math.min(rawY, bh - r));
                 setMyPosition({ x: newX, y: newY });
+                // Broadcast position via PartyKit
+                const sendFn = (window as any).__sendAvatarPosition;
+                if (sendFn) sendFn(newX, newY, useAvatarStore.getState().myRoomId);
                 return;
             }
 
@@ -583,6 +586,11 @@ export function PixiOffice() {
                     }
                 });
                 setMyRoom(found);
+                // Broadcast room change via PartyKit
+                if (found) {
+                    const joinFn = (window as any).__sendJoinRoom;
+                    if (joinFn) joinFn(found);
+                }
             }
 
             if (isPanningRef.current) {

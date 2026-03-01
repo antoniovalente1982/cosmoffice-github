@@ -43,6 +43,7 @@ import { useDailyStore } from '../../../stores/dailyStore';
 import { useWorkspaceStore } from '../../../stores/workspaceStore';
 import { useOffice } from '../../../hooks/useOffice';
 import { useWorkspaceRole, getWorkspaceIdFromSpace } from '../../../hooks/useWorkspaceRole';
+import { useAvatarSync } from '../../../hooks/useAvatarSync';
 
 // DailyManager singleton — manages Daily.co lifecycle
 const DailyManager = dynamic(() => import('../../../components/DailyManager').then(mod => ({ default: mod.DailyManager })), { ssr: false });
@@ -94,6 +95,27 @@ export default function OfficePage() {
     const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
     const [workspaceName, setWorkspaceName] = useState('');
+
+    // Avatar sync via PartyKit
+    const myProfile = useAvatarStore(s => s.myProfile);
+    const { sendPosition, sendJoinRoom } = useAvatarSync({
+        workspaceId: spaceId,
+        userId: user?.id || '',
+        userName: myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || 'Anonymous',
+        email: user?.email || '',
+        avatarUrl: myProfile?.avatar_url || null,
+        status: myStatus,
+    });
+
+    // Expose sendPosition so PixiOffice can call it when avatar moves
+    useEffect(() => {
+        (window as any).__sendAvatarPosition = sendPosition;
+        (window as any).__sendJoinRoom = sendJoinRoom;
+        return () => {
+            delete (window as any).__sendAvatarPosition;
+            delete (window as any).__sendJoinRoom;
+        };
+    }, [sendPosition, sendJoinRoom]);
 
     // Fetch workspace ID from space
     useEffect(() => {
@@ -200,6 +222,8 @@ export default function OfficePage() {
 
     return (
         <div className="flex h-screen bg-transparent overflow-hidden text-slate-100 p-4 gap-4">
+            {/* DailyManager singleton — manages Daily.co call lifecycle */}
+            <DailyManager spaceId={spaceId} />
             {/* Sidebar */}
             <motion.aside
                 initial={{ x: -20, opacity: 0 }}
