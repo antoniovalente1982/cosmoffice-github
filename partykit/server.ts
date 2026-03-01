@@ -13,12 +13,13 @@ interface UserState {
     status: string;
     avatarUrl: string | null;
     email: string;
+    role: string | null;
 }
 
 type IncomingMessage =
     | { type: "move"; userId: string; x: number; y: number; roomId: string | null }
     | { type: "join_room"; userId: string; roomId: string }
-    | { type: "identify"; userId: string; name: string; email: string; avatarUrl: string | null; status: string };
+    | { type: "identify"; userId: string; name: string; email: string; avatarUrl: string | null; status: string; role?: string | null };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
@@ -65,6 +66,7 @@ export default class AvatarServer {
                     status: parsed.status,
                     avatarUrl: parsed.avatarUrl,
                     email: parsed.email,
+                    role: parsed.role || existing?.role || null,
                 });
                 // Broadcast updated user info (including position)
                 const state = this.users.get(userId)!;
@@ -76,6 +78,7 @@ export default class AvatarServer {
                         status: parsed.status,
                         avatarUrl: parsed.avatarUrl,
                         email: parsed.email,
+                        role: state.role,
                         x: state.x,
                         y: state.y,
                         roomId: state.roomId,
@@ -101,6 +104,7 @@ export default class AvatarServer {
                         status: "online",
                         avatarUrl: null,
                         email: "",
+                        role: null,
                     });
                     this.connectionToUser.set(sender.id, userId);
                 }

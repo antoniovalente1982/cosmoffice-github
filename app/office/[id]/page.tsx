@@ -105,6 +105,7 @@ export default function OfficePage() {
         email: user?.email || '',
         avatarUrl: myProfile?.avatar_url || null,
         status: myStatus,
+        role: useAvatarStore.getState().myRole || null,
     });
 
     // Expose sendPosition so PixiOffice can call it when avatar moves

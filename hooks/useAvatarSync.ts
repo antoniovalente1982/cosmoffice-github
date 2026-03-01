@@ -39,9 +39,10 @@ interface UseAvatarSyncOptions {
     email: string;
     avatarUrl: string | null;
     status: string;
+    role: string | null;
 }
 
-export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl, status }: UseAvatarSyncOptions) {
+export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl, status, role }: UseAvatarSyncOptions) {
     const socketRef = useRef<PartySocket | null>(null);
     const connectedRef = useRef(false);
 
@@ -90,6 +91,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 email,
                 avatarUrl,
                 status,
+                role,
             }));
             // Broadcast position immediately + with retries to ensure delivery
             const broadcastPosition = () => {
@@ -127,6 +129,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             status: state.status || 'online',
                             last_seen: new Date().toISOString(),
                             roomId: state.roomId,
+                            role: state.role || undefined,
                         });
                     });
                     break;
@@ -158,6 +161,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                         ...msg.data,
                         full_name: msg.data.name,
                         avatar_url: msg.data.avatarUrl,
+                        role: msg.data.role || undefined,
                     };
                     // Include position if server sent it
                     if (typeof msg.data.x === 'number' && typeof msg.data.y === 'number') {
