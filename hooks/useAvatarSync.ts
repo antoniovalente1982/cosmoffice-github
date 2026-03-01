@@ -91,15 +91,21 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 avatarUrl,
                 status,
             }));
-            // Immediately send current position so other users see us at the right spot
-            const { myPosition, myRoomId } = useAvatarStore.getState();
-            socket.send(JSON.stringify({
-                type: 'move',
-                userId,
-                x: myPosition.x,
-                y: myPosition.y,
-                roomId: myRoomId || null,
-            }));
+            // Broadcast position immediately + with retries to ensure delivery
+            const broadcastPosition = () => {
+                if (socket.readyState !== WebSocket.OPEN) return;
+                const { myPosition, myRoomId } = useAvatarStore.getState();
+                socket.send(JSON.stringify({
+                    type: 'move',
+                    userId,
+                    x: myPosition.x,
+                    y: myPosition.y,
+                    roomId: myRoomId || null,
+                }));
+            };
+            broadcastPosition();
+            setTimeout(broadcastPosition, 500);
+            setTimeout(broadcastPosition, 1500);
         };
 
         socket.onmessage = (ev) => {
@@ -147,12 +153,20 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
 
                 case 'user_update': {
                     if (msg.userId === userId) return;
-                    useAvatarStore.getState().updatePeer(msg.userId, {
+                    const updateData: any = {
                         id: msg.userId,
                         ...msg.data,
                         full_name: msg.data.name,
                         avatar_url: msg.data.avatarUrl,
-                    });
+                    };
+                    // Include position if server sent it
+                    if (typeof msg.data.x === 'number' && typeof msg.data.y === 'number') {
+                        updateData.position = { x: msg.data.x, y: msg.data.y };
+                    }
+                    if (msg.data.roomId !== undefined) {
+                        updateData.roomId = msg.data.roomId;
+                    }
+                    useAvatarStore.getState().updatePeer(msg.userId, updateData);
                     break;
                 }
 

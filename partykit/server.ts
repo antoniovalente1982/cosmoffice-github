@@ -66,11 +66,20 @@ export default class AvatarServer {
                     avatarUrl: parsed.avatarUrl,
                     email: parsed.email,
                 });
-                // Broadcast updated user info
+                // Broadcast updated user info (including position)
+                const state = this.users.get(userId)!;
                 const updateMsg: OutgoingMessage = {
                     type: "user_update",
                     userId,
-                    data: { name: parsed.name, status: parsed.status, avatarUrl: parsed.avatarUrl, email: parsed.email },
+                    data: {
+                        name: parsed.name,
+                        status: parsed.status,
+                        avatarUrl: parsed.avatarUrl,
+                        email: parsed.email,
+                        x: state.x,
+                        y: state.y,
+                        roomId: state.roomId,
+                    },
                 };
                 this.party.broadcast(JSON.stringify(updateMsg), [sender.id]);
                 break;

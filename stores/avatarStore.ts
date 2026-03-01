@@ -111,7 +111,7 @@ export const useAvatarStore = create<AvatarState>((set, get) => ({
             peers: {
                 ...state.peers,
                 [id]: {
-                    ...(state.peers[id] || { id, email: '', position: { x: 0, y: 0 }, status: 'online' as const, last_seen: new Date().toISOString() }),
+                    ...(state.peers[id] || { id, email: '', position: { x: -9999, y: -9999 }, status: 'online' as const, last_seen: new Date().toISOString() }),
                     ...data,
                 },
             },
