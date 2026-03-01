@@ -41,11 +41,11 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     const isAudioOn = useDailyStore(s => s.isAudioOn);
     const isVideoOn = useDailyStore(s => s.isVideoOn);
 
-    // ─── Room name (fits Daily's 41-char limit) ─────────────
-    const getRoomName = useCallback((roomId?: string) => {
+    // ─── Room name — ONE room per workspace (proximity handles range) ─
+    const getRoomName = useCallback(() => {
         if (!spaceId) return null;
         const s = spaceId.slice(0, 8);
-        return roomId ? `co-${s}-r-${roomId.slice(0, 8)}` : `co-${s}-lobby`;
+        return `co-${s}-lobby`;
     }, [spaceId]);
 
     // ─── Create or get room via API (with cache) ────────────
@@ -257,8 +257,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     // ─── Pre-cache room URL on mount (FREE — just an API call) ─
     useEffect(() => {
         if (!spaceId) return;
-        const avatarState = useAvatarStore.getState();
-        const roomName = getRoomName(avatarState.myRoomId || undefined);
+        const roomName = getRoomName();
         if (roomName) {
             ensureRoom(roomName).then(url => {
                 if (url) console.log('[Daily] Room URL pre-cached (no billing)');
@@ -275,14 +274,13 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                 joiningRef.current = true;
 
                 try {
-                    const avatarState = useAvatarStore.getState();
-                    const roomName = getRoomName(avatarState.myRoomId || undefined);
+                    const roomName = getRoomName();
                     if (!roomName) { joiningRef.current = false; return; }
                     const url = await ensureRoom(roomName);
                     if (!url) { joiningRef.current = false; return; }
 
                     useDailyStore.getState().clearDailyError();
-                    const profile = avatarState.myProfile;
+                    const profile = useAvatarStore.getState().myProfile;
                     const supabaseUserId = profile?.id || null;
 
                     await callRef.current!.join({
@@ -368,41 +366,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         callRef.current.setLocalVideo(isVideoOn);
     }, [isVideoOn]);
 
-    // ─── Room switching ─────────────────────────────────────
-    const myRoomId = useAvatarStore(s => s.myRoomId);
-    useEffect(() => {
-        if (!callRef.current || !joinedRef.current || !DAILY_DOMAIN) return;
-        const switchRoom = async () => {
-            const roomName = getRoomName(myRoomId || undefined);
-            if (!roomName) return;
-            const url = await ensureRoom(roomName);
-            if (!url || (roomUrlRef.current === url && joinedRef.current)) return;
-
-            joiningRef.current = true;
-            try {
-                if (joinedRef.current) { await callRef.current!.leave(); joinedRef.current = false; roomUrlRef.current = null; }
-                const avatarState = useAvatarStore.getState();
-                const profile = avatarState.myProfile;
-                const supabaseUserId = profile?.id || null;
-                const dailyState = useDailyStore.getState();
-                await callRef.current!.join({
-                    url,
-                    userName: `${profile?.display_name || profile?.full_name || 'Anonymous'}|${supabaseUserId || 'unknown'}`,
-                    startVideoOff: !dailyState.isVideoOn,
-                    startAudioOff: !dailyState.isAudioOn,
-                    ...(supabaseUserId ? { userData: { supabaseUserId } } : {}),
-                } as any);
-                joinedRef.current = true;
-                roomUrlRef.current = url;
-                useDailyStore.getState().setConnected(true);
-            } catch (err: any) {
-                console.error('[Daily] Room switch failed:', err?.message);
-            } finally {
-                joiningRef.current = false;
-            }
-        };
-        switchRoom();
-    }, [myRoomId, getRoomName, ensureRoom]);
+    // Room switching removed — all users share one Daily room per workspace
 
     // ─── Cleanup on unmount and page unload ─────────────────
     useEffect(() => {
