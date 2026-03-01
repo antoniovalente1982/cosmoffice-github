@@ -679,7 +679,7 @@ export function PixiOffice() {
 
     // ─── Viewport culling: only render visible avatars ───────
     const AVATAR_MARGIN = 100; // px buffer outside viewport
-    const LOD_DISTANCE = 800;  // world-units: beyond this, use simple dot
+    const LOD_DISTANCE = 2000;  // world-units: beyond this, use simple dot
 
     const isInViewport = useCallback((screenPos: { x: number; y: number }) => {
         return (
@@ -759,6 +759,12 @@ export function PixiOffice() {
                     <p className="text-xs font-medium text-slate-300">
                         Trascina il tuo avatar per muoverti • Trascina la mappa • Scroll per zoomare
                     </p>
+                    <div className="flex items-center gap-2 border-l border-white/10 pl-3">
+                        <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.8)]" />
+                        <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">
+                            {Object.keys(peers).length + 1} Online
+                        </span>
+                    </div>
                 </div>
             </div>
 

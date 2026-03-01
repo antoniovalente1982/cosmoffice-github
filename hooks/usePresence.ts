@@ -9,8 +9,22 @@ export function usePresence() {
     const lastSentRef = useRef({ x: 0, y: 0, status: '', roomId: '', mic: false, vid: false, remoteAudio: true });
     const {
         myPosition, myStatus, myRoomId, activeSpaceId, updatePeer, removePeer,
-        isMicEnabled, isVideoEnabled, isSpeaking, isRemoteAudioEnabled
+        isMicEnabled, isVideoEnabled, isSpeaking, isRemoteAudioEnabled, myProfile
     } = useOfficeStore();
+
+    // Build the presence payload (reused in initial track + updates)
+    const buildPayload = useCallback(() => ({
+        position: myPosition,
+        status: myStatus,
+        roomId: myRoomId,
+        audioEnabled: isMicEnabled,
+        videoEnabled: isVideoEnabled,
+        remoteAudioEnabled: isRemoteAudioEnabled,
+        isSpeaking: isSpeaking,
+        full_name: myProfile?.display_name || myProfile?.full_name || 'User',
+        avatar_url: myProfile?.avatar_url || null,
+        online_at: new Date().toISOString(),
+    }), [myPosition, myStatus, myRoomId, isMicEnabled, isVideoEnabled, isRemoteAudioEnabled, isSpeaking, myProfile]);
 
     // Initialize presence channel once
     useEffect(() => {
@@ -55,16 +69,7 @@ export function usePresence() {
                 })
                 .subscribe(async (status) => {
                     if (status === 'SUBSCRIBED') {
-                        await channel.track({
-                            position: myPosition,
-                            status: myStatus,
-                            roomId: myRoomId,
-                            audioEnabled: isMicEnabled,
-                            videoEnabled: isVideoEnabled,
-                            remoteAudioEnabled: isRemoteAudioEnabled,
-                            isSpeaking: isSpeaking,
-                            online_at: new Date().toISOString(),
-                        });
+                        await channel.track(buildPayload());
                     }
                 });
 
@@ -82,14 +87,14 @@ export function usePresence() {
         };
     }, [supabase, activeSpaceId, updatePeer, removePeer]);
 
-    // Update presence when state changes — with dead-zone + 200ms throttle
+    // Update presence when state changes — with dead-zone + 80ms throttle
     useEffect(() => {
         if (!channelRef.current || !userIdRef.current || !activeSpaceId) return;
 
         const last = lastSentRef.current;
         const dx = Math.abs(myPosition.x - last.x);
         const dy = Math.abs(myPosition.y - last.y);
-        const posChanged = dx > 2 || dy > 2; // dead-zone: skip tiny movements
+        const posChanged = dx > 1 || dy > 1; // tight dead-zone for smoother movement
         const stateChanged = last.status !== myStatus || last.roomId !== (myRoomId || '')
             || last.mic !== isMicEnabled || last.vid !== isVideoEnabled
             || last.remoteAudio !== isRemoteAudioEnabled;
@@ -104,19 +109,10 @@ export function usePresence() {
                 mic: isMicEnabled, vid: isVideoEnabled,
                 remoteAudio: isRemoteAudioEnabled,
             };
-            channelRef.current.track({
-                position: myPosition,
-                status: myStatus,
-                roomId: myRoomId,
-                spaceId: activeSpaceId,
-                audioEnabled: isMicEnabled,
-                videoEnabled: isVideoEnabled,
-                remoteAudioEnabled: isRemoteAudioEnabled,
-                isSpeaking: isSpeaking,
-                online_at: new Date().toISOString(),
-            });
-        }, 200); // 200ms throttle (was 100ms)
+            channelRef.current.track(buildPayload());
+        }, 80); // 80ms throttle — smooth real-time updates
 
         return () => clearTimeout(timeoutId);
-    }, [myPosition, myStatus, myRoomId, activeSpaceId, isMicEnabled, isVideoEnabled, isSpeaking, isRemoteAudioEnabled]);
+    }, [myPosition, myStatus, myRoomId, activeSpaceId, isMicEnabled, isVideoEnabled, isSpeaking, isRemoteAudioEnabled, buildPayload]);
 }
+
