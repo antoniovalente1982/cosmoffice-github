@@ -127,6 +127,7 @@ export function VideoGrid() {
     const isMicEnabled = useDailyStore(s => s.isAudioOn);
     const isVideoEnabled = useDailyStore(s => s.isVideoOn);
     const isSpeaking = useDailyStore(s => s.isSpeaking);
+    const dailyParticipants = useDailyStore(s => s.participants); // REACTIVE — re-renders on track changes
     const peers = useAvatarStore(s => s.peers);
     const myProfile = useAvatarStore(s => s.myProfile);
     const isPerformanceMode = useWorkspaceStore(s => s.isPerformanceMode);
@@ -168,8 +169,7 @@ export function VideoGrid() {
         }
     });
 
-    // Fallback: also check dailyStore participants for any video tracks we might have missed
-    const dailyParticipants = useDailyStore.getState().participants;
+    // Also check dailyStore participants for any video tracks we might have missed
     Object.entries(dailyParticipants).forEach(([id, info]: [string, any]) => {
         if (!info.videoEnabled || !info.videoTrack) return;
         const supabaseId = info.supabaseId || id;
