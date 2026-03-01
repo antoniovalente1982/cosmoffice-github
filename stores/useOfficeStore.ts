@@ -231,7 +231,43 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
         { name: 'Design Studio', type: 'open', department: 'design', width: 300, height: 250, color: '#f97316', icon: '🎨', capacity: 10 },
     ],
 
-    setMyPosition: (position) => set({ myPosition: position }),
+    setMyPosition: (position) => {
+        const peers = get().peers;
+        const AVATAR_RADIUS = 25; // Half of 50px minimum distance between avatar centers
+        let resolved = { ...position };
+
+        // Resolve collisions with all peers (push out if overlapping)
+        const peerList = Object.values(peers);
+        // Run up to 3 iterations to handle multi-peer collisions
+        for (let iter = 0; iter < 3; iter++) {
+            let pushed = false;
+            for (const peer of peerList) {
+                if (!peer.position) continue;
+                const dx = resolved.x - peer.position.x;
+                const dy = resolved.y - peer.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const minDist = AVATAR_RADIUS * 2;
+
+                if (dist < minDist && dist > 0.01) {
+                    // Push outward along the collision vector
+                    const overlap = minDist - dist;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    resolved.x += nx * overlap;
+                    resolved.y += ny * overlap;
+                    pushed = true;
+                } else if (dist <= 0.01) {
+                    // Exactly on top — push in a random-ish direction
+                    resolved.x += minDist * 0.7;
+                    resolved.y += minDist * 0.7;
+                    pushed = true;
+                }
+            }
+            if (!pushed) break;
+        }
+
+        set({ myPosition: resolved });
+    },
     setMyStatus: (status) => set({ myStatus: status }),
     setMyRoom: (roomId) => set({ myRoomId: roomId }),
     setMyProfile: (myProfile) => set({ myProfile }),
