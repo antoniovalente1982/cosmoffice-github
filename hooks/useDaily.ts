@@ -530,7 +530,7 @@ export function useDaily(spaceId: string | null) {
         switchRoom();
     }, [myRoomId, getRoomName, ensureRoom]);
 
-    // ─── Cleanup on page unload ──────────────────────────────
+    // ─── Cleanup on page unload AND component unmount ─────────
     useEffect(() => {
         const handleUnload = () => {
             if (gCall) {
@@ -538,14 +538,25 @@ export function useDaily(spaceId: string | null) {
                 gCall = null;
                 (window as any).__dailyCall = null;
                 gJoined = false;
+                gJoining = false;
                 gRoomUrl = null;
+                gLocalTracks.clear();
+                gPeers.clear();
+                gDailyToSupabase.clear();
+                gLastSubscribeState.clear();
             }
         };
         window.addEventListener('beforeunload', handleUnload);
-        return () => window.removeEventListener('beforeunload', handleUnload);
+        // Also destroy on component unmount (workspace switch, navigation)
+        return () => {
+            window.removeEventListener('beforeunload', handleUnload);
+            handleUnload();
+        };
     }, []);
 
-    // ─── Spatial audio (runs only when connected) ────────────
+    // ─── Track subscription management (runs only when connected) ─
+    // NOTE: Volume is handled exclusively by useSpatialAudio.ts.
+    // This interval only manages subscribe/unsubscribe for tracks.
     useEffect(() => {
         // Don't even start the interval if not connected
         if (!gJoined || !gCall) {
@@ -563,21 +574,15 @@ export function useDaily(spaceId: string | null) {
                 proximityIntervalRef.current = null;
                 return;
             }
+            // Read position from getState() — NOT from closure/deps
             const state = useOfficeStore.getState();
             const myPos = state.myPosition;
             gPeers.forEach((info, id) => {
-                // Resolve Supabase ID for looking up peer in presence store
                 const supabaseId = gDailyToSupabase.get(id) || id;
                 const peer = state.peers[supabaseId] || state.peers[id];
                 if (!peer) return;
                 const dx = myPos.x - peer.position.x, dy = myPos.y - peer.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                let vol = Math.max(0, 1 - dist / PROXIMITY_RANGE);
-                if (state.myRoomId !== peer.roomId) vol *= 0.3;
-                if (!state.isRemoteAudioEnabled) vol = 0;
-                // Use Supabase ID for audio element
-                const el = document.getElementById(`daily-audio-${supabaseId}`) as HTMLAudioElement;
-                if (el) el.volume = Math.min(1, Math.max(0, vol));
                 // Only update subscriptions if state changed (avoid redundant API calls)
                 const wantAudio = dist <= PROXIMITY_RANGE * 1.5;
                 const wantVideo = dist < PROXIMITY_RANGE;
@@ -594,7 +599,7 @@ export function useDaily(spaceId: string | null) {
             });
         }, ROOM_CHECK_INTERVAL);
         return () => { if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current); };
-    }, [myPosition, needsDaily]);
+    }, [needsDaily]);  // No myPosition — read from getState() inside
 
     // ─── Public API ──────────────────────────────────────────
     const startScreenShare = useCallback(async () => { if (gCall && gJoined) { try { gCall.startScreenShare(); } catch (e) { console.error(e); } } }, []);

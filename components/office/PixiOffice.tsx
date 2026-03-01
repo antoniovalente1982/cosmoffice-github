@@ -163,13 +163,28 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
 
 // ─── Main Component ──────────────────────────────────────────────
 export function PixiOffice() {
-    const {
-        myPosition, setMyPosition, peers, rooms,
-        zoom, setZoom, setStagePos, setMyRoom,
-        isMicEnabled, isVideoEnabled, isSpeaking, localStream,
-        myProfile, myRole, isBuilderMode, bgOpacity, stagePos, officeWidth, officeHeight,
-        isPerformanceMode, myStatus, isRemoteAudioEnabled
-    } = useOfficeStore();
+    const myPosition = useOfficeStore(s => s.myPosition);
+    const setMyPosition = useOfficeStore(s => s.setMyPosition);
+    const peers = useOfficeStore(s => s.peers);
+    const rooms = useOfficeStore(s => s.rooms);
+    const zoom = useOfficeStore(s => s.zoom);
+    const setZoom = useOfficeStore(s => s.setZoom);
+    const setStagePos = useOfficeStore(s => s.setStagePos);
+    const setMyRoom = useOfficeStore(s => s.setMyRoom);
+    const isMicEnabled = useOfficeStore(s => s.isMicEnabled);
+    const isVideoEnabled = useOfficeStore(s => s.isVideoEnabled);
+    const isSpeaking = useOfficeStore(s => s.isSpeaking);
+    const localStream = useOfficeStore(s => s.localStream);
+    const myProfile = useOfficeStore(s => s.myProfile);
+    const myRole = useOfficeStore(s => s.myRole);
+    const isBuilderMode = useOfficeStore(s => s.isBuilderMode);
+    const bgOpacity = useOfficeStore(s => s.bgOpacity);
+    const stagePos = useOfficeStore(s => s.stagePos);
+    const officeWidth = useOfficeStore(s => s.officeWidth);
+    const officeHeight = useOfficeStore(s => s.officeHeight);
+    const isPerformanceMode = useOfficeStore(s => s.isPerformanceMode);
+    const myStatus = useOfficeStore(s => s.myStatus);
+    const isRemoteAudioEnabled = useOfficeStore(s => s.isRemoteAudioEnabled);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);

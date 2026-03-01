@@ -237,21 +237,38 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     setMyProfile: (myProfile) => set({ myProfile }),
     setMyRole: (myRole) => set({ myRole }),
 
-    updatePeer: (id, data) => set((state) => ({
-        peers: {
-            ...state.peers,
-            [id]: {
-                ...(state.peers[id] || {
-                    id,
-                    email: '',
-                    position: { x: 0, y: 0 },
-                    status: 'online',
-                    last_seen: new Date().toISOString()
-                }),
-                ...data,
-            }
+    updatePeer: (id, data) => {
+        const current = get().peers[id];
+        if (current) {
+            // Shallow compare: skip update if nothing changed
+            const keys = Object.keys(data) as (keyof typeof data)[];
+            const changed = keys.some(k => {
+                const oldVal = (current as any)[k];
+                const newVal = data[k];
+                // Special case: position object — compare x/y
+                if (k === 'position' && oldVal && newVal && typeof oldVal === 'object' && typeof newVal === 'object') {
+                    return (oldVal as any).x !== (newVal as any).x || (oldVal as any).y !== (newVal as any).y;
+                }
+                return oldVal !== newVal;
+            });
+            if (!changed) return; // Nothing changed, skip re-render
         }
-    })),
+        set((state) => ({
+            peers: {
+                ...state.peers,
+                [id]: {
+                    ...(state.peers[id] || {
+                        id,
+                        email: '',
+                        position: { x: 0, y: 0 },
+                        status: 'online',
+                        last_seen: new Date().toISOString()
+                    }),
+                    ...data,
+                }
+            }
+        }));
+    },
 
     removePeer: (id) => set((state) => {
         const { [id]: removed, ...rest } = state.peers;

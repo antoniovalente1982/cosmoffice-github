@@ -121,9 +121,13 @@ const MAX_PER_ROW = 4;
 const TILE_SIZE = 160;
 
 export function VideoGrid() {
-    const {
-        localStream, isMicEnabled, isVideoEnabled, isSpeaking, peers, myProfile, isPerformanceMode
-    } = useOfficeStore();
+    const localStream = useOfficeStore(s => s.localStream);
+    const isMicEnabled = useOfficeStore(s => s.isMicEnabled);
+    const isVideoEnabled = useOfficeStore(s => s.isVideoEnabled);
+    const isSpeaking = useOfficeStore(s => s.isSpeaking);
+    const peers = useOfficeStore(s => s.peers);
+    const myProfile = useOfficeStore(s => s.myProfile);
+    const isPerformanceMode = useOfficeStore(s => s.isPerformanceMode);
 
     // Build participants — only include users with active video
     let participants: VideoTileProps[] = [];

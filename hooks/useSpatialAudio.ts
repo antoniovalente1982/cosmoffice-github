@@ -2,12 +2,14 @@ import { useEffect, useRef } from 'react';
 import { useOfficeStore } from '../stores/useOfficeStore';
 
 export function useSpatialAudio() {
-    const { myPosition, myRoomId, peers, isRemoteAudioEnabled } = useOfficeStore();
     const lastPosRef = useRef({ x: 0, y: 0 });
     const lastVolumesRef = useRef<Map<string, number>>(new Map());
 
     useEffect(() => {
         const calculateVolume = () => {
+            // Read all state from getState() — NOT from closure/deps
+            const { myPosition, myRoomId, peers, isRemoteAudioEnabled } = useOfficeStore.getState();
+
             // Skip if position hasn't changed significantly (> 3px)
             const dx = Math.abs(myPosition.x - lastPosRef.current.x);
             const dy = Math.abs(myPosition.y - lastPosRef.current.y);
@@ -53,6 +55,6 @@ export function useSpatialAudio() {
 
         const interval = setInterval(calculateVolume, 500);
         return () => clearInterval(interval);
-    }, [myPosition, myRoomId, peers, isRemoteAudioEnabled]);
+    }, []); // No deps — reads from getState() inside
 }
 
