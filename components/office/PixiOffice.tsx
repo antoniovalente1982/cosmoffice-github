@@ -75,21 +75,29 @@ function drawRoom(container: Container, room: any, isHovered: boolean) {
     // Room body
     const body = new Graphics();
 
-    // Outer glow
-    body.roundRect(room.x - 4, room.y - 4, room.width + 8, room.height + 8, 20);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.15 : 0.08 });
+    // Outer glow — always visible, stronger on hover
+    body.roundRect(room.x - 6, room.y - 6, room.width + 12, room.height + 12, 22);
+    body.fill({ color: colorNum, alpha: isHovered ? 0.25 : 0.15 });
 
-    // Main background
+    // Second glow layer for extra visibility
+    body.roundRect(room.x - 2, room.y - 2, room.width + 4, room.height + 4, 18);
+    body.fill({ color: colorNum, alpha: isHovered ? 0.18 : 0.10 });
+
+    // Main background — slightly lighter than platform to stand out
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.fill({ color: 0x0f172a, alpha: 0.85 });
+    body.fill({ color: 0x111827, alpha: 0.92 });
 
-    // Border
+    // Subtle inner fill with room color for identity
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.stroke({ color: colorNum, width: isHovered ? 2 : 1, alpha: isHovered ? 0.8 : 0.4 });
+    body.fill({ color: colorNum, alpha: 0.06 });
 
-    // Inner gradient line top
-    body.rect(room.x + 1, room.y + 1, room.width - 2, 3);
-    body.fill({ color: colorNum, alpha: 0.5 });
+    // Border — always clearly visible
+    body.roundRect(room.x, room.y, room.width, room.height, 16);
+    body.stroke({ color: colorNum, width: isHovered ? 2.5 : 2, alpha: isHovered ? 0.9 : 0.7 });
+
+    // Inner gradient line top — accent bar
+    body.roundRect(room.x + 1, room.y + 1, room.width - 2, 4, 16);
+    body.fill({ color: colorNum, alpha: isHovered ? 0.8 : 0.6 });
 
     container.addChild(body);
 
@@ -447,6 +455,26 @@ export function PixiOffice() {
                 };
                 const clamped = clampStagePosition(rawPos, zoomRef.current);
                 setStagePos(clamped);
+            }
+
+            // Room hover detection — convert screen coords to world coords
+            if (!isPanningRef.current && !isDraggingAvatarRef.current && container) {
+                const rect = container.getBoundingClientRect();
+                const curZoom = zoomRef.current;
+                const curStagePos = stagePosRef.current;
+                const worldX = (e.clientX - rect.left - curStagePos.x) / curZoom;
+                const worldY = (e.clientY - rect.top - curStagePos.y) / curZoom;
+
+                let foundRoom: string | null = null;
+                const currentRooms = useOfficeStore.getState().rooms;
+                for (const room of currentRooms) {
+                    if (worldX >= room.x && worldX <= room.x + room.width &&
+                        worldY >= room.y && worldY <= room.y + room.height) {
+                        foundRoom = room.id;
+                        break;
+                    }
+                }
+                setHoveredRoomId(foundRoom);
             }
         };
 
