@@ -43,7 +43,7 @@ export function useSpatialAudio() {
                 const prevVol = lastVolumesRef.current.get(peer.id) ?? -1;
                 if (Math.abs(volume - prevVol) > 0.01) {
                     lastVolumesRef.current.set(peer.id, volume);
-                    const audioElement = document.getElementById(`audio-${peer.id}`) as HTMLAudioElement;
+                    const audioElement = document.getElementById(`daily-audio-${peer.id}`) as HTMLAudioElement;
                     if (audioElement) {
                         audioElement.volume = volume;
                     }
