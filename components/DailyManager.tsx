@@ -173,8 +173,8 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         }
         if (track.kind === 'video') {
             const videoStream = new MediaStream([track]);
-            // Store video track in dailyStore participants (always — VideoGrid fallback uses this)
-            useDailyStore.getState().setParticipant(dailyId, { videoTrack: track, videoEnabled: true });
+            // Store video track AND stable MediaStream in dailyStore
+            useDailyStore.getState().setParticipant(dailyId, { videoTrack: track, videoEnabled: true, videoStream });
             // Only update avatarStore if we have a REAL supabaseId mapping (not the dailyId fallback)
             const realSupabaseId = gDailyToSupabase.get(dailyId);
             if (realSupabaseId) {
@@ -215,7 +215,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             useDailyStore.getState().setParticipant(dailyId, { audioTrack: null, audioEnabled: false });
         }
         if (track?.kind === 'video') {
-            useDailyStore.getState().setParticipant(dailyId, { videoTrack: null, videoEnabled: false });
+            useDailyStore.getState().setParticipant(dailyId, { videoTrack: null, videoEnabled: false, videoStream: null });
             // Only update existing avatarStore peer
             const realSupabaseId = gDailyToSupabase.get(dailyId);
             if (realSupabaseId && useAvatarStore.getState().peers[realSupabaseId]) {

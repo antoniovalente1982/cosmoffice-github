@@ -13,6 +13,7 @@ interface DailyParticipant {
     videoEnabled: boolean;
     audioTrack: MediaStreamTrack | null;
     videoTrack: MediaStreamTrack | null;
+    videoStream: MediaStream | null;
     supabaseId: string | null;
 }
 

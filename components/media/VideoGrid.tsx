@@ -171,7 +171,7 @@ export function VideoGrid() {
 
     // Also check dailyStore participants for any video tracks we might have missed
     Object.entries(dailyParticipants).forEach(([id, info]: [string, any]) => {
-        if (!info.videoEnabled || !info.videoTrack) return;
+        if (!info.videoEnabled || !info.videoStream) return;
         const supabaseId = info.supabaseId || id;
         if (seenIds.has(supabaseId) || seenIds.has(id)) return; // Already shown
         participants.push({
@@ -181,7 +181,7 @@ export function VideoGrid() {
             audioEnabled: info.audioEnabled,
             videoEnabled: true,
             isSpeaking: false,
-            stream: new MediaStream([info.videoTrack]),
+            stream: info.videoStream,
         });
     });
 
