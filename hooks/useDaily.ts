@@ -334,6 +334,7 @@ export function useDaily(spaceId: string | null) {
                         call.on('track-stopped', handleTrackStopped);
                         call.on('error', handleError);
                         gCall = call;
+                        (window as any).__dailyCall = call;
                         console.log('[Daily] Call object created on-demand');
                     } catch (err: any) {
                         console.error('[Daily] Failed to create call object:', err?.message);
@@ -506,6 +507,7 @@ export function useDaily(spaceId: string | null) {
             if (gCall) {
                 try { gCall.leave(); gCall.destroy(); } catch { /* ignore */ }
                 gCall = null;
+                (window as any).__dailyCall = null;
                 gJoined = false;
                 gRoomUrl = null;
             }

@@ -96,21 +96,34 @@ export default function OfficePage() {
         useOfficeStore.getState().setMyRole(role as any);
     }, [role]);
 
-    // Screen sharing functions - supporta multipli schermi
+    // Screen sharing via Daily.co WebRTC — NOT local getDisplayMedia
+    // The useDaily hook exposes startScreenShare/stopScreenShare that go through Daily.co
+    // so remote peers can actually see the shared screen
     const startScreenShare = useCallback(async () => {
         try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
-                audio: false  // No system audio - user uses mic to speak
-            });
-
-            addScreenStream(stream);
+            // Daily.co handles getDisplayMedia internally and sends the track via WebRTC
+            const daily = (window as any).__dailyCall;
+            if (daily) {
+                await daily.startScreenShare();
+            } else {
+                console.warn('[ScreenShare] Daily.co call not available, falling back to local share');
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: false
+                });
+                addScreenStream(stream);
+            }
         } catch (err) {
             console.error('Failed to start screen sharing:', err);
         }
     }, [addScreenStream]);
 
     const stopAllScreens = useCallback(() => {
+        // Stop via Daily.co first (which will trigger track-stopped events)
+        const daily = (window as any).__dailyCall;
+        if (daily) {
+            try { daily.stopScreenShare(); } catch { }
+        }
         clearAllScreenStreams();
     }, [clearAllScreenStreams]);
 

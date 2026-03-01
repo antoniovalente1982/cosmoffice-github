@@ -23,13 +23,16 @@ function GridTile({ participant }: { participant: GridParticipant }) {
     const { stream, fullName, initials, isMe, audioEnabled, isSpeaking, videoEnabled, avatarUrl } = participant;
 
     useEffect(() => {
-        if (videoElRef.current) {
-            if (stream && stream !== videoElRef.current.srcObject) {
-                videoElRef.current.srcObject = stream;
-                videoElRef.current.play().catch(() => { });
-            } else if (!stream) {
-                videoElRef.current.srcObject = null;
-            }
+        const el = videoElRef.current;
+        if (!el) return;
+        if (stream && stream !== el.srcObject) {
+            el.srcObject = stream;
+            el.play().catch(() => {
+                const retry = () => { el.play().catch(() => { }); document.removeEventListener('click', retry); };
+                document.addEventListener('click', retry, { once: true });
+            });
+        } else if (!stream) {
+            el.srcObject = null;
         }
     }, [stream]);
 
@@ -49,6 +52,8 @@ function GridTile({ participant }: { participant: GridParticipant }) {
                     autoPlay
                     playsInline
                     muted={isMe}
+                    controls={false}
+                    disablePictureInPicture
                     className="w-full h-full object-cover"
                     style={{ transform: isMe ? 'scaleX(-1)' : 'none' }}
                 />

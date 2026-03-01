@@ -18,19 +18,34 @@ interface VideoTileProps {
 function VideoTile({ stream, fullName, isMe, audioEnabled, isSpeaking }: VideoTileProps) {
     const videoElRef = useRef<HTMLVideoElement | null>(null);
 
-    // Update video srcObject when stream changes
+    // Update video srcObject when stream changes — robust autoplay for WebRTC
     useEffect(() => {
-        if (videoElRef.current) {
-            if (stream && stream !== videoElRef.current.srcObject) {
-                videoElRef.current.srcObject = stream;
-                videoElRef.current.play().catch(err => {
-                    console.warn('Video play failed:', err);
+        const el = videoElRef.current;
+        if (!el) return;
+
+        if (stream && stream !== el.srcObject) {
+            el.srcObject = stream;
+            // WebRTC streams should autoplay — retry on failure
+            const tryPlay = () => {
+                el.play().catch(() => {
+                    // Autoplay blocked: retry once after any user interaction
+                    const retryOnInteraction = () => {
+                        el.play().catch(() => { });
+                        document.removeEventListener('click', retryOnInteraction);
+                        document.removeEventListener('keydown', retryOnInteraction);
+                    };
+                    document.addEventListener('click', retryOnInteraction, { once: true });
+                    document.addEventListener('keydown', retryOnInteraction, { once: true });
                 });
-            } else if (!stream) {
-                videoElRef.current.srcObject = null;
-            }
+            };
+            tryPlay();
+        } else if (!stream) {
+            el.srcObject = null;
         }
     }, [stream]);
+
+    const hasVideo = stream && stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
+    const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
 
     return (
         <div className={`
@@ -40,14 +55,27 @@ function VideoTile({ stream, fullName, isMe, audioEnabled, isSpeaking }: VideoTi
                 ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] scale-[1.02]'
                 : 'border-white/10 hover:border-white/20'}
         `}>
-            <video
-                ref={videoElRef}
-                autoPlay
-                playsInline
-                muted={isMe}
-                className="w-full h-full object-cover"
-                style={{ transform: isMe ? 'scaleX(-1)' : 'none' }}
-            />
+            {hasVideo ? (
+                <video
+                    ref={videoElRef}
+                    autoPlay
+                    playsInline
+                    muted={isMe}
+                    controls={false}
+                    disablePictureInPicture
+                    className="w-full h-full object-cover"
+                    style={{ transform: isMe ? 'scaleX(-1)' : 'none' }}
+                />
+            ) : (
+                /* No video — show initials instead of black box */
+                <div className="flex flex-col items-center justify-center gap-1">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center ring-2 ring-white/10">
+                        <span className="text-lg font-bold text-white/80">{initials}</span>
+                    </div>
+                    {/* Hidden video element for when stream becomes available */}
+                    <video ref={videoElRef} autoPlay playsInline muted={isMe} controls={false} className="hidden" />
+                </div>
+            )}
 
             {/* Name + indicators overlay */}
             <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
@@ -65,11 +93,13 @@ function VideoTile({ stream, fullName, isMe, audioEnabled, isSpeaking }: VideoTi
             </div>
 
             {/* Live indicator */}
-            <div className="absolute top-2 left-2">
-                <div className="bg-emerald-500/80 backdrop-blur-md p-1 rounded-full border border-emerald-400/20">
-                    <Video className="w-2.5 h-2.5 text-white" />
+            {hasVideo && (
+                <div className="absolute top-2 left-2">
+                    <div className="bg-emerald-500/80 backdrop-blur-md p-1 rounded-full border border-emerald-400/20">
+                        <Video className="w-2.5 h-2.5 text-white" />
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Speaking animation */}
             {isSpeaking && (
