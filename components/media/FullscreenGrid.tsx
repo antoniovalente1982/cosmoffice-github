@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MicOff, X, Grid3X3 } from 'lucide-react';
+import { MicOff, X, Grid3X3, Video, VideoOff } from 'lucide-react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
 
 interface GridParticipant {
@@ -80,7 +80,7 @@ function GridTile({ participant }: { participant: GridParticipant }) {
                             </div>
                         )}
                         <span className="text-sm font-semibold text-white truncate">
-                            {fullName} {isMe && '(Tu)'}
+                            {fullName} {isMe && '(You)'}
                         </span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -100,7 +100,7 @@ export function FullscreenGrid() {
     const {
         isGridViewOpen, toggleGridView,
         localStream, isMicEnabled, isVideoEnabled, isSpeaking,
-        peers, myProfile
+        peers, myProfile, toggleVideo
     } = useOfficeStore();
 
     const participants = useMemo(() => {
@@ -143,6 +143,16 @@ export function FullscreenGrid() {
         return list;
     }, [peers, localStream, isMicEnabled, isVideoEnabled, isSpeaking, myProfile]);
 
+    // Check if anyone has active video
+    const anyVideoActive = useMemo(() => {
+        return participants.some(p => {
+            if (p.stream) {
+                return p.videoEnabled && p.stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
+            }
+            return false;
+        });
+    }, [participants]);
+
     // Calculate optimal grid layout
     const gridCols = useMemo(() => {
         const count = participants.length;
@@ -184,7 +194,7 @@ export function FullscreenGrid() {
                                 Video Grid
                             </h2>
                             <span className="text-sm text-slate-400">
-                                {participants.length} {participants.length === 1 ? 'partecipante' : 'partecipanti'}
+                                {participants.length} {participants.length === 1 ? 'participant' : 'participants'}
                             </span>
                         </div>
                         <button
@@ -192,36 +202,70 @@ export function FullscreenGrid() {
                             className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10 hover:border-white/20"
                         >
                             <X className="w-4 h-4" />
-                            <span className="text-sm font-medium">Chiudi</span>
+                            <span className="text-sm font-medium">Close</span>
                         </button>
                     </div>
 
-                    {/* Grid */}
+                    {/* Content */}
                     <div className="flex-1 p-4 overflow-hidden">
-                        <div
-                            className="w-full h-full grid gap-3"
-                            style={{
-                                gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-                                gridAutoRows: '1fr',
-                            }}
-                        >
-                            <AnimatePresence>
-                                {participants.map((p, i) => (
-                                    <motion.div
-                                        key={p.id}
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.9 }}
-                                        transition={{ delay: i * 0.03, type: 'spring', stiffness: 300, damping: 25 }}
+                        {!anyVideoActive ? (
+                            /* Empty state — no one has video on */
+                            <div className="w-full h-full flex items-center justify-center">
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2, duration: 0.5 }}
+                                    className="flex flex-col items-center gap-6 text-center max-w-md"
+                                >
+                                    <div className="w-24 h-24 rounded-full bg-slate-800/80 border-2 border-white/10 flex items-center justify-center">
+                                        <VideoOff className="w-10 h-10 text-slate-400" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h3 className="text-2xl font-bold text-white">
+                                            No active webcams
+                                        </h3>
+                                        <p className="text-slate-400 text-base">
+                                            Turn on your webcam to start the video call.
+                                            Other participants will appear here when they enable their camera.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={async () => await toggleVideo()}
+                                        className="flex items-center gap-2.5 px-6 py-3 rounded-full bg-primary-500 hover:bg-primary-400 text-white font-semibold transition-all shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]"
                                     >
-                                        <GridTile participant={p} />
-                                    </motion.div>
-                                ))}
-                            </AnimatePresence>
-                        </div>
+                                        <Video className="w-5 h-5" />
+                                        <span>Turn on webcam</span>
+                                    </button>
+                                </motion.div>
+                            </div>
+                        ) : (
+                            /* Grid with participants */
+                            <div
+                                className="w-full h-full grid gap-3"
+                                style={{
+                                    gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+                                    gridAutoRows: '1fr',
+                                }}
+                            >
+                                <AnimatePresence>
+                                    {participants.map((p, i) => (
+                                        <motion.div
+                                            key={p.id}
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.9 }}
+                                            transition={{ delay: i * 0.03, type: 'spring', stiffness: 300, damping: 25 }}
+                                        >
+                                            <GridTile participant={p} />
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                            </div>
+                        )}
                     </div>
                 </motion.div>
             )}
         </AnimatePresence>
     );
 }
+
