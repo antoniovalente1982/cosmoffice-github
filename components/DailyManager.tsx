@@ -40,7 +40,6 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     // Read media toggles from daily store
     const isAudioOn = useDailyStore(s => s.isAudioOn);
     const isVideoOn = useDailyStore(s => s.isVideoOn);
-    const needsDaily = isAudioOn || isVideoOn;
 
     // ─── Room name (fits Daily's 41-char limit) ─────────────
     const getRoomName = useCallback((roomId?: string) => {
@@ -214,115 +213,104 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         useDailyStore.getState().setDailyError(ev?.errorMsg || 'Errore Daily.co sconosciuto');
     }, []);
 
-    // ─── Join / Leave based on needsDaily ───────────────────
+    // ─── Auto-join on mount (pre-connect) ───────────────────
     useEffect(() => {
         if (!spaceId || !DAILY_DOMAIN) return;
+        if (joinedRef.current || joiningRef.current) return;
 
-        const handleJoinLeave = async () => {
-            if (needsDaily && !joinedRef.current && !joiningRef.current) {
-                joiningRef.current = true;
+        const autoJoin = async () => {
+            joiningRef.current = true;
 
-                // Create call object if needed
-                if (!callRef.current) {
-                    try {
-                        const call = DailyIframe.createCallObject();
-                        call.on('participant-joined', handleParticipantJoined);
-                        call.on('participant-left', handleParticipantLeft);
-                        call.on('participant-updated', handleParticipantUpdated);
-                        call.on('track-started', handleTrackStarted);
-                        call.on('track-stopped', handleTrackStopped);
-                        call.on('error', handleError);
-                        callRef.current = call;
-                        (window as any).__dailyCall = call;
-                    } catch (err: any) {
-                        console.error('[Daily] Failed to create call object:', err?.message);
-                        joiningRef.current = false;
+            // Create call object if needed
+            if (!callRef.current) {
+                try {
+                    const call = DailyIframe.createCallObject();
+                    call.on('participant-joined', handleParticipantJoined);
+                    call.on('participant-left', handleParticipantLeft);
+                    call.on('participant-updated', handleParticipantUpdated);
+                    call.on('track-started', handleTrackStarted);
+                    call.on('track-stopped', handleTrackStopped);
+                    call.on('error', handleError);
+                    callRef.current = call;
+                    (window as any).__dailyCall = call;
+                } catch (err: any) {
+                    console.error('[Daily] Failed to create call object:', err?.message);
+                    joiningRef.current = false;
+                    return;
+                }
+            }
+
+            try {
+                const avatarState = useAvatarStore.getState();
+                const roomName = getRoomName(avatarState.myRoomId || undefined);
+                if (!roomName) { joiningRef.current = false; return; }
+                const url = await ensureRoom(roomName);
+                if (!url) { joiningRef.current = false; return; }
+
+                useDailyStore.getState().clearDailyError();
+                const profile = avatarState.myProfile;
+                const supabaseUserId = profile?.id || null;
+
+                await callRef.current!.join({
+                    url,
+                    userName: `${profile?.display_name || profile?.full_name || 'Anonymous'}|${supabaseUserId || 'unknown'}`,
+                    startVideoOff: true,  // Always start with both off
+                    startAudioOff: true,
+                    ...(supabaseUserId ? { userData: { supabaseUserId } } : {}),
+                } as any);
+
+                joinedRef.current = true;
+                roomUrlRef.current = url;
+                useDailyStore.getState().setConnected(true);
+                useDailyStore.getState().clearDailyError();
+                console.log('[Daily] ✅ Pre-connected to room:', url);
+
+                // If user already toggled mic/camera before connection was ready
+                const ds = useDailyStore.getState();
+                if (ds.isAudioOn) callRef.current!.setLocalAudio(true);
+                if (ds.isVideoOn) callRef.current!.setLocalVideo(true);
+
+                // Poll for tracks
+                let attempts = 0;
+                const syncInterval = setInterval(() => {
+                    if (!callRef.current || !joinedRef.current || attempts >= TRACK_SYNC_MAX_ATTEMPTS) {
+                        clearInterval(syncInterval);
                         return;
                     }
-                }
+                    attempts++;
+                    const local = callRef.current.participants()?.local;
+                    if (!local) return;
+                    let changed = false;
+                    const audioTrack = local.tracks?.audio?.persistentTrack;
+                    const videoTrack = local.tracks?.video?.persistentTrack;
+                    if (audioTrack && audioTrack.readyState === 'live' && !gLocalTracks.has('audio')) {
+                        gLocalTracks.set('audio', audioTrack);
+                        changed = true;
+                    }
+                    if (videoTrack && videoTrack.readyState === 'live' && !gLocalTracks.has('video')) {
+                        gLocalTracks.set('video', videoTrack);
+                        changed = true;
+                    }
+                    if (changed) {
+                        const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
+                        useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+                    }
+                }, TRACK_SYNC_POLL_MS);
 
-                try {
-                    const avatarState = useAvatarStore.getState();
-                    const roomName = getRoomName(avatarState.myRoomId || undefined);
-                    if (!roomName) { joiningRef.current = false; return; }
-                    const url = await ensureRoom(roomName);
-                    if (!url) { joiningRef.current = false; return; }
-
-                    useDailyStore.getState().clearDailyError();
-                    const profile = avatarState.myProfile;
-                    const supabaseUserId = profile?.id || null;
-
-                    await callRef.current!.join({
-                        url,
-                        userName: `${profile?.display_name || profile?.full_name || 'Anonymous'}|${supabaseUserId || 'unknown'}`,
-                        startVideoOff: !isVideoOn,
-                        startAudioOff: !isAudioOn,
-                        ...(supabaseUserId ? { userData: { supabaseUserId } } : {}),
-                    } as any);
-
-                    joinedRef.current = true;
-                    roomUrlRef.current = url;
-                    useDailyStore.getState().setConnected(true);
-                    useDailyStore.getState().clearDailyError();
-                    console.log('[Daily] ✅ Joined room:', url);
-
-                    if (isVideoOn) callRef.current!.setLocalVideo(true);
-                    if (isAudioOn) callRef.current!.setLocalAudio(true);
-
-                    // Poll for tracks
-                    let attempts = 0;
-                    const syncInterval = setInterval(() => {
-                        if (!callRef.current || !joinedRef.current || attempts >= TRACK_SYNC_MAX_ATTEMPTS) {
-                            clearInterval(syncInterval);
-                            return;
-                        }
-                        attempts++;
-                        const local = callRef.current.participants()?.local;
-                        if (!local) return;
-                        let changed = false;
-                        const audioTrack = local.tracks?.audio?.persistentTrack;
-                        const videoTrack = local.tracks?.video?.persistentTrack;
-                        if (audioTrack && audioTrack.readyState === 'live' && !gLocalTracks.has('audio')) {
-                            gLocalTracks.set('audio', audioTrack);
-                            changed = true;
-                        }
-                        if (videoTrack && videoTrack.readyState === 'live' && !gLocalTracks.has('video')) {
-                            gLocalTracks.set('video', videoTrack);
-                            changed = true;
-                        }
-                        if (changed) {
-                            const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
-                            useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
-                        }
-                        const dailyState = useDailyStore.getState();
-                        const hasAll = (!dailyState.isVideoOn || gLocalTracks.has('video')) && (!dailyState.isAudioOn || gLocalTracks.has('audio'));
-                        if (hasAll) clearInterval(syncInterval);
-                    }, TRACK_SYNC_POLL_MS);
-
-                } catch (err: any) {
-                    const msg = err?.message || 'Errore sconosciuto';
-                    const userMsg = msg.includes('payment') ? 'Account Daily.co: metodo di pagamento mancante'
-                        : msg.includes('destroy') ? 'Sessione Daily.co corrotta — ricarica la pagina'
-                            : msg.includes('Duplicate') ? 'Sessione duplicata — ricarica la pagina'
-                                : `Connessione Daily.co fallita: ${msg}`;
-                    useDailyStore.getState().setDailyError(userMsg);
-                } finally {
-                    joiningRef.current = false;
-                }
-
-            } else if (!needsDaily && joinedRef.current && !joiningRef.current) {
-                console.log('[Daily] 🔌 Disconnecting (both mic & camera off)...');
-                try { await callRef.current!.leave(); } catch { }
-                joinedRef.current = false;
-                roomUrlRef.current = null;
-                gLocalTracks.clear();
-                useDailyStore.getState().setLocalStream(null);
-                useDailyStore.getState().setConnected(false);
+            } catch (err: any) {
+                const msg = err?.message || 'Errore sconosciuto';
+                const userMsg = msg.includes('payment') ? 'Account Daily.co: metodo di pagamento mancante'
+                    : msg.includes('destroy') ? 'Sessione Daily.co corrotta — ricarica la pagina'
+                        : msg.includes('Duplicate') ? 'Sessione duplicata — ricarica la pagina'
+                            : `Connessione Daily.co fallita: ${msg}`;
+                useDailyStore.getState().setDailyError(userMsg);
+            } finally {
+                joiningRef.current = false;
             }
         };
 
-        handleJoinLeave();
-    }, [needsDaily, spaceId]);  // eslint-disable-line react-hooks/exhaustive-deps
+        autoJoin();
+    }, [spaceId]);  // eslint-disable-line react-hooks/exhaustive-deps
 
     // ─── Sync mic/video while connected ─────────────────────
     useEffect(() => {
@@ -430,7 +418,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             });
         }, ROOM_CHECK_INTERVAL);
         return () => { if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current); };
-    }, [needsDaily]);
+    }, [isAudioOn, isVideoOn]);
 
     // ─── No JSX — pure logic component ──────────────────────
     return null;
