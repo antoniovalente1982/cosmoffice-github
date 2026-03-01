@@ -168,13 +168,20 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             let el = document.getElementById(audioElId) as HTMLAudioElement;
             if (!el) { el = document.createElement('audio'); el.id = audioElId; el.autoplay = true; el.style.display = 'none'; document.body.appendChild(el); }
             el.srcObject = new MediaStream([track]);
+            // Also store audio track in dailyStore
+            useDailyStore.getState().setParticipant(dailyId, { audioTrack: track, audioEnabled: true });
         }
         if (track.kind === 'video') {
-            // Update peer with video stream in avatar store
-            const avatarStore = useAvatarStore.getState();
-            const ps = avatarStore.peers[supabaseId] || avatarStore.peers[dailyId];
-            const peerId = avatarStore.peers[supabaseId] ? supabaseId : dailyId;
-            if (ps) useAvatarStore.getState().updatePeer(peerId, { ...ps, videoEnabled: true, stream: new MediaStream([track]) });
+            const videoStream = new MediaStream([track]);
+            // Store video track in dailyStore participants
+            useDailyStore.getState().setParticipant(dailyId, { videoTrack: track, videoEnabled: true });
+            // Always update avatarStore peer with video — create peer if it doesn't exist yet
+            useAvatarStore.getState().updatePeer(supabaseId, {
+                id: supabaseId,
+                videoEnabled: true,
+                stream: videoStream,
+            });
+            console.log('[Daily] Video track stored for peer:', supabaseId);
         }
     }, []);
 
@@ -199,12 +206,16 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         if (track?.kind === 'audio') {
             const el = document.getElementById(`daily-audio-${supabaseId}`) || document.getElementById(`daily-audio-${dailyId}`);
             if (el) (el as HTMLAudioElement).srcObject = null;
+            useDailyStore.getState().setParticipant(dailyId, { audioTrack: null, audioEnabled: false });
         }
         if (track?.kind === 'video') {
-            const avatarStore = useAvatarStore.getState();
-            const ps = avatarStore.peers[supabaseId] || avatarStore.peers[dailyId];
-            const peerId = avatarStore.peers[supabaseId] ? supabaseId : dailyId;
-            if (ps) useAvatarStore.getState().updatePeer(peerId, { ...ps, videoEnabled: false, stream: null });
+            useDailyStore.getState().setParticipant(dailyId, { videoTrack: null, videoEnabled: false });
+            // Update avatarStore peer
+            useAvatarStore.getState().updatePeer(supabaseId, {
+                id: supabaseId,
+                videoEnabled: false,
+                stream: null,
+            });
         }
     }, []);
 

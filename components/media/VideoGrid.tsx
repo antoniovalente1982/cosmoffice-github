@@ -151,19 +151,38 @@ export function VideoGrid() {
         });
     }
 
-    // Add peers only if they have video enabled
+    // Add peers with video enabled (from avatarStore — populated by DailyManager track events)
+    const seenIds = new Set<string>();
     Object.values(peers).forEach((peer: any) => {
-        if (peer.videoEnabled) {
+        if (peer.videoEnabled && peer.stream) {
+            seenIds.add(peer.id);
             participants.push({
                 id: peer.id,
-                fullName: peer.full_name || peer.email,
+                fullName: peer.full_name || peer.email || 'Peer',
                 isMe: false,
                 audioEnabled: peer.audioEnabled,
                 videoEnabled: true,
                 isSpeaking: peer.isSpeaking,
-                stream: peer.stream || null, // Daily.co remote video stream
+                stream: peer.stream,
             });
         }
+    });
+
+    // Fallback: also check dailyStore participants for any video tracks we might have missed
+    const dailyParticipants = useDailyStore.getState().participants;
+    Object.entries(dailyParticipants).forEach(([id, info]: [string, any]) => {
+        if (!info.videoEnabled || !info.videoTrack) return;
+        const supabaseId = info.supabaseId || id;
+        if (seenIds.has(supabaseId) || seenIds.has(id)) return; // Already shown
+        participants.push({
+            id: supabaseId,
+            fullName: info.userName || 'Peer',
+            isMe: false,
+            audioEnabled: info.audioEnabled,
+            videoEnabled: true,
+            isSpeaking: false,
+            stream: new MediaStream([info.videoTrack]),
+        });
     });
 
     // --- GRACEFUL DEGRADATION: VIDEO DECIMATION ---
