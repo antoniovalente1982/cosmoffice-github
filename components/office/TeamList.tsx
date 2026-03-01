@@ -44,7 +44,7 @@ interface TeamListProps {
 }
 
 export function TeamList({ spaceId }: TeamListProps) {
-    const { peers, myProfile } = useOfficeStore();
+    const { peers, myProfile, myStatus } = useOfficeStore();
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [showAllMembers, setShowAllMembers] = useState(false); // collapsed by default
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -125,9 +125,9 @@ export function TeamList({ spaceId }: TeamListProps) {
     };
 
     const getMemberStatus = (m: WorkspaceMember) => {
-        if (m.user_id === currentUserId) return myProfile?.status || 'online';
+        if (m.user_id === currentUserId) return myStatus || 'online';
         const peer = peerList.find(p => p.id === m.user_id);
-        return peer?.status || m.profile?.status || 'offline';
+        return peer?.status || 'online';
     };
 
     // Group members by role
