@@ -862,6 +862,16 @@ export function PixiOffice() {
                         );
                     }
                     // Full avatar: nearby peers
+                    // Look up video stream from dailyStore participants
+                    const dailyParticipants = useDailyStore.getState().participants;
+                    let peerStream: MediaStream | null = peer.stream || null;
+                    if (!peerStream) {
+                        // Find the daily participant with matching supabaseId
+                        const dailyEntry = Object.values(dailyParticipants).find(
+                            (dp: any) => dp.supabaseId === peer.id
+                        ) as any;
+                        if (dailyEntry?.videoStream) peerStream = dailyEntry.videoStream;
+                    }
                     return (
                         <UserAvatar
                             key={peer.id}
@@ -869,11 +879,13 @@ export function PixiOffice() {
                             fullName={peer.full_name}
                             avatarUrl={peer.avatar_url}
                             status={peer.status}
+                            role={peer.role || undefined}
                             position={screenPos}
                             audioEnabled={peer.audioEnabled}
                             videoEnabled={peer.videoEnabled}
                             remoteAudioEnabled={peer.remoteAudioEnabled}
                             isSpeaking={peer.isSpeaking}
+                            stream={peerStream}
                             zoom={zoom}
                         />
                     );

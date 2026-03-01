@@ -19,6 +19,7 @@ export interface Peer {
     status: 'online' | 'away' | 'busy' | 'offline';
     last_seen: string;
     roomId?: string;
+    role?: 'owner' | 'admin' | 'member' | 'guest';
     audioEnabled?: boolean;
     videoEnabled?: boolean;
     remoteAudioEnabled?: boolean;
