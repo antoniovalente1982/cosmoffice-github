@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { MicOff, VideoOff } from 'lucide-react';
 
 interface UserAvatarProps {
     id: string;
@@ -170,17 +169,7 @@ export function UserAvatar({
                         </span>
                     )}
 
-                    {/* Media indicators inside avatar */}
-                    <div style={{
-                        position: 'absolute', bottom: 0, left: 0, right: 0,
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        paddingBottom: 6 * zoom,
-                        gap: 4 * zoom,
-                    }}>
-                        {!audioEnabled && <MicOff style={{ width: iconSz, height: iconSz, color: '#ef4444' }} />}
-                        {!videoEnabled && <VideoOff style={{ width: iconSz, height: iconSz, color: '#ef4444' }} />}
-                    </div>
+
                 </div>
 
                 {/* ─── Media Indicator Dot (LEFT) — symmetrical to status dot ─── */}
@@ -193,10 +182,8 @@ export function UserAvatar({
                         height: dot,
                         borderRadius: '50%',
                         border: `${2 * zoom}px solid #0f172a`,
-                        backgroundColor: !remoteAudioEnabled ? '#f59e0b' : '#ef4444',
-                        boxShadow: !remoteAudioEnabled
-                            ? `0 2px 6px rgba(0,0,0,0.4), 0 0 8px rgba(245,158,11,0.4)`
-                            : `0 2px 6px rgba(0,0,0,0.4), 0 0 8px rgba(239,68,68,0.4)`,
+                        backgroundColor: '#ffffff',
+                        boxShadow: `0 2px 6px rgba(0,0,0,0.4), 0 0 8px rgba(255,255,255,0.3)`,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -209,7 +196,7 @@ export function UserAvatar({
                                 height={mediaDotIconSz}
                                 viewBox="0 0 24 24"
                                 fill="none"
-                                stroke="#0f172a"
+                                stroke="#f59e0b"
                                 strokeWidth="2.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -228,7 +215,7 @@ export function UserAvatar({
                                 height={mediaDotIconSz}
                                 viewBox="0 0 24 24"
                                 fill="none"
-                                stroke="#0f172a"
+                                stroke="#ef4444"
                                 strokeWidth="2.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
