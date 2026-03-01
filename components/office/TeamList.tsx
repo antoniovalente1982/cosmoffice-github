@@ -153,21 +153,7 @@ export function TeamList({ spaceId }: TeamListProps) {
                 className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${isMe ? 'bg-primary-500/5' : 'hover:bg-white/5'
                     }`}
             >
-                <div className="relative flex-shrink-0">
-                    {getAvatarUrl(m) ? (
-                        <img
-                            src={getAvatarUrl(m)!}
-                            alt={getName(m)}
-                            className={`w-7 h-7 rounded-full object-cover ${online ? '' : 'opacity-40 grayscale'}`}
-                        />
-                    ) : (
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold ${online ? 'bg-slate-700 text-slate-200' : 'bg-slate-800 text-slate-600'
-                            }`}>
-                            {getInitials(m)}
-                        </div>
-                    )}
-                    <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 ${STATUS_DOT[status] || STATUS_DOT.offline}`} />
-                </div>
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[status] || STATUS_DOT.offline}`} />
                 <div className="flex-1 min-w-0">
                     <p className={`text-[11px] font-medium truncate ${online ? 'text-slate-200' : 'text-slate-500'}`}>
                         {isMe ? `${getName(m)} (Tu)` : getName(m)}
