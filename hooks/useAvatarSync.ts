@@ -3,10 +3,11 @@
 import { useEffect, useRef, useCallback } from 'react';
 import PartySocket from 'partysocket';
 import { useAvatarStore } from '../stores/avatarStore';
+import { useChatStore } from '../stores/chatStore';
 
 // ============================================
-// useAvatarSync — PartyKit client for avatar sync
-// Replaces Supabase Presence for real-time positions
+// useAvatarSync — PartyKit client for avatar sync + room chat
+// Single socket connection shared across the app
 // ============================================
 
 const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST || 'localhost:1999';
@@ -71,6 +72,19 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         }
     }, [userId]);
 
+    // ─── Send chat message (room-scoped) ────────────────────
+    const sendChatMessage = useCallback((content: string, roomId: string) => {
+        if (!content.trim() || !roomId) return;
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'chat',
+                userId,
+                content: content.trim(),
+                roomId,
+            }));
+        }
+    }, [userId]);
+
     // ─── Connect ────────────────────────────────────────────
     useEffect(() => {
         if (!workspaceId || !userId) return;
@@ -80,6 +94,9 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             room: workspaceId,
         });
         socketRef.current = socket;
+
+        // Expose socket ref globally so useRoomChat can reuse it
+        (window as any).__partykitSocket = socket;
 
         socket.onopen = () => {
             connectedRef.current = true;
@@ -179,6 +196,14 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     useAvatarStore.getState().removePeer(msg.userId);
                     break;
                 }
+
+                case 'chat_message': {
+                    // Room-scoped chat message from server
+                    if (msg.message) {
+                        useChatStore.getState().addMessage(msg.message);
+                    }
+                    break;
+                }
             }
         };
 
@@ -190,8 +215,15 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             connectedRef.current = false;
             socket.close();
             socketRef.current = null;
+            delete (window as any).__partykitSocket;
         };
     }, [workspaceId, userId]); // Only reconnect on workspace/user change
 
-    return { sendPosition, sendJoinRoom };
+    // Expose sendChatMessage globally for useRoomChat
+    useEffect(() => {
+        (window as any).__sendChatMessage = sendChatMessage;
+        return () => { delete (window as any).__sendChatMessage; };
+    }, [sendChatMessage]);
+
+    return { sendPosition, sendJoinRoom, sendChatMessage };
 }

@@ -1,5 +1,5 @@
 // ============================================
-// PartyKit Server — Avatar position sync
+// PartyKit Server — Avatar sync + Room Chat
 // Each "room" = one workspace
 // NOTE: PartyKit compiles this file separately.
 //       Types are inlined to avoid TS module-resolution conflicts.
@@ -16,22 +16,35 @@ interface UserState {
     role: string | null;
 }
 
+interface ChatMessage {
+    id: string;
+    userId: string;
+    userName: string;
+    avatarUrl: string | null;
+    content: string;
+    roomId: string;
+    timestamp: string;
+}
+
 type IncomingMessage =
     | { type: "move"; userId: string; x: number; y: number; roomId: string | null }
     | { type: "join_room"; userId: string; roomId: string }
-    | { type: "identify"; userId: string; name: string; email: string; avatarUrl: string | null; status: string; role?: string | null };
+    | { type: "identify"; userId: string; name: string; email: string; avatarUrl: string | null; status: string; role?: string | null }
+    | { type: "chat"; userId: string; content: string; roomId: string };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
     | { type: "move"; userId: string; x: number; y: number; roomId: string | null }
     | { type: "join_room"; userId: string; roomId: string }
     | { type: "leave"; userId: string }
-    | { type: "user_update"; userId: string; data: Partial<UserState> };
+    | { type: "user_update"; userId: string; data: Partial<UserState> }
+    | { type: "chat_message"; message: ChatMessage };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default class AvatarServer {
     private users = new Map<string, UserState>();
     private connectionToUser = new Map<string, string>(); // connection.id → userId
+    private userToConnection = new Map<string, string>(); // userId → connection.id
 
     constructor(public party: any) { }
 
@@ -57,6 +70,7 @@ export default class AvatarServer {
             case "identify": {
                 const userId = parsed.userId;
                 this.connectionToUser.set(sender.id, userId);
+                this.userToConnection.set(userId, sender.id);
                 const existing = this.users.get(userId);
                 this.users.set(userId, {
                     x: existing?.x ?? 500,
@@ -107,6 +121,7 @@ export default class AvatarServer {
                         role: null,
                     });
                     this.connectionToUser.set(sender.id, userId);
+                    this.userToConnection.set(userId, sender.id);
                 }
                 const moveMsg: OutgoingMessage = {
                     type: "move",
@@ -131,6 +146,39 @@ export default class AvatarServer {
                 this.party.broadcast(JSON.stringify(roomMsg), [sender.id]);
                 break;
             }
+
+            case "chat": {
+                const userId = parsed.userId;
+                const user = this.users.get(userId);
+                const targetRoomId = parsed.roomId;
+
+                if (!targetRoomId) break; // No room → no chat
+
+                const chatMsg: ChatMessage = {
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    userId,
+                    userName: user?.name || 'Anonymous',
+                    avatarUrl: user?.avatarUrl || null,
+                    content: parsed.content.slice(0, 2000),
+                    roomId: targetRoomId,
+                    timestamp: new Date().toISOString(),
+                };
+
+                // Broadcast ONLY to users in the same roomId
+                const outMsg: OutgoingMessage = { type: "chat_message", message: chatMsg };
+                const payload = JSON.stringify(outMsg);
+
+                // Find all connection IDs for users in this room
+                for (const [connId, uid] of this.connectionToUser.entries()) {
+                    const u = this.users.get(uid);
+                    if (u && u.roomId === targetRoomId) {
+                        // Get the connection object and send directly
+                        const conn = this.party.getConnection(connId);
+                        if (conn) conn.send(payload);
+                    }
+                }
+                break;
+            }
         }
     }
 
@@ -139,6 +187,7 @@ export default class AvatarServer {
         if (userId) {
             this.users.delete(userId);
             this.connectionToUser.delete(connection.id);
+            this.userToConnection.delete(userId);
             const leaveMsg: OutgoingMessage = { type: "leave", userId };
             this.party.broadcast(JSON.stringify(leaveMsg));
         }

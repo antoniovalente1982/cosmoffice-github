@@ -37,6 +37,7 @@ const DeviceSettings = dynamic(() => import('../../../components/settings/Device
 const OfficeBuilder = dynamic(() => import('../../../components/office/OfficeBuilder').then(mod => mod.OfficeBuilder), { ssr: false });
 const InvitePanel = dynamic(() => import('../../../components/office/InvitePanel'), { ssr: false });
 const FullscreenGrid = dynamic(() => import('../../../components/media/FullscreenGrid').then(mod => mod.FullscreenGrid), { ssr: false });
+const RoomChat = dynamic(() => import('../../../components/office/RoomChat').then(mod => mod.RoomChat), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
@@ -112,11 +113,13 @@ export default function OfficePage() {
     useEffect(() => {
         (window as any).__sendAvatarPosition = sendPosition;
         (window as any).__sendJoinRoom = sendJoinRoom;
+        (window as any).__activeSpaceId = spaceId;
         return () => {
             delete (window as any).__sendAvatarPosition;
             delete (window as any).__sendJoinRoom;
+            delete (window as any).__activeSpaceId;
         };
-    }, [sendPosition, sendJoinRoom]);
+    }, [sendPosition, sendJoinRoom, spaceId]);
 
     // Fetch workspace ID from space
     useEffect(() => {
@@ -479,6 +482,16 @@ export default function OfficePage() {
                     onClose={() => setShowInitialSetup(false)}
                     isInitialSetup={true}
                 />
+
+                {/* Room Chat via PartyKit */}
+                {user && (
+                    <RoomChat
+                        workspaceId={workspaceId}
+                        userId={user.id}
+                        userName={myProfile?.display_name || myProfile?.full_name || 'Anonymous'}
+                        userAvatarUrl={myProfile?.avatar_url || null}
+                    />
+                )}
 
             </main>
         </div >
