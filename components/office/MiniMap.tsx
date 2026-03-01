@@ -63,13 +63,16 @@ export function MiniMap() {
     const vpW = (cw / zoom) * scale;
     const vpH = (ch / zoom) * scale;
 
+    // Filter out peers with unknown/off-screen positions
+    const visiblePeers = Object.values(peers).filter((p: any) => p.position && p.position.x >= 0 && p.position.y >= 0);
+
     // Count peers per room
     const peerCountByRoom: Record<string, number> = {};
-    Object.values(peers).forEach((p: any) => {
+    visiblePeers.forEach((p: any) => {
         if (p.roomId) peerCountByRoom[p.roomId] = (peerCountByRoom[p.roomId] || 0) + 1;
     });
 
-    const totalOnline = Object.keys(peers).length + 1; // +1 for me
+    const totalOnline = visiblePeers.length + 1; // +1 for me
     const currentPreset = getPresetForSize(officeWidth, officeHeight);
 
     // ─── Event handlers ──────────────────────────────────────
@@ -235,7 +238,7 @@ export function MiniMap() {
                                 />
 
                                 {/* Peer positions with hover tooltip */}
-                                {Object.values(peers).map((peer: any) => (
+                                {visiblePeers.map((peer: any) => (
                                     <g key={peer.id}
                                         onMouseEnter={() => setHoveredPeer(peer.id)}
                                         onMouseLeave={() => setHoveredPeer(null)}
