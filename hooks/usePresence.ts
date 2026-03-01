@@ -94,7 +94,7 @@ export function usePresence() {
         const last = lastSentRef.current;
         const dx = Math.abs(myPosition.x - last.x);
         const dy = Math.abs(myPosition.y - last.y);
-        const posChanged = dx > 1 || dy > 1; // tight dead-zone for smoother movement
+        const posChanged = dx > 3 || dy > 3; // wider dead-zone to reduce presence broadcasts
         const stateChanged = last.status !== myStatus || last.roomId !== (myRoomId || '')
             || last.mic !== isMicEnabled || last.vid !== isVideoEnabled
             || last.remoteAudio !== isRemoteAudioEnabled;
@@ -110,7 +110,7 @@ export function usePresence() {
                 remoteAudio: isRemoteAudioEnabled,
             };
             channelRef.current.track(buildPayload());
-        }, 80); // 80ms throttle — smooth real-time updates
+        }, 150); // 150ms throttle — balanced updates vs performance
 
         return () => clearTimeout(timeoutId);
     }, [myPosition, myStatus, myRoomId, activeSpaceId, isMicEnabled, isVideoEnabled, isSpeaking, isRemoteAudioEnabled, buildPayload]);

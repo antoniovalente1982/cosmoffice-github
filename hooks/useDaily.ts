@@ -12,7 +12,7 @@ import { useOfficeStore } from '../stores/useOfficeStore';
 // ─── Configuration ───────────────────────────────────────────────
 const DAILY_DOMAIN = process.env.NEXT_PUBLIC_DAILY_DOMAIN || 'antoniovalente.daily.co';
 const PROXIMITY_RANGE = 300;
-const ROOM_CHECK_INTERVAL = 500;
+const ROOM_CHECK_INTERVAL = 1500; // Was 500ms — reduced to save CPU
 const TRACK_SYNC_POLL_MS = 100;     // Was 500ms — faster track detection
 const TRACK_SYNC_MAX_ATTEMPTS = 30; // ~3s max wait at 100ms intervals
 
@@ -41,6 +41,10 @@ const gRoomUrlCache = new Map<string, { url: string; ts: number }>();
 const ROOM_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 // ─── Instant preview stream (getUserMedia before Daily join completes)
 let gPreviewStream: MediaStream | null = null;
+// ─── Daily session_id → Supabase user_id mapping ─────────────────
+const gDailyToSupabase = new Map<string, string>();
+// ─── Last subscribe state per peer (avoid redundant updateParticipant calls)
+const gLastSubscribeState = new Map<string, string>();
 
 export function useDaily(spaceId: string | null) {
     const proximityIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -131,8 +135,14 @@ export function useDaily(spaceId: string | null) {
         if (!ev?.participant || ev.participant.local) return;
         const p = ev.participant;
         const id = p.user_id || p.session_id;
+        // Extract Supabase user ID from userData if available
+        const supabaseId = (p as any).userData?.supabaseUserId;
+        if (supabaseId) {
+            gDailyToSupabase.set(id, supabaseId);
+            gDailyToSupabase.set(p.session_id, supabaseId);
+        }
         gPeers.set(id, { sessionId: p.session_id, participantId: id, audioTrack: null, videoTrack: null, audioEnabled: !p.tracks.audio?.off, videoEnabled: !p.tracks.video?.off, userName: p.user_name || 'Anonymous' });
-        console.log('[Daily] Peer joined:', p.user_name);
+        console.log('[Daily] Peer joined:', p.user_name, supabaseId ? `(supabase: ${supabaseId})` : '');
     }, []);
 
     const handleParticipantLeft = useCallback((ev: DailyEventObjectParticipantLeft | undefined) => {
@@ -158,8 +168,23 @@ export function useDaily(spaceId: string | null) {
         const track = ev.track as MediaStreamTrack;
         if (!track) return;
 
+        // Determine if this is a screenVideo track
+        const isScreenTrack = ev.type === 'screenVideo' ||
+            ev.participant.tracks?.screenVideo?.persistentTrack === track;
+
         // ─── Local participant: directly build stream from tracks ───
         if (ev.participant.local) {
+            if (isScreenTrack) {
+                // Local screen share track — add to screen streams store
+                console.log('[Daily] Local screen share track started');
+                const screenStream = new MediaStream([track]);
+                useOfficeStore.getState().addScreenStream(screenStream);
+                // Auto-remove when track ends
+                track.addEventListener('ended', () => {
+                    useOfficeStore.getState().removeScreenStream(screenStream.id);
+                });
+                return;
+            }
             console.log(`[Daily] Local track started: ${track.kind}, readyState: ${track.readyState}`);
             gLocalTracks.set(track.kind, track);
             // Build localStream from all known local tracks
@@ -170,28 +195,57 @@ export function useDaily(spaceId: string | null) {
         }
 
         // ─── Remote participant ───
-        const id = ev.participant.user_id || ev.participant.session_id;
-        const ex = gPeers.get(id);
+        const dailyId = ev.participant.user_id || ev.participant.session_id;
+        const supabaseId = gDailyToSupabase.get(dailyId) || dailyId;
+        const ex = gPeers.get(dailyId);
         if (!ex) return;
+
+        if (isScreenTrack) {
+            // Remote screen share — add as a screen stream visible to this user
+            console.log('[Daily] Remote screen share track started from:', ex.userName);
+            const screenStream = new MediaStream([track]);
+            useOfficeStore.getState().addScreenStream(screenStream);
+            track.addEventListener('ended', () => {
+                useOfficeStore.getState().removeScreenStream(screenStream.id);
+            });
+            return;
+        }
+
         if (track.kind === 'audio') {
             ex.audioTrack = track;
-            let el = document.getElementById(`daily-audio-${id}`) as HTMLAudioElement;
-            if (!el) { el = document.createElement('audio'); el.id = `daily-audio-${id}`; el.autoplay = true; el.style.display = 'none'; document.body.appendChild(el); }
+            // Use Supabase ID for audio element so useSpatialAudio can find it
+            const audioElId = `daily-audio-${supabaseId}`;
+            let el = document.getElementById(audioElId) as HTMLAudioElement;
+            if (!el) { el = document.createElement('audio'); el.id = audioElId; el.autoplay = true; el.style.display = 'none'; document.body.appendChild(el); }
             el.srcObject = new MediaStream([track]);
         }
         if (track.kind === 'video') {
             ex.videoTrack = track;
-            const ps = useOfficeStore.getState().peers[id];
-            if (ps) updatePeer(id, { ...ps, videoEnabled: true, stream: new MediaStream([track]) });
+            // Map to Supabase peer ID for the store
+            const ps = useOfficeStore.getState().peers[supabaseId];
+            if (ps) {
+                updatePeer(supabaseId, { ...ps, videoEnabled: true, stream: new MediaStream([track]) });
+            } else {
+                // Fallback: try with Daily ID
+                const psFallback = useOfficeStore.getState().peers[dailyId];
+                if (psFallback) updatePeer(dailyId, { ...psFallback, videoEnabled: true, stream: new MediaStream([track]) });
+            }
         }
     }, [updatePeer, setLocalStream]);
 
     const handleTrackStopped = useCallback((ev: any) => {
         if (!ev?.participant) return;
         const track = ev.track as MediaStreamTrack;
+        const isScreenTrack = ev.type === 'screenVideo' ||
+            ev.participant.tracks?.screenVideo?.persistentTrack === track;
 
         // ─── Local participant: remove from local tracks map ───
         if (ev.participant.local) {
+            if (isScreenTrack) {
+                console.log('[Daily] Local screen share track stopped');
+                // Screen stream removal is handled by the 'ended' event listener
+                return;
+            }
             console.log(`[Daily] Local track stopped: ${track?.kind}`);
             if (track?.kind) gLocalTracks.delete(track.kind);
             const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
@@ -200,11 +254,27 @@ export function useDaily(spaceId: string | null) {
         }
 
         // ─── Remote participant ───
-        const id = ev.participant.user_id || ev.participant.session_id;
-        const ex = gPeers.get(id);
+        if (isScreenTrack) {
+            console.log('[Daily] Remote screen share track stopped');
+            // Screen stream removal is handled by the 'ended' event listener
+            return;
+        }
+        const dailyId = ev.participant.user_id || ev.participant.session_id;
+        const supabaseId = gDailyToSupabase.get(dailyId) || dailyId;
+        const ex = gPeers.get(dailyId);
         if (!ex) return;
-        if (track?.kind === 'audio') { ex.audioTrack = null; const el = document.getElementById(`daily-audio-${id}`); if (el) (el as HTMLAudioElement).srcObject = null; }
-        if (track?.kind === 'video') { ex.videoTrack = null; const ps = useOfficeStore.getState().peers[id]; if (ps) updatePeer(id, { ...ps, videoEnabled: false, stream: null }); }
+        if (track?.kind === 'audio') {
+            ex.audioTrack = null;
+            // Try both Supabase and Daily IDs for audio element
+            const el = document.getElementById(`daily-audio-${supabaseId}`) || document.getElementById(`daily-audio-${dailyId}`);
+            if (el) (el as HTMLAudioElement).srcObject = null;
+        }
+        if (track?.kind === 'video') {
+            ex.videoTrack = null;
+            const ps = useOfficeStore.getState().peers[supabaseId] || useOfficeStore.getState().peers[dailyId];
+            const peerId = useOfficeStore.getState().peers[supabaseId] ? supabaseId : dailyId;
+            if (ps) updatePeer(peerId, { ...ps, videoEnabled: false, stream: null });
+        }
     }, [updatePeer, setLocalStream]);
 
     const handleError = useCallback((ev: any) => { console.error('[Daily] Error:', ev?.errorMsg || ev); }, []);
@@ -286,12 +356,15 @@ export function useDaily(spaceId: string | null) {
                     console.log('[Daily] 🔗 Connecting (mic/camera enabled)...');
                     useOfficeStore.getState().clearDailyError();
                     const profile = useOfficeStore.getState().myProfile;
+                    // Get Supabase user ID for peer mapping
+                    const supabaseUserId = profile?.id || null;
                     await gCall!.join({
                         url,
                         userName: profile?.display_name || profile?.full_name || 'Anonymous',
                         startVideoOff: !isVideoEnabled,
                         startAudioOff: !isMicEnabled,
-                    });
+                        ...(supabaseUserId ? { userData: { supabaseUserId } } : {}),
+                    } as any);
 
                     gJoined = true;
                     gRoomUrl = url;
@@ -410,12 +483,14 @@ export function useDaily(spaceId: string | null) {
                 if (gJoined) { await gCall!.leave(); gJoined = false; gRoomUrl = null; }
                 const profile = useOfficeStore.getState().myProfile;
                 const state = useOfficeStore.getState();
+                const supabaseUserId = profile?.id || null;
                 await gCall!.join({
                     url,
                     userName: profile?.display_name || profile?.full_name || 'Anonymous',
                     startVideoOff: !state.isVideoEnabled,
                     startAudioOff: !state.isMicEnabled,
-                });
+                    ...(supabaseUserId ? { userData: { supabaseUserId } } : {}),
+                } as any);
                 gJoined = true;
                 gRoomUrl = url;
                 console.log('[Daily] ✅ Switched room:', url);
@@ -460,19 +535,31 @@ export function useDaily(spaceId: string | null) {
             const state = useOfficeStore.getState();
             const myPos = state.myPosition;
             gPeers.forEach((info, id) => {
-                const peer = state.peers[id];
+                // Resolve Supabase ID for looking up peer in presence store
+                const supabaseId = gDailyToSupabase.get(id) || id;
+                const peer = state.peers[supabaseId] || state.peers[id];
                 if (!peer) return;
                 const dx = myPos.x - peer.position.x, dy = myPos.y - peer.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 let vol = Math.max(0, 1 - dist / PROXIMITY_RANGE);
                 if (state.myRoomId !== peer.roomId) vol *= 0.3;
                 if (!state.isRemoteAudioEnabled) vol = 0;
-                const el = document.getElementById(`daily-audio-${id}`) as HTMLAudioElement;
+                // Use Supabase ID for audio element
+                const el = document.getElementById(`daily-audio-${supabaseId}`) as HTMLAudioElement;
                 if (el) el.volume = Math.min(1, Math.max(0, vol));
-                try {
-                    if (dist > PROXIMITY_RANGE * 1.5) gCall!.updateParticipant(info.sessionId, { setSubscribedTracks: { audio: false, video: false } });
-                    else gCall!.updateParticipant(info.sessionId, { setSubscribedTracks: { audio: true, video: dist < PROXIMITY_RANGE } });
-                } catch { /* peer left */ }
+                // Only update subscriptions if state changed (avoid redundant API calls)
+                const wantAudio = dist <= PROXIMITY_RANGE * 1.5;
+                const wantVideo = dist < PROXIMITY_RANGE;
+                const subKey = `${wantAudio}:${wantVideo}`;
+                const lastSub = gLastSubscribeState.get(id);
+                if (lastSub !== subKey) {
+                    gLastSubscribeState.set(id, subKey);
+                    try {
+                        gCall!.updateParticipant(info.sessionId, {
+                            setSubscribedTracks: { audio: wantAudio, video: wantVideo }
+                        });
+                    } catch { /* peer left */ }
+                }
             });
         }, ROOM_CHECK_INTERVAL);
         return () => { if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current); };

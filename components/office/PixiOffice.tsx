@@ -372,6 +372,46 @@ export function PixiOffice() {
     }, []);
 
     // ─── Draw rooms when they change ─────────────────────
+    // (decoupled from peers — occupant counts update via separate interval)
+    const peersByRoomRef = useRef<Record<string, number>>({});
+
+    // Update occupant counts every 2 seconds (not on every presence update)
+    useEffect(() => {
+        if (!appReady) return;
+        const updateOccupants = () => {
+            const state = useOfficeStore.getState();
+            const counts: Record<string, number> = {};
+            Object.values(state.peers).forEach((p: any) => {
+                if (p.roomId) counts[p.roomId] = (counts[p.roomId] || 0) + 1;
+            });
+            if (state.myRoomId) counts[state.myRoomId] = (counts[state.myRoomId] || 0) + 1;
+
+            // Only redraw if counts actually changed
+            const prev = peersByRoomRef.current;
+            const changed = Object.keys({ ...prev, ...counts }).some(
+                k => (prev[k] || 0) !== (counts[k] || 0)
+            );
+            if (changed) {
+                peersByRoomRef.current = counts;
+                // Trigger room redraw with new counts
+                const layer = roomLayerRef.current;
+                const existingContainers = roomContainersRef.current;
+                if (layer) {
+                    useOfficeStore.getState().rooms.forEach((room: any) => {
+                        const rc = existingContainers.get(room.id);
+                        if (rc) {
+                            const isHovered = false; // Hover is handled by the main draw
+                            drawRoom(rc, room, isHovered, counts[room.id] || 0);
+                        }
+                    });
+                }
+            }
+        };
+        updateOccupants(); // Initial
+        const interval = setInterval(updateOccupants, 2000);
+        return () => clearInterval(interval);
+    }, [appReady]);
+
     useEffect(() => {
         if (!roomLayerRef.current || !appReady) return;
 
@@ -388,16 +428,8 @@ export function PixiOffice() {
             }
         });
 
-        // Count occupants per room
-        const state = useOfficeStore.getState();
-        const peersByRoom: Record<string, number> = {};
-        Object.values(state.peers).forEach((p: any) => {
-            if (p.roomId) peersByRoom[p.roomId] = (peersByRoom[p.roomId] || 0) + 1;
-        });
-        // Count myself too
-        if (state.myRoomId) peersByRoom[state.myRoomId] = (peersByRoom[state.myRoomId] || 0) + 1;
-
-        // Create/update room containers
+        // Create/update room containers (using cached occupant counts)
+        const peersByRoom = peersByRoomRef.current;
         rooms.forEach((room: any) => {
             let rc = existingContainers.get(room.id);
             if (!rc) {
@@ -412,7 +444,7 @@ export function PixiOffice() {
             const occupants = peersByRoom[room.id] || 0;
             drawRoom(rc, room, isHovered, occupants);
         });
-    }, [rooms, hoveredRoomId, peers, appReady]);
+    }, [rooms, hoveredRoomId, appReady]);
 
     // ─── Resize observer ─────────────────────────────────────
     useEffect(() => {

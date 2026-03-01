@@ -429,7 +429,11 @@ export function MediaManager() {
                         speakCount = Math.max(speakCount - 1, 0);
                     }
 
-                    setSpeaking(speakCount > 1);
+                    const speakingNow = speakCount > 1;
+                    const prevSpeaking = useOfficeStore.getState().isSpeaking;
+                    if (speakingNow !== prevSpeaking) {
+                        setSpeaking(speakingNow);
+                    }
                     animationFrame = requestAnimationFrame(checkVolume);
                 };
 

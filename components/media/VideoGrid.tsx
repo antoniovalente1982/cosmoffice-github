@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, Video } from 'lucide-react';
 import { useOfficeStore } from '../../stores/useOfficeStore';
@@ -94,17 +94,6 @@ export function VideoGrid() {
     const {
         localStream, isMicEnabled, isVideoEnabled, isSpeaking, peers, myProfile, isPerformanceMode
     } = useOfficeStore();
-
-    // Stato locale per forzare il re-render
-    const [streamVersion, setStreamVersion] = useState(0);
-
-    useEffect(() => {
-        const checkStream = () => {
-            setStreamVersion(v => v + 1);
-        };
-        const interval = setInterval(checkStream, 500);
-        return () => clearInterval(interval);
-    }, []);
 
     // Build participants — only include users with active video
     let participants: VideoTileProps[] = [];
