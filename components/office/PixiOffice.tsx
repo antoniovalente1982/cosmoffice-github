@@ -143,51 +143,23 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
     typeLabelText.position.set(room.x + 23, room.y + 42);
     container.addChild(typeLabelText);
 
-    // ─── Occupancy badge (top-right) ─────────────────────────
-    const badgeW = 40;
-    const badgeH = 22;
-    const badgeX = room.x + room.width - badgeW - 12;
-    const badgeY = room.y + 12;
-
-    const badgeBg = new Graphics();
-    badgeBg.roundRect(badgeX, badgeY, badgeW, badgeH, 11);
+    // ─── Bottom status line (bigger) ──────────────────────────
     if (occupants > 0) {
-        badgeBg.fill({ color: 0x065f46, alpha: 0.6 });
-        badgeBg.stroke({ color: 0x34d399, width: 1, alpha: 0.5 });
-    } else {
-        badgeBg.fill({ color: 0x334155, alpha: 0.35 });
-        badgeBg.stroke({ color: 0x475569, width: 0.8, alpha: 0.25 });
-    }
-    container.addChild(badgeBg);
+        // Dot
+        const statusDot = new Graphics();
+        statusDot.circle(room.x + 16, room.y + room.height - 18, 4);
+        statusDot.fill({ color: 0x34d399, alpha: 1 });
+        container.addChild(statusDot);
 
-    // Person icon dot
-    const dotGfx = new Graphics();
-    dotGfx.circle(badgeX + 10, badgeY + badgeH / 2, 3);
-    dotGfx.fill({ color: occupants > 0 ? 0x34d399 : 0x475569, alpha: occupants > 0 ? 1 : 0.5 });
-    container.addChild(dotGfx);
-
-    // Count text only
-    const occStyle = new TextStyle({
-        fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 10,
-        fontWeight: '700',
-        fill: occupants > 0 ? 0xf1f5f9 : 0x64748b,
-    });
-    const occText = new Text({ text: `${occupants}`, style: occStyle });
-    occText.position.set(badgeX + 18, badgeY + 5);
-    container.addChild(occText);
-
-    // ─── Bottom status line ──────────────────────────────────
-    if (occupants > 0) {
         const statusStyle = new TextStyle({
             fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 9,
-            fontWeight: '600',
+            fontSize: 12,
+            fontWeight: '700',
             fill: 0x34d399,
-            letterSpacing: 0.5,
+            letterSpacing: 0.3,
         });
         const status = new Text({ text: `${occupants} online`, style: statusStyle });
-        status.position.set(room.x + 16, room.y + room.height - 22);
+        status.position.set(room.x + 26, room.y + room.height - 26);
         container.addChild(status);
     }
 }
@@ -240,6 +212,8 @@ export function PixiOffice() {
     const connectionGfxRef = useRef<Graphics | null>(null);
     const platformGfxRef = useRef<Graphics | null>(null);
     const particlesRef = useRef<Particle[]>([]);
+    const roomLayerRef = useRef<Container | null>(null);
+    const [appReady, setAppReady] = useState(false);
 
     const officeBounds = useMemo(() => ({
         x: 0, y: 0,
@@ -296,6 +270,12 @@ export function PixiOffice() {
             const connectionGfx = new Graphics();
             world.addChild(connectionGfx);
             connectionGfxRef.current = connectionGfx;
+
+            // Room layer — always on top of platform/particles/connections
+            const roomLayer = new Container();
+            roomLayer.label = 'rooms';
+            world.addChild(roomLayer);
+            roomLayerRef.current = roomLayer;
 
             // Initialize particles
             const oW = useOfficeStore.getState().officeWidth || 4000;
@@ -384,7 +364,7 @@ export function PixiOffice() {
             });
         };
 
-        initApp();
+        initApp().then(() => setAppReady(true));
 
         return () => {
             if (appRef.current) {
@@ -394,18 +374,18 @@ export function PixiOffice() {
         };
     }, []);
 
-    // ─── Draw rooms when they change ─────────────────────────
+    // ─── Draw rooms when they change ─────────────────────
     useEffect(() => {
-        if (!worldRef.current) return;
+        if (!roomLayerRef.current || !appReady) return;
 
-        const world = worldRef.current;
+        const layer = roomLayerRef.current;
         const existingContainers = roomContainersRef.current;
 
         // Remove old room containers that are no longer in the list
         const currentIds = new Set(rooms.map((r: any) => r.id));
         existingContainers.forEach((container, id) => {
             if (!currentIds.has(id)) {
-                world.removeChild(container);
+                layer.removeChild(container);
                 container.destroy({ children: true });
                 existingContainers.delete(id);
             }
@@ -428,14 +408,14 @@ export function PixiOffice() {
                 rc.label = `room-${room.id}`;
                 rc.eventMode = 'static';
                 rc.cursor = 'pointer';
-                world.addChild(rc);
+                layer.addChild(rc);
                 existingContainers.set(room.id, rc);
             }
             const isHovered = hoveredRoomId === room.id;
             const occupants = peersByRoom[room.id] || 0;
             drawRoom(rc, room, isHovered, occupants);
         });
-    }, [rooms, hoveredRoomId, peers]);
+    }, [rooms, hoveredRoomId, peers, appReady]);
 
     // ─── Resize observer ─────────────────────────────────────
     useEffect(() => {
