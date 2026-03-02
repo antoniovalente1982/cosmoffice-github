@@ -6,7 +6,7 @@ import { useAvatarStore } from '../stores/avatarStore';
 import { useChatStore } from '../stores/chatStore';
 
 // ============================================
-// useAvatarSync — PartyKit client for avatar sync + room chat
+// useAvatarSync — PartyKit client for avatar sync + room chat + office chat
 // Single socket connection shared across the app
 // ============================================
 
@@ -80,6 +80,41 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 type: 'chat',
                 userId,
                 content: content.trim(),
+                roomId,
+            }));
+        }
+    }, [userId]);
+
+    // ─── Send office-wide chat message (global) ─────────────
+    const sendOfficeChatMessage = useCallback((content: string) => {
+        if (!content.trim()) return;
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'office_chat',
+                userId,
+                content: content.trim(),
+            }));
+        }
+    }, [userId]);
+
+    // ─── Delete message broadcast ───────────────────────────
+    const sendDeleteMessage = useCallback((messageId: string, roomId: string | null) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'delete_message',
+                userId,
+                messageId,
+                roomId,
+            }));
+        }
+    }, [userId]);
+
+    // ─── Clear chat broadcast ───────────────────────────────
+    const sendClearChat = useCallback((roomId: string | null) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'clear_chat',
+                userId,
                 roomId,
             }));
         }
@@ -204,6 +239,34 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     }
                     break;
                 }
+
+                case 'office_chat_message': {
+                    // Office-wide global chat message
+                    if (msg.message) {
+                        useChatStore.getState().addOfficeMessage(msg.message);
+                    }
+                    break;
+                }
+
+                case 'message_deleted': {
+                    // A message was deleted — remove from correct store
+                    if (msg.roomId) {
+                        useChatStore.getState().removeMessage(msg.messageId);
+                    } else {
+                        useChatStore.getState().removeOfficeMessage(msg.messageId);
+                    }
+                    break;
+                }
+
+                case 'chat_cleared': {
+                    // All messages cleared for a room or office
+                    if (msg.roomId) {
+                        useChatStore.getState().clearMessages();
+                    } else {
+                        useChatStore.getState().clearOfficeMessages();
+                    }
+                    break;
+                }
             }
         };
 
@@ -219,11 +282,19 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         };
     }, [workspaceId, userId]); // Only reconnect on workspace/user change
 
-    // Expose sendChatMessage globally for useRoomChat
+    // Expose functions globally for hooks
     useEffect(() => {
         (window as any).__sendChatMessage = sendChatMessage;
-        return () => { delete (window as any).__sendChatMessage; };
-    }, [sendChatMessage]);
+        (window as any).__sendOfficeChatMessage = sendOfficeChatMessage;
+        (window as any).__sendDeleteMessage = sendDeleteMessage;
+        (window as any).__sendClearChat = sendClearChat;
+        return () => {
+            delete (window as any).__sendChatMessage;
+            delete (window as any).__sendOfficeChatMessage;
+            delete (window as any).__sendDeleteMessage;
+            delete (window as any).__sendClearChat;
+        };
+    }, [sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat]);
 
-    return { sendPosition, sendJoinRoom, sendChatMessage };
+    return { sendPosition, sendJoinRoom, sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat };
 }

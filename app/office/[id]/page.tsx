@@ -490,6 +490,7 @@ export default function OfficePage() {
                         userId={user.id}
                         userName={myProfile?.display_name || myProfile?.full_name || 'Anonymous'}
                         userAvatarUrl={myProfile?.avatar_url || null}
+                        isAdmin={isAdmin}
                     />
                 )}
 

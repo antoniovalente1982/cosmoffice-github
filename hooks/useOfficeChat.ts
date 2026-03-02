@@ -5,38 +5,30 @@ import { useChatStore, ChatMessage } from '../stores/chatStore';
 import { createClient } from '../utils/supabase/client';
 
 // ============================================
-// useRoomChat — Room-scoped chat hook
-// Loads history from Supabase, live via PartyKit
-// Reuses the socket from useAvatarSync (no new connection)
+// useOfficeChat — Office-wide global chat hook
+// Messages with room_id=NULL in the messages table
 // ============================================
 
-interface UseRoomChatOptions {
+interface UseOfficeChatOptions {
     workspaceId: string | null;
-    roomId: string | null;
     userId: string;
     userName: string;
     userAvatarUrl: string | null;
 }
 
-export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarUrl }: UseRoomChatOptions) {
-    const messages = useChatStore(s => s.messages);
-    const addMessage = useChatStore(s => s.addMessage);
-    const setMessages = useChatStore(s => s.setMessages);
-    const clearMessages = useChatStore(s => s.clearMessages);
-    const removeMessage = useChatStore(s => s.removeMessage);
+export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: UseOfficeChatOptions) {
+    const officeMessages = useChatStore(s => s.officeMessages);
+    const setOfficeMessages = useChatStore(s => s.setOfficeMessages);
+    const clearOfficeMessages = useChatStore(s => s.clearOfficeMessages);
+    const removeOfficeMessage = useChatStore(s => s.removeOfficeMessage);
     const [isLoading, setIsLoading] = useState(false);
     const supabase = createClient();
-    const prevRoomIdRef = useRef<string | null>(null);
+    const loadedRef = useRef(false);
 
-    // ─── Load history from Supabase when room changes ────────
+    // ─── Load history from Supabase (once) ────────────────
     useEffect(() => {
-        if (prevRoomIdRef.current === roomId) return;
-        prevRoomIdRef.current = roomId;
-
-        // Clear previous messages
-        clearMessages();
-
-        if (!roomId || !workspaceId) return;
+        if (!workspaceId || loadedRef.current) return;
+        loadedRef.current = true;
 
         let cancelled = false;
         setIsLoading(true);
@@ -60,14 +52,14 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
                         )
                     `)
                     .eq('workspace_id', workspaceId)
-                    .eq('room_id', roomId)
+                    .is('room_id', null)
                     .order('created_at', { ascending: true })
                     .limit(50);
 
                 if (cancelled) return;
 
                 if (error) {
-                    console.error('[RoomChat] Failed to load history:', error);
+                    console.error('[OfficeChat] Failed to load history:', error);
                 } else if (data) {
                     const mapped: ChatMessage[] = data.map((row: any) => {
                         const profile = row.profiles;
@@ -77,14 +69,14 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
                             userName: profile?.display_name || profile?.full_name || 'User',
                             avatarUrl: profile?.avatar_url || null,
                             content: row.content,
-                            roomId: row.room_id,
+                            roomId: null,
                             timestamp: row.created_at,
                         };
                     });
-                    setMessages(mapped);
+                    setOfficeMessages(mapped);
                 }
             } catch (err) {
-                console.error('[RoomChat] History load error:', err);
+                console.error('[OfficeChat] History load error:', err);
             } finally {
                 if (!cancelled) setIsLoading(false);
             }
@@ -92,73 +84,67 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
 
         loadHistory();
         return () => { cancelled = true; };
-    }, [roomId, workspaceId, supabase, clearMessages, setMessages]);
+    }, [workspaceId, supabase, setOfficeMessages]);
 
     // ─── Send message: PartyKit (instant) + Supabase (persist) ─
     const sendMessage = useCallback(async (content: string) => {
-        if (!content.trim() || !roomId || !workspaceId) return;
+        if (!content.trim() || !workspaceId) return;
 
         const trimmed = content.trim();
 
-        // 1. PartyKit — instant broadcast to room members
-        const sendFn = (window as any).__sendChatMessage;
-        if (sendFn) sendFn(trimmed, roomId);
+        // 1. PartyKit — instant broadcast to all
+        const sendFn = (window as any).__sendOfficeChatMessage;
+        if (sendFn) sendFn(trimmed);
 
-        // 2. Supabase — persist (fire-and-forget)
+        // 2. Supabase — persist with room_id=NULL
         try {
             await supabase.from('messages').insert({
                 workspace_id: workspaceId,
-                room_id: roomId,
+                room_id: null,
                 user_id: userId,
                 content: trimmed,
                 type: 'text',
             });
         } catch (err) {
-            console.error('[RoomChat] Failed to persist message:', err);
+            console.error('[OfficeChat] Failed to persist message:', err);
         }
-    }, [roomId, workspaceId, userId, supabase]);
+    }, [workspaceId, userId, supabase]);
 
-    // ─── Delete single message: Supabase + PartyKit ─────────
+    // ─── Delete single message ──────────────────────────────
     const deleteMessage = useCallback(async (messageId: string) => {
         if (!workspaceId) return;
 
-        // 1. Remove from local state immediately
-        removeMessage(messageId);
+        removeOfficeMessage(messageId);
 
-        // 2. PartyKit — broadcast deletion
         const deleteFn = (window as any).__sendDeleteMessage;
-        if (deleteFn) deleteFn(messageId, roomId);
+        if (deleteFn) deleteFn(messageId, null);
 
-        // 3. Supabase — delete from DB
         try {
             await supabase.from('messages').delete().eq('id', messageId);
         } catch (err) {
-            console.error('[RoomChat] Failed to delete message:', err);
+            console.error('[OfficeChat] Failed to delete message:', err);
         }
-    }, [workspaceId, roomId, supabase, removeMessage]);
+    }, [workspaceId, supabase, removeOfficeMessage]);
 
-    // ─── Clear all messages: Supabase + PartyKit ────────────
+    // ─── Clear all office messages ──────────────────────────
     const clearAllMessages = useCallback(async () => {
-        if (!workspaceId || !roomId) return;
+        if (!workspaceId) return;
 
-        // 1. Clear local state
-        clearMessages();
+        clearOfficeMessages();
 
-        // 2. PartyKit — broadcast clear
         const clearFn = (window as any).__sendClearChat;
-        if (clearFn) clearFn(roomId);
+        if (clearFn) clearFn(null);
 
-        // 3. Supabase — delete all room messages
         try {
             await supabase
                 .from('messages')
                 .delete()
                 .eq('workspace_id', workspaceId)
-                .eq('room_id', roomId);
+                .is('room_id', null);
         } catch (err) {
-            console.error('[RoomChat] Failed to clear messages:', err);
+            console.error('[OfficeChat] Failed to clear messages:', err);
         }
-    }, [workspaceId, roomId, supabase, clearMessages]);
+    }, [workspaceId, supabase, clearOfficeMessages]);
 
-    return { messages, sendMessage, deleteMessage, clearAllMessages, isLoading };
+    return { messages: officeMessages, sendMessage, deleteMessage, clearAllMessages, isLoading };
 }

@@ -1,5 +1,5 @@
 // ============================================
-// PartyKit Server — Avatar sync + Room Chat
+// PartyKit Server — Avatar sync + Room Chat + Office Chat
 // Each "room" = one workspace
 // NOTE: PartyKit compiles this file separately.
 //       Types are inlined to avoid TS module-resolution conflicts.
@@ -22,7 +22,7 @@ interface ChatMessage {
     userName: string;
     avatarUrl: string | null;
     content: string;
-    roomId: string;
+    roomId: string | null;
     timestamp: string;
 }
 
@@ -30,7 +30,10 @@ type IncomingMessage =
     | { type: "move"; userId: string; x: number; y: number; roomId: string | null }
     | { type: "join_room"; userId: string; roomId: string }
     | { type: "identify"; userId: string; name: string; email: string; avatarUrl: string | null; status: string; role?: string | null }
-    | { type: "chat"; userId: string; content: string; roomId: string };
+    | { type: "chat"; userId: string; content: string; roomId: string }
+    | { type: "office_chat"; userId: string; content: string }
+    | { type: "delete_message"; userId: string; messageId: string; roomId: string | null }
+    | { type: "clear_chat"; userId: string; roomId: string | null };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
@@ -38,7 +41,10 @@ type OutgoingMessage =
     | { type: "join_room"; userId: string; roomId: string }
     | { type: "leave"; userId: string }
     | { type: "user_update"; userId: string; data: Partial<UserState> }
-    | { type: "chat_message"; message: ChatMessage };
+    | { type: "chat_message"; message: ChatMessage }
+    | { type: "office_chat_message"; message: ChatMessage }
+    | { type: "message_deleted"; messageId: string; roomId: string | null }
+    | { type: "chat_cleared"; roomId: string | null };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default class AvatarServer {
@@ -177,6 +183,47 @@ export default class AvatarServer {
                         if (conn) conn.send(payload);
                     }
                 }
+                break;
+            }
+
+            case "office_chat": {
+                // Global office-wide chat → broadcast to ALL connections
+                const userId = parsed.userId;
+                const user = this.users.get(userId);
+
+                const chatMsg: ChatMessage = {
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    userId,
+                    userName: user?.name || 'Anonymous',
+                    avatarUrl: user?.avatarUrl || null,
+                    content: parsed.content.slice(0, 2000),
+                    roomId: null,
+                    timestamp: new Date().toISOString(),
+                };
+
+                const outMsg: OutgoingMessage = { type: "office_chat_message", message: chatMsg };
+                this.party.broadcast(JSON.stringify(outMsg));
+                break;
+            }
+
+            case "delete_message": {
+                // Broadcast message deletion to relevant users
+                const deleteMsg: OutgoingMessage = {
+                    type: "message_deleted",
+                    messageId: parsed.messageId,
+                    roomId: parsed.roomId,
+                };
+                this.party.broadcast(JSON.stringify(deleteMsg));
+                break;
+            }
+
+            case "clear_chat": {
+                // Broadcast chat cleared event
+                const clearMsg: OutgoingMessage = {
+                    type: "chat_cleared",
+                    roomId: parsed.roomId,
+                };
+                this.party.broadcast(JSON.stringify(clearMsg));
                 break;
             }
         }
