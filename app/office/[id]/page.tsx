@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '../../../utils/supabase/client';
 import { useRouter, useParams } from 'next/navigation';
@@ -205,15 +205,6 @@ export default function OfficePage() {
                     useAvatarStore.getState().setMyProfile(profile);
                 }
 
-                // Spawn at landing pad with random offset to avoid overlap
-                const pad = useWorkspaceStore.getState().landingPad;
-                const offsetX = (Math.random() - 0.5) * 60; // ±30px
-                const offsetY = (Math.random() - 0.5) * 60;
-                useAvatarStore.getState().setMyPosition({
-                    x: pad.x + offsetX,
-                    y: pad.y + offsetY,
-                });
-
                 // Controlla se l'utente ha già completato il setup dispositivi
                 const hasSetup = useDailyStore.getState().hasCompletedDeviceSetup;
                 if (!hasSetup) {
@@ -224,6 +215,27 @@ export default function OfficePage() {
         };
         getUser();
     }, [supabase, router, spaceId, setActiveSpace]);
+
+    // Spawn avatar at landing pad AFTER useOffice has loaded it from DB
+    const hasSpawnedRef = useRef(false);
+    const landingPad = useWorkspaceStore(s => s.landingPad);
+    useEffect(() => {
+        if (hasSpawnedRef.current) return;
+        // Wait until useOffice has loaded (landingPad won't be exactly at default 500,500 if DB has a saved value,
+        // but even if it IS the default, we spawn after a short delay to let useOffice finish)
+        const timer = setTimeout(() => {
+            if (hasSpawnedRef.current) return;
+            hasSpawnedRef.current = true;
+            const pad = useWorkspaceStore.getState().landingPad;
+            const offsetX = (Math.random() - 0.5) * 60; // ±30px
+            const offsetY = (Math.random() - 0.5) * 60;
+            useAvatarStore.getState().setMyPosition({
+                x: pad.x + offsetX,
+                y: pad.y + offsetY,
+            });
+        }, 800); // Give useOffice time to fetch from Supabase
+        return () => clearTimeout(timer);
+    }, [landingPad]);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();

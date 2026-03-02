@@ -11,6 +11,7 @@ import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
 import { getRoomColor } from './OfficeBuilder';
+import { createClient } from '../../utils/supabase/client';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 function lerp(a: number, b: number, t: number) {
@@ -225,6 +226,7 @@ function drawSpaceship(container: Container, x: number, y: number, frameCount: n
 
 // ─── Main Component ──────────────────────────────────────────────
 export function PixiOffice() {
+    const supabase = createClient();
     // Avatar store (positions, peers, profile)
     const myPosition = useAvatarStore(s => s.myPosition);
     const setMyPosition = useAvatarStore(s => s.setMyPosition);
@@ -249,6 +251,26 @@ export function PixiOffice() {
     const setLandingPad = useWorkspaceStore(s => s.setLandingPad);
     const landingPadScale = useWorkspaceStore(s => s.landingPadScale);
     const setLandingPadScale = useWorkspaceStore(s => s.setLandingPadScale);
+
+    // ─── Auto-save landing pad to Supabase ───────────────────
+    const saveLandingPadToDb = useCallback(async () => {
+        const state = useWorkspaceStore.getState();
+        if (!state.activeSpaceId) return;
+        // Read current layout_data first, then merge landing pad
+        const { data: space } = await supabase
+            .from('spaces')
+            .select('layout_data')
+            .eq('id', state.activeSpaceId)
+            .single();
+        const existing = (space?.layout_data as any) || {};
+        const layout_data = {
+            ...existing,
+            landingPadX: state.landingPad.x,
+            landingPadY: state.landingPad.y,
+            landingPadScale: state.landingPadScale,
+        };
+        await supabase.from('spaces').update({ layout_data }).eq('id', state.activeSpaceId);
+    }, [supabase]);
 
     // Daily store (media state)
     const isMicEnabled = useDailyStore(s => s.isAudioOn);
@@ -1044,6 +1066,8 @@ export function PixiOffice() {
                                 setIsDraggingPad(false);
                                 window.removeEventListener('mousemove', handleMove);
                                 window.removeEventListener('mouseup', handleUp);
+                                // Auto-save to DB
+                                saveLandingPadToDb();
                             };
                             window.addEventListener('mousemove', handleMove);
                             window.addEventListener('mouseup', handleUp);
@@ -1058,7 +1082,7 @@ export function PixiOffice() {
                         }}>
                             <button
                                 data-pad-resize
-                                onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale - 0.25); }}
+                                onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale - 0.25); setTimeout(saveLandingPadToDb, 100); }}
                                 style={{
                                     width: 22, height: 22,
                                     borderRadius: '50%',
@@ -1073,7 +1097,7 @@ export function PixiOffice() {
                             >−</button>
                             <button
                                 data-pad-resize
-                                onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale + 0.25); }}
+                                onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale + 0.25); setTimeout(saveLandingPadToDb, 100); }}
                                 style={{
                                     width: 22, height: 22,
                                     borderRadius: '50%',
