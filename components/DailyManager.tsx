@@ -18,7 +18,10 @@ const TRACK_SYNC_MAX_ATTEMPTS = 30;
 
 // ─── Room URL cache ─────────────────────────────────────────
 const gRoomUrlCache = new Map<string, { url: string; ts: number }>();
-const ROOM_CACHE_TTL_MS = 10 * 60 * 1000;
+const ROOM_CACHE_TTL_MS = 30 * 60 * 1000; // Layer 5: 30 min cache (was 10 min)
+
+// ─── In-flight dedup for ensureRoom API calls (Layer 5) ─────
+const gPendingRoomRequests = new Map<string, Promise<string | null>>();
 
 // ─── Daily session_id → Supabase user_id mapping ────────────
 const gDailyToSupabase = new Map<string, string>();
@@ -35,6 +38,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     const joinedRef = useRef(false);
     const joiningRef = useRef(false);
     const roomUrlRef = useRef<string | null>(null);
+    const currentRoomNameRef = useRef<string | null>(null); // Layer 3: track current room name
 
     // Read media toggles from daily store
     const isAudioOn = useDailyStore(s => s.isAudioOn);
@@ -49,33 +53,45 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             : `co-${prefix}-prox-${contextId.slice(0, 8)}`;
     }, [spaceId]);
 
-    // ─── Create or get room via API (with cache) ────────────
+    // ─── Create or get room via API (with cache + in-flight dedup) ─
     const ensureRoom = useCallback(async (roomName: string): Promise<string | null> => {
+        // Check cache first
         const cached = gRoomUrlCache.get(roomName);
         if (cached && (Date.now() - cached.ts) < ROOM_CACHE_TTL_MS) return cached.url;
 
-        try {
-            const res = await fetch('/api/daily/room', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ roomName }),
-            });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                const detail = errData?.details?.info || errData?.error || `HTTP ${res.status}`;
-                useDailyStore.getState().setDailyError(`Errore creazione stanza Daily.co: ${detail}`);
+        // Layer 5: Dedup — if there's already an in-flight request for this room, reuse it
+        const pending = gPendingRoomRequests.get(roomName);
+        if (pending) return pending;
+
+        const request = (async (): Promise<string | null> => {
+            try {
+                const res = await fetch('/api/daily/room', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomName }),
+                });
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    const detail = errData?.details?.info || errData?.error || `HTTP ${res.status}`;
+                    useDailyStore.getState().setDailyError(`Errore creazione stanza Daily.co: ${detail}`);
+                    return null;
+                }
+                const data = await res.json();
+                gRoomUrlCache.set(roomName, { url: data.url, ts: Date.now() });
+                return data.url;
+            } catch (err: any) {
+                const msg = err?.message?.includes('ENOTFOUND') || err?.message?.includes('fetch')
+                    ? 'Connessione internet assente o instabile'
+                    : err?.message || 'Errore sconosciuto';
+                useDailyStore.getState().setDailyError(`Impossibile raggiungere Daily.co: ${msg}`);
                 return null;
+            } finally {
+                gPendingRoomRequests.delete(roomName);
             }
-            const data = await res.json();
-            gRoomUrlCache.set(roomName, { url: data.url, ts: Date.now() });
-            return data.url;
-        } catch (err: any) {
-            const msg = err?.message?.includes('ENOTFOUND') || err?.message?.includes('fetch')
-                ? 'Connessione internet assente o instabile'
-                : err?.message || 'Errore sconosciuto';
-            useDailyStore.getState().setDailyError(`Impossibile raggiungere Daily.co: ${msg}`);
-            return null;
-        }
+        })();
+
+        gPendingRoomRequests.set(roomName, request);
+        return request;
     }, []);
 
     // ─── Event handlers (stable refs, no deps) ──────────────
@@ -266,19 +282,27 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     // ─── Join a Daily.co context (room or proximity group) ─────
     const joinDailyContext = useCallback(async (contextType: 'room' | 'proximity', contextId: string) => {
         if (!spaceId || !callRef.current) return;
+
+        const roomName = getContextRoomName(contextType, contextId);
+        if (!roomName) return;
+
+        // Layer 3: Same-room guard — skip if already in this exact room
+        if (joinedRef.current && currentRoomNameRef.current === roomName) {
+            console.log('[Daily] Already in room', roomName, '— skipping join');
+            return;
+        }
+
         if (joinedRef.current) {
-            // Already in a call — leave first
+            // Already in a different call — leave first
             try { await callRef.current.leave(); } catch { }
             joinedRef.current = false;
+            currentRoomNameRef.current = null;
             gLocalTracks.clear();
         }
         if (joiningRef.current) return;
         joiningRef.current = true;
 
         try {
-            const roomName = getContextRoomName(contextType, contextId);
-            if (!roomName) { joiningRef.current = false; return; }
-
             const url = await ensureRoom(roomName);
             if (!url) { joiningRef.current = false; return; }
 
@@ -297,6 +321,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
 
             joinedRef.current = true;
             roomUrlRef.current = url;
+            currentRoomNameRef.current = roomName; // Layer 3: track active room name
             useDailyStore.getState().setConnected(true);
             useDailyStore.getState().setActiveContext(contextType, contextId);
             console.log(`[Daily] ✅ Joined ${contextType} context:`, roomName);
@@ -353,6 +378,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         try { await callRef.current.leave(); } catch { }
         joinedRef.current = false;
         roomUrlRef.current = null;
+        currentRoomNameRef.current = null;
         gLocalTracks.clear();
         useDailyStore.getState().setLocalStream(null);
         useDailyStore.getState().setConnected(false);
