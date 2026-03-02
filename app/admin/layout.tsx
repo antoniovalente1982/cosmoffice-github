@@ -8,6 +8,7 @@ import {
     Users,
     Shield,
     Bug,
+    Video,
     DollarSign,
     ScrollText,
     ArrowLeft,
@@ -20,6 +21,7 @@ const navItems = [
     { href: '/admin/customers', label: 'Clienti', icon: Users },
     { href: '/admin/security', label: 'Sicurezza', icon: Shield },
     { href: '/admin/bugs', label: 'Bug Reports', icon: Bug },
+    { href: '/admin/daily', label: 'Daily.co', icon: Video },
     { href: '/admin/revenue', label: 'Revenue', icon: DollarSign },
     { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
 ];
