@@ -6,7 +6,9 @@ import { useAvatarStore } from '../../stores/avatarStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { useDailyStore } from '../../stores/dailyStore';
 import { usePresence } from '../../hooks/usePresence';
-import { useSpatialAudio } from '../../hooks/useSpatialAudio';
+import { useProximityAndRooms } from '../../hooks/useProximityAndRooms';
+import { KnockNotification } from './KnockNotification';
+import { ProximityAura, type AuraVisualState } from './ProximityAura';
 import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
@@ -336,9 +338,9 @@ export function PixiOffice() {
 
 
 
-    // Initialize presence, spatial audio, and Daily.co WebRTC
+    // Initialize presence, proximity/rooms engine
     usePresence();
-    useSpatialAudio();
+    useProximityAndRooms();
 
     // DailyManager is mounted in page.tsx — no hook call needed here
 
@@ -352,6 +354,7 @@ export function PixiOffice() {
     const roomLayerRef = useRef<Container | null>(null);
     const spaceshipRef = useRef<Container | null>(null);
     const spaceshipFrameRef = useRef(0);
+    const auraRef = useRef<ProximityAura | null>(null);
     const [appReady, setAppReady] = useState(false);
 
     const officeBounds = useMemo(() => ({
@@ -416,6 +419,11 @@ export function PixiOffice() {
             world.addChild(roomLayer);
             roomLayerRef.current = roomLayer;
 
+            // Proximity aura layer — below rooms, above connections
+            const aura = new ProximityAura();
+            world.addChildAt(aura.graphics, world.getChildIndex(roomLayer));
+            auraRef.current = aura;
+
             // Spaceship landing pad layer
             const spaceshipContainer = new Container();
             spaceshipContainer.label = 'spaceship';
@@ -478,6 +486,27 @@ export function PixiOffice() {
                     spaceshipFrameRef.current = frameCount;
                     const padPos = useWorkspaceStore.getState().landingPad;
                     drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount, useWorkspaceStore.getState().landingPadScale);
+                }
+
+                // ─── Update proximity aura at ~15fps ────
+                if (frameCount % 4 === 0 && auraRef.current) {
+                    const avatarState = useAvatarStore.getState();
+                    const dailyState = useDailyStore.getState();
+                    const myPos = avatarState.myPosition;
+
+                    // Determine aura visual state
+                    let auraState: AuraVisualState = 'idle';
+                    if (avatarState.myDnd) {
+                        auraState = 'dnd';
+                    } else if (avatarState.myRoomId) {
+                        auraState = 'none'; // No aura inside rooms
+                    } else if (dailyState.activeContext === 'proximity') {
+                        auraState = 'active';
+                    }
+
+                    auraRef.current.setState(auraState);
+                    // ~15fps → dt ≈ 66ms per update
+                    auraRef.current.update(66, myPos.x, myPos.y);
                 }
 
                 // Room connections are now drawn in the rooms useEffect (static)
@@ -925,6 +954,9 @@ export function PixiOffice() {
 
             {/* Mini Map */}
             <MiniMap />
+
+            {/* Knock-to-enter notifications */}
+            <KnockNotification />
 
             {/* PixiJS WebGL Canvas */}
             <canvas

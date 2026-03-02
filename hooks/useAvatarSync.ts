@@ -3,6 +3,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import PartySocket from 'partysocket';
 import { useAvatarStore } from '../stores/avatarStore';
+import { useDailyStore } from '../stores/dailyStore';
+import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useChatStore } from '../stores/chatStore';
 
 // ============================================
@@ -120,6 +122,65 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         }
     }, [userId]);
 
+    // ─── Knock broadcast ────────────────────────────────────
+    const sendKnock = useCallback((roomId: string) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'knock',
+                userId,
+                roomId,
+            }));
+        }
+    }, [userId]);
+
+    // ─── Knock response broadcast ───────────────────────────
+    const sendKnockResponse = useCallback((roomId: string, targetUserId: string, accepted: boolean) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'knock_response',
+                userId,
+                roomId,
+                targetUserId,
+                accepted,
+            }));
+        }
+    }, [userId]);
+
+    // ─── Admin command broadcast ────────────────────────────
+    const sendAdminCommand = useCallback((command: string, targetUserId?: string, roomId?: string) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'admin_command',
+                adminId: userId,
+                command,
+                targetUserId,
+                roomId,
+            }));
+        }
+    }, [userId]);
+
+    // ─── Leave room broadcast ───────────────────────────────
+    const sendLeaveRoom = useCallback(() => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'leave_room',
+                userId,
+            }));
+        }
+    }, [userId]);
+
+    // ─── State update broadcast (DND/Away) ──────────────────
+    const sendStateUpdate = useCallback((isDnd?: boolean, isAway?: boolean) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'update_state',
+                userId,
+                isDnd,
+                isAway,
+            }));
+        }
+    }, [userId]);
+
     // ─── Connect ────────────────────────────────────────────
     useEffect(() => {
         if (!workspaceId || !userId) return;
@@ -144,6 +205,8 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 avatarUrl,
                 status,
                 role,
+                isDnd: useAvatarStore.getState().myDnd,
+                isAway: useAvatarStore.getState().myAway,
             }));
             // Broadcast position immediately + with retries to ensure delivery
             const broadcastPosition = () => {
@@ -182,6 +245,8 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             last_seen: new Date().toISOString(),
                             roomId: state.roomId,
                             role: state.role || undefined,
+                            isDnd: state.isDnd || false,
+                            isAway: state.isAway || false,
                         });
                     });
                     break;
@@ -221,6 +286,12 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     }
                     if (msg.data.roomId !== undefined) {
                         updateData.roomId = msg.data.roomId;
+                    }
+                    if (msg.data.isDnd !== undefined) {
+                        updateData.isDnd = msg.data.isDnd;
+                    }
+                    if (msg.data.isAway !== undefined) {
+                        updateData.isAway = msg.data.isAway;
                     }
                     useAvatarStore.getState().updatePeer(msg.userId, updateData);
                     break;
@@ -267,6 +338,128 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     }
                     break;
                 }
+
+                case 'leave_room': {
+                    if (msg.userId === userId) return;
+                    useAvatarStore.getState().updatePeer(msg.userId, {
+                        id: msg.userId,
+                        roomId: undefined,
+                    });
+                    break;
+                }
+
+                // ─── Knock messages ──────────────────────────
+                case 'knock_request': {
+                    const handleKnockFn = (window as any).__handleKnockRequest;
+                    if (handleKnockFn) {
+                        handleKnockFn({
+                            userId: msg.userId,
+                            roomId: msg.roomId,
+                            name: msg.name,
+                            avatarUrl: msg.avatarUrl,
+                            timestamp: Date.now(),
+                        });
+                    }
+                    break;
+                }
+                case 'knock_accepted': {
+                    const handleAcceptFn = (window as any).__handleKnockAccepted;
+                    if (handleAcceptFn) handleAcceptFn(msg.roomId);
+                    break;
+                }
+                case 'knock_rejected': {
+                    const handleRejectFn = (window as any).__handleKnockRejected;
+                    if (handleRejectFn) handleRejectFn(msg.roomId);
+                    break;
+                }
+
+                // ─── Admin actions ───────────────────────────
+                case 'admin_action': {
+                    const myUserId = userId;
+
+                    switch (msg.command) {
+                        case 'mute_audio':
+                            if (msg.targetUserId === myUserId) {
+                                useDailyStore.getState().setAdminMutedAudio(true);
+                                useAvatarStore.getState().setMyAdminMutedAudio(true);
+                            } else if (msg.targetUserId) {
+                                useAvatarStore.getState().updatePeer(msg.targetUserId, {
+                                    id: msg.targetUserId,
+                                    adminMutedAudio: true,
+                                });
+                            }
+                            break;
+                        case 'unmute_audio':
+                            if (msg.targetUserId === myUserId) {
+                                useDailyStore.getState().setAdminMutedAudio(false);
+                                useAvatarStore.getState().setMyAdminMutedAudio(false);
+                            } else if (msg.targetUserId) {
+                                useAvatarStore.getState().updatePeer(msg.targetUserId, {
+                                    id: msg.targetUserId,
+                                    adminMutedAudio: false,
+                                });
+                            }
+                            break;
+                        case 'mute_video':
+                            if (msg.targetUserId === myUserId) {
+                                useDailyStore.getState().setAdminMutedVideo(true);
+                                useAvatarStore.getState().setMyAdminMutedVideo(true);
+                            } else if (msg.targetUserId) {
+                                useAvatarStore.getState().updatePeer(msg.targetUserId, {
+                                    id: msg.targetUserId,
+                                    adminMutedVideo: true,
+                                });
+                            }
+                            break;
+                        case 'unmute_video':
+                            if (msg.targetUserId === myUserId) {
+                                useDailyStore.getState().setAdminMutedVideo(false);
+                                useAvatarStore.getState().setMyAdminMutedVideo(false);
+                            } else if (msg.targetUserId) {
+                                useAvatarStore.getState().updatePeer(msg.targetUserId, {
+                                    id: msg.targetUserId,
+                                    adminMutedVideo: false,
+                                });
+                            }
+                            break;
+                        case 'kick_room':
+                            if (msg.targetUserId === myUserId) {
+                                // Force leave current room
+                                useAvatarStore.getState().setMyRoom(undefined);
+                                useDailyStore.getState().setActiveContext('none', null);
+                                const leaveFn = (window as any).__leaveDailyContext;
+                                if (leaveFn) leaveFn();
+                            }
+                            break;
+                        case 'kick_office':
+                            if (msg.targetUserId === myUserId) {
+                                // Redirect to dashboard
+                                window.location.href = '/office';
+                            }
+                            break;
+                        case 'mute_all':
+                            useDailyStore.getState().setAdminMutedAudio(true);
+                            useAvatarStore.getState().setMyAdminMutedAudio(true);
+                            break;
+                        case 'disable_all_cams':
+                            useDailyStore.getState().setAdminMutedVideo(true);
+                            useAvatarStore.getState().setMyAdminMutedVideo(true);
+                            break;
+                        case 'block_proximity':
+                            useDailyStore.getState().setProximityBlockedGlobal(true);
+                            break;
+                        case 'unblock_proximity':
+                            useDailyStore.getState().setProximityBlockedGlobal(false);
+                            break;
+                        case 'lock_room':
+                            if (msg.roomId) useWorkspaceStore.getState().setRoomLocked(msg.roomId, true);
+                            break;
+                        case 'unlock_room':
+                            if (msg.roomId) useWorkspaceStore.getState().setRoomLocked(msg.roomId, false);
+                            break;
+                    }
+                    break;
+                }
             }
         };
 
@@ -288,13 +481,23 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         (window as any).__sendOfficeChatMessage = sendOfficeChatMessage;
         (window as any).__sendDeleteMessage = sendDeleteMessage;
         (window as any).__sendClearChat = sendClearChat;
+        (window as any).__sendKnock = sendKnock;
+        (window as any).__sendKnockResponse = sendKnockResponse;
+        (window as any).__sendAdminCommand = sendAdminCommand;
+        (window as any).__sendLeaveRoom = sendLeaveRoom;
+        (window as any).__sendStateUpdate = sendStateUpdate;
         return () => {
             delete (window as any).__sendChatMessage;
             delete (window as any).__sendOfficeChatMessage;
             delete (window as any).__sendDeleteMessage;
             delete (window as any).__sendClearChat;
+            delete (window as any).__sendKnock;
+            delete (window as any).__sendKnockResponse;
+            delete (window as any).__sendAdminCommand;
+            delete (window as any).__sendLeaveRoom;
+            delete (window as any).__sendStateUpdate;
         };
-    }, [sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat]);
+    }, [sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendLeaveRoom, sendStateUpdate]);
 
-    return { sendPosition, sendJoinRoom, sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat };
+    return { sendPosition, sendJoinRoom, sendLeaveRoom, sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendStateUpdate };
 }

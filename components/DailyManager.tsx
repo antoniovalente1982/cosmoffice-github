@@ -35,17 +35,18 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     const joinedRef = useRef(false);
     const joiningRef = useRef(false);
     const roomUrlRef = useRef<string | null>(null);
-    const proximityIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Read media toggles from daily store
     const isAudioOn = useDailyStore(s => s.isAudioOn);
     const isVideoOn = useDailyStore(s => s.isVideoOn);
 
-    // ─── Room name — ONE room per workspace (proximity handles range) ─
-    const getRoomName = useCallback(() => {
+    // ─── Room name — generates Daily.co room name for a given context ─
+    const getContextRoomName = useCallback((contextType: 'room' | 'proximity', contextId: string) => {
         if (!spaceId) return null;
-        const s = spaceId.slice(0, 8);
-        return `co-${s}-lobby`;
+        const prefix = spaceId.slice(0, 8);
+        return contextType === 'room'
+            ? `co-${prefix}-room-${contextId.slice(0, 8)}`
+            : `co-${prefix}-prox-${contextId.slice(0, 8)}`;
     }, [spaceId]);
 
     // ─── Create or get room via API (with cache) ────────────
@@ -233,7 +234,6 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         useDailyStore.getState().setDailyError(ev?.errorMsg || 'Errore Daily.co sconosciuto');
     }, []);
 
-    const needsDaily = isAudioOn || isVideoOn;
 
     // ─── Pre-create call object on mount (FREE — no billing) ─
     useEffect(() => {
@@ -254,106 +254,120 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         }
     }, [spaceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // ─── Pre-cache room URL on mount (FREE — just an API call) ─
+    // ─── Pre-cache a lobby room URL on mount (FREE — just an API call) ─
     useEffect(() => {
         if (!spaceId) return;
-        const roomName = getRoomName();
-        if (roomName) {
-            ensureRoom(roomName).then(url => {
-                if (url) console.log('[Daily] Room URL pre-cached (no billing)');
-            });
+        const roomName = `co-${spaceId.slice(0, 8)}-lobby`;
+        ensureRoom(roomName).then(url => {
+            if (url) console.log('[Daily] Lobby room URL pre-cached (no billing)');
+        });
+    }, [spaceId, ensureRoom]);
+
+    // ─── Join a Daily.co context (room or proximity group) ─────
+    const joinDailyContext = useCallback(async (contextType: 'room' | 'proximity', contextId: string) => {
+        if (!spaceId || !callRef.current) return;
+        if (joinedRef.current) {
+            // Already in a call — leave first
+            try { await callRef.current.leave(); } catch { }
+            joinedRef.current = false;
+            gLocalTracks.clear();
         }
-    }, [spaceId, getRoomName, ensureRoom]);
+        if (joiningRef.current) return;
+        joiningRef.current = true;
 
-    // ─── Join/Leave based on mic/camera (PAID — billing starts here) ─
-    useEffect(() => {
-        if (!spaceId || !DAILY_DOMAIN || !callRef.current) return;
+        try {
+            const roomName = getContextRoomName(contextType, contextId);
+            if (!roomName) { joiningRef.current = false; return; }
 
-        const handleJoinLeave = async () => {
-            if (needsDaily && !joinedRef.current && !joiningRef.current) {
-                joiningRef.current = true;
+            const url = await ensureRoom(roomName);
+            if (!url) { joiningRef.current = false; return; }
 
-                try {
-                    const roomName = getRoomName();
-                    if (!roomName) { joiningRef.current = false; return; }
-                    const url = await ensureRoom(roomName);
-                    if (!url) { joiningRef.current = false; return; }
+            useDailyStore.getState().clearDailyError();
+            const profile = useAvatarStore.getState().myProfile;
+            const supabaseUserId = profile?.id || null;
+            const dailyState = useDailyStore.getState();
 
-                    useDailyStore.getState().clearDailyError();
-                    const profile = useAvatarStore.getState().myProfile;
-                    const supabaseUserId = profile?.id || null;
+            await callRef.current!.join({
+                url,
+                userName: `${profile?.display_name || profile?.full_name || 'Anonymous'}|${supabaseUserId || 'unknown'}`,
+                startVideoOff: !dailyState.isVideoOn,
+                startAudioOff: !dailyState.isAudioOn,
+                ...(supabaseUserId ? { userData: { supabaseUserId } } : {}),
+            } as any);
 
-                    await callRef.current!.join({
-                        url,
-                        userName: `${profile?.display_name || profile?.full_name || 'Anonymous'}|${supabaseUserId || 'unknown'}`,
-                        startVideoOff: !isVideoOn,
-                        startAudioOff: !isAudioOn,
-                        ...(supabaseUserId ? { userData: { supabaseUserId } } : {}),
-                    } as any);
+            joinedRef.current = true;
+            roomUrlRef.current = url;
+            useDailyStore.getState().setConnected(true);
+            useDailyStore.getState().setActiveContext(contextType, contextId);
+            console.log(`[Daily] ✅ Joined ${contextType} context:`, roomName);
 
-                    joinedRef.current = true;
-                    roomUrlRef.current = url;
-                    useDailyStore.getState().setConnected(true);
-                    useDailyStore.getState().clearDailyError();
-                    console.log('[Daily] ✅ Joined room (billing started):', url);
+            if (dailyState.isVideoOn) callRef.current!.setLocalVideo(true);
+            if (dailyState.isAudioOn) callRef.current!.setLocalAudio(true);
 
-                    if (isVideoOn) callRef.current!.setLocalVideo(true);
-                    if (isAudioOn) callRef.current!.setLocalAudio(true);
-
-                    // Poll for tracks
-                    let attempts = 0;
-                    const syncInterval = setInterval(() => {
-                        if (!callRef.current || !joinedRef.current || attempts >= TRACK_SYNC_MAX_ATTEMPTS) {
-                            clearInterval(syncInterval);
-                            return;
-                        }
-                        attempts++;
-                        const local = callRef.current.participants()?.local;
-                        if (!local) return;
-                        let changed = false;
-                        const audioTrack = local.tracks?.audio?.persistentTrack;
-                        const videoTrack = local.tracks?.video?.persistentTrack;
-                        if (audioTrack && audioTrack.readyState === 'live' && !gLocalTracks.has('audio')) {
-                            gLocalTracks.set('audio', audioTrack);
-                            changed = true;
-                        }
-                        if (videoTrack && videoTrack.readyState === 'live' && !gLocalTracks.has('video')) {
-                            gLocalTracks.set('video', videoTrack);
-                            changed = true;
-                        }
-                        if (changed) {
-                            const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
-                            useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
-                        }
-                        const dailyState = useDailyStore.getState();
-                        const hasAll = (!dailyState.isVideoOn || gLocalTracks.has('video')) && (!dailyState.isAudioOn || gLocalTracks.has('audio'));
-                        if (hasAll) clearInterval(syncInterval);
-                    }, TRACK_SYNC_POLL_MS);
-
-                } catch (err: any) {
-                    const msg = err?.message || 'Errore sconosciuto';
-                    const userMsg = msg.includes('payment') ? 'Account Daily.co: metodo di pagamento mancante'
-                        : msg.includes('destroy') ? 'Sessione Daily.co corrotta — ricarica la pagina'
-                            : msg.includes('Duplicate') ? 'Sessione duplicata — ricarica la pagina'
-                                : `Connessione Daily.co fallita: ${msg}`;
-                    useDailyStore.getState().setDailyError(userMsg);
-                } finally {
-                    joiningRef.current = false;
+            // Poll for tracks
+            let attempts = 0;
+            const syncInterval = setInterval(() => {
+                if (!callRef.current || !joinedRef.current || attempts >= TRACK_SYNC_MAX_ATTEMPTS) {
+                    clearInterval(syncInterval);
+                    return;
                 }
+                attempts++;
+                const local = callRef.current.participants()?.local;
+                if (!local) return;
+                let changed = false;
+                const audioTrack = local.tracks?.audio?.persistentTrack;
+                const videoTrack = local.tracks?.video?.persistentTrack;
+                if (audioTrack && audioTrack.readyState === 'live' && !gLocalTracks.has('audio')) {
+                    gLocalTracks.set('audio', audioTrack);
+                    changed = true;
+                }
+                if (videoTrack && videoTrack.readyState === 'live' && !gLocalTracks.has('video')) {
+                    gLocalTracks.set('video', videoTrack);
+                    changed = true;
+                }
+                if (changed) {
+                    const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
+                    useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+                }
+                const ds = useDailyStore.getState();
+                const hasAll = (!ds.isVideoOn || gLocalTracks.has('video')) && (!ds.isAudioOn || gLocalTracks.has('audio'));
+                if (hasAll) clearInterval(syncInterval);
+            }, TRACK_SYNC_POLL_MS);
 
-            } else if (!needsDaily && joinedRef.current && !joiningRef.current) {
-                console.log('[Daily] 🔌 Disconnecting (billing stopped)');
-                try { await callRef.current!.leave(); } catch { }
-                joinedRef.current = false;
-                roomUrlRef.current = null;
-                gLocalTracks.clear();
-                useDailyStore.getState().setLocalStream(null);
-                useDailyStore.getState().setConnected(false);
-            }
+        } catch (err: any) {
+            const msg = err?.message || 'Errore sconosciuto';
+            const userMsg = msg.includes('payment') ? 'Account Daily.co: metodo di pagamento mancante'
+                : msg.includes('destroy') ? 'Sessione Daily.co corrotta — ricarica la pagina'
+                    : msg.includes('Duplicate') ? 'Sessione duplicata — ricarica la pagina'
+                        : `Connessione Daily.co fallita: ${msg}`;
+            useDailyStore.getState().setDailyError(userMsg);
+        } finally {
+            joiningRef.current = false;
+        }
+    }, [spaceId, getContextRoomName, ensureRoom]);
+
+    // ─── Leave current Daily.co context ────────────────────────
+    const leaveDailyContext = useCallback(async () => {
+        if (!callRef.current || !joinedRef.current) return;
+        console.log('[Daily] 🔌 Leaving context (billing stopped)');
+        try { await callRef.current.leave(); } catch { }
+        joinedRef.current = false;
+        roomUrlRef.current = null;
+        gLocalTracks.clear();
+        useDailyStore.getState().setLocalStream(null);
+        useDailyStore.getState().setConnected(false);
+        useDailyStore.getState().setActiveContext('none', null);
+    }, []);
+
+    // ─── Register global functions for proximity/rooms engine ──
+    useEffect(() => {
+        (window as any).__joinDailyContext = joinDailyContext;
+        (window as any).__leaveDailyContext = leaveDailyContext;
+        return () => {
+            delete (window as any).__joinDailyContext;
+            delete (window as any).__leaveDailyContext;
         };
-
-        handleJoinLeave();
-    }, [needsDaily, spaceId]);  // eslint-disable-line react-hooks/exhaustive-deps
+    }, [joinDailyContext, leaveDailyContext]);
 
     // ─── Sync mic/video while connected ─────────────────────
     useEffect(() => {
@@ -390,7 +404,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         }
     }, [isVideoOn]);
 
-    // Room switching removed — all users share one Daily room per workspace
+    // Room switching is now handled by useProximityAndRooms engine
 
     // ─── Cleanup on unmount and page unload ─────────────────
     useEffect(() => {
@@ -414,44 +428,8 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         };
     }, []);
 
-    // ─── Track subscription management ──────────────────────
-    useEffect(() => {
-        if (!joinedRef.current || !callRef.current) {
-            if (proximityIntervalRef.current) { clearInterval(proximityIntervalRef.current); proximityIntervalRef.current = null; }
-            return;
-        }
-        if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current);
-        proximityIntervalRef.current = setInterval(() => {
-            if (!callRef.current || !joinedRef.current) {
-                if (proximityIntervalRef.current) { clearInterval(proximityIntervalRef.current); proximityIntervalRef.current = null; }
-                return;
-            }
-            const avatarState = useAvatarStore.getState();
-            const myPos = avatarState.myPosition;
-            const participants = useDailyStore.getState().participants;
-
-            Object.entries(participants).forEach(([id, info]) => {
-                const supabaseId = gDailyToSupabase.get(id) || id;
-                const peer = avatarState.peers[supabaseId] || avatarState.peers[id];
-                if (!peer) return;
-                const dx = myPos.x - peer.position.x, dy = myPos.y - peer.position.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const wantAudio = dist <= PROXIMITY_RANGE * 1.5;
-                const wantVideo = dist < PROXIMITY_RANGE;
-                const subKey = `${wantAudio}:${wantVideo}`;
-                const lastSub = gLastSubscribeState.get(id);
-                if (lastSub !== subKey) {
-                    gLastSubscribeState.set(id, subKey);
-                    try {
-                        callRef.current!.updateParticipant(info.sessionId, {
-                            setSubscribedTracks: { audio: wantAudio, video: wantVideo },
-                        });
-                    } catch { /* peer left */ }
-                }
-            });
-        }, ROOM_CHECK_INTERVAL);
-        return () => { if (proximityIntervalRef.current) clearInterval(proximityIntervalRef.current); };
-    }, [isAudioOn, isVideoOn]);
+    // Track subscriptions are now managed by useProximityAndRooms engine
+    // (proximity-based audio/video subscription is handled there)
 
     // ─── No JSX — pure logic component ──────────────────────
     return null;

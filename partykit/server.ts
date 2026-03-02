@@ -1,5 +1,5 @@
 // ============================================
-// PartyKit Server — Avatar sync + Room Chat + Office Chat
+// PartyKit Server — Avatar sync + Room Chat + Office Chat + Knock + Admin
 // Each "room" = one workspace
 // NOTE: PartyKit compiles this file separately.
 //       Types are inlined to avoid TS module-resolution conflicts.
@@ -14,6 +14,8 @@ interface UserState {
     avatarUrl: string | null;
     email: string;
     role: string | null;
+    isDnd: boolean;
+    isAway: boolean;
 }
 
 interface ChatMessage {
@@ -26,25 +28,49 @@ interface ChatMessage {
     timestamp: string;
 }
 
+type AdminCommand =
+    | 'mute_audio'
+    | 'mute_video'
+    | 'unmute_audio'
+    | 'unmute_video'
+    | 'kick_room'
+    | 'kick_office'
+    | 'mute_all'
+    | 'disable_all_cams'
+    | 'block_proximity'
+    | 'unblock_proximity'
+    | 'lock_room'
+    | 'unlock_room';
+
 type IncomingMessage =
     | { type: "move"; userId: string; x: number; y: number; roomId: string | null }
     | { type: "join_room"; userId: string; roomId: string }
-    | { type: "identify"; userId: string; name: string; email: string; avatarUrl: string | null; status: string; role?: string | null }
+    | { type: "leave_room"; userId: string }
+    | { type: "identify"; userId: string; name: string; email: string; avatarUrl: string | null; status: string; role?: string | null; isDnd?: boolean; isAway?: boolean }
     | { type: "chat"; userId: string; content: string; roomId: string }
     | { type: "office_chat"; userId: string; content: string }
     | { type: "delete_message"; userId: string; messageId: string; roomId: string | null }
-    | { type: "clear_chat"; userId: string; roomId: string | null };
+    | { type: "clear_chat"; userId: string; roomId: string | null }
+    | { type: "knock"; userId: string; roomId: string }
+    | { type: "knock_response"; userId: string; roomId: string; targetUserId: string; accepted: boolean }
+    | { type: "admin_command"; adminId: string; command: AdminCommand; targetUserId?: string; roomId?: string }
+    | { type: "update_state"; userId: string; isDnd?: boolean; isAway?: boolean };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
     | { type: "move"; userId: string; x: number; y: number; roomId: string | null }
     | { type: "join_room"; userId: string; roomId: string }
+    | { type: "leave_room"; userId: string }
     | { type: "leave"; userId: string }
     | { type: "user_update"; userId: string; data: Partial<UserState> }
     | { type: "chat_message"; message: ChatMessage }
     | { type: "office_chat_message"; message: ChatMessage }
     | { type: "message_deleted"; messageId: string; roomId: string | null }
-    | { type: "chat_cleared"; roomId: string | null };
+    | { type: "chat_cleared"; roomId: string | null }
+    | { type: "knock_request"; userId: string; roomId: string; name: string; avatarUrl: string | null }
+    | { type: "knock_accepted"; userId: string; roomId: string }
+    | { type: "knock_rejected"; userId: string; roomId: string }
+    | { type: "admin_action"; command: AdminCommand; adminId: string; targetUserId?: string; roomId?: string };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default class AvatarServer {
@@ -62,6 +88,31 @@ export default class AvatarServer {
         });
         const initMsg: OutgoingMessage = { type: "init", users: usersObj };
         connection.send(JSON.stringify(initMsg));
+    }
+
+    private isAdminOrOwner(userId: string): boolean {
+        const user = this.users.get(userId);
+        return user?.role === 'owner' || user?.role === 'admin';
+    }
+
+    private sendToUser(userId: string, msg: OutgoingMessage) {
+        const connId = this.userToConnection.get(userId);
+        if (connId) {
+            const conn = this.party.getConnection(connId);
+            if (conn) conn.send(JSON.stringify(msg));
+        }
+    }
+
+    private sendToRoomOccupants(roomId: string, msg: OutgoingMessage, excludeSenderId?: string) {
+        const payload = JSON.stringify(msg);
+        for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+            if (excludeSenderId && uid === excludeSenderId) continue;
+            const u = this.users.get(uid);
+            if (u && u.roomId === roomId) {
+                const conn = this.party.getConnection(connId);
+                if (conn) conn.send(payload);
+            }
+        }
     }
 
     onMessage(message: string, sender: any) {
@@ -87,6 +138,8 @@ export default class AvatarServer {
                     avatarUrl: parsed.avatarUrl,
                     email: parsed.email,
                     role: parsed.role || existing?.role || null,
+                    isDnd: parsed.isDnd || false,
+                    isAway: parsed.isAway || false,
                 });
                 // Broadcast updated user info (including position)
                 const state = this.users.get(userId)!;
@@ -102,6 +155,8 @@ export default class AvatarServer {
                         x: state.x,
                         y: state.y,
                         roomId: state.roomId,
+                        isDnd: state.isDnd,
+                        isAway: state.isAway,
                     },
                 };
                 this.party.broadcast(JSON.stringify(updateMsg), [sender.id]);
@@ -125,6 +180,8 @@ export default class AvatarServer {
                         avatarUrl: null,
                         email: "",
                         role: null,
+                        isDnd: false,
+                        isAway: false,
                     });
                     this.connectionToUser.set(sender.id, userId);
                     this.userToConnection.set(userId, sender.id);
@@ -153,6 +210,125 @@ export default class AvatarServer {
                 break;
             }
 
+            case "leave_room": {
+                const userId = parsed.userId;
+                const user = this.users.get(userId);
+                if (user) user.roomId = null;
+                const leaveRoomMsg: OutgoingMessage = {
+                    type: "leave_room",
+                    userId,
+                };
+                this.party.broadcast(JSON.stringify(leaveRoomMsg), [sender.id]);
+                break;
+            }
+
+            // ─── Knock to Enter ──────────────────────────────
+            case "knock": {
+                const userId = parsed.userId;
+                const user = this.users.get(userId);
+
+                // Send knock notification to all occupants of the room
+                const knockMsg: OutgoingMessage = {
+                    type: "knock_request",
+                    userId,
+                    roomId: parsed.roomId,
+                    name: user?.name || 'Anonymous',
+                    avatarUrl: user?.avatarUrl || null,
+                };
+                this.sendToRoomOccupants(parsed.roomId, knockMsg);
+                break;
+            }
+
+            case "knock_response": {
+                const targetId = parsed.targetUserId;
+
+                if (parsed.accepted) {
+                    // Notify the knocking user they've been accepted
+                    this.sendToUser(targetId, {
+                        type: "knock_accepted",
+                        userId: targetId,
+                        roomId: parsed.roomId,
+                    });
+                } else {
+                    this.sendToUser(targetId, {
+                        type: "knock_rejected",
+                        userId: targetId,
+                        roomId: parsed.roomId,
+                    });
+                }
+                break;
+            }
+
+            // ─── Admin Commands ──────────────────────────────
+            case "admin_command": {
+                const adminId = parsed.adminId;
+
+                // Validate admin/owner role
+                if (!this.isAdminOrOwner(adminId)) {
+                    console.warn(`[PartyKit] Non-admin user ${adminId} tried admin command: ${parsed.command}`);
+                    break;
+                }
+
+                const adminMsg: OutgoingMessage = {
+                    type: "admin_action",
+                    command: parsed.command,
+                    adminId,
+                    targetUserId: parsed.targetUserId,
+                    roomId: parsed.roomId,
+                };
+
+                switch (parsed.command) {
+                    case 'mute_audio':
+                    case 'mute_video':
+                    case 'unmute_audio':
+                    case 'unmute_video':
+                    case 'kick_room':
+                    case 'kick_office':
+                        // Send to specific target user
+                        if (parsed.targetUserId) {
+                            this.sendToUser(parsed.targetUserId, adminMsg);
+                        }
+                        // Also broadcast to everyone so UIs update
+                        this.party.broadcast(JSON.stringify(adminMsg));
+                        break;
+
+                    case 'mute_all':
+                    case 'disable_all_cams':
+                    case 'block_proximity':
+                    case 'unblock_proximity':
+                        // Broadcast to all users
+                        this.party.broadcast(JSON.stringify(adminMsg));
+                        break;
+
+                    case 'lock_room':
+                    case 'unlock_room':
+                        // Broadcast to all users (need to update room UI)
+                        this.party.broadcast(JSON.stringify(adminMsg));
+                        break;
+                }
+                break;
+            }
+
+            // ─── DND/Away state update ───────────────────────
+            case "update_state": {
+                const userId = parsed.userId;
+                const user = this.users.get(userId);
+                if (user) {
+                    if (parsed.isDnd !== undefined) user.isDnd = parsed.isDnd;
+                    if (parsed.isAway !== undefined) user.isAway = parsed.isAway;
+                }
+                const stateMsg: OutgoingMessage = {
+                    type: "user_update",
+                    userId,
+                    data: {
+                        isDnd: parsed.isDnd,
+                        isAway: parsed.isAway,
+                    },
+                };
+                this.party.broadcast(JSON.stringify(stateMsg), [sender.id]);
+                break;
+            }
+
             case "chat": {
                 const userId = parsed.userId;
                 const user = this.users.get(userId);
@@ -171,18 +347,7 @@ export default class AvatarServer {
                 };
 
                 // Broadcast ONLY to users in the same roomId
-                const outMsg: OutgoingMessage = { type: "chat_message", message: chatMsg };
-                const payload = JSON.stringify(outMsg);
-
-                // Find all connection IDs for users in this room
-                for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
-                    const u = this.users.get(uid);
-                    if (u && u.roomId === targetRoomId) {
-                        // Get the connection object and send directly
-                        const conn = this.party.getConnection(connId);
-                        if (conn) conn.send(payload);
-                    }
-                }
+                this.sendToRoomOccupants(targetRoomId, { type: "chat_message", message: chatMsg });
                 break;
             }
 
