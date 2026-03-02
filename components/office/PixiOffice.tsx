@@ -422,8 +422,6 @@ export function PixiOffice() {
             // Proximity aura layer — below rooms, above connections
             const aura = new ProximityAura();
             world.addChildAt(aura.graphics, world.getChildIndex(roomLayer));
-            // Add mask graphics to world (required for PixiJS masking)
-            world.addChildAt(aura.maskGfx, world.getChildIndex(roomLayer));
             auraRef.current = aura;
 
             // Spaceship landing pad layer

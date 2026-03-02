@@ -4,7 +4,7 @@
 // States: idle (white), active (green), DND (red)
 // Features:
 //   - Movement-only visibility (fade in while moving, fade out when idle)
-//   - Room wall clipping (aura doesn't penetrate room walls)
+//   - Room wall clipping (aura doesn't penetrate room walls via cut() holes)
 // ============================================
 
 import { Graphics } from 'pixi.js';
@@ -21,9 +21,9 @@ interface RoomRect {
 const AURA_CONFIGS = {
     idle: {
         fill: 0xffffff,
-        fillAlpha: 0.04,       // lighter than before
+        fillAlpha: 0.04,
         stroke: 0xffffff,
-        strokeAlpha: 0.12,     // lighter
+        strokeAlpha: 0.12,
         strokeWidth: 1,
         pulseDurationMs: 2200,
         pulseScale: 0.04,
@@ -45,7 +45,7 @@ const AURA_CONFIGS = {
         stroke: 0xef4444,
         strokeAlpha: 0.25,
         strokeWidth: 1,
-        pulseDurationMs: 0, // static
+        pulseDurationMs: 0,
         pulseScale: 0,
         pulseAlpha: 0,
     },
@@ -54,19 +54,18 @@ const AURA_CONFIGS = {
 const PROXIMITY_RADIUS = 250;
 
 // Movement fade constants
-const FADE_IN_SPEED = 4.0;   // per-second rate (reaches 1.0 in ~250ms)
-const FADE_OUT_SPEED = 0.8;  // per-second rate (reaches 0 in ~1.25s)
+const FADE_IN_SPEED = 4.0;   // per-second (reaches 1.0 in ~250ms)
+const FADE_OUT_SPEED = 0.8;  // per-second (reaches 0 in ~1.25s)
 const MOVE_THRESHOLD = 2;    // px — below this is considered still
 
 export class ProximityAura {
     public graphics: Graphics;
-    public maskGfx: Graphics;
     private state: AuraVisualState = 'none';
     private pulseTime: number = 0;
     private radius: number = PROXIMITY_RADIUS;
 
     // Movement fade state
-    private movementAlpha: number = 0;   // 0 = invisible, 1 = fully visible
+    private movementAlpha: number = 0;
     private isMoving: boolean = false;
     private lastX: number = 0;
     private lastY: number = 0;
@@ -75,8 +74,6 @@ export class ProximityAura {
     constructor() {
         this.graphics = new Graphics();
         this.graphics.label = 'proximity-aura';
-        this.maskGfx = new Graphics();
-        this.maskGfx.label = 'proximity-aura-mask';
     }
 
     setState(newState: AuraVisualState) {
@@ -85,7 +82,6 @@ export class ProximityAura {
         this.pulseTime = 0;
         if (newState === 'none') {
             this.graphics.clear();
-            this.maskGfx.clear();
             this.movementAlpha = 0;
         }
     }
@@ -95,16 +91,42 @@ export class ProximityAura {
     }
 
     /**
+     * Find rooms whose bounding box overlaps with the aura circle.
+     */
+    private getNearbyRooms(x: number, y: number, r: number, rooms: RoomRect[]): RoomRect[] {
+        return rooms.filter(room => {
+            const closestX = Math.max(room.x, Math.min(x, room.x + room.width));
+            const closestY = Math.max(room.y, Math.min(y, room.y + room.height));
+            const dx = x - closestX;
+            const dy = y - closestY;
+            return Math.sqrt(dx * dx + dy * dy) < r + 10;
+        });
+    }
+
+    /**
+     * Draw a circle with room-shaped holes cut out.
+     * In PixiJS v8, cut() must be called BEFORE fill().
+     */
+    private drawCircleWithHoles(
+        x: number, y: number, r: number,
+        nearbyRooms: RoomRect[],
+        color: number, alpha: number,
+        mode: 'fill'
+    ): void {
+        this.graphics.circle(x, y, r);
+        for (const room of nearbyRooms) {
+            this.graphics.rect(room.x, room.y, room.width, room.height);
+            this.graphics.cut();
+        }
+        this.graphics.fill({ color, alpha });
+    }
+
+    /**
      * Update aura animation. Call every frame or at ~15fps.
-     * @param dt - time delta in ms
-     * @param x - center x position (world coords)
-     * @param y - center y position (world coords)
-     * @param rooms - optional array of room rects for wall clipping
      */
     update(dt: number, x: number, y: number, rooms?: RoomRect[]) {
         if (this.state === 'none') {
             this.graphics.clear();
-            this.maskGfx.clear();
             return;
         }
 
@@ -130,7 +152,6 @@ export class ProximityAura {
         // Skip rendering if fully invisible
         if (this.movementAlpha < 0.01) {
             this.graphics.clear();
-            this.maskGfx.clear();
             return;
         }
 
@@ -148,21 +169,30 @@ export class ProximityAura {
         }
 
         const r = this.radius * scale;
-        const mAlpha = this.movementAlpha; // shorthand
+        const mAlpha = this.movementAlpha;
 
         this.graphics.clear();
 
-        // ─── Draw aura circle ───────────────────────────
+        // Find rooms that overlap with the aura
+        const nearbyRooms = rooms ? this.getNearbyRooms(x, y, r + 5, rooms) : [];
 
-        // Outer glow
-        this.graphics.circle(x, y, r + 5);
-        this.graphics.fill({ color: config.fill, alpha: (config.fillAlpha + alphaBoost) * 0.3 * mAlpha });
+        // ─── Outer glow (with room holes) ───────────────
+        this.drawCircleWithHoles(
+            x, y, r + 5, nearbyRooms,
+            config.fill, (config.fillAlpha + alphaBoost) * 0.3 * mAlpha,
+            'fill'
+        );
 
-        // Main fill
-        this.graphics.circle(x, y, r);
-        this.graphics.fill({ color: config.fill, alpha: (config.fillAlpha + alphaBoost) * mAlpha });
+        // ─── Main fill (with room holes) ────────────────
+        this.drawCircleWithHoles(
+            x, y, r, nearbyRooms,
+            config.fill, (config.fillAlpha + alphaBoost) * mAlpha,
+            'fill'
+        );
 
-        // Border
+        // ─── Border stroke ──────────────────────────────
+        // Note: stroke doesn't support cut(), so we draw it normally.
+        // The fill-with-holes already hides the aura inside rooms visually.
         this.graphics.circle(x, y, r);
         this.graphics.stroke({
             color: config.stroke,
@@ -170,56 +200,15 @@ export class ProximityAura {
             alpha: (config.strokeAlpha + alphaBoost * 0.5) * mAlpha,
         });
 
-        // Inner bright ring (close proximity indicator)
+        // ─── Inner bright ring (proximity active) ───────
         if (this.state === 'active') {
             this.graphics.circle(x, y, 50);
             this.graphics.stroke({ color: 0x4ade80, width: 1, alpha: (0.3 + alphaBoost) * mAlpha });
         }
-
-        // ─── Room wall clipping ─────────────────────────
-        // Use a mask to prevent aura from penetrating room walls
-        if (rooms && rooms.length > 0) {
-            // Check if any room is close enough to need clipping
-            const nearbyRooms = rooms.filter(room => {
-                // Quick distance check: is any part of the room within aura radius + margin?
-                const closestX = Math.max(room.x, Math.min(x, room.x + room.width));
-                const closestY = Math.max(room.y, Math.min(y, room.y + room.height));
-                const distX = x - closestX;
-                const distY = y - closestY;
-                const dist = Math.sqrt(distX * distX + distY * distY);
-                return dist < r + 10;
-            });
-
-            if (nearbyRooms.length > 0) {
-                this.maskGfx.clear();
-
-                // Draw a big rect covering the whole aura area as the base mask
-                this.maskGfx.rect(x - r - 20, y - r - 20, (r + 20) * 2, (r + 20) * 2);
-                this.maskGfx.fill({ color: 0xffffff });
-
-                // Cut out room areas from the mask (holes)
-                for (const room of nearbyRooms) {
-                    this.maskGfx.rect(room.x, room.y, room.width, room.height);
-                    this.maskGfx.cut();
-                }
-
-                this.graphics.mask = this.maskGfx;
-            } else {
-                // No nearby rooms — remove mask
-                this.graphics.mask = null;
-                this.maskGfx.clear();
-            }
-        } else {
-            this.graphics.mask = null;
-            this.maskGfx.clear();
-        }
     }
 
     destroy() {
-        this.graphics.mask = null;
         this.graphics.clear();
         this.graphics.destroy();
-        this.maskGfx.clear();
-        this.maskGfx.destroy();
     }
 }
