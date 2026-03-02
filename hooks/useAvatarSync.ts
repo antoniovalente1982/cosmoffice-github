@@ -47,7 +47,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
     const socketRef = useRef<PartySocket | null>(null);
     const connectedRef = useRef(false);
 
-    // ─── Send position (50ms throttle) ──────────────────────
+    // ─── Send position (100ms throttle — lerp on peers compensates) ───
     const sendPosition = useCallback(
         throttle((x: number, y: number, roomId: string | null) => {
             if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -57,7 +57,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     x, y, roomId,
                 }));
             }
-        }, 50),
+        }, 100),
         [userId]
     );
 
