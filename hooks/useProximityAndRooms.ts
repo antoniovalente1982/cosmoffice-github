@@ -45,6 +45,7 @@ export function useProximityAndRooms() {
     const lastProximityPeersRef = useRef<Set<string>>(new Set());
     const fadeOutTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
     const lastVolumesRef = useRef<Map<string, number>>(new Map());
+    const roomJoinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // ─── Room entry handler (rooms ARE explicit — keep Daily join) ────
     const handleRoomEntry = useCallback((roomId: string, rooms: any[]) => {
@@ -63,7 +64,14 @@ export function useProximityAndRooms() {
 
         if (!isKnockRequired) {
             avatarStore.setMyRoom(roomId);
-            // State-only: DailyManager watches myRoomId and joins if media is ON
+            useDailyStore.getState().setActiveContext('room', roomId);
+            // Debounce Daily join: prevents leave+join spam when walking between rooms
+            if (roomJoinDebounceRef.current) clearTimeout(roomJoinDebounceRef.current);
+            roomJoinDebounceRef.current = setTimeout(() => {
+                roomJoinDebounceRef.current = null;
+                const joinRoomFn = (window as any).__joinDailyContext;
+                if (joinRoomFn) joinRoomFn('room', roomId);
+            }, 300);
             console.log('[Proximity] Entered room freely:', room.name);
             return;
         }
@@ -71,7 +79,14 @@ export function useProximityAndRooms() {
         const peersInRoom = Object.values(avatarStore.peers).filter((p: any) => p.roomId === roomId);
         if (peersInRoom.length === 0) {
             avatarStore.setMyRoom(roomId);
-            // State-only: DailyManager watches myRoomId and joins if media is ON
+            useDailyStore.getState().setActiveContext('room', roomId);
+            // Debounce Daily join: prevents leave+join spam when walking between rooms
+            if (roomJoinDebounceRef.current) clearTimeout(roomJoinDebounceRef.current);
+            roomJoinDebounceRef.current = setTimeout(() => {
+                roomJoinDebounceRef.current = null;
+                const joinRoomFn = (window as any).__joinDailyContext;
+                if (joinRoomFn) joinRoomFn('room', roomId);
+            }, 300);
             console.log('[Proximity] First user entering knock room:', room.name);
             return;
         }
@@ -85,9 +100,22 @@ export function useProximityAndRooms() {
     // ─── Room exit handler ───────────────────────────────────
     const handleRoomExit = useCallback(() => {
         const avatarStore = useAvatarStore.getState();
-        // State-only: DailyManager watches myRoomId and leaves if needed
+        const dailyStore = useDailyStore.getState();
+
+        // Cancel any pending room join debounce (user is leaving before debounce fired)
+        if (roomJoinDebounceRef.current) {
+            clearTimeout(roomJoinDebounceRef.current);
+            roomJoinDebounceRef.current = null;
+        }
+
+        if (dailyStore.activeContext === 'room') {
+            const leaveFn = (window as any).__leaveDailyContext;
+            if (leaveFn) leaveFn();
+        }
+
         avatarStore.setMyRoom(undefined);
         avatarStore.setKnockingAtRoom(null);
+        useDailyStore.getState().setActiveContext('none', null);
         console.log('[Proximity] Left room');
     }, []);
 
