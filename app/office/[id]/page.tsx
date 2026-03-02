@@ -23,7 +23,8 @@ import {
     Circle,
     UserPlus,
     Grid3X3,
-    MessageCircle
+    MessageCircle,
+    Crown
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
@@ -105,6 +106,7 @@ export default function OfficePage() {
     const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
     const [workspaceName, setWorkspaceName] = useState('');
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     // Avatar sync via PartyKit
     const myProfile = useAvatarStore(s => s.myProfile);
@@ -147,6 +149,16 @@ export default function OfficePage() {
 
     // Role-based access
     const { isAdmin, role, canInvite, invitableRoles } = useWorkspaceRole(workspaceId);
+
+    // Check super admin
+    useEffect(() => {
+        if (!user) return;
+        const checkSuperAdmin = async () => {
+            const { data } = await supabase.from('profiles').select('is_super_admin').eq('id', user.id).single();
+            if (data?.is_super_admin) setIsSuperAdmin(true);
+        };
+        checkSuperAdmin();
+    }, [user]);
 
     // Sync role into store for PixiOffice/UserAvatar
     useEffect(() => {
@@ -501,6 +513,21 @@ export default function OfficePage() {
                                     </span>
                                 )}
                             </Button>
+
+                            {/* Super Admin — Golden Crown Button */}
+                            {isSuperAdmin && (
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="rounded-full w-12 h-12 transition-all glow-button border-2 border-amber-400/50 hover:border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:shadow-[0_0_30px_rgba(245,158,11,0.5)]"
+                                    style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.3), rgba(217,119,6,0.4))' }}
+                                    onClick={() => router.push('/admin')}
+                                    title="Admin Dashboard"
+                                >
+                                    <Crown className="w-5 h-5 text-amber-300 drop-shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
+                                </Button>
+                            )}
+
                             <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
                         </motion.div>
                     </div>
