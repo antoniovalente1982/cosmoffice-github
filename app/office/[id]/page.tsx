@@ -252,18 +252,6 @@ export default function OfficePage() {
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 relative bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)] ${isChatOpen ? 'ring-1 ring-primary-400/30' : ''}`}
-                        onClick={toggleChat}
-                    >
-                        <MessageCircle className="w-5 h-5" /> Chat
-                        {totalChatUnread > 0 && (
-                            <span className="ml-auto min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1.5 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse">
-                                {totalChatUnread > 99 ? '99+' : totalChatUnread}
-                            </span>
-                        )}
-                    </Button>
 
                     <TeamList spaceId={spaceId} />
                 </nav>
@@ -474,6 +462,21 @@ export default function OfficePage() {
                                 title="Cabina di Regia - Cambia dispositivi"
                             >
                                 <SlidersHorizontal className="w-5 h-5" />
+                            </Button>
+                            {/* Chat Toggle */}
+                            <Button
+                                variant={isChatOpen ? "default" : "secondary"}
+                                size="icon"
+                                className={`rounded-full w-12 h-12 transition-all glow-button relative ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                onClick={toggleChat}
+                                title={isChatOpen ? 'Chiudi Chat' : 'Apri Chat'}
+                            >
+                                <MessageCircle className="w-5 h-5" />
+                                {totalChatUnread > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse">
+                                        {totalChatUnread > 99 ? '99+' : totalChatUnread}
+                                    </span>
+                                )}
                             </Button>
                             <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
                         </motion.div>
