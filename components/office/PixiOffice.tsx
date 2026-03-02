@@ -422,6 +422,8 @@ export function PixiOffice() {
             // Proximity aura layer — below rooms, above connections
             const aura = new ProximityAura();
             world.addChildAt(aura.graphics, world.getChildIndex(roomLayer));
+            // Add mask graphics to world (required for PixiJS masking)
+            world.addChildAt(aura.maskGfx, world.getChildIndex(roomLayer));
             auraRef.current = aura;
 
             // Spaceship landing pad layer
@@ -492,6 +494,7 @@ export function PixiOffice() {
                 if (frameCount % 4 === 0 && auraRef.current) {
                     const avatarState = useAvatarStore.getState();
                     const dailyState = useDailyStore.getState();
+                    const wsState = useWorkspaceStore.getState();
                     const myPos = avatarState.myPosition;
 
                     // Determine aura visual state
@@ -504,9 +507,14 @@ export function PixiOffice() {
                         auraState = 'active';
                     }
 
+                    // Collect room rects for wall clipping
+                    const roomRects = wsState.rooms.map((r: any) => ({
+                        x: r.x, y: r.y, width: r.width, height: r.height,
+                    }));
+
                     auraRef.current.setState(auraState);
-                    // ~15fps → dt ≈ 66ms per update
-                    auraRef.current.update(66, myPos.x, myPos.y);
+                    // ~15fps → dt ≈ 66ms per update, pass rooms for wall clipping
+                    auraRef.current.update(66, myPos.x, myPos.y, roomRects);
                 }
 
                 // Room connections are now drawn in the rooms useEffect (static)
