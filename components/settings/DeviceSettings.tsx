@@ -817,21 +817,20 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.95, opacity: 0, y: 20 }}
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                    className="rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.4)] border border-white/10"
+                    className="rounded-3xl w-full max-w-3xl max-h-[80vh] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.4)] border border-white/10"
                     style={{ background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(40px)', WebkitBackdropFilter: 'blur(40px)' }}
                 >
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-6 border-b border-white/10"
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-white/10"
                         style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%)' }}>
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.3)]">
-                                <Settings className="w-5 h-5 text-white" />
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.3)]">
+                                <Settings className="w-4 h-4 text-white" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-white tracking-wide">
+                                <h2 className="text-base font-bold text-white tracking-wide">
                                     {isInitialSetup ? 'Configura i tuoi dispositivi' : 'Cabina di Regia'}
                                 </h2>
-                                <p className="text-sm text-cyan-200/60 font-medium">
+                                <p className="text-xs text-cyan-200/60 font-medium">
                                     Seleziona e testa i dispositivi che vuoi usare
                                 </p>
                             </div>
@@ -846,20 +845,20 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                         )}
                     </div>
 
-                    <div className="flex h-[65vh]">
+                    <div className="flex h-[50vh]">
                         {/* Sidebar Tabs */}
-                        <div className="w-72 border-r border-white/5 p-4 space-y-2 relative" style={{ background: 'rgba(0,0,0,0.1)' }}>
+                        <div className="w-48 border-r border-white/5 p-3 space-y-1.5 relative" style={{ background: 'rgba(0,0,0,0.1)' }}>
                             <button
                                 onClick={() => setActiveTab('input')}
-                                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeTab === 'input'
+                                className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl transition-all ${activeTab === 'input'
                                     ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
                                     : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
                                     }`}
                             >
-                                <Mic className="w-5 h-5" />
+                                <Mic className="w-4 h-4" />
                                 <div className="flex-1 text-left">
                                     <span className="font-semibold text-sm">Microfono</span>
-                                    <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[150px]">
+                                    <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[100px]">
                                         {selectedAudioInput === 'default'
                                             ? 'Default di sistema'
                                             : audioInputs.find(d => d.deviceId === selectedAudioInput)?.label || 'Non selezionato'}
@@ -870,15 +869,15 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
                             <button
                                 onClick={() => setActiveTab('output')}
-                                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeTab === 'output'
+                                className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl transition-all ${activeTab === 'output'
                                     ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
                                     : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
                                     }`}
                             >
-                                <Headphones className="w-5 h-5" />
+                                <Headphones className="w-4 h-4" />
                                 <div className="flex-1 text-left">
                                     <span className="font-semibold text-sm">Audio Uscita</span>
-                                    <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[150px]">
+                                    <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[100px]">
                                         {selectedAudioOutput === 'default'
                                             ? 'Default di sistema'
                                             : audioOutputs.find(d => d.deviceId === selectedAudioOutput)?.label || 'Default di sistema'}
@@ -889,15 +888,15 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
                             <button
                                 onClick={() => setActiveTab('video')}
-                                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeTab === 'video'
+                                className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl transition-all ${activeTab === 'video'
                                     ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
                                     : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
                                     }`}
                             >
-                                <Video className="w-5 h-5" />
+                                <Video className="w-4 h-4" />
                                 <div className="flex-1 text-left">
                                     <span className="font-semibold text-sm">Webcam</span>
-                                    <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[150px]">
+                                    <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[100px]">
                                         {selectedVideoInput === 'default'
                                             ? 'Default di sistema'
                                             : videoInputs.find(d => d.deviceId === selectedVideoInput)?.label || 'Non selezionata'}
@@ -918,7 +917,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1 p-6 overflow-y-auto">
+                        <div className="flex-1 p-5 overflow-y-auto">
                             {error && (
                                 <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm">
                                     <AlertCircle className="w-4 h-4 inline mr-2" />
@@ -1164,7 +1163,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between p-6 border-t border-white/10 bg-black/20">
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-white/10 bg-black/20">
                         <div className="flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-slate-400">
                             <div className="flex items-center gap-2">
                                 {selectedAudioInput ? (
