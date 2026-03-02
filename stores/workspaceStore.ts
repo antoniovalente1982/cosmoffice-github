@@ -85,6 +85,9 @@ interface WorkspaceState {
     landingPad: { x: number; y: number };
     landingPadScale: number;
 
+    // Admin-locked rooms
+    lockedRoomIds: Set<string>;
+
     // Actions — space
     setActiveSpace: (spaceId: string) => void;
 
@@ -116,6 +119,9 @@ interface WorkspaceState {
     setOfficeDimensions: (width: number, height: number) => void;
     setLandingPad: (pos: { x: number; y: number }) => void;
     setLandingPadScale: (scale: number) => void;
+
+    // Actions — admin
+    setRoomLocked: (roomId: string, locked: boolean) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -127,6 +133,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     isSettingsOpen: false,
     activeTab: 'office',
     isPerformanceMode: typeof window !== 'undefined' ? localStorage.getItem('isPerformanceMode') === 'true' : false,
+    lockedRoomIds: new Set<string>(),
 
     isBuilderMode: false,
     bgOpacity: 0.8,
@@ -213,4 +220,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     setOfficeDimensions: (officeWidth, officeHeight) => set({ officeWidth, officeHeight }),
     setLandingPad: (landingPad) => set({ landingPad }),
     setLandingPadScale: (landingPadScale) => set({ landingPadScale: Math.max(0.5, Math.min(3, landingPadScale)) }),
+
+    // ─── Admin ──────────────────────────────────────────────
+    setRoomLocked: (roomId, locked) => set((state) => {
+        const next = new Set(state.lockedRoomIds);
+        if (locked) next.add(roomId); else next.delete(roomId);
+        return { lockedRoomIds: next };
+    }),
 }));

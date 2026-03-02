@@ -25,6 +25,12 @@ export interface Peer {
     remoteAudioEnabled?: boolean;
     isSpeaking?: boolean;
     stream?: MediaStream | null;
+    // Room isolation + proximity
+    isDnd?: boolean;
+    isAway?: boolean;
+    adminMutedAudio?: boolean;
+    adminMutedVideo?: boolean;
+    proximityGroupId?: string;
 }
 
 interface AvatarState {
@@ -34,6 +40,13 @@ interface AvatarState {
     myRoomId?: string;
     myProfile: any;
     myRole: 'owner' | 'admin' | 'member' | 'guest' | null;
+    // Room isolation + proximity state
+    myDnd: boolean;
+    myAway: boolean;
+    myAdminMutedAudio: boolean;
+    myAdminMutedVideo: boolean;
+    myProximityGroupId: string | null;
+    knockingAtRoom: string | null;
 
     // Peers
     peers: Record<string, Peer>;
@@ -44,6 +57,12 @@ interface AvatarState {
     setMyRoom: (roomId?: string) => void;
     setMyProfile: (profile: any) => void;
     setMyRole: (role: 'owner' | 'admin' | 'member' | 'guest' | null) => void;
+    setMyDnd: (dnd: boolean) => void;
+    setMyAway: (away: boolean) => void;
+    setMyAdminMutedAudio: (muted: boolean) => void;
+    setMyAdminMutedVideo: (muted: boolean) => void;
+    setMyProximityGroup: (groupId: string | null) => void;
+    setKnockingAtRoom: (roomId: string | null) => void;
     updatePeer: (id: string, data: Partial<Peer>) => void;
     removePeer: (id: string) => void;
     clearPeers: () => void;
@@ -57,6 +76,12 @@ export const useAvatarStore = create<AvatarState>((set, get) => ({
     myRoomId: undefined,
     myProfile: null,
     myRole: null,
+    myDnd: false,
+    myAway: false,
+    myAdminMutedAudio: false,
+    myAdminMutedVideo: false,
+    myProximityGroupId: null,
+    knockingAtRoom: null,
     peers: {},
 
     setMyPosition: (position) => {
@@ -93,6 +118,12 @@ export const useAvatarStore = create<AvatarState>((set, get) => ({
     setMyRoom: (roomId) => set({ myRoomId: roomId }),
     setMyProfile: (myProfile) => set({ myProfile }),
     setMyRole: (myRole) => set({ myRole }),
+    setMyDnd: (myDnd) => set({ myDnd }),
+    setMyAway: (myAway) => set({ myAway }),
+    setMyAdminMutedAudio: (myAdminMutedAudio) => set({ myAdminMutedAudio }),
+    setMyAdminMutedVideo: (myAdminMutedVideo) => set({ myAdminMutedVideo }),
+    setMyProximityGroup: (myProximityGroupId) => set({ myProximityGroupId }),
+    setKnockingAtRoom: (knockingAtRoom) => set({ knockingAtRoom }),
 
     updatePeer: (id, data) => {
         const current = get().peers[id];

@@ -44,6 +44,15 @@ interface DailyState {
     availableDevices: MediaDeviceInfo[];
     hasCompletedDeviceSetup: boolean;
 
+    // Call context (room vs proximity)
+    activeContext: 'room' | 'proximity' | 'none';
+    activeContextId: string | null;
+
+    // Admin remote controls
+    adminMutedAudio: boolean;
+    adminMutedVideo: boolean;
+    proximityBlockedGlobal: boolean;
+
     // Connection state
     isConnected: boolean;
     dailyError: string | null;
@@ -75,6 +84,14 @@ interface DailyState {
     refreshDevices: () => Promise<void>;
     setHasCompletedDeviceSetup: (completed: boolean) => void;
 
+    // Context
+    setActiveContext: (context: 'room' | 'proximity' | 'none', contextId: string | null) => void;
+
+    // Admin controls
+    setAdminMutedAudio: (muted: boolean) => void;
+    setAdminMutedVideo: (muted: boolean) => void;
+    setProximityBlockedGlobal: (blocked: boolean) => void;
+
     // Connection
     setConnected: (connected: boolean) => void;
     setDailyError: (error: string | null) => void;
@@ -99,6 +116,13 @@ export const useDailyStore = create<DailyState>((set, get) => ({
     selectedVideoInput: null,
     availableDevices: [],
     hasCompletedDeviceSetup: false,
+
+    activeContext: 'none',
+    activeContextId: null,
+
+    adminMutedAudio: false,
+    adminMutedVideo: false,
+    proximityBlockedGlobal: false,
 
     isConnected: false,
     dailyError: null,
@@ -161,6 +185,14 @@ export const useDailyStore = create<DailyState>((set, get) => ({
         }
     },
     setHasCompletedDeviceSetup: (completed) => set({ hasCompletedDeviceSetup: completed }),
+
+    // ─── Context ──────────────────────────────────────────
+    setActiveContext: (activeContext, activeContextId) => set({ activeContext, activeContextId }),
+
+    // ─── Admin controls ──────────────────────────────────
+    setAdminMutedAudio: (adminMutedAudio) => set({ adminMutedAudio }),
+    setAdminMutedVideo: (adminMutedVideo) => set({ adminMutedVideo }),
+    setProximityBlockedGlobal: (proximityBlockedGlobal) => set({ proximityBlockedGlobal }),
 
     // ─── Connection ───────────────────────────────────────
     setConnected: (isConnected) => set({ isConnected }),
