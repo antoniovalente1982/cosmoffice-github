@@ -490,29 +490,33 @@ export function PixiOffice() {
 
                 // ─── Update proximity aura at ~15fps ────
                 if (frameCount % 4 === 0 && auraRef.current) {
-                    const avatarState = useAvatarStore.getState();
-                    const dailyState = useDailyStore.getState();
-                    const wsState = useWorkspaceStore.getState();
-                    const myPos = avatarState.myPosition;
+                    try {
+                        const avatarState = useAvatarStore.getState();
+                        const dailyState = useDailyStore.getState();
+                        const wsState = useWorkspaceStore.getState();
+                        const myPos = avatarState.myPosition;
 
-                    // Determine aura visual state
-                    let auraState: AuraVisualState = 'idle';
-                    if (avatarState.myDnd) {
-                        auraState = 'dnd';
-                    } else if (avatarState.myRoomId) {
-                        auraState = 'none'; // No aura inside rooms
-                    } else if (dailyState.activeContext === 'proximity') {
-                        auraState = 'active';
+                        // Determine aura visual state
+                        let auraState: AuraVisualState = 'idle';
+                        if (avatarState.myDnd) {
+                            auraState = 'dnd';
+                        } else if (avatarState.myRoomId) {
+                            auraState = 'none'; // No aura inside rooms
+                        } else if (dailyState.activeContext === 'proximity') {
+                            auraState = 'active';
+                        }
+
+                        // Collect room rects for wall-aware dimming
+                        const roomRects = (wsState.rooms || []).map((r: any) => ({
+                            x: r.x, y: r.y, width: r.width, height: r.height,
+                        }));
+
+                        auraRef.current.setState(auraState);
+                        auraRef.current.update(66, myPos.x, myPos.y, roomRects);
+                    } catch (e) {
+                        // Never crash the render loop because of the aura
+                        console.warn('[Aura] Error in aura update:', e);
                     }
-
-                    // Collect room rects for wall clipping
-                    const roomRects = wsState.rooms.map((r: any) => ({
-                        x: r.x, y: r.y, width: r.width, height: r.height,
-                    }));
-
-                    auraRef.current.setState(auraState);
-                    // ~15fps → dt ≈ 66ms per update, pass rooms for wall clipping
-                    auraRef.current.update(66, myPos.x, myPos.y, roomRects);
                 }
 
                 // Room connections are now drawn in the rooms useEffect (static)

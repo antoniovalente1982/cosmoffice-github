@@ -4,19 +4,12 @@
 // States: idle (white), active (green), DND (red)
 // Features:
 //   - Movement-only visibility (fade in while moving, fade out when idle)
-//   - Room wall clipping (aura doesn't penetrate room walls via cut() holes)
+//   - Lighter appearance with subtle pulse
 // ============================================
 
 import { Graphics } from 'pixi.js';
 
 export type AuraVisualState = 'idle' | 'active' | 'dnd' | 'none';
-
-interface RoomRect {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
 
 const AURA_CONFIGS = {
     idle: {
@@ -58,6 +51,13 @@ const FADE_IN_SPEED = 4.0;   // per-second (reaches 1.0 in ~250ms)
 const FADE_OUT_SPEED = 0.8;  // per-second (reaches 0 in ~1.25s)
 const MOVE_THRESHOLD = 2;    // px — below this is considered still
 
+interface RoomRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
 export class ProximityAura {
     public graphics: Graphics;
     private state: AuraVisualState = 'none';
@@ -91,38 +91,11 @@ export class ProximityAura {
     }
 
     /**
-     * Find rooms whose bounding box overlaps with the aura circle.
-     */
-    private getNearbyRooms(x: number, y: number, r: number, rooms: RoomRect[]): RoomRect[] {
-        return rooms.filter(room => {
-            const closestX = Math.max(room.x, Math.min(x, room.x + room.width));
-            const closestY = Math.max(room.y, Math.min(y, room.y + room.height));
-            const dx = x - closestX;
-            const dy = y - closestY;
-            return Math.sqrt(dx * dx + dy * dy) < r + 10;
-        });
-    }
-
-    /**
-     * Draw a circle with room-shaped holes cut out.
-     * In PixiJS v8, cut() must be called BEFORE fill().
-     */
-    private drawCircleWithHoles(
-        x: number, y: number, r: number,
-        nearbyRooms: RoomRect[],
-        color: number, alpha: number,
-        mode: 'fill'
-    ): void {
-        this.graphics.circle(x, y, r);
-        for (const room of nearbyRooms) {
-            this.graphics.rect(room.x, room.y, room.width, room.height);
-            this.graphics.cut();
-        }
-        this.graphics.fill({ color, alpha });
-    }
-
-    /**
      * Update aura animation. Call every frame or at ~15fps.
+     * @param dt - time delta in ms
+     * @param x - center x position (world coords)
+     * @param y - center y position (world coords)
+     * @param rooms - optional room rects to clip aura near walls
      */
     update(dt: number, x: number, y: number, rooms?: RoomRect[]) {
         if (this.state === 'none') {
@@ -173,37 +146,51 @@ export class ProximityAura {
 
         this.graphics.clear();
 
-        // Find rooms that overlap with the aura
-        const nearbyRooms = rooms ? this.getNearbyRooms(x, y, r + 5, rooms) : [];
+        // ─── Wall-aware alpha reduction ─────────────────
+        // When the aura is near a room wall, reduce its alpha proportionally
+        // to how much the circle overlaps with the room — giving a "fade at walls" effect
+        let wallFade = 1.0;
+        if (rooms && rooms.length > 0) {
+            for (const room of rooms) {
+                // Check closest distance from aura center to room edge
+                const closestX = Math.max(room.x, Math.min(x, room.x + room.width));
+                const closestY = Math.max(room.y, Math.min(y, room.y + room.height));
+                const distX = x - closestX;
+                const distY = y - closestY;
+                const dist = Math.sqrt(distX * distX + distY * distY);
 
-        // ─── Outer glow (with room holes) ───────────────
-        this.drawCircleWithHoles(
-            x, y, r + 5, nearbyRooms,
-            config.fill, (config.fillAlpha + alphaBoost) * 0.3 * mAlpha,
-            'fill'
-        );
+                // If the aura circle touches the room, reduce opacity
+                if (dist < r) {
+                    // How much the aura penetrates the room (0 = edge, 1 = center)
+                    const penetration = 1 - dist / r;
+                    // Dim the aura proportionally — more penetration = more dimming
+                    wallFade = Math.min(wallFade, 0.3 + 0.7 * (1 - penetration * penetration));
+                }
+            }
+        }
 
-        // ─── Main fill (with room holes) ────────────────
-        this.drawCircleWithHoles(
-            x, y, r, nearbyRooms,
-            config.fill, (config.fillAlpha + alphaBoost) * mAlpha,
-            'fill'
-        );
+        const effectiveAlpha = mAlpha * wallFade;
 
-        // ─── Border stroke ──────────────────────────────
-        // Note: stroke doesn't support cut(), so we draw it normally.
-        // The fill-with-holes already hides the aura inside rooms visually.
+        // Outer glow
+        this.graphics.circle(x, y, r + 5);
+        this.graphics.fill({ color: config.fill, alpha: (config.fillAlpha + alphaBoost) * 0.3 * effectiveAlpha });
+
+        // Main fill
+        this.graphics.circle(x, y, r);
+        this.graphics.fill({ color: config.fill, alpha: (config.fillAlpha + alphaBoost) * effectiveAlpha });
+
+        // Border
         this.graphics.circle(x, y, r);
         this.graphics.stroke({
             color: config.stroke,
             width: config.strokeWidth,
-            alpha: (config.strokeAlpha + alphaBoost * 0.5) * mAlpha,
+            alpha: (config.strokeAlpha + alphaBoost * 0.5) * effectiveAlpha,
         });
 
-        // ─── Inner bright ring (proximity active) ───────
+        // Inner bright ring (close proximity indicator)
         if (this.state === 'active') {
             this.graphics.circle(x, y, 50);
-            this.graphics.stroke({ color: 0x4ade80, width: 1, alpha: (0.3 + alphaBoost) * mAlpha });
+            this.graphics.stroke({ color: 0x4ade80, width: 1, alpha: (0.3 + alphaBoost) * effectiveAlpha });
         }
     }
 
