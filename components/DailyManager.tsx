@@ -484,6 +484,70 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         return unsubscribe;
     }, [joinDailyContext, leaveDailyContext]);
 
+    // ─── Watch room changes with DEBOUNCE (core optimization) ─────
+    // When user walks between rooms, debounce prevents leave+join spam.
+    // Only connects Daily if mic/cam is ON (zero API calls otherwise).
+    const roomDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const unsubscribe = useAvatarStore.subscribe((state, prevState) => {
+            const newRoomId = state.myRoomId;
+            const oldRoomId = prevState.myRoomId;
+
+            // No room change → skip
+            if (newRoomId === oldRoomId) return;
+
+            // Clear any pending debounce
+            if (roomDebounceRef.current) {
+                clearTimeout(roomDebounceRef.current);
+                roomDebounceRef.current = null;
+            }
+
+            // Debounce 300ms: if user transitions A→corridor→B quickly, we skip the corridor leave
+            roomDebounceRef.current = setTimeout(() => {
+                roomDebounceRef.current = null;
+                const anyMediaOn = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
+                const currentRoomId = useAvatarStore.getState().myRoomId;
+                const dailyState = useDailyStore.getState();
+
+                if (currentRoomId) {
+                    // Entered a room
+                    if (anyMediaOn) {
+                        // Media ON → join this room's Daily context
+                        joinDailyContext('room', currentRoomId);
+                    }
+                    // Update active context state (even without media, so UI knows)
+                    useDailyStore.getState().setActiveContext('room', currentRoomId);
+                    console.log('[Daily] Room entered:', currentRoomId.slice(0, 8) + '...',
+                        anyMediaOn ? '(joining Daily)' : '(no media — state only)');
+                } else {
+                    // Left all rooms → open space
+                    if (dailyState.activeContext === 'room' && joinedRef.current) {
+                        if (anyMediaOn) {
+                            // Check if near someone → switch to proximity context
+                            const proxGroup = useAvatarStore.getState().myProximityGroupId;
+                            if (proxGroup) {
+                                joinDailyContext('proximity', proxGroup);
+                                console.log('[Daily] Left room with media → switched to proximity');
+                            } else {
+                                leaveDailyContext();
+                                console.log('[Daily] Left room with media → no one nearby, left Daily');
+                            }
+                        } else {
+                            leaveDailyContext();
+                            console.log('[Daily] Left room (no media) → left Daily');
+                        }
+                    }
+                    useDailyStore.getState().setActiveContext('none', null);
+                }
+            }, 300);
+        });
+        return () => {
+            unsubscribe();
+            if (roomDebounceRef.current) clearTimeout(roomDebounceRef.current);
+        };
+    }, [joinDailyContext, leaveDailyContext]);
+
     // ─── Cleanup on unmount and page unload ─────────────────
     useEffect(() => {
         const handleUnload = () => {
