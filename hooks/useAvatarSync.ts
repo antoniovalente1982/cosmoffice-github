@@ -233,16 +233,16 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 }
 
                 case 'chat_message': {
-                    // Room-scoped chat message from server
-                    if (msg.message) {
+                    // Room-scoped chat message from server (skip own — already added optimistically)
+                    if (msg.message && msg.message.userId !== userId) {
                         useChatStore.getState().addMessage(msg.message);
                     }
                     break;
                 }
 
                 case 'office_chat_message': {
-                    // Office-wide global chat message
-                    if (msg.message) {
+                    // Office-wide global chat message (skip own — already added optimistically)
+                    if (msg.message && msg.message.userId !== userId) {
                         useChatStore.getState().addOfficeMessage(msg.message);
                     }
                     break;

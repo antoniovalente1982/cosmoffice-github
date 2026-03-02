@@ -18,6 +18,7 @@ interface UseOfficeChatOptions {
 
 export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: UseOfficeChatOptions) {
     const officeMessages = useChatStore(s => s.officeMessages);
+    const addOfficeMessage = useChatStore(s => s.addOfficeMessage);
     const setOfficeMessages = useChatStore(s => s.setOfficeMessages);
     const clearOfficeMessages = useChatStore(s => s.clearOfficeMessages);
     const removeOfficeMessage = useChatStore(s => s.removeOfficeMessage);
@@ -86,17 +87,29 @@ export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: 
         return () => { cancelled = true; };
     }, [workspaceId, supabase, setOfficeMessages]);
 
-    // ─── Send message: PartyKit (instant) + Supabase (persist) ─
+    // ─── Send message: Optimistic + PartyKit + Supabase ──────
     const sendMessage = useCallback(async (content: string) => {
         if (!content.trim() || !workspaceId) return;
 
         const trimmed = content.trim();
 
-        // 1. PartyKit — instant broadcast to all
+        // 1. Optimistic — add to local store immediately
+        const optimisticMsg: ChatMessage = {
+            id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            userId,
+            userName,
+            avatarUrl: userAvatarUrl,
+            content: trimmed,
+            roomId: null,
+            timestamp: new Date().toISOString(),
+        };
+        addOfficeMessage(optimisticMsg);
+
+        // 2. PartyKit — broadcast to other users
         const sendFn = (window as any).__sendOfficeChatMessage;
         if (sendFn) sendFn(trimmed);
 
-        // 2. Supabase — persist with room_id=NULL
+        // 3. Supabase — persist with room_id=NULL
         try {
             await supabase.from('messages').insert({
                 workspace_id: workspaceId,
@@ -108,7 +121,7 @@ export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: 
         } catch (err) {
             console.error('[OfficeChat] Failed to persist message:', err);
         }
-    }, [workspaceId, userId, supabase]);
+    }, [workspaceId, userId, userName, userAvatarUrl, supabase, addOfficeMessage]);
 
     // ─── Delete single message ──────────────────────────────
     const deleteMessage = useCallback(async (messageId: string) => {

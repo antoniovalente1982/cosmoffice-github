@@ -94,17 +94,29 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
         return () => { cancelled = true; };
     }, [roomId, workspaceId, supabase, clearMessages, setMessages]);
 
-    // ─── Send message: PartyKit (instant) + Supabase (persist) ─
+    // ─── Send message: Optimistic + PartyKit + Supabase ──────
     const sendMessage = useCallback(async (content: string) => {
         if (!content.trim() || !roomId || !workspaceId) return;
 
         const trimmed = content.trim();
 
-        // 1. PartyKit — instant broadcast to room members
+        // 1. Optimistic — add to local store immediately
+        const optimisticMsg: ChatMessage = {
+            id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            userId,
+            userName,
+            avatarUrl: userAvatarUrl,
+            content: trimmed,
+            roomId,
+            timestamp: new Date().toISOString(),
+        };
+        addMessage(optimisticMsg);
+
+        // 2. PartyKit — broadcast to other room members
         const sendFn = (window as any).__sendChatMessage;
         if (sendFn) sendFn(trimmed, roomId);
 
-        // 2. Supabase — persist (fire-and-forget)
+        // 3. Supabase — persist (fire-and-forget)
         try {
             await supabase.from('messages').insert({
                 workspace_id: workspaceId,
@@ -116,7 +128,7 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
         } catch (err) {
             console.error('[RoomChat] Failed to persist message:', err);
         }
-    }, [roomId, workspaceId, userId, supabase]);
+    }, [roomId, workspaceId, userId, userName, userAvatarUrl, supabase, addMessage]);
 
     // ─── Delete single message: Supabase + PartyKit ─────────
     const deleteMessage = useCallback(async (messageId: string) => {
