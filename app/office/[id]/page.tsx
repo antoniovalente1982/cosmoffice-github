@@ -254,10 +254,7 @@ export default function OfficePage() {
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                     <Button
                         variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 relative ${isChatOpen
-                            ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]'
-                            : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
-                            }`}
+                        className={`w-full justify-start gap-3 transition-all duration-300 relative bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)] ${isChatOpen ? 'ring-1 ring-primary-400/30' : ''}`}
                         onClick={toggleChat}
                     >
                         <MessageCircle className="w-5 h-5" /> Chat
