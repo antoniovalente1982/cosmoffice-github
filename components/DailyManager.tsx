@@ -395,42 +395,94 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         };
     }, [joinDailyContext, leaveDailyContext]);
 
-    // ─── Sync mic/video while connected ─────────────────────
+    // ─── MEDIA-TRIGGERED JOIN/LEAVE (core optimization) ─────
+    // Daily connects ONLY when user enables mic/cam, not on movement.
+    // Proximity engine sets myProximityGroupId in avatarStore (visual only).
+    // This effect reads it to decide whether to join Daily.
     useEffect(() => {
-        if (!callRef.current || !joinedRef.current) return;
-        callRef.current.setLocalAudio(isAudioOn);
+        const anyMediaOn = isAudioOn || isVideoOn;
+        const dailyStore = useDailyStore.getState();
+        const avatarStore = useAvatarStore.getState();
+        const proximityGroupId = avatarStore.myProximityGroupId;
+        const myRoomId = avatarStore.myRoomId;
 
-        if (!isAudioOn) {
-            // Same Safari fix as video: stop the hardware mic track
-            const audioTrack = gLocalTracks.get('audio');
-            if (audioTrack) {
-                audioTrack.stop();
-                gLocalTracks.delete('audio');
-                const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
-                useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+        if (anyMediaOn) {
+            // User wants media ON
+            if (joinedRef.current) {
+                // Already connected — just sync media state
+                if (callRef.current) {
+                    callRef.current.setLocalAudio(isAudioOn);
+                    callRef.current.setLocalVideo(isVideoOn);
+                }
+            } else if (myRoomId) {
+                // In a room → join room context (rooms may already be joined by proximity engine)
+                joinDailyContext('room', myRoomId);
+            } else if (proximityGroupId) {
+                // Near someone → join proximity context
+                joinDailyContext('proximity', proximityGroupId);
+            }
+            // If alone (no room, no proximity) → do nothing, just toggle local state
+        } else {
+            // Both mic and cam OFF
+            if (joinedRef.current && dailyStore.activeContext === 'proximity') {
+                // In proximity context → leave Daily (stop billing!)
+                leaveDailyContext();
+                console.log('[Daily] Both mic+cam OFF → left proximity (billing stopped)');
+            }
+            // If in a room context → stay connected (rooms are explicit)
+
+            // Safari fix: stop hardware tracks when turning off
+            if (!isAudioOn) {
+                const audioTrack = gLocalTracks.get('audio');
+                if (audioTrack) {
+                    audioTrack.stop();
+                    gLocalTracks.delete('audio');
+                }
+            }
+            if (!isVideoOn) {
+                const videoTrack = gLocalTracks.get('video');
+                if (videoTrack) {
+                    videoTrack.stop();
+                    gLocalTracks.delete('video');
+                }
+            }
+            const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
+            useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+
+            // Sync with Daily if still connected (room context)
+            if (callRef.current && joinedRef.current) {
+                callRef.current.setLocalAudio(false);
+                callRef.current.setLocalVideo(false);
             }
         }
-    }, [isAudioOn]);
+    }, [isAudioOn, isVideoOn, joinDailyContext, leaveDailyContext]);
 
+    // ─── Watch proximity group changes while media is ON ─────
+    // If user has mic/cam on and walks away from everyone, disconnect.
+    // If user has mic/cam on and walks near someone new, connect.
     useEffect(() => {
-        if (!callRef.current || !joinedRef.current) return;
-        callRef.current.setLocalVideo(isVideoOn);
+        const unsubscribe = useAvatarStore.subscribe((state, prevState) => {
+            const anyMediaOn = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
+            if (!anyMediaOn) return; // No media = no Daily needed
 
-        if (!isVideoOn) {
-            // Safari fix: setLocalVideo(false) only mutes the track at the SFU level
-            // but does NOT stop the hardware camera. We must explicitly stop() the track
-            // and rebuild the localStream without it.
-            const videoTrack = gLocalTracks.get('video');
-            if (videoTrack) {
-                videoTrack.stop(); // This turns off the green camera indicator
-                gLocalTracks.delete('video');
-                const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
-                useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
+            const newGroup = state.myProximityGroupId;
+            const oldGroup = prevState.myProximityGroupId;
+            const dailyStore = useDailyStore.getState();
+
+            // Skip if in a room (rooms manage their own Daily connection)
+            if (state.myRoomId) return;
+
+            if (newGroup && newGroup !== oldGroup) {
+                // New proximity group while media is on → join Daily
+                joinDailyContext('proximity', newGroup);
+            } else if (!newGroup && oldGroup && dailyStore.activeContext === 'proximity') {
+                // Left proximity while media is on → leave Daily
+                leaveDailyContext();
+                console.log('[Daily] Walked away with media on → left proximity');
             }
-        }
-    }, [isVideoOn]);
-
-    // Room switching is now handled by useProximityAndRooms engine
+        });
+        return unsubscribe;
+    }, [joinDailyContext, leaveDailyContext]);
 
     // ─── Cleanup on unmount and page unload ─────────────────
     useEffect(() => {

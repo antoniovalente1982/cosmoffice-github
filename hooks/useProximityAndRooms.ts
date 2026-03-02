@@ -1,9 +1,9 @@
 'use client';
 
 // ============================================
-// useProximityAndRooms — Core engine for room isolation + proximity audio/video
-// Optimized: stable host-based room IDs, debounced join/leave, 500ms check interval
-// Handles: room boundary detection, proximity grouping, wall detection, adaptive volume
+// useProximityAndRooms — Pure visual proximity engine
+// ZERO Daily API calls — only tracks aura state + prepares volume
+// Daily connections are triggered by DailyManager when user enables mic/cam
 // ============================================
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -14,23 +14,18 @@ import { isPointInRect, isBlockedByWall, distance, type Rect, type Point } from 
 import { getAdaptiveVolume, canFormProximityConnection } from '../utils/avatarStateMachine';
 
 const PROXIMITY_RADIUS = 250;
-const CHECK_INTERVAL_MS = 500;       // Layer 4: was 100ms, now 500ms (5x less CPU)
+const CHECK_INTERVAL_MS = 500;   // 2 checks/sec — smooth enough for aura
 const FADE_OUT_MS = 1500;
-const JOIN_DEBOUNCE_MS = 2000;       // Layer 2: must be near someone 2s before joining Daily
-const LEAVE_DEBOUNCE_MS = 3000;      // Layer 2: must have 0 peers for 3s before leaving Daily
 
 interface ProximityPeer {
     id: string;
     position: Point;
     distance: number;
-    dailySessionId?: string;
 }
 
 /**
- * Layer 1: Compute a stable "host" ID for the proximity group.
- * The peer with the lexicographically smallest ID is the host.
- * Everyone joins the same room: co-{spaceId}-prox-{hostId}.
- * This prevents room changes when peers enter/leave the group.
+ * Compute stable host ID: the lexicographically smallest ID in the group.
+ * Used as the proximity room name so it doesn't change when peers join/leave.
  */
 function computeHostId(myId: string, peerIds: string[]): string {
     let host = myId;
@@ -41,8 +36,9 @@ function computeHostId(myId: string, peerIds: string[]): string {
 }
 
 /**
- * Core proximity and room engine.
- * Replaces useSpatialAudio with full room isolation + proximity grouping.
+ * Pure visual proximity engine.
+ * Detects nearby peers, manages aura state, prepares volume levels.
+ * Does NOT call Daily API — DailyManager handles that on mic/cam toggle.
  */
 export function useProximityAndRooms() {
     const lastRoomIdRef = useRef<string | null>(null);
@@ -50,12 +46,7 @@ export function useProximityAndRooms() {
     const fadeOutTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
     const lastVolumesRef = useRef<Map<string, number>>(new Map());
 
-    // Layer 2: Debounce refs
-    const joinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const leaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const pendingHostIdRef = useRef<string | null>(null);  // The host ID we're debouncing towards
-
-    // ─── Room entry handler ──────────────────────────────────
+    // ─── Room entry handler (rooms ARE explicit — keep Daily join) ────
     const handleRoomEntry = useCallback((roomId: string, rooms: any[]) => {
         const room = rooms.find((r: any) => r.id === roomId);
         if (!room) return;
@@ -71,22 +62,17 @@ export function useProximityAndRooms() {
         }
 
         if (!isKnockRequired) {
-            // Free entry — join directly
             avatarStore.setMyRoom(roomId);
             useDailyStore.getState().setActiveContext('room', roomId);
-
-            // Trigger Daily.co room join via global function
+            // Rooms are explicit — join Daily immediately
             const joinRoomFn = (window as any).__joinDailyContext;
             if (joinRoomFn) joinRoomFn('room', roomId);
-
             console.log('[Proximity] Entered room freely:', room.name);
             return;
         }
 
-        // Knock required — check if room is empty (first user enters freely)
         const peersInRoom = Object.values(avatarStore.peers).filter((p: any) => p.roomId === roomId);
         if (peersInRoom.length === 0) {
-            // First user — enter freely
             avatarStore.setMyRoom(roomId);
             useDailyStore.getState().setActiveContext('room', roomId);
             const joinRoomFn = (window as any).__joinDailyContext;
@@ -95,13 +81,9 @@ export function useProximityAndRooms() {
             return;
         }
 
-        // Need to knock — set knocking state
         avatarStore.setKnockingAtRoom(roomId);
-
-        // Send knock via PartyKit
         const sendKnockFn = (window as any).__sendKnock;
         if (sendKnockFn) sendKnockFn(roomId);
-
         console.log('[Proximity] Knocking at room:', room.name);
     }, []);
 
@@ -121,20 +103,7 @@ export function useProximityAndRooms() {
         console.log('[Proximity] Left room');
     }, []);
 
-    // ─── Cancel all debounce timers ──────────────────────────
-    const cancelDebounces = useCallback(() => {
-        if (joinDebounceRef.current) {
-            clearTimeout(joinDebounceRef.current);
-            joinDebounceRef.current = null;
-        }
-        if (leaveDebounceRef.current) {
-            clearTimeout(leaveDebounceRef.current);
-            leaveDebounceRef.current = null;
-        }
-        pendingHostIdRef.current = null;
-    }, []);
-
-    // ─── Proximity group management (with debounce + stable host ID) ──
+    // ─── Proximity group tracking (VISUAL ONLY — no Daily calls) ─────
     const updateProximityGroup = useCallback((nearbyPeers: ProximityPeer[]) => {
         const avatarStore = useAvatarStore.getState();
         const dailyStore = useDailyStore.getState();
@@ -143,11 +112,9 @@ export function useProximityAndRooms() {
 
         // Skip if DND or admin blocked proximity
         if (avatarStore.myDnd || dailyStore.proximityBlockedGlobal) {
-            if (dailyStore.activeContext === 'proximity') {
-                cancelDebounces();
-                const leaveFn = (window as any).__leaveDailyContext;
-                if (leaveFn) leaveFn();
-                dailyStore.setActiveContext('none', null);
+            // Clear proximity state
+            if (avatarStore.myProximityGroupId) {
+                avatarStore.setMyProximityGroup(null);
             }
             lastProximityPeersRef.current.clear();
             return;
@@ -156,14 +123,13 @@ export function useProximityAndRooms() {
         const currentPeerIds = new Set(nearbyPeers.map(p => p.id));
         const previousPeerIds = lastProximityPeersRef.current;
 
-        // Check if the set of nearby peers changed
         const peersChanged =
             currentPeerIds.size !== previousPeerIds.size ||
             Array.from(currentPeerIds).some(id => !previousPeerIds.has(id));
 
         if (!peersChanged) return;
 
-        // Cancel any pending fade-out timers for peers that came back
+        // Cancel fade-out timers for peers that came back
         nearbyPeers.forEach(p => {
             const timer = fadeOutTimersRef.current.get(p.id);
             if (timer) {
@@ -172,13 +138,11 @@ export function useProximityAndRooms() {
             }
         });
 
-        // Handle peers that left proximity
+        // Fade out audio for peers that left
         previousPeerIds.forEach(id => {
             if (!currentPeerIds.has(id)) {
-                // Start fade-out timer
                 const timer = setTimeout(() => {
                     fadeOutTimersRef.current.delete(id);
-                    // Peer is truly gone — update volume to 0
                     const audioEl = document.getElementById(`daily-audio-${id}`) as HTMLAudioElement;
                     if (audioEl) audioEl.volume = 0;
                 }, FADE_OUT_MS);
@@ -188,104 +152,34 @@ export function useProximityAndRooms() {
 
         lastProximityPeersRef.current = currentPeerIds;
 
-        // ─── Layer 1: Stable host-based proximity room ──────
+        // ─── Update proximity group ID in store (for DailyManager to read) ───
         if (nearbyPeers.length > 0) {
             const hostId = computeHostId(myId, nearbyPeers.map(p => p.id));
-
-            // Layer 3: Skip if already in the same proximity room
-            if (dailyStore.activeContext === 'proximity' && dailyStore.activeContextId === hostId) {
-                // Already in the correct room — no action needed
-                // Cancel any pending leave debounce since we still have peers
-                if (leaveDebounceRef.current) {
-                    clearTimeout(leaveDebounceRef.current);
-                    leaveDebounceRef.current = null;
-                }
-                return;
+            // Only update store if host changed
+            if (avatarStore.myProximityGroupId !== hostId) {
+                avatarStore.setMyProximityGroup(hostId);
+                console.log('[Proximity] Aura active — host:', hostId.slice(0, 8) + '...');
             }
-
-            // Cancel any pending leave debounce
-            if (leaveDebounceRef.current) {
-                clearTimeout(leaveDebounceRef.current);
-                leaveDebounceRef.current = null;
-            }
-
-            // Layer 2: Debounce join — wait JOIN_DEBOUNCE_MS before actually joining
-            if (pendingHostIdRef.current === hostId && joinDebounceRef.current) {
-                // Already debouncing toward this host — let it ride
-                return;
-            }
-
-            // Cancel previous join debounce if host changed
-            if (joinDebounceRef.current) {
-                clearTimeout(joinDebounceRef.current);
-                joinDebounceRef.current = null;
-            }
-
-            pendingHostIdRef.current = hostId;
-            joinDebounceRef.current = setTimeout(() => {
-                joinDebounceRef.current = null;
-                pendingHostIdRef.current = null;
-
-                // Re-check that we still have nearby peers after debounce
-                const currentPeers = lastProximityPeersRef.current;
-                if (currentPeers.size === 0) return;
-
-                // Re-check we're not already in this room
-                const ds = useDailyStore.getState();
-                if (ds.activeContext === 'proximity' && ds.activeContextId === hostId) return;
-
-                ds.setActiveContext('proximity', hostId);
-                useAvatarStore.getState().setMyProximityGroup(hostId);
-
-                const joinFn = (window as any).__joinDailyContext;
-                if (joinFn) joinFn('proximity', hostId);
-
-                console.log('[Proximity] Joined proximity room (host:', hostId.slice(0, 8) + '...)');
-            }, JOIN_DEBOUNCE_MS);
-
-        } else if (nearbyPeers.length === 0 && dailyStore.activeContext === 'proximity') {
-            // Cancel any pending join debounce
-            if (joinDebounceRef.current) {
-                clearTimeout(joinDebounceRef.current);
-                joinDebounceRef.current = null;
-                pendingHostIdRef.current = null;
-            }
-
-            // Layer 2: Debounce leave — wait LEAVE_DEBOUNCE_MS
-            if (!leaveDebounceRef.current) {
-                leaveDebounceRef.current = setTimeout(() => {
-                    leaveDebounceRef.current = null;
-                    const current = lastProximityPeersRef.current;
-                    if (current.size === 0) {
-                        const leaveFn = (window as any).__leaveDailyContext;
-                        if (leaveFn) leaveFn();
-                        useDailyStore.getState().setActiveContext('none', null);
-                        useAvatarStore.getState().setMyProximityGroup(null);
-                        console.log('[Proximity] Left proximity room (debounced)');
-                    }
-                }, LEAVE_DEBOUNCE_MS);
-            }
-        } else if (nearbyPeers.length === 0 && dailyStore.activeContext !== 'proximity') {
-            // No peers nearby and not in proximity — cancel any pending join
-            if (joinDebounceRef.current) {
-                clearTimeout(joinDebounceRef.current);
-                joinDebounceRef.current = null;
-                pendingHostIdRef.current = null;
+        } else {
+            // No peers nearby — clear proximity group
+            if (avatarStore.myProximityGroupId) {
+                avatarStore.setMyProximityGroup(null);
+                console.log('[Proximity] Aura deactivated — no nearby peers');
             }
         }
-    }, [cancelDebounces]);
+
+        // NOTE: NO __joinDailyContext / __leaveDailyContext calls here!
+        // DailyManager handles Daily connections based on mic/cam state.
+    }, []);
 
     // ─── Adaptive volume update ──────────────────────────────
     const updateAdaptiveVolume = useCallback((nearbyPeers: ProximityPeer[]) => {
         nearbyPeers.forEach(peer => {
             const volume = getAdaptiveVolume(peer.distance, PROXIMITY_RADIUS);
-
-            // Only update if volume changed significantly (> 1%)
             const prevVol = lastVolumesRef.current.get(peer.id) ?? -1;
             if (Math.abs(volume - prevVol) < 0.01) return;
             lastVolumesRef.current.set(peer.id, volume);
 
-            // Update HTML audio element volume
             const audioEl = document.getElementById(`daily-audio-${peer.id}`) as HTMLAudioElement;
             if (audioEl) {
                 audioEl.volume = Math.max(0, Math.min(1, volume));
@@ -293,7 +187,7 @@ export function useProximityAndRooms() {
         });
     }, []);
 
-    // ─── Main check loop (every 500ms — Layer 4) ─────────────
+    // ─── Main check loop (every 500ms) ───────────────────────
     useEffect(() => {
         const interval = setInterval(() => {
             const avatarStore = useAvatarStore.getState();
@@ -303,7 +197,6 @@ export function useProximityAndRooms() {
             const myPos = avatarStore.myPosition;
             const rooms = workspaceStore.rooms;
 
-            // Convert rooms to Rect format for wall detection
             const roomRects: Rect[] = rooms.map((r: any) => ({
                 x: r.x, y: r.y, width: r.width, height: r.height,
             }));
@@ -319,21 +212,15 @@ export function useProximityAndRooms() {
 
             if (currentRoomId) {
                 if (currentRoomId !== lastRoomIdRef.current) {
-                    // Cancel proximity debounces when entering a room
-                    cancelDebounces();
-
-                    // Leave proximity if active
-                    if (dailyStore.activeContext === 'proximity') {
-                        const leaveFn = (window as any).__leaveDailyContext;
-                        if (leaveFn) leaveFn();
-                        lastProximityPeersRef.current.clear();
+                    // Clear proximity when entering a room
+                    if (avatarStore.myProximityGroupId) {
+                        avatarStore.setMyProximityGroup(null);
                     }
+                    lastProximityPeersRef.current.clear();
 
-                    // Enter room
                     handleRoomEntry(currentRoomId, rooms);
                     lastRoomIdRef.current = currentRoomId;
                 }
-                // No proximity processing while in a room
                 return;
             }
 
@@ -344,12 +231,9 @@ export function useProximityAndRooms() {
             }
 
             // ─── 3. Check if currently knocking ─────────────
-            if (avatarStore.knockingAtRoom) {
-                // Don't process proximity while knocking
-                return;
-            }
+            if (avatarStore.knockingAtRoom) return;
 
-            // ─── 4. Calculate nearby users (aura overlap) ───
+            // ─── 4. Calculate nearby users ───────────────────
             const myState = {
                 isDnd: avatarStore.myDnd,
                 isAway: avatarStore.myAway,
@@ -367,13 +251,11 @@ export function useProximityAndRooms() {
                     inRoom: !!peer.roomId,
                 };
 
-                // Check if proximity connection is allowed
                 if (!canFormProximityConnection(myState, peerState)) return;
 
                 const dist = distance(myPos, peer.position);
                 if (dist >= PROXIMITY_RADIUS) return;
 
-                // Check wall blocking
                 if (isBlockedByWall(myPos, peer.position, roomRects)) return;
 
                 nearbyPeers.push({
@@ -383,7 +265,7 @@ export function useProximityAndRooms() {
                 });
             });
 
-            // ─── 5. Update proximity group and volume ───────
+            // ─── 5. Update proximity group (visual) and volume ──
             updateProximityGroup(nearbyPeers);
             updateAdaptiveVolume(nearbyPeers);
 
@@ -391,14 +273,10 @@ export function useProximityAndRooms() {
 
         return () => {
             clearInterval(interval);
-            // Clean up fade-out timers
             fadeOutTimersRef.current.forEach(timer => clearTimeout(timer));
             fadeOutTimersRef.current.clear();
-            // Clean up debounce timers
-            if (joinDebounceRef.current) clearTimeout(joinDebounceRef.current);
-            if (leaveDebounceRef.current) clearTimeout(leaveDebounceRef.current);
         };
-    }, [handleRoomEntry, handleRoomExit, updateProximityGroup, updateAdaptiveVolume, cancelDebounces]);
+    }, [handleRoomEntry, handleRoomExit, updateProximityGroup, updateAdaptiveVolume]);
 
     return {
         proximityRadius: PROXIMITY_RADIUS,
