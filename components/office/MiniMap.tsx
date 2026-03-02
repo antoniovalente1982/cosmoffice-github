@@ -29,6 +29,7 @@ function MiniMapInner() {
     const stagePos = useWorkspaceStore(s => s.stagePos);
     const storeWidth = useWorkspaceStore(s => s.officeWidth);
     const storeHeight = useWorkspaceStore(s => s.officeHeight);
+    const landingPad = useWorkspaceStore(s => s.landingPad);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [hoveredPeer, setHoveredPeer] = useState<string | null>(null);
     const [isDraggingViewport, setIsDraggingViewport] = useState(false);
@@ -274,6 +275,25 @@ function MiniMapInner() {
                                         )}
                                     </g>
                                 ))}
+                                {/* Landing Zone — red pulsing dot */}
+                                <circle
+                                    cx={tx(landingPad.x)} cy={ty(landingPad.y)}
+                                    r={4}
+                                    fill="#ef4444"
+                                    opacity={0.9}
+                                    style={{ filter: 'drop-shadow(0 0 3px rgba(239,68,68,0.8))' }}
+                                />
+                                <circle
+                                    cx={tx(landingPad.x)} cy={ty(landingPad.y)}
+                                    r={7}
+                                    fill="none"
+                                    stroke="#ef4444"
+                                    strokeWidth={0.8}
+                                    opacity={0.4}
+                                >
+                                    <animate attributeName="r" from="4" to="10" dur="2s" repeatCount="indefinite" />
+                                    <animate attributeName="opacity" from="0.5" to="0" dur="2s" repeatCount="indefinite" />
+                                </circle>
                             </svg>
 
                             {/* My position — pulsing blue dot */}

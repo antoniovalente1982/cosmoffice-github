@@ -223,6 +223,7 @@ export function OfficeBuilder() {
             bgOpacity: state.bgOpacity,
             landingPadX: state.landingPad.x,
             landingPadY: state.landingPad.y,
+            landingPadScale: state.landingPadScale,
         };
         const { error } = await supabase.from('spaces').update({ layout_data }).eq('id', activeSpaceId);
         if (error) { setToast({ msg: `❌ Errore DB: ${error.message}`, type: 'err' }); }

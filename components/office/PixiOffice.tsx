@@ -163,47 +163,48 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
 }
 
 // ─── Draw Spaceship Landing Pad ──────────────────────────────────
-function drawSpaceship(container: Container, x: number, y: number, frameCount: number = 0) {
+function drawSpaceship(container: Container, x: number, y: number, frameCount: number = 0, padScale: number = 1) {
     container.removeChildren();
+    const s = padScale;
 
     const beamAlpha = 0.12 + Math.sin(frameCount * 0.05) * 0.06;
 
     // Light beam cone (triangle from ship to ground)
     const beam = new Graphics();
-    beam.moveTo(x - 6, y + 10);
-    beam.lineTo(x + 6, y + 10);
-    beam.lineTo(x + 40, y + 70);
-    beam.lineTo(x - 40, y + 70);
+    beam.moveTo(x - 6 * s, y + 10 * s);
+    beam.lineTo(x + 6 * s, y + 10 * s);
+    beam.lineTo(x + 40 * s, y + 70 * s);
+    beam.lineTo(x - 40 * s, y + 70 * s);
     beam.closePath();
     beam.fill({ color: 0x06b6d4, alpha: beamAlpha });
 
     // Outer glow circle on ground
-    beam.circle(x, y + 70, 45);
+    beam.circle(x, y + 70 * s, 45 * s);
     beam.fill({ color: 0x06b6d4, alpha: beamAlpha * 0.5 });
-    beam.circle(x, y + 70, 30);
+    beam.circle(x, y + 70 * s, 30 * s);
     beam.fill({ color: 0x22d3ee, alpha: beamAlpha * 0.7 });
     container.addChild(beam);
 
     // Ship body (triangle/capsule shape)
     const ship = new Graphics();
     // Main hull
-    ship.moveTo(x, y - 18);
-    ship.lineTo(x + 16, y + 8);
-    ship.lineTo(x + 8, y + 14);
-    ship.lineTo(x - 8, y + 14);
-    ship.lineTo(x - 16, y + 8);
+    ship.moveTo(x, y - 18 * s);
+    ship.lineTo(x + 16 * s, y + 8 * s);
+    ship.lineTo(x + 8 * s, y + 14 * s);
+    ship.lineTo(x - 8 * s, y + 14 * s);
+    ship.lineTo(x - 16 * s, y + 8 * s);
     ship.closePath();
     ship.fill({ color: 0x1e293b, alpha: 0.95 });
     ship.stroke({ color: 0x06b6d4, width: 2, alpha: 0.8 });
 
     // Cockpit window
-    ship.circle(x, y - 2, 5);
+    ship.circle(x, y - 2 * s, 5 * s);
     ship.fill({ color: 0x22d3ee, alpha: 0.7 });
 
     // Engine glow
-    ship.circle(x - 6, y + 12, 3);
+    ship.circle(x - 6 * s, y + 12 * s, 3 * s);
     ship.fill({ color: 0x06b6d4, alpha: 0.6 + Math.sin(frameCount * 0.1) * 0.3 });
-    ship.circle(x + 6, y + 12, 3);
+    ship.circle(x + 6 * s, y + 12 * s, 3 * s);
     ship.fill({ color: 0x06b6d4, alpha: 0.6 + Math.sin(frameCount * 0.1 + 1) * 0.3 });
 
     container.addChild(ship);
@@ -211,14 +212,14 @@ function drawSpaceship(container: Container, x: number, y: number, frameCount: n
     // Label
     const labelStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 8,
+        fontSize: Math.max(7, 8 * s),
         fontWeight: '700',
         fill: 0x06b6d4,
         letterSpacing: 2,
     });
     const label = new Text({ text: 'LANDING ZONE', style: labelStyle });
     label.anchor.set(0.5, 0);
-    label.position.set(x, y + 78);
+    label.position.set(x, y + 78 * s);
     container.addChild(label);
 }
 
@@ -246,6 +247,8 @@ export function PixiOffice() {
     const isPerformanceMode = useWorkspaceStore(s => s.isPerformanceMode);
     const landingPad = useWorkspaceStore(s => s.landingPad);
     const setLandingPad = useWorkspaceStore(s => s.setLandingPad);
+    const landingPadScale = useWorkspaceStore(s => s.landingPadScale);
+    const setLandingPadScale = useWorkspaceStore(s => s.setLandingPadScale);
 
     // Daily store (media state)
     const isMicEnabled = useDailyStore(s => s.isAudioOn);
@@ -370,7 +373,7 @@ export function PixiOffice() {
 
             // Draw initial spaceship
             const padPos = useWorkspaceStore.getState().landingPad;
-            drawSpaceship(spaceshipContainer, padPos.x, padPos.y, 0);
+            drawSpaceship(spaceshipContainer, padPos.x, padPos.y, 0, useWorkspaceStore.getState().landingPadScale);
 
             // Initialize particles
             const oW = useWorkspaceStore.getState().officeWidth || 4000;
@@ -423,7 +426,7 @@ export function PixiOffice() {
                 if (frameCount % 4 === 0 && spaceshipRef.current) {
                     spaceshipFrameRef.current = frameCount;
                     const padPos = useWorkspaceStore.getState().landingPad;
-                    drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount);
+                    drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount, useWorkspaceStore.getState().landingPadScale);
                 }
 
                 // Room connections are now drawn in the rooms useEffect (static)
@@ -991,27 +994,33 @@ export function PixiOffice() {
             {/* Draggable spaceship overlay (builder mode only) */}
             {isBuilderMode && (() => {
                 const padScreen = getScreenPos(landingPad);
+                const ps = landingPadScale;
+                const overlayW = 80 * ps * zoom;
+                const overlayH = 110 * ps * zoom;
                 return (
                     <div
                         data-landing-pad
                         style={{
                             position: 'absolute',
-                            left: padScreen.x - 40 * zoom,
-                            top: padScreen.y - 25 * zoom,
-                            width: 80 * zoom,
-                            height: 110 * zoom,
+                            left: padScreen.x - overlayW / 2,
+                            top: padScreen.y - 25 * ps * zoom,
+                            width: overlayW,
+                            height: overlayH,
                             cursor: isDraggingPad ? 'grabbing' : 'grab',
                             zIndex: 150,
                             borderRadius: 12,
                             border: '2px dashed rgba(6, 182, 212, 0.5)',
                             background: 'rgba(6, 182, 212, 0.05)',
                             display: 'flex',
-                            alignItems: 'flex-end',
-                            justifyContent: 'center',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
                             paddingBottom: 4,
                             pointerEvents: 'auto',
                         }}
                         onMouseDown={(e) => {
+                            // Don't start drag if clicking on resize buttons
+                            if ((e.target as HTMLElement).closest('[data-pad-resize]')) return;
                             e.preventDefault();
                             e.stopPropagation();
                             setIsDraggingPad(true);
@@ -1040,6 +1049,44 @@ export function PixiOffice() {
                             window.addEventListener('mouseup', handleUp);
                         }}
                     >
+                        {/* Resize buttons */}
+                        <div data-pad-resize style={{
+                            display: 'flex',
+                            gap: 4,
+                            marginBottom: 'auto',
+                            marginTop: 4,
+                        }}>
+                            <button
+                                data-pad-resize
+                                onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale - 0.25); }}
+                                style={{
+                                    width: 22, height: 22,
+                                    borderRadius: '50%',
+                                    border: '1px solid rgba(6, 182, 212, 0.5)',
+                                    background: 'rgba(6, 182, 212, 0.15)',
+                                    color: '#06b6d4',
+                                    fontSize: 14, fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    lineHeight: 1,
+                                }}
+                            >−</button>
+                            <button
+                                data-pad-resize
+                                onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale + 0.25); }}
+                                style={{
+                                    width: 22, height: 22,
+                                    borderRadius: '50%',
+                                    border: '1px solid rgba(6, 182, 212, 0.5)',
+                                    background: 'rgba(6, 182, 212, 0.15)',
+                                    color: '#06b6d4',
+                                    fontSize: 14, fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    lineHeight: 1,
+                                }}
+                            >+</button>
+                        </div>
                         <span style={{
                             fontSize: 9 * Math.max(zoom, 0.6),
                             fontWeight: 700,
