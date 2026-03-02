@@ -224,7 +224,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
             {/* Chat Panel */}
             {isOpen && (
                 <div
-                    className="fixed bottom-24 right-6 z-[199] w-[380px] max-h-[520px] rounded-2xl flex flex-col overflow-hidden shadow-2xl"
+                    className="fixed bottom-32 right-6 z-[199] w-[380px] max-h-[480px] rounded-2xl flex flex-col overflow-hidden shadow-2xl"
                     style={{
                         background: 'rgba(10, 15, 30, 0.88)',
                         backdropFilter: 'blur(40px)',

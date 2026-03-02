@@ -17,7 +17,7 @@ import {
     MonitorStop,
     VolumeX,
     Headphones,
-    Map as MapIcon,
+
     SlidersHorizontal,
     Wrench,
     Circle,
@@ -83,7 +83,7 @@ export default function OfficePage() {
 
     // Workspace store
     const activeTab = useWorkspaceStore(s => s.activeTab);
-    const setActiveTab = useWorkspaceStore(s => s.setActiveTab);
+
     const setActiveSpace = useWorkspaceStore(s => s.setActiveSpace);
     const isBuilderMode = useWorkspaceStore(s => s.isBuilderMode);
     const toggleBuilderMode = useWorkspaceStore(s => s.toggleBuilderMode);
@@ -255,8 +255,8 @@ export default function OfficePage() {
                     <Button
                         variant="ghost"
                         className={`w-full justify-start gap-3 transition-all duration-300 relative ${isChatOpen
-                                ? 'bg-cyan-500/20 text-cyan-300 shadow-[inset_0_0_20px_rgba(6,182,212,0.2)]'
-                                : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+                            ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]'
+                            : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
                             }`}
                         onClick={toggleChat}
                     >
@@ -266,14 +266,6 @@ export default function OfficePage() {
                                 {totalChatUnread > 99 ? '99+' : totalChatUnread}
                             </span>
                         )}
-                    </Button>
-
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start gap-3 transition-all duration-300 ${activeTab === 'office' ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'}`}
-                        onClick={() => setActiveTab('office')}
-                    >
-                        <MapIcon className="w-5 h-5" /> Virtual Office
                     </Button>
 
                     <TeamList spaceId={spaceId} />
