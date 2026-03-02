@@ -175,7 +175,7 @@ export default class AvatarServer {
                 const payload = JSON.stringify(outMsg);
 
                 // Find all connection IDs for users in this room
-                for (const [connId, uid] of this.connectionToUser.entries()) {
+                for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
                     const u = this.users.get(uid);
                     if (u && u.roomId === targetRoomId) {
                         // Get the connection object and send directly
