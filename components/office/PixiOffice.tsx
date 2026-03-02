@@ -162,6 +162,66 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
     }
 }
 
+// ─── Draw Spaceship Landing Pad ──────────────────────────────────
+function drawSpaceship(container: Container, x: number, y: number, frameCount: number = 0) {
+    container.removeChildren();
+
+    const beamAlpha = 0.12 + Math.sin(frameCount * 0.05) * 0.06;
+
+    // Light beam cone (triangle from ship to ground)
+    const beam = new Graphics();
+    beam.moveTo(x - 6, y + 10);
+    beam.lineTo(x + 6, y + 10);
+    beam.lineTo(x + 40, y + 70);
+    beam.lineTo(x - 40, y + 70);
+    beam.closePath();
+    beam.fill({ color: 0x06b6d4, alpha: beamAlpha });
+
+    // Outer glow circle on ground
+    beam.circle(x, y + 70, 45);
+    beam.fill({ color: 0x06b6d4, alpha: beamAlpha * 0.5 });
+    beam.circle(x, y + 70, 30);
+    beam.fill({ color: 0x22d3ee, alpha: beamAlpha * 0.7 });
+    container.addChild(beam);
+
+    // Ship body (triangle/capsule shape)
+    const ship = new Graphics();
+    // Main hull
+    ship.moveTo(x, y - 18);
+    ship.lineTo(x + 16, y + 8);
+    ship.lineTo(x + 8, y + 14);
+    ship.lineTo(x - 8, y + 14);
+    ship.lineTo(x - 16, y + 8);
+    ship.closePath();
+    ship.fill({ color: 0x1e293b, alpha: 0.95 });
+    ship.stroke({ color: 0x06b6d4, width: 2, alpha: 0.8 });
+
+    // Cockpit window
+    ship.circle(x, y - 2, 5);
+    ship.fill({ color: 0x22d3ee, alpha: 0.7 });
+
+    // Engine glow
+    ship.circle(x - 6, y + 12, 3);
+    ship.fill({ color: 0x06b6d4, alpha: 0.6 + Math.sin(frameCount * 0.1) * 0.3 });
+    ship.circle(x + 6, y + 12, 3);
+    ship.fill({ color: 0x06b6d4, alpha: 0.6 + Math.sin(frameCount * 0.1 + 1) * 0.3 });
+
+    container.addChild(ship);
+
+    // Label
+    const labelStyle = new TextStyle({
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: 8,
+        fontWeight: '700',
+        fill: 0x06b6d4,
+        letterSpacing: 2,
+    });
+    const label = new Text({ text: 'LANDING ZONE', style: labelStyle });
+    label.anchor.set(0.5, 0);
+    label.position.set(x, y + 78);
+    container.addChild(label);
+}
+
 // ─── Main Component ──────────────────────────────────────────────
 export function PixiOffice() {
     // Avatar store (positions, peers, profile)
@@ -184,6 +244,8 @@ export function PixiOffice() {
     const officeWidth = useWorkspaceStore(s => s.officeWidth);
     const officeHeight = useWorkspaceStore(s => s.officeHeight);
     const isPerformanceMode = useWorkspaceStore(s => s.isPerformanceMode);
+    const landingPad = useWorkspaceStore(s => s.landingPad);
+    const setLandingPad = useWorkspaceStore(s => s.setLandingPad);
 
     // Daily store (media state)
     const isMicEnabled = useDailyStore(s => s.isAudioOn);
@@ -208,6 +270,10 @@ export function PixiOffice() {
     const isPanningRef = useRef(false);
     const panStartRef = useRef({ mouseX: 0, mouseY: 0, stagePosX: 0, stagePosY: 0 });
 
+    // Landing pad dragging state (builder mode only)
+    const [isDraggingPad, setIsDraggingPad] = useState(false);
+    const padDragStartRef = useRef({ mouseX: 0, mouseY: 0, padX: 0, padY: 0 });
+
     // Refs for current zoom/stagePos (avoid stale closures)
     const zoomRef = useRef(zoom);
     const stagePosRef = useRef(stagePos);
@@ -230,6 +296,8 @@ export function PixiOffice() {
     const platformGfxRef = useRef<Graphics | null>(null);
     const particlesRef = useRef<Particle[]>([]);
     const roomLayerRef = useRef<Container | null>(null);
+    const spaceshipRef = useRef<Container | null>(null);
+    const spaceshipFrameRef = useRef(0);
     const [appReady, setAppReady] = useState(false);
 
     const officeBounds = useMemo(() => ({
@@ -294,6 +362,16 @@ export function PixiOffice() {
             world.addChild(roomLayer);
             roomLayerRef.current = roomLayer;
 
+            // Spaceship landing pad layer
+            const spaceshipContainer = new Container();
+            spaceshipContainer.label = 'spaceship';
+            world.addChild(spaceshipContainer);
+            spaceshipRef.current = spaceshipContainer;
+
+            // Draw initial spaceship
+            const padPos = useWorkspaceStore.getState().landingPad;
+            drawSpaceship(spaceshipContainer, padPos.x, padPos.y, 0);
+
             // Initialize particles
             const oW = useWorkspaceStore.getState().officeWidth || 4000;
             const oH = useWorkspaceStore.getState().officeHeight || 4000;
@@ -339,6 +417,13 @@ export function PixiOffice() {
                             pg.fill({ color: 0x6366f1, alpha: p.alpha });
                         });
                     }
+                }
+
+                // ─── Update spaceship beam animation at ~15fps ────
+                if (frameCount % 4 === 0 && spaceshipRef.current) {
+                    spaceshipFrameRef.current = frameCount;
+                    const padPos = useWorkspaceStore.getState().landingPad;
+                    drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount);
                 }
 
                 // Room connections are now drawn in the rooms useEffect (static)
@@ -902,6 +987,72 @@ export function PixiOffice() {
 
             {/* Builder mode: HTML overlay with drag/resize handles */}
             {isBuilderMode && <RoomEditor rooms={rooms} />}
+
+            {/* Draggable spaceship overlay (builder mode only) */}
+            {isBuilderMode && (() => {
+                const padScreen = getScreenPos(landingPad);
+                return (
+                    <div
+                        data-landing-pad
+                        style={{
+                            position: 'absolute',
+                            left: padScreen.x - 40 * zoom,
+                            top: padScreen.y - 25 * zoom,
+                            width: 80 * zoom,
+                            height: 110 * zoom,
+                            cursor: isDraggingPad ? 'grabbing' : 'grab',
+                            zIndex: 150,
+                            borderRadius: 12,
+                            border: '2px dashed rgba(6, 182, 212, 0.5)',
+                            background: 'rgba(6, 182, 212, 0.05)',
+                            display: 'flex',
+                            alignItems: 'flex-end',
+                            justifyContent: 'center',
+                            paddingBottom: 4,
+                            pointerEvents: 'auto',
+                        }}
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsDraggingPad(true);
+                            padDragStartRef.current = {
+                                mouseX: e.clientX,
+                                mouseY: e.clientY,
+                                padX: landingPad.x,
+                                padY: landingPad.y,
+                            };
+
+                            const handleMove = (ev: MouseEvent) => {
+                                const dx = (ev.clientX - padDragStartRef.current.mouseX) / zoom;
+                                const dy = (ev.clientY - padDragStartRef.current.mouseY) / zoom;
+                                const bw = useWorkspaceStore.getState().officeWidth || 4000;
+                                const bh = useWorkspaceStore.getState().officeHeight || 4000;
+                                const newX = Math.max(50, Math.min(padDragStartRef.current.padX + dx, bw - 50));
+                                const newY = Math.max(50, Math.min(padDragStartRef.current.padY + dy, bh - 50));
+                                setLandingPad({ x: newX, y: newY });
+                            };
+                            const handleUp = () => {
+                                setIsDraggingPad(false);
+                                window.removeEventListener('mousemove', handleMove);
+                                window.removeEventListener('mouseup', handleUp);
+                            };
+                            window.addEventListener('mousemove', handleMove);
+                            window.addEventListener('mouseup', handleUp);
+                        }}
+                    >
+                        <span style={{
+                            fontSize: 9 * Math.max(zoom, 0.6),
+                            fontWeight: 700,
+                            color: 'rgba(6, 182, 212, 0.8)',
+                            letterSpacing: 1,
+                            textTransform: 'uppercase',
+                            userSelect: 'none',
+                        }}>
+                            Trascina
+                        </span>
+                    </div>
+                );
+            })()}
         </div>
     );
 }

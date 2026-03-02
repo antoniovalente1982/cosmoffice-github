@@ -81,6 +81,9 @@ interface WorkspaceState {
     furnitureItems: FurnitureItem[];
     roomTemplates: RoomTemplate[];
 
+    // Landing Pad (entrance point)
+    landingPad: { x: number; y: number };
+
     // Actions — space
     setActiveSpace: (spaceId: string) => void;
 
@@ -110,6 +113,7 @@ interface WorkspaceState {
     removeFurniture: (id: string) => void;
     setBgOpacity: (val: number) => void;
     setOfficeDimensions: (width: number, height: number) => void;
+    setLandingPad: (pos: { x: number; y: number }) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -127,6 +131,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     officeWidth: 4000,
     officeHeight: 3000,
     selectedRoomId: null,
+    landingPad: { x: 500, y: 500 },
     furnitureItems: [],
     roomTemplates: [
         { name: 'Open Space', type: 'open', width: 400, height: 300, color: '#3b82f6', icon: '🏢', capacity: 20 },
@@ -156,6 +161,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             officeWidth: 4000,
             officeHeight: 3000,
             bgOpacity: 0.8,
+            landingPad: { x: 500, y: 500 },
         });
     },
 
@@ -201,4 +207,5 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     })),
     setBgOpacity: (bgOpacity) => set({ bgOpacity }),
     setOfficeDimensions: (officeWidth, officeHeight) => set({ officeWidth, officeHeight }),
+    setLandingPad: (landingPad) => set({ landingPad }),
 }));

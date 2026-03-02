@@ -205,6 +205,15 @@ export default function OfficePage() {
                     useAvatarStore.getState().setMyProfile(profile);
                 }
 
+                // Spawn at landing pad with random offset to avoid overlap
+                const pad = useWorkspaceStore.getState().landingPad;
+                const offsetX = (Math.random() - 0.5) * 60; // ±30px
+                const offsetY = (Math.random() - 0.5) * 60;
+                useAvatarStore.getState().setMyPosition({
+                    x: pad.x + offsetX,
+                    y: pad.y + offsetY,
+                });
+
                 // Controlla se l'utente ha già completato il setup dispositivi
                 const hasSetup = useDailyStore.getState().hasCompletedDeviceSetup;
                 if (!hasSetup) {

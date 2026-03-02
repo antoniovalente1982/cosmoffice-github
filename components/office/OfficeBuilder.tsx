@@ -220,7 +220,9 @@ export function OfficeBuilder() {
         const layout_data = {
             officeWidth: state.officeWidth,
             officeHeight: state.officeHeight,
-            bgOpacity: state.bgOpacity
+            bgOpacity: state.bgOpacity,
+            landingPadX: state.landingPad.x,
+            landingPadY: state.landingPad.y,
         };
         const { error } = await supabase.from('spaces').update({ layout_data }).eq('id', activeSpaceId);
         if (error) { setToast({ msg: `❌ Errore DB: ${error.message}`, type: 'err' }); }
@@ -274,7 +276,7 @@ export function OfficeBuilder() {
             // 2. Resize office
             useWorkspaceStore.getState().setOfficeDimensions(template.officeWidth, template.officeHeight);
             await supabase.from('spaces').update({
-                layout_data: { officeWidth: template.officeWidth, officeHeight: template.officeHeight, bgOpacity: useWorkspaceStore.getState().bgOpacity }
+                layout_data: { officeWidth: template.officeWidth, officeHeight: template.officeHeight, bgOpacity: useWorkspaceStore.getState().bgOpacity, landingPadX: useWorkspaceStore.getState().landingPad.x, landingPadY: useWorkspaceStore.getState().landingPad.y }
             }).eq('id', activeSpaceId);
 
             // 3. Create all template rooms
