@@ -72,6 +72,20 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/office', req.url));
   }
 
+  // ── ADMIN ROUTES: Super Admin only ──
+  if (pathname.startsWith('/admin')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_super_admin')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!profile?.is_super_admin) {
+      // Non-admin users get silently redirected — no hint the page exists
+      return NextResponse.redirect(new URL('/office', req.url));
+    }
+  }
+
   // Workspace routes - check membership
   if (pathname.startsWith('/w/')) {
     const workspaceSlug = pathname.split('/')[2];
