@@ -205,6 +205,28 @@ export default function OfficePage() {
                     useAvatarStore.getState().setMyProfile(profile);
                 }
 
+                // Fetch landing pad position directly from DB (no race condition)
+                let padX = 500, padY = 500, padScale = 1;
+                const { data: space } = await supabase
+                    .from('spaces')
+                    .select('layout_data')
+                    .eq('id', spaceId)
+                    .single();
+                if (space?.layout_data) {
+                    const ld = space.layout_data as any;
+                    if (typeof ld.landingPadX === 'number') padX = ld.landingPadX;
+                    if (typeof ld.landingPadY === 'number') padY = ld.landingPadY;
+                    if (typeof ld.landingPadScale === 'number') padScale = ld.landingPadScale;
+                }
+
+                // Spawn below the spaceship, in the light beam zone
+                const offsetX = (Math.random() - 0.5) * 60; // ±30px
+                const offsetY = (Math.random() - 0.5) * 40;
+                useAvatarStore.getState().setMyPosition({
+                    x: padX + offsetX,
+                    y: padY + 70 * padScale + offsetY,
+                });
+
                 // Controlla se l'utente ha già completato il setup dispositivi
                 const hasSetup = useDailyStore.getState().hasCompletedDeviceSetup;
                 if (!hasSetup) {
@@ -215,27 +237,6 @@ export default function OfficePage() {
         };
         getUser();
     }, [supabase, router, spaceId, setActiveSpace]);
-
-    // Spawn avatar at landing pad AFTER useOffice has loaded it from DB
-    const hasSpawnedRef = useRef(false);
-    const landingPad = useWorkspaceStore(s => s.landingPad);
-    useEffect(() => {
-        if (hasSpawnedRef.current) return;
-        // Wait until useOffice has loaded (landingPad won't be exactly at default 500,500 if DB has a saved value,
-        // but even if it IS the default, we spawn after a short delay to let useOffice finish)
-        const timer = setTimeout(() => {
-            if (hasSpawnedRef.current) return;
-            hasSpawnedRef.current = true;
-            const pad = useWorkspaceStore.getState().landingPad;
-            const offsetX = (Math.random() - 0.5) * 60; // ±30px
-            const offsetY = (Math.random() - 0.5) * 60;
-            useAvatarStore.getState().setMyPosition({
-                x: pad.x + offsetX,
-                y: pad.y + offsetY,
-            });
-        }, 800); // Give useOffice time to fetch from Supabase
-        return () => clearTimeout(timer);
-    }, [landingPad]);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();

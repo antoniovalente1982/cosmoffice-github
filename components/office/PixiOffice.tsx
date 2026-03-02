@@ -299,6 +299,35 @@ export function PixiOffice() {
     const [isDraggingPad, setIsDraggingPad] = useState(false);
     const padDragStartRef = useRef({ mouseX: 0, mouseY: 0, padX: 0, padY: 0 });
 
+    // Landing pad drag effect — global window listeners (same pattern as RoomEditor)
+    useEffect(() => {
+        if (!isDraggingPad) return;
+
+        const handleMove = (ev: MouseEvent) => {
+            const z = useWorkspaceStore.getState().zoom || 1;
+            const dx = (ev.clientX - padDragStartRef.current.mouseX) / z;
+            const dy = (ev.clientY - padDragStartRef.current.mouseY) / z;
+            const bw = useWorkspaceStore.getState().officeWidth || 4000;
+            const bh = useWorkspaceStore.getState().officeHeight || 4000;
+            const newX = Math.max(50, Math.min(padDragStartRef.current.padX + dx, bw - 50));
+            const newY = Math.max(50, Math.min(padDragStartRef.current.padY + dy, bh - 50));
+            setLandingPad({ x: newX, y: newY });
+        };
+
+        const handleUp = () => {
+            setIsDraggingPad(false);
+            // Auto-save to DB
+            saveLandingPadToDb();
+        };
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+        };
+    }, [isDraggingPad, setLandingPad, saveLandingPadToDb]);
+
     // Refs for current zoom/stagePos (avoid stale closures)
     const zoomRef = useRef(zoom);
     const stagePosRef = useRef(stagePos);
@@ -605,6 +634,8 @@ export function PixiOffice() {
             if ((e.target as HTMLElement).closest('[data-avatar]')) return;
             // Don't pan if interacting with room editor (drag/resize in builder mode)
             if ((e.target as HTMLElement).closest('[data-room-editor]')) return;
+            // Don't pan if interacting with landing pad
+            if ((e.target as HTMLElement).closest('[data-landing-pad]')) return;
 
             isPanningRef.current = true;
             panStartRef.current = {
@@ -1016,112 +1047,112 @@ export function PixiOffice() {
             {/* Draggable spaceship overlay (builder mode only) */}
             {isBuilderMode && (() => {
                 const padScreen = getScreenPos(landingPad);
-                const ps = landingPadScale;
-                const overlayW = 80 * ps * zoom;
-                const overlayH = 110 * ps * zoom;
+                // Fixed overlay size — doesn't scale with padScale, always easy to grab
+                const overlayW = 90;
+                const overlayH = 100;
                 return (
-                    <div
-                        data-landing-pad
-                        style={{
-                            position: 'absolute',
-                            left: padScreen.x - overlayW / 2,
-                            top: padScreen.y - 25 * ps * zoom,
-                            width: overlayW,
-                            height: overlayH,
-                            cursor: isDraggingPad ? 'grabbing' : 'grab',
-                            zIndex: 150,
-                            borderRadius: 12,
-                            border: '2px dashed rgba(6, 182, 212, 0.5)',
-                            background: 'rgba(6, 182, 212, 0.05)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'flex-end',
-                            paddingBottom: 4,
-                            pointerEvents: 'auto',
-                        }}
-                        onMouseDown={(e) => {
-                            // Don't start drag if clicking on resize buttons
-                            if ((e.target as HTMLElement).closest('[data-pad-resize]')) return;
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setIsDraggingPad(true);
-                            padDragStartRef.current = {
-                                mouseX: e.clientX,
-                                mouseY: e.clientY,
-                                padX: landingPad.x,
-                                padY: landingPad.y,
-                            };
-
-                            const handleMove = (ev: MouseEvent) => {
-                                const dx = (ev.clientX - padDragStartRef.current.mouseX) / zoom;
-                                const dy = (ev.clientY - padDragStartRef.current.mouseY) / zoom;
-                                const bw = useWorkspaceStore.getState().officeWidth || 4000;
-                                const bh = useWorkspaceStore.getState().officeHeight || 4000;
-                                const newX = Math.max(50, Math.min(padDragStartRef.current.padX + dx, bw - 50));
-                                const newY = Math.max(50, Math.min(padDragStartRef.current.padY + dy, bh - 50));
-                                setLandingPad({ x: newX, y: newY });
-                            };
-                            const handleUp = () => {
-                                setIsDraggingPad(false);
-                                window.removeEventListener('mousemove', handleMove);
-                                window.removeEventListener('mouseup', handleUp);
-                                // Auto-save to DB
-                                saveLandingPadToDb();
-                            };
-                            window.addEventListener('mousemove', handleMove);
-                            window.addEventListener('mouseup', handleUp);
-                        }}
-                    >
-                        {/* Resize buttons */}
-                        <div data-pad-resize style={{
-                            display: 'flex',
-                            gap: 4,
-                            marginBottom: 'auto',
-                            marginTop: 4,
-                        }}>
+                    <>
+                        {/* Scale toolbar — fixed size, above the spaceship */}
+                        <div
+                            data-landing-pad
+                            style={{
+                                position: 'absolute',
+                                left: padScreen.x - 50,
+                                top: padScreen.y - 30 * landingPadScale * zoom - 40,
+                                width: 100,
+                                height: 32,
+                                zIndex: 160,
+                                pointerEvents: 'auto',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 6,
+                                background: 'rgba(10, 15, 30, 0.9)',
+                                borderRadius: 8,
+                                border: '1px solid rgba(6, 182, 212, 0.4)',
+                                backdropFilter: 'blur(8px)',
+                            }}
+                        >
                             <button
-                                data-pad-resize
                                 onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale - 0.25); setTimeout(saveLandingPadToDb, 100); }}
                                 style={{
-                                    width: 22, height: 22,
-                                    borderRadius: '50%',
+                                    width: 24, height: 24,
+                                    borderRadius: 6,
                                     border: '1px solid rgba(6, 182, 212, 0.5)',
                                     background: 'rgba(6, 182, 212, 0.15)',
                                     color: '#06b6d4',
-                                    fontSize: 14, fontWeight: 700,
+                                    fontSize: 16, fontWeight: 700,
                                     cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     lineHeight: 1,
                                 }}
                             >−</button>
+                            <span style={{
+                                fontSize: 11, fontWeight: 700,
+                                color: '#22d3ee',
+                                minWidth: 32, textAlign: 'center',
+                                userSelect: 'none',
+                            }}>{Math.round(landingPadScale * 100)}%</span>
                             <button
-                                data-pad-resize
                                 onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale + 0.25); setTimeout(saveLandingPadToDb, 100); }}
                                 style={{
-                                    width: 22, height: 22,
-                                    borderRadius: '50%',
+                                    width: 24, height: 24,
+                                    borderRadius: 6,
                                     border: '1px solid rgba(6, 182, 212, 0.5)',
                                     background: 'rgba(6, 182, 212, 0.15)',
                                     color: '#06b6d4',
-                                    fontSize: 14, fontWeight: 700,
+                                    fontSize: 16, fontWeight: 700,
                                     cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     lineHeight: 1,
                                 }}
                             >+</button>
                         </div>
-                        <span style={{
-                            fontSize: 9 * Math.max(zoom, 0.6),
-                            fontWeight: 700,
-                            color: 'rgba(6, 182, 212, 0.8)',
-                            letterSpacing: 1,
-                            textTransform: 'uppercase',
-                            userSelect: 'none',
-                        }}>
-                            Trascina
-                        </span>
-                    </div>
+
+                        {/* Drag area — fixed comfortable size */}
+                        <div
+                            data-landing-pad
+                            style={{
+                                position: 'absolute',
+                                left: padScreen.x - overlayW / 2,
+                                top: padScreen.y - 25 * landingPadScale * zoom,
+                                width: overlayW,
+                                height: overlayH,
+                                cursor: isDraggingPad ? 'grabbing' : 'grab',
+                                zIndex: 150,
+                                borderRadius: 12,
+                                border: '2px dashed rgba(6, 182, 212, 0.5)',
+                                background: 'rgba(6, 182, 212, 0.05)',
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                justifyContent: 'center',
+                                paddingBottom: 6,
+                                pointerEvents: 'auto',
+                            }}
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsDraggingPad(true);
+                                padDragStartRef.current = {
+                                    mouseX: e.clientX,
+                                    mouseY: e.clientY,
+                                    padX: landingPad.x,
+                                    padY: landingPad.y,
+                                };
+                            }}
+                        >
+                            <span style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: 'rgba(6, 182, 212, 0.8)',
+                                letterSpacing: 1,
+                                textTransform: 'uppercase',
+                                userSelect: 'none',
+                            }}>
+                                ✦ Trascina
+                            </span>
+                        </div>
+                    </>
                 );
             })()}
         </div>
