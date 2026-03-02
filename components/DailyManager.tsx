@@ -396,12 +396,11 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     }, [joinDailyContext, leaveDailyContext]);
 
     // ─── MEDIA-TRIGGERED JOIN/LEAVE (core optimization) ─────
-    // Daily connects ONLY when user enables mic/cam, not on movement.
-    // Proximity engine sets myProximityGroupId in avatarStore (visual only).
-    // This effect reads it to decide whether to join Daily.
+    // Daily connects ONLY when user enables mic/cam.
+    // Rooms and proximity set state in avatarStore (visual only).
+    // This effect reads that state to decide whether to join Daily.
     useEffect(() => {
         const anyMediaOn = isAudioOn || isVideoOn;
-        const dailyStore = useDailyStore.getState();
         const avatarStore = useAvatarStore.getState();
         const proximityGroupId = avatarStore.myProximityGroupId;
         const myRoomId = avatarStore.myRoomId;
@@ -415,7 +414,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                     callRef.current.setLocalVideo(isVideoOn);
                 }
             } else if (myRoomId) {
-                // In a room → join room context (rooms may already be joined by proximity engine)
+                // In a room → join room context
                 joinDailyContext('room', myRoomId);
             } else if (proximityGroupId) {
                 // Near someone → join proximity context
@@ -423,15 +422,13 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             }
             // If alone (no room, no proximity) → do nothing, just toggle local state
         } else {
-            // Both mic and cam OFF
-            if (joinedRef.current && dailyStore.activeContext === 'proximity') {
-                // In proximity context → leave Daily (stop billing!)
+            // Both mic and cam OFF → ALWAYS leave Daily (stop billing!)
+            if (joinedRef.current) {
                 leaveDailyContext();
-                console.log('[Daily] Both mic+cam OFF → left proximity (billing stopped)');
+                console.log('[Daily] Both mic+cam OFF → left Daily (billing stopped)');
             }
-            // If in a room context → stay connected (rooms are explicit)
 
-            // Safari fix: stop hardware tracks when turning off
+            // Stop hardware tracks
             if (!isAudioOn) {
                 const audioTrack = gLocalTracks.get('audio');
                 if (audioTrack) {
@@ -448,12 +445,6 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             }
             const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
             useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
-
-            // Sync with Daily if still connected (room context)
-            if (callRef.current && joinedRef.current) {
-                callRef.current.setLocalAudio(false);
-                callRef.current.setLocalVideo(false);
-            }
         }
     }, [isAudioOn, isVideoOn, joinDailyContext, leaveDailyContext]);
 
@@ -469,7 +460,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             const oldGroup = prevState.myProximityGroupId;
             const dailyStore = useDailyStore.getState();
 
-            // Skip if in a room (rooms manage their own Daily connection)
+            // Skip if in a room (rooms manage their own Daily connection below)
             if (state.myRoomId) return;
 
             if (newGroup && newGroup !== oldGroup) {
@@ -482,6 +473,58 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             }
         });
         return unsubscribe;
+    }, [joinDailyContext, leaveDailyContext]);
+
+    // ─── Watch room changes while media is ON (debounced) ─────
+    // Handles: enter room with mic on → join, leave room with mic on → leave/switch
+    // Debounce prevents leave+join spam when walking between rooms quickly.
+    const roomDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const unsubscribe = useAvatarStore.subscribe((state, prevState) => {
+            const newRoomId = state.myRoomId;
+            const oldRoomId = prevState.myRoomId;
+            if (newRoomId === oldRoomId) return;
+
+            const anyMediaOn = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
+            if (!anyMediaOn) return; // No media = no Daily needed, skip entirely
+
+            // Clear pending debounce
+            if (roomDebounceRef.current) {
+                clearTimeout(roomDebounceRef.current);
+                roomDebounceRef.current = null;
+            }
+
+            // Debounce 300ms: A→corridor→B in <300ms = skip corridor
+            roomDebounceRef.current = setTimeout(() => {
+                roomDebounceRef.current = null;
+                // Re-check media (might have turned off during debounce)
+                const stillMediaOn = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
+                if (!stillMediaOn) return;
+
+                const currentRoomId = useAvatarStore.getState().myRoomId;
+
+                if (currentRoomId) {
+                    // Entered a room with media ON → join room Daily context
+                    joinDailyContext('room', currentRoomId);
+                    console.log('[Daily] Room entered with media → joining:', currentRoomId.slice(0, 8));
+                } else {
+                    // Left room with media ON → check proximity or leave
+                    const proxGroup = useAvatarStore.getState().myProximityGroupId;
+                    if (proxGroup) {
+                        joinDailyContext('proximity', proxGroup);
+                        console.log('[Daily] Left room with media → switched to proximity');
+                    } else if (joinedRef.current) {
+                        leaveDailyContext();
+                        console.log('[Daily] Left room with media → no one nearby, left Daily');
+                    }
+                }
+            }, 300);
+        });
+        return () => {
+            unsubscribe();
+            if (roomDebounceRef.current) clearTimeout(roomDebounceRef.current);
+        };
     }, [joinDailyContext, leaveDailyContext]);
 
 
