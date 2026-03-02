@@ -51,8 +51,13 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (emoji: string) => void;
     return (
         <div
             ref={ref}
-            className="absolute bottom-full mb-2 left-0 p-2 rounded-xl grid grid-cols-6 gap-1 z-50 shadow-2xl"
+            className="absolute bottom-full mb-2 left-0 rounded-xl z-50 shadow-2xl"
             style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(6, 36px)',
+                gap: '4px',
+                padding: '8px',
+                width: '244px',
                 background: 'rgba(15, 20, 40, 0.95)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255,255,255,0.1)',
@@ -63,7 +68,9 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (emoji: string) => void;
                 <button
                     key={emoji}
                     onClick={() => { onSelect(emoji); onClose(); }}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors text-lg"
+                    style={{ width: '36px', height: '36px', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', cursor: 'pointer', background: 'transparent', border: 'none' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                     {emoji}
                 </button>
@@ -213,31 +220,6 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
 
     return (
         <>
-            {/* Chat Toggle Button */}
-            <button
-                onClick={toggleChat}
-                className="fixed bottom-6 right-6 z-[200] w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all transform hover:scale-105 active:scale-95 group"
-                style={{
-                    background: isOpen
-                        ? 'rgba(15, 23, 42, 0.9)'
-                        : 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    boxShadow: isOpen ? 'none' : '0 0 30px rgba(6, 182, 212, 0.3)',
-                }}
-            >
-                {isOpen ? (
-                    <X className="w-5 h-5 text-slate-300" />
-                ) : (
-                    <MessageCircle className="w-6 h-6 text-white" />
-                )}
-
-                {/* Unread badge */}
-                {!isOpen && totalUnread > 0 && (
-                    <div className="absolute -top-1 -right-1 min-w-[22px] h-[22px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1.5 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-bounce">
-                        {totalUnread > 99 ? '99+' : totalUnread}
-                    </div>
-                )}
-            </button>
 
             {/* Chat Panel */}
             {isOpen && (
@@ -280,8 +262,8 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                         <button
                             onClick={() => setActiveChannel('room')}
                             className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-all relative ${isRoomChannel
-                                    ? 'text-cyan-300'
-                                    : 'text-slate-500 hover:text-slate-300'
+                                ? 'text-cyan-300'
+                                : 'text-slate-500 hover:text-slate-300'
                                 }`}
                         >
                             <DoorOpen className="w-3.5 h-3.5" />
@@ -298,8 +280,8 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                         <button
                             onClick={() => setActiveChannel('office')}
                             className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-all relative ${!isRoomChannel
-                                    ? 'text-cyan-300'
-                                    : 'text-slate-500 hover:text-slate-300'
+                                ? 'text-cyan-300'
+                                : 'text-slate-500 hover:text-slate-300'
                                 }`}
                         >
                             <Globe className="w-3.5 h-3.5" />
@@ -444,8 +426,8 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                                     <button
                                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${showEmojiPicker
-                                                ? 'bg-cyan-500/20 text-cyan-300'
-                                                : 'bg-white/[0.04] text-slate-500 hover:text-slate-300 hover:bg-white/[0.08]'
+                                            ? 'bg-cyan-500/20 text-cyan-300'
+                                            : 'bg-white/[0.04] text-slate-500 hover:text-slate-300 hover:bg-white/[0.08]'
                                             }`}
                                         title="Emoji"
                                     >

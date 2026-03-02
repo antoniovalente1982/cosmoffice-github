@@ -22,7 +22,8 @@ import {
     Wrench,
     Circle,
     UserPlus,
-    Grid3X3
+    Grid3X3,
+    MessageCircle
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
@@ -42,6 +43,7 @@ const RoomChat = dynamic(() => import('../../../components/office/RoomChat').the
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
 import { useWorkspaceStore } from '../../../stores/workspaceStore';
+import { useChatStore } from '../../../stores/chatStore';
 import { useOffice } from '../../../hooks/useOffice';
 import { useWorkspaceRole, getWorkspaceIdFromSpace } from '../../../hooks/useWorkspaceRole';
 import { useAvatarSync } from '../../../hooks/useAvatarSync';
@@ -71,6 +73,13 @@ export default function OfficePage() {
     // Avatar store
     const myStatus = useAvatarStore(s => s.myStatus);
     const setMyStatus = useAvatarStore(s => s.setMyStatus);
+
+    // Chat store
+    const isChatOpen = useChatStore(s => s.isOpen);
+    const chatUnread = useChatStore(s => s.unreadCount);
+    const officeChatUnread = useChatStore(s => s.officeUnreadCount);
+    const toggleChat = useChatStore(s => s.toggleChat);
+    const totalChatUnread = chatUnread + officeChatUnread;
 
     // Workspace store
     const activeTab = useWorkspaceStore(s => s.activeTab);
@@ -243,6 +252,22 @@ export default function OfficePage() {
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start gap-3 transition-all duration-300 relative ${isChatOpen
+                                ? 'bg-cyan-500/20 text-cyan-300 shadow-[inset_0_0_20px_rgba(6,182,212,0.2)]'
+                                : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+                            }`}
+                        onClick={toggleChat}
+                    >
+                        <MessageCircle className="w-5 h-5" /> Chat
+                        {totalChatUnread > 0 && (
+                            <span className="ml-auto min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1.5 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse">
+                                {totalChatUnread > 99 ? '99+' : totalChatUnread}
+                            </span>
+                        )}
+                    </Button>
+
                     <Button
                         variant="ghost"
                         className={`w-full justify-start gap-3 transition-all duration-300 ${activeTab === 'office' ? 'bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'}`}
