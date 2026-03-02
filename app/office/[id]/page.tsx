@@ -370,138 +370,140 @@ export default function OfficePage() {
                     )}
                 </motion.div>
 
-                {/* Bottom Controls — positioned relative to <main>, centered excluding sidebar */}
+                {/* Bottom Controls — centered via flex (not transform, to avoid Framer Motion conflict) */}
                 {activeTab === 'office' && (
-                    <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
-                        className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-full glass border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50"
-                    >
-                        {/* Toggle Remote Audio - hear others or focus mode */}
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className={`rounded-full w-12 h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]'}`}
-                            onClick={toggleRemoteAudio}
-                            title={isRemoteAudioEnabled ? 'Audio in entrata attivo - Clicca per silenziare gli altri' : 'Modalità Focus - Audio degli altri disattivato'}
+                    <div className="absolute bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
+                        <motion.div
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
+                            className="pointer-events-auto flex items-center gap-3 px-6 py-3 rounded-full glass border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
                         >
-                            {isRemoteAudioEnabled ? <Headphones className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                        </Button>
-
-                        <Button
-                            variant={isMicEnabled ? "secondary" : "default"}
-                            size="icon"
-                            className={`rounded-full w-12 h-12 transition-all glow-button ${isMicEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
-                            onClick={async () => await toggleMic()}
-                        >
-                            {isMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-                        </Button>
-                        <Button
-                            variant={isVideoEnabled ? "secondary" : "default"}
-                            size="icon"
-                            className={`rounded-full w-12 h-12 transition-all glow-button ${isVideoEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
-                            onClick={async () => await toggleVideo()}
-                        >
-                            {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-                        </Button>
-                        <Button
-                            variant={isScreenSharing ? "default" : "secondary"}
-                            size="icon"
-                            className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                            onClick={isScreenSharing ? stopAllScreens : startScreenShare}
-                            title={isScreenSharing ? `Stop tutti gli schermi (${screenStreams.length})` : 'Condividi schermo'}
-                        >
-                            {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
-                        </Button>
-
-                        {isScreenSharing && (
+                            {/* Toggle Remote Audio - hear others or focus mode */}
                             <Button
                                 variant="secondary"
                                 size="icon"
-                                className="rounded-full w-10 h-12 bg-emerald-500/80 hover:bg-emerald-500 text-white transition-all glow-button"
-                                onClick={startScreenShare}
-                                title="Aggiungi altro schermo"
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]'}`}
+                                onClick={toggleRemoteAudio}
+                                title={isRemoteAudioEnabled ? 'Audio in entrata attivo - Clicca per silenziare gli altri' : 'Modalità Focus - Audio degli altri disattivato'}
                             >
-                                <span className="text-lg font-bold">+</span>
+                                {isRemoteAudioEnabled ? <Headphones className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
                             </Button>
-                        )}
 
-                        {/* Grid View Toggle */}
-                        <Button
-                            variant={isGridViewOpen ? "default" : "secondary"}
-                            size="icon"
-                            className={`rounded-full w-12 h-12 transition-all glow-button ${isGridViewOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                            onClick={toggleGridView}
-                            title={isGridViewOpen ? 'Chiudi vista griglia' : 'Apri vista griglia videocall'}
-                        >
-                            <Grid3X3 className="w-5 h-5" />
-                        </Button>
-
-                        <div className="w-px h-8 bg-white/10 mx-1"></div>
-
-                        {/* Status Selector */}
-                        <button
-                            onClick={() => {
-                                const states: Array<'online' | 'away' | 'busy'> = ['online', 'away', 'busy'];
-                                const idx = states.indexOf(myStatus as any);
-                                const next = states[(idx + 1) % states.length];
-                                setMyStatus(next);
-                            }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-all text-xs font-medium min-w-[100px] justify-center"
-                            title="Cambia stato"
-                        >
-                            <Circle className={`w-3 h-3 fill-current ${myStatus === 'online' ? 'text-emerald-400' :
-                                myStatus === 'away' ? 'text-amber-400' :
-                                    'text-red-400'
-                                }`} />
-                            <span className="text-slate-300 w-[60px] text-center">
-                                {myStatus === 'online' ? 'Online' : myStatus === 'away' ? 'Assente' : 'Occupato'}
-                            </span>
-                        </button>
-
-                        <div className="w-px h-8 bg-white/10 mx-1"></div>
-
-                        {/* Builder Mode Toggle - only for admins */}
-                        {isAdmin && (
                             <Button
-                                variant={isBuilderMode ? "default" : "secondary"}
+                                variant={isMicEnabled ? "secondary" : "default"}
                                 size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isBuilderMode ? 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                onClick={toggleBuilderMode}
-                                title={isBuilderMode ? 'Esci dal Builder' : 'Modifica Ufficio'}
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isMicEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
+                                onClick={async () => await toggleMic()}
                             >
-                                <Wrench className="w-5 h-5" />
+                                {isMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
                             </Button>
-                        )}
+                            <Button
+                                variant={isVideoEnabled ? "secondary" : "default"}
+                                size="icon"
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isVideoEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
+                                onClick={async () => await toggleVideo()}
+                            >
+                                {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                            </Button>
+                            <Button
+                                variant={isScreenSharing ? "default" : "secondary"}
+                                size="icon"
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                onClick={isScreenSharing ? stopAllScreens : startScreenShare}
+                                title={isScreenSharing ? `Stop tutti gli schermi (${screenStreams.length})` : 'Condividi schermo'}
+                            >
+                                {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                            </Button>
 
-                        {/* Pulsante per aprire la Cabina di Regia */}
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="rounded-full w-12 h-12 bg-slate-700/50 hover:bg-indigo-500/50 text-slate-200 hover:text-white transition-all glow-button"
-                            onClick={() => setIsDeviceSettingsOpen(true)}
-                            title="Cabina di Regia - Cambia dispositivi"
-                        >
-                            <SlidersHorizontal className="w-5 h-5" />
-                        </Button>
-                        {/* Chat Toggle */}
-                        <Button
-                            variant={isChatOpen ? "default" : "secondary"}
-                            size="icon"
-                            className={`rounded-full w-12 h-12 transition-all glow-button relative ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                            onClick={toggleChat}
-                            title={isChatOpen ? 'Chiudi Chat' : 'Apri Chat'}
-                        >
-                            <MessageCircle className="w-5 h-5" />
-                            {totalChatUnread > 0 && (
-                                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse">
-                                    {totalChatUnread > 99 ? '99+' : totalChatUnread}
-                                </span>
+                            {isScreenSharing && (
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="rounded-full w-10 h-12 bg-emerald-500/80 hover:bg-emerald-500 text-white transition-all glow-button"
+                                    onClick={startScreenShare}
+                                    title="Aggiungi altro schermo"
+                                >
+                                    <span className="text-lg font-bold">+</span>
+                                </Button>
                             )}
-                        </Button>
-                        <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
-                    </motion.div>
+
+                            {/* Grid View Toggle */}
+                            <Button
+                                variant={isGridViewOpen ? "default" : "secondary"}
+                                size="icon"
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isGridViewOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                onClick={toggleGridView}
+                                title={isGridViewOpen ? 'Chiudi vista griglia' : 'Apri vista griglia videocall'}
+                            >
+                                <Grid3X3 className="w-5 h-5" />
+                            </Button>
+
+                            <div className="w-px h-8 bg-white/10 mx-1"></div>
+
+                            {/* Status Selector */}
+                            <button
+                                onClick={() => {
+                                    const states: Array<'online' | 'away' | 'busy'> = ['online', 'away', 'busy'];
+                                    const idx = states.indexOf(myStatus as any);
+                                    const next = states[(idx + 1) % states.length];
+                                    setMyStatus(next);
+                                }}
+                                className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-all text-xs font-medium min-w-[100px] justify-center"
+                                title="Cambia stato"
+                            >
+                                <Circle className={`w-3 h-3 fill-current ${myStatus === 'online' ? 'text-emerald-400' :
+                                    myStatus === 'away' ? 'text-amber-400' :
+                                        'text-red-400'
+                                    }`} />
+                                <span className="text-slate-300 w-[60px] text-center">
+                                    {myStatus === 'online' ? 'Online' : myStatus === 'away' ? 'Assente' : 'Occupato'}
+                                </span>
+                            </button>
+
+                            <div className="w-px h-8 bg-white/10 mx-1"></div>
+
+                            {/* Builder Mode Toggle - only for admins */}
+                            {isAdmin && (
+                                <Button
+                                    variant={isBuilderMode ? "default" : "secondary"}
+                                    size="icon"
+                                    className={`rounded-full w-12 h-12 transition-all glow-button ${isBuilderMode ? 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                    onClick={toggleBuilderMode}
+                                    title={isBuilderMode ? 'Esci dal Builder' : 'Modifica Ufficio'}
+                                >
+                                    <Wrench className="w-5 h-5" />
+                                </Button>
+                            )}
+
+                            {/* Pulsante per aprire la Cabina di Regia */}
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                className="rounded-full w-12 h-12 bg-slate-700/50 hover:bg-indigo-500/50 text-slate-200 hover:text-white transition-all glow-button"
+                                onClick={() => setIsDeviceSettingsOpen(true)}
+                                title="Cabina di Regia - Cambia dispositivi"
+                            >
+                                <SlidersHorizontal className="w-5 h-5" />
+                            </Button>
+                            {/* Chat Toggle */}
+                            <Button
+                                variant={isChatOpen ? "default" : "secondary"}
+                                size="icon"
+                                className={`rounded-full w-12 h-12 transition-all glow-button relative ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                onClick={toggleChat}
+                                title={isChatOpen ? 'Chiudi Chat' : 'Apri Chat'}
+                            >
+                                <MessageCircle className="w-5 h-5" />
+                                {totalChatUnread > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse">
+                                        {totalChatUnread > 99 ? '99+' : totalChatUnread}
+                                    </span>
+                                )}
+                            </Button>
+                            <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
+                        </motion.div>
+                    </div>
                 )}
                 {isManagementOpen && <OfficeManagement spaceId={spaceId} onClose={() => setIsManagementOpen(false)} />}
 
