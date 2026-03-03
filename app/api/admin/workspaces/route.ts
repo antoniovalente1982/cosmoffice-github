@@ -512,6 +512,37 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ success: true, suspended: ids.length });
             }
 
+            case 'bulk_reactivate': {
+                const ids: string[] = body.workspaceIds;
+                if (!ids || !Array.isArray(ids) || ids.length === 0) {
+                    return NextResponse.json({ error: 'workspaceIds richiesti' }, { status: 400 });
+                }
+
+                for (const wsId of ids) {
+                    await supabase.from('workspaces')
+                        .update({ suspended_at: null, suspended_by: null })
+                        .eq('id', wsId);
+
+                    await supabase.from('workspace_members')
+                        .update({ is_suspended: false })
+                        .eq('workspace_id', wsId)
+                        .is('removed_at', null);
+
+                    const ownId = await getOwnerUserId(wsId);
+                    const { data: wsData } = await supabase.from('workspaces').select('name').eq('id', wsId).single();
+                    if (ownId) {
+                        await sendNotification(
+                            ownId,
+                            '✅ Workspace Riattivato',
+                            `Il workspace "${wsData?.name || ''}" è stato riattivato dall'amministratore.`,
+                            'workspace', wsId
+                        );
+                    }
+                }
+
+                return NextResponse.json({ success: true, reactivated: ids.length });
+            }
+
             default:
                 return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
         }

@@ -233,7 +233,7 @@ export default function CustomersPage() {
 
     const deselectAll = () => setSelectedWs(new Set());
 
-    const executeBulkAction = async (action: 'bulk_delete' | 'bulk_suspend') => {
+    const executeBulkAction = async (action: 'bulk_delete' | 'bulk_suspend' | 'bulk_reactivate') => {
         if (selectedWs.size === 0) return;
         setBulkLoading(true);
         try {
@@ -244,9 +244,12 @@ export default function CustomersPage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
-            showFeedback('success', action === 'bulk_delete'
-                ? `${selectedWs.size} workspace eliminati definitivamente`
-                : `${selectedWs.size} workspace sospesi`);
+            const msgs: Record<string, string> = {
+                bulk_delete: `${selectedWs.size} workspace eliminati definitivamente`,
+                bulk_suspend: `${selectedWs.size} workspace sospesi`,
+                bulk_reactivate: `${selectedWs.size} workspace riattivati`,
+            };
+            showFeedback('success', msgs[action]);
             setSelectedWs(new Set());
             await fetchData();
         } catch (err: any) {
@@ -267,8 +270,8 @@ export default function CustomersPage() {
         if (confirmAction.confirmWord && confirmText !== confirmAction.confirmWord) return;
 
         // Route bulk actions
-        if (confirmAction.action === 'bulk_delete' || confirmAction.action === 'bulk_suspend') {
-            const action = confirmAction.action as 'bulk_delete' | 'bulk_suspend';
+        if (confirmAction.action === 'bulk_delete' || confirmAction.action === 'bulk_suspend' || confirmAction.action === 'bulk_reactivate') {
+            const action = confirmAction.action as 'bulk_delete' | 'bulk_suspend' | 'bulk_reactivate';
             const wsIds = bulkIdsRef.current;
             console.log('[BULK] Executing', action, 'with IDs:', wsIds);
 
@@ -291,9 +294,12 @@ export default function CustomersPage() {
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error);
-                showFeedback('success', action === 'bulk_delete'
-                    ? `${wsIds.length} workspace eliminati definitivamente`
-                    : `${wsIds.length} workspace sospesi`);
+                const msgs: Record<string, string> = {
+                    bulk_delete: `${wsIds.length} workspace eliminati definitivamente`,
+                    bulk_suspend: `${wsIds.length} workspace sospesi`,
+                    bulk_reactivate: `${wsIds.length} workspace riattivati`,
+                };
+                showFeedback('success', msgs[action]);
                 setSelectedWs(new Set());
                 await fetchData();
             } catch (err: any) {
@@ -332,7 +338,7 @@ export default function CustomersPage() {
         setActionMenuId(null);
         setConfirmText('');
         // Capture bulk IDs in ref at this exact moment
-        if (params?.action === 'bulk_delete' || params?.action === 'bulk_suspend') {
+        if (params?.action === 'bulk_delete' || params?.action === 'bulk_suspend' || params?.action === 'bulk_reactivate') {
             if (params.ownerId) {
                 const ownerGroup = ownerGroups.find(g => g.owner.id === params.ownerId);
                 bulkIdsRef.current = ownerGroup ? ownerGroup.workspaces.map(w => w.id) : [];
@@ -802,6 +808,19 @@ export default function CustomersPage() {
                         </button>
 
                         <div className="w-px h-5 bg-white/10" />
+
+                        <button
+                            onClick={() => openConfirm({
+                                action: 'bulk_reactivate', workspaceId: '', workspaceName: `${selectedWs.size} workspace`,
+                                label: `Riattiva ${selectedWs.size} Workspace`,
+                                description: `Riattiverai ${selectedWs.size} workspace contemporaneamente. Tutti i membri verranno sbloccati.`,
+                                danger: false,
+                            })}
+                            disabled={bulkLoading}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all disabled:opacity-40"
+                        >
+                            <Play className="w-3.5 h-3.5" /> Riattiva
+                        </button>
 
                         <button
                             onClick={() => openConfirm({
