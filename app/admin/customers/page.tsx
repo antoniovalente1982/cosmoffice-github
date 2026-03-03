@@ -596,6 +596,42 @@ export default function CustomersPage() {
                                         className="overflow-hidden border-t border-white/5"
                                     >
                                         <div className="divide-y divide-white/5">
+                                            {/* Select all row */}
+                                            {(() => {
+                                                const allIds = group.workspaces.map(w => w.id);
+                                                const allSelected = allIds.length > 0 && allIds.every(id => selectedWs.has(id));
+                                                return (
+                                                    <div className="flex items-center gap-3 px-5 py-2 bg-white/[0.02]">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (allSelected) {
+                                                                    setSelectedWs(prev => {
+                                                                        const next = new Set(prev);
+                                                                        allIds.forEach(id => next.delete(id));
+                                                                        return next;
+                                                                    });
+                                                                } else {
+                                                                    setSelectedWs(prev => {
+                                                                        const next = new Set(prev);
+                                                                        allIds.forEach(id => next.add(id));
+                                                                        return next;
+                                                                    });
+                                                                }
+                                                            }}
+                                                            className="shrink-0"
+                                                        >
+                                                            {allSelected
+                                                                ? <CheckSquare className="w-4 h-4 text-cyan-400" />
+                                                                : <Square className="w-4 h-4 text-slate-600 hover:text-slate-400" />
+                                                            }
+                                                        </button>
+                                                        <span className="text-[11px] text-slate-500 font-medium">
+                                                            {allSelected ? 'Deseleziona tutti' : `Seleziona tutti (${allIds.length})`}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
                                             {group.workspaces.map(ws => (
                                                 <div key={ws.id} className={`flex items-center gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors ${ws.status === 'deleted' ? 'opacity-40' : ''}`}>
                                                     {/* Checkbox */}

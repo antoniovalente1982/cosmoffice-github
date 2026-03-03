@@ -447,23 +447,30 @@ export async function POST(req: NextRequest) {
                     return NextResponse.json({ error: 'workspaceIds richiesti' }, { status: 400 });
                 }
 
-                // Notify owners before deleting
-                for (const wsId of ids) {
-                    const ownId = await getOwnerUserId(wsId);
-                    const { data: wsData } = await supabase.from('workspaces').select('name').eq('id', wsId).single();
-                    if (ownId) {
-                        await sendNotification(
-                            ownId,
-                            '🔴 Workspace Eliminato',
-                            `Il workspace "${wsData?.name || ''}" è stato eliminato definitivamente dall'amministratore.`,
-                            'workspace', wsId
-                        );
-                    }
-                }
+                // Fetch workspace names and owners BEFORE deleting
+                const { data: wsInfos } = await supabase
+                    .from('workspaces')
+                    .select('id, name, created_by')
+                    .in('id', ids);
 
-                // Hard delete all
+                // Hard delete all — do this FIRST to avoid timeout
                 const { error: delErr } = await supabase.from('workspaces').delete().in('id', ids);
                 if (delErr) throw delErr;
+
+                // Try to notify owners (non-blocking, don't fail if notifications table doesn't exist)
+                try {
+                    const ownerIds = new Set<string>();
+                    (wsInfos || []).forEach((ws: any) => { if (ws.created_by) ownerIds.add(ws.created_by); });
+                    for (const oid of Array.from(ownerIds)) {
+                        const count = (wsInfos || []).filter((ws: any) => ws.created_by === oid).length;
+                        await sendNotification(
+                            oid,
+                            '🔴 Workspace Eliminati',
+                            `${count} workspace sono stati eliminati definitivamente dall'amministratore.`,
+                            'workspace', ''
+                        );
+                    }
+                } catch { /* notifications are optional */ }
 
                 return NextResponse.json({ success: true, deleted: ids.length });
             }
