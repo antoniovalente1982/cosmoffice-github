@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search, Building2, Users, ChevronLeft, ChevronRight, AlertTriangle,
     Pause, Play, Trash2, RotateCcw, MoreVertical, X, Check, Loader2,
-    UserX, UserCheck, Mail,
+    UserX, UserCheck, Mail, ChevronDown, Crown,
 } from 'lucide-react';
 
 interface Owner {
@@ -33,6 +33,18 @@ interface Workspace {
     owner: Owner | null;
 }
 
+interface OwnerGroup {
+    owner: Owner;
+    workspaces: Workspace[];
+    totalMembers: number;
+    activeWs: number;
+    suspendedWs: number;
+    deletedWs: number;
+    bestPlan: string;
+}
+
+const planRank: Record<string, number> = { free: 0, starter: 1, pro: 2, enterprise: 3 };
+
 function PlanBadge({ plan }: { plan: string }) {
     const c: Record<string, string> = {
         free: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
@@ -53,10 +65,10 @@ function StatusBadge({ status }: { status: 'active' | 'suspended' | 'deleted' })
     return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${styles[status]}`}>{labels[status]}</span>;
 }
 
-function OwnerStatusDot({ suspended, deleted }: { suspended: boolean; deleted: boolean }) {
-    if (deleted) return <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Eliminato" />;
-    if (suspended) return <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Sospeso" />;
-    return <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Attivo" />;
+function OwnerStatusBadge({ suspended, deleted }: { suspended: boolean; deleted: boolean }) {
+    if (deleted) return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-red-500/20 text-red-300 border-red-500/30">Eliminato</span>;
+    if (suspended) return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-amber-500/20 text-amber-300 border-amber-500/30">Sospeso</span>;
+    return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Attivo</span>;
 }
 
 export default function CustomersPage() {
@@ -70,11 +82,12 @@ export default function CustomersPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
 
-    // Action menu
+    // Expanded owners
+    const [expandedOwners, setExpandedOwners] = useState<Set<string>>(new Set());
+
+    // Action menu & confirmation
     const [actionMenuId, setActionMenuId] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
-
-    // Confirmation modal
     const [confirmAction, setConfirmAction] = useState<{
         action: string;
         workspaceId: string;
@@ -84,16 +97,15 @@ export default function CustomersPage() {
         label: string;
         description: string;
         danger: boolean;
-        confirmWord?: string; // Word to type for dangerous actions
+        confirmWord?: string;
     } | null>(null);
     const [confirmText, setConfirmText] = useState('');
-
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams({ page: String(page), limit: '15' });
+            const params = new URLSearchParams({ page: String(page), limit: '50' }); // Fetch more for grouping
             if (search) params.set('search', search);
             if (planFilter) params.set('plan', planFilter);
             if (statusFilter) params.set('status', statusFilter);
@@ -110,7 +122,6 @@ export default function CustomersPage() {
 
     useEffect(() => { fetchData(); }, [page, planFilter, statusFilter]);
 
-    // Close action menu on outside click
     useEffect(() => {
         const handleClick = () => setActionMenuId(null);
         if (actionMenuId) {
@@ -125,6 +136,64 @@ export default function CustomersPage() {
         fetchData();
     };
 
+    // ─── Group by owner ─────────────────────────────
+    const ownerGroups = useMemo<OwnerGroup[]>(() => {
+        const map = new Map<string, OwnerGroup>();
+        const noOwner: Workspace[] = [];
+
+        workspaces.forEach(ws => {
+            if (!ws.owner) { noOwner.push(ws); return; }
+            const key = ws.owner.id;
+            if (!map.has(key)) {
+                map.set(key, {
+                    owner: ws.owner,
+                    workspaces: [],
+                    totalMembers: 0,
+                    activeWs: 0, suspendedWs: 0, deletedWs: 0,
+                    bestPlan: 'free',
+                });
+            }
+            const group = map.get(key)!;
+            group.workspaces.push(ws);
+            group.totalMembers += ws.totalMembers;
+            if (ws.status === 'active') group.activeWs++;
+            else if (ws.status === 'suspended') group.suspendedWs++;
+            else group.deletedWs++;
+            if ((planRank[ws.plan] || 0) > (planRank[group.bestPlan] || 0)) {
+                group.bestPlan = ws.plan;
+            }
+        });
+
+        const groups = Array.from(map.values());
+        // Sort: most workspaces first
+        groups.sort((a, b) => b.workspaces.length - a.workspaces.length);
+
+        // Add "no owner" group if any
+        if (noOwner.length > 0) {
+            groups.push({
+                owner: { id: '__none__', email: '', name: 'Senza Proprietario', avatarUrl: null, suspended: false, deleted: false },
+                workspaces: noOwner,
+                totalMembers: noOwner.reduce((s, w) => s + w.totalMembers, 0),
+                activeWs: noOwner.filter(w => w.status === 'active').length,
+                suspendedWs: noOwner.filter(w => w.status === 'suspended').length,
+                deletedWs: noOwner.filter(w => w.status === 'deleted').length,
+                bestPlan: 'free',
+            });
+        }
+
+        return groups;
+    }, [workspaces]);
+
+    const toggleOwner = (ownerId: string) => {
+        setExpandedOwners(prev => {
+            const next = new Set(prev);
+            if (next.has(ownerId)) next.delete(ownerId);
+            else next.add(ownerId);
+            return next;
+        });
+    };
+
+    // ─── Actions ────────────────────────────────────
     const showFeedback = (type: 'success' | 'error', message: string) => {
         setFeedback({ type, message });
         setTimeout(() => setFeedback(null), 4000);
@@ -132,7 +201,6 @@ export default function CustomersPage() {
 
     const executeAction = async () => {
         if (!confirmAction) return;
-        // Block if confirmation word required but not matched
         if (confirmAction.confirmWord && confirmText !== confirmAction.confirmWord) return;
         setActionLoading(true);
         try {
@@ -147,7 +215,6 @@ export default function CustomersPage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
-
             showFeedback('success', `${confirmAction.label} completato`);
             setConfirmAction(null);
             setConfirmText('');
@@ -165,11 +232,19 @@ export default function CustomersPage() {
         setConfirmAction(params);
     };
 
+    if (loading) {
+        return (
+            <div className="p-8 flex items-center justify-center min-h-[50vh]">
+                <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+            </div>
+        );
+    }
+
     return (
         <div className="p-8 space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-white">Clienti</h1>
-                <p className="text-sm text-slate-400 mt-1">Gestisci workspace, proprietari e stati del SaaS</p>
+                <p className="text-sm text-slate-400 mt-1">Gestisci proprietari, workspace e stati del SaaS</p>
             </div>
 
             {/* Feedback */}
@@ -198,7 +273,6 @@ export default function CustomersPage() {
                     </div>
                 </form>
 
-                {/* Plan filter */}
                 <div className="flex items-center gap-2">
                     {['', 'free', 'starter', 'pro', 'enterprise'].map(p => (
                         <button key={p} onClick={() => { setPlanFilter(p); setPage(1); }}
@@ -211,21 +285,19 @@ export default function CustomersPage() {
                     ))}
                 </div>
 
-                {/* Separator */}
-                <div className="w-px h-6 bg-white/10"></div>
+                <div className="w-px h-6 bg-white/10" />
 
-                {/* Status filter */}
                 <div className="flex items-center gap-2">
                     {[
-                        { value: '', label: 'Tutti', color: '' },
-                        { value: 'active', label: '🟢 Attivi', color: 'text-emerald-300' },
-                        { value: 'suspended', label: '🟡 Sospesi', color: 'text-amber-300' },
-                        { value: 'deleted', label: '🔴 Eliminati', color: 'text-red-300' },
+                        { value: '', label: 'Tutti' },
+                        { value: 'active', label: '🟢 Attivi' },
+                        { value: 'suspended', label: '🟡 Sospesi' },
+                        { value: 'deleted', label: '🔴 Eliminati' },
                     ].map(s => (
                         <button key={s.value} onClick={() => { setStatusFilter(s.value); setPage(1); }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${statusFilter === s.value
                                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-                                : `bg-black/20 ${s.color || 'text-slate-400'} border-white/5 hover:bg-white/5`
+                                : 'bg-black/20 text-slate-400 border-white/5 hover:bg-white/5'
                                 }`}>
                             {s.label}
                         </button>
@@ -239,178 +311,252 @@ export default function CustomersPage() {
                 </div>
             )}
 
-            {/* Table */}
-            <div className="rounded-2xl border border-white/5 overflow-hidden" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="border-b border-white/5 text-slate-400 text-xs uppercase tracking-wider">
-                            <th className="text-left p-4 font-semibold">Owner</th>
-                            <th className="text-left p-4 font-semibold">Workspace</th>
-                            <th className="text-left p-4 font-semibold">Piano</th>
-                            <th className="text-center p-4 font-semibold">Members</th>
-                            <th className="text-left p-4 font-semibold">Creato</th>
-                            <th className="text-center p-4 font-semibold">Stato</th>
-                            <th className="text-center p-4 font-semibold w-12">Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
-                            <tr><td colSpan={7} className="text-center p-8 text-slate-500">Caricamento...</td></tr>
-                        ) : workspaces.length === 0 ? (
-                            <tr><td colSpan={7} className="text-center p-8 text-slate-500">Nessun workspace trovato</td></tr>
-                        ) : workspaces.map(ws => (
-                            <tr key={ws.id} className={`border-b border-white/5 hover:bg-white/[0.02] transition-colors ${ws.status === 'deleted' ? 'opacity-50' : ''}`}>
-                                {/* Owner */}
-                                <td className="p-4">
-                                    {ws.owner ? (
-                                        <div className="flex items-center gap-2.5">
-                                            <div className="relative shrink-0">
-                                                {ws.owner.avatarUrl ? (
-                                                    <img src={ws.owner.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                                ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs uppercase">
-                                                        {ws.owner.name[0]}
-                                                    </div>
-                                                )}
-                                                <div className="absolute -bottom-0.5 -right-0.5">
-                                                    <OwnerStatusDot suspended={ws.owner.suspended} deleted={ws.owner.deleted} />
-                                                </div>
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-medium text-white truncate">{ws.owner.name}</p>
-                                                <p className="text-[10px] text-slate-500 truncate flex items-center gap-1">
-                                                    <Mail className="w-2.5 h-2.5 shrink-0" />{ws.owner.email}
-                                                </p>
-                                            </div>
+            {/* Summary */}
+            <div className="flex items-center gap-4 text-xs text-slate-500">
+                <span>{ownerGroups.length} proprietari</span>
+                <span className="text-white/10">·</span>
+                <span>{total} workspace totali</span>
+            </div>
+
+            {/* Owner Groups */}
+            <div className="space-y-3">
+                {ownerGroups.length === 0 && !loading && (
+                    <div className="text-center py-12 text-slate-500 text-sm">Nessun risultato trovato</div>
+                )}
+
+                {ownerGroups.map(group => {
+                    const isExpanded = expandedOwners.has(group.owner.id);
+                    const isNoOwner = group.owner.id === '__none__';
+
+                    return (
+                        <div key={group.owner.id}
+                            className="rounded-2xl border border-white/5 overflow-hidden"
+                            style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+
+                            {/* Owner Row (header) */}
+                            <button
+                                onClick={() => toggleOwner(group.owner.id)}
+                                className="w-full px-5 py-4 flex items-center gap-4 hover:bg-white/[0.02] transition-colors text-left"
+                            >
+                                {/* Avatar */}
+                                <div className="relative shrink-0">
+                                    {isNoOwner ? (
+                                        <div className="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-500">
+                                            <Users className="w-5 h-5" />
                                         </div>
+                                    ) : group.owner.avatarUrl ? (
+                                        <img src={group.owner.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover ring-2 ring-white/10" />
                                     ) : (
-                                        <span className="text-xs text-slate-600 italic">N/A</span>
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center text-white font-bold text-sm uppercase ring-2 ring-white/10">
+                                            {group.owner.name[0]}
+                                        </div>
                                     )}
-                                </td>
+                                    {!isNoOwner && (
+                                        <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${group.owner.deleted ? 'bg-red-500' : group.owner.suspended ? 'bg-amber-500' : 'bg-emerald-400'}`} />
+                                    )}
+                                </div>
 
-                                {/* Workspace */}
-                                <td className="p-4">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-                                            <Building2 className="w-4 h-4" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-medium text-white truncate">{ws.name}</p>
-                                            <p className="text-[10px] text-slate-500 truncate">/{ws.slug}</p>
-                                        </div>
+                                {/* Owner info */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-semibold text-white truncate">{group.owner.name}</p>
+                                        {!isNoOwner && <OwnerStatusBadge suspended={group.owner.suspended} deleted={group.owner.deleted} />}
                                     </div>
-                                </td>
+                                    {!isNoOwner && (
+                                        <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                                            <Mail className="w-3 h-3 shrink-0" />{group.owner.email}
+                                        </p>
+                                    )}
+                                </div>
 
-                                <td className="p-4"><PlanBadge plan={ws.plan} /></td>
-
-                                <td className="p-4 text-center">
-                                    <div className="flex items-center justify-center gap-1">
-                                        <Users className="w-3.5 h-3.5 text-slate-500" />
-                                        <span className="text-white font-medium">{ws.totalMembers}</span>
-                                        <span className="text-slate-600">/ {ws.maxMembers}</span>
+                                {/* Metrics */}
+                                <div className="hidden md:flex items-center gap-4 shrink-0">
+                                    <div className="flex items-center gap-1.5 text-xs">
+                                        <Building2 className="w-3.5 h-3.5 text-cyan-400" />
+                                        <span className="text-white font-medium">{group.workspaces.length}</span>
+                                        <span className="text-slate-600">ws</span>
                                     </div>
-                                </td>
+                                    <div className="flex items-center gap-1.5 text-xs">
+                                        <Users className="w-3.5 h-3.5 text-purple-400" />
+                                        <span className="text-white font-medium">{group.totalMembers}</span>
+                                        <span className="text-slate-600">membri</span>
+                                    </div>
+                                    <PlanBadge plan={group.bestPlan} />
+                                    {group.suspendedWs > 0 && (
+                                        <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                            {group.suspendedWs} sospesi
+                                        </span>
+                                    )}
+                                    {group.deletedWs > 0 && (
+                                        <span className="text-[10px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
+                                            {group.deletedWs} eliminati
+                                        </span>
+                                    )}
+                                </div>
 
-                                <td className="p-4 text-slate-400 text-xs">
-                                    {new Date(ws.createdAt).toLocaleDateString('it-IT')}
-                                </td>
-
-                                <td className="p-4 text-center">
-                                    <StatusBadge status={ws.status} />
-                                </td>
-
-                                {/* Actions */}
-                                <td className="p-4 text-center">
-                                    <div className="relative">
+                                {/* Owner actions */}
+                                {!isNoOwner && (
+                                    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === ws.id ? null : ws.id); }}
+                                            onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === `owner-${group.owner.id}` ? null : `owner-${group.owner.id}`); }}
                                             className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-all"
                                         >
                                             <MoreVertical className="w-4 h-4" />
                                         </button>
-
-                                        {actionMenuId === ws.id && (
-                                            <div className="absolute right-0 top-full mt-1 w-56 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left"
-                                                onClick={(e) => e.stopPropagation()}>
-
-                                                {/* Owner actions */}
-                                                {ws.owner && (
-                                                    <>
-                                                        <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Owner</p>
-                                                        {!ws.owner.suspended ? (
-                                                            <button onClick={() => openConfirm({
-                                                                action: 'suspend_owner', workspaceId: ws.id, ownerId: ws.owner!.id,
-                                                                ownerName: ws.owner!.name, workspaceName: ws.name,
-                                                                label: 'Sospendi Owner', description: `Sospenderai l'account di ${ws.owner!.name}. Non potrà accedere alla piattaforma.`, danger: true, confirmWord: 'SOSPENDI',
-                                                            })} className="w-full px-3 py-2 text-left text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2">
-                                                                <UserX className="w-3.5 h-3.5" /> Sospendi Owner
-                                                            </button>
-                                                        ) : (
-                                                            <button onClick={() => openConfirm({
-                                                                action: 'reactivate_owner', workspaceId: ws.id, ownerId: ws.owner!.id,
-                                                                ownerName: ws.owner!.name, workspaceName: ws.name,
-                                                                label: 'Riattiva Owner', description: `Riattiverai l'account di ${ws.owner!.name}.`, danger: false,
-                                                            })} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
-                                                                <UserCheck className="w-3.5 h-3.5" /> Riattiva Owner
-                                                            </button>
-                                                        )}
-                                                        <div className="my-1 border-t border-white/5" />
-                                                    </>
-                                                )}
-
-                                                {/* Workspace actions */}
-                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Workspace</p>
-                                                {ws.status === 'active' && (
-                                                    <>
-                                                        <button onClick={() => openConfirm({
-                                                            action: 'suspend_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                            label: 'Sospendi Workspace', description: `Il workspace "${ws.name}" sarà sospeso. Tutti i membri non potranno accedervi.`, danger: true, confirmWord: 'SOSPENDI',
-                                                        })} className="w-full px-3 py-2 text-left text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2">
-                                                            <Pause className="w-3.5 h-3.5" /> Sospendi
-                                                        </button>
-                                                        <button onClick={() => openConfirm({
-                                                            action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato. L'owner riceverà una notifica.`, danger: true, confirmWord: 'ELIMINA',
-                                                        })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
-                                                            <Trash2 className="w-3.5 h-3.5" /> Elimina
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {ws.status === 'suspended' && (
-                                                    <>
-                                                        <button onClick={() => openConfirm({
-                                                            action: 'reactivate_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                            label: 'Riattiva Workspace', description: `Il workspace "${ws.name}" sarà riattivato e tutti i membri sbloccati.`, danger: false,
-                                                        })} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
-                                                            <Play className="w-3.5 h-3.5" /> Riattiva
-                                                        </button>
-                                                        <button onClick={() => openConfirm({
-                                                            action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato definitivamente.`, danger: true, confirmWord: 'ELIMINA',
-                                                        })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
-                                                            <Trash2 className="w-3.5 h-3.5" /> Elimina
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {ws.status === 'deleted' && (
+                                        {actionMenuId === `owner-${group.owner.id}` && (
+                                            <div className="absolute right-0 top-full mt-1 w-52 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left">
+                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Owner</p>
+                                                {!group.owner.suspended ? (
                                                     <button onClick={() => openConfirm({
-                                                        action: 'restore_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                        label: 'Ripristina Workspace', description: `Il workspace "${ws.name}" sarà ripristinato con tutti i suoi dati.`, danger: false,
+                                                        action: 'suspend_owner', workspaceId: group.workspaces[0]?.id || '', ownerId: group.owner.id,
+                                                        ownerName: group.owner.name, workspaceName: group.owner.name,
+                                                        label: 'Sospendi Owner', description: `Sospenderai l'account di ${group.owner.name}. Non potrà accedere alla piattaforma.`, danger: true, confirmWord: 'SOSPENDI',
+                                                    })} className="w-full px-3 py-2 text-left text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2">
+                                                        <UserX className="w-3.5 h-3.5" /> Sospendi Account
+                                                    </button>
+                                                ) : (
+                                                    <button onClick={() => openConfirm({
+                                                        action: 'reactivate_owner', workspaceId: group.workspaces[0]?.id || '', ownerId: group.owner.id,
+                                                        ownerName: group.owner.name, workspaceName: group.owner.name,
+                                                        label: 'Riattiva Owner', description: `Riattiverai l'account di ${group.owner.name}.`, danger: false,
                                                     })} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
-                                                        <RotateCcw className="w-3.5 h-3.5" /> Ripristina
+                                                        <UserCheck className="w-3.5 h-3.5" /> Riattiva Account
                                                     </button>
                                                 )}
                                             </div>
                                         )}
                                     </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                )}
 
-                {/* Pagination */}
-                <div className="flex items-center justify-between p-4 border-t border-white/5">
+                                {/* Expand toggle */}
+                                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Mobile metrics (visible on small screens) */}
+                            <div className="flex md:hidden items-center gap-3 px-5 pb-3 -mt-1">
+                                <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                                    <Building2 className="w-3 h-3" /> {group.workspaces.length} ws
+                                </div>
+                                <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                                    <Users className="w-3 h-3" /> {group.totalMembers} membri
+                                </div>
+                                <PlanBadge plan={group.bestPlan} />
+                            </div>
+
+                            {/* Expanded workspace list */}
+                            <AnimatePresence>
+                                {isExpanded && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="overflow-hidden border-t border-white/5"
+                                    >
+                                        <div className="divide-y divide-white/5">
+                                            {group.workspaces.map(ws => (
+                                                <div key={ws.id} className={`flex items-center gap-4 px-5 py-3 hover:bg-white/[0.02] transition-colors ${ws.status === 'deleted' ? 'opacity-40' : ''}`}>
+                                                    {/* Indent + Icon */}
+                                                    <div className="w-10 flex justify-center shrink-0">
+                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center text-cyan-400">
+                                                            <Building2 className="w-4 h-4" />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Workspace info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-white truncate">{ws.name}</p>
+                                                        <p className="text-[10px] text-slate-500 truncate">/{ws.slug}</p>
+                                                    </div>
+
+                                                    {/* Plan */}
+                                                    <PlanBadge plan={ws.plan} />
+
+                                                    {/* Members */}
+                                                    <div className="hidden sm:flex items-center gap-1 text-xs shrink-0">
+                                                        <Users className="w-3.5 h-3.5 text-slate-500" />
+                                                        <span className="text-white font-medium">{ws.totalMembers}</span>
+                                                        <span className="text-slate-600">/ {ws.maxMembers}</span>
+                                                    </div>
+
+                                                    {/* Created */}
+                                                    <span className="hidden lg:block text-xs text-slate-500 shrink-0 w-20">
+                                                        {new Date(ws.createdAt).toLocaleDateString('it-IT')}
+                                                    </span>
+
+                                                    {/* Status */}
+                                                    <StatusBadge status={ws.status} />
+
+                                                    {/* Actions */}
+                                                    <div className="relative shrink-0">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === ws.id ? null : ws.id); }}
+                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-all"
+                                                        >
+                                                            <MoreVertical className="w-4 h-4" />
+                                                        </button>
+
+                                                        {actionMenuId === ws.id && (
+                                                            <div className="absolute right-0 top-full mt-1 w-52 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left"
+                                                                onClick={e => e.stopPropagation()}>
+                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Workspace</p>
+                                                                {ws.status === 'active' && (
+                                                                    <>
+                                                                        <button onClick={() => openConfirm({
+                                                                            action: 'suspend_workspace', workspaceId: ws.id, workspaceName: ws.name,
+                                                                            label: 'Sospendi Workspace', description: `Il workspace "${ws.name}" sarà sospeso. Tutti i membri non potranno accedervi.`, danger: true, confirmWord: 'SOSPENDI',
+                                                                        })} className="w-full px-3 py-2 text-left text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2">
+                                                                            <Pause className="w-3.5 h-3.5" /> Sospendi
+                                                                        </button>
+                                                                        <button onClick={() => openConfirm({
+                                                                            action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
+                                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato. L'owner riceverà una notifica.`, danger: true, confirmWord: 'ELIMINA',
+                                                                        })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
+                                                                            <Trash2 className="w-3.5 h-3.5" /> Elimina
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                                {ws.status === 'suspended' && (
+                                                                    <>
+                                                                        <button onClick={() => openConfirm({
+                                                                            action: 'reactivate_workspace', workspaceId: ws.id, workspaceName: ws.name,
+                                                                            label: 'Riattiva Workspace', description: `Il workspace "${ws.name}" sarà riattivato e tutti i membri sbloccati.`, danger: false,
+                                                                        })} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
+                                                                            <Play className="w-3.5 h-3.5" /> Riattiva
+                                                                        </button>
+                                                                        <button onClick={() => openConfirm({
+                                                                            action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
+                                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato definitivamente.`, danger: true, confirmWord: 'ELIMINA',
+                                                                        })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
+                                                                            <Trash2 className="w-3.5 h-3.5" /> Elimina
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                                {ws.status === 'deleted' && (
+                                                                    <button onClick={() => openConfirm({
+                                                                        action: 'restore_workspace', workspaceId: ws.id, workspaceName: ws.name,
+                                                                        label: 'Ripristina Workspace', description: `Il workspace "${ws.name}" sarà ripristinato con tutti i suoi dati.`, danger: false,
+                                                                    })} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
+                                                                        <RotateCcw className="w-3.5 h-3.5" /> Ripristina
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between py-2">
                     <span className="text-xs text-slate-500">{total} workspace totali</span>
                     <div className="flex items-center gap-2">
                         <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
@@ -424,7 +570,7 @@ export default function CustomersPage() {
                         </button>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Confirmation Modal */}
             <AnimatePresence>
@@ -458,16 +604,14 @@ export default function CustomersPage() {
                                 </button>
                             </div>
 
-                            {confirmAction.danger && (
+                            {confirmAction.danger ? (
                                 <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
                                     <div className="flex items-start gap-2">
                                         <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                                         <p className="text-xs text-red-300/80">{confirmAction.description}</p>
                                     </div>
                                 </div>
-                            )}
-
-                            {!confirmAction.danger && (
+                            ) : (
                                 <p className="text-sm text-slate-300">{confirmAction.description}</p>
                             )}
 
@@ -475,7 +619,6 @@ export default function CustomersPage() {
                                 <Mail className="w-3 h-3" /> L'owner riceverà una notifica automatica.
                             </p>
 
-                            {/* Safety text input for dangerous actions */}
                             {confirmAction.confirmWord && (
                                 <div>
                                     <label className="block text-xs font-medium text-slate-400 mb-1.5">
