@@ -143,12 +143,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     ))}
                 </nav>
 
-                <div className="p-3 border-t border-white/5 space-y-0.5">
+                <div className="p-3 border-t border-white/5 space-y-2">
                     <Link
                         href="/admin/transfer"
-                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all ${pathname === '/admin/transfer'
-                            ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shadow-[0_0_10px_rgba(34,211,238,0.1)]'
-                            : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${pathname === '/admin/transfer'
+                            ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
+                            : 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-400/80 border border-amber-500/20 hover:from-amber-500/20 hover:to-orange-500/20 hover:text-amber-300 hover:border-amber-500/30'
                             }`}
                     >
                         <Crown className="w-4 h-4" />

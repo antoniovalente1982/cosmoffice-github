@@ -174,12 +174,13 @@ function MetricRow({ label, value, icon: Icon, accent = 'text-slate-300', alert 
  *  Date Range Picker                                  *
  * ═══════════════════════════════════════════════════ */
 
-function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, onCustomChange }: {
+function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, onCustomChange, maxDate }: {
     activePreset: PresetKey;
     customFrom: string;
     customTo: string;
     onPresetChange: (key: PresetKey) => void;
     onCustomChange: (from: string, to: string) => void;
+    maxDate: string;
 }) {
     const [showCustom, setShowCustom] = useState(false);
     // Local state for custom date inputs (not applied until user presses "Applica")
@@ -230,6 +231,7 @@ function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, o
                     <input
                         type="date"
                         value={localFrom}
+                        max={maxDate}
                         onChange={e => setLocalFrom(e.target.value)}
                         className="px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
                         style={{ colorScheme: 'dark' }}
@@ -238,6 +240,7 @@ function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, o
                     <input
                         type="date"
                         value={localTo}
+                        max={maxDate}
                         onChange={e => setLocalTo(e.target.value)}
                         className="px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
                         style={{ colorScheme: 'dark' }}
@@ -246,10 +249,10 @@ function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, o
                         onClick={() => { if (canApply) onCustomChange(localFrom, localTo); }}
                         disabled={!canApply || isApplied}
                         className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${isApplied
-                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 cursor-default'
-                                : canApply
-                                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 cursor-pointer'
-                                    : 'bg-white/[0.03] text-slate-600 border border-white/[0.06] cursor-not-allowed'
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 cursor-default'
+                            : canApply
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 cursor-pointer'
+                                : 'bg-white/[0.03] text-slate-600 border border-white/[0.06] cursor-not-allowed'
                             }`}
                     >
                         {isApplied ? '✓ Applicato' : 'Applica'}
@@ -377,6 +380,7 @@ export default function AdminOverview() {
                         activePreset={activePreset}
                         customFrom={customFrom}
                         customTo={customTo}
+                        maxDate={toISODate(new Date())}
                         onPresetChange={(key) => {
                             setActivePreset(key);
                             setIsCustom(false);
