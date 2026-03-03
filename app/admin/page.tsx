@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
     Users, UserCheck, Crown, UserPlus, Activity,
     Building2, Pause, Trash2, Zap,
-    Layers, DoorOpen, LayoutGrid,
+    LayoutGrid,
     TrendingUp, DollarSign, CreditCard,
     Bug, AlertTriangle, Shield, Ban,
     ArrowUpRight, RefreshCw, Sparkles, Rocket,
+    ShieldCheck, UserCog, User, Eye,
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════ *
@@ -15,9 +16,8 @@ import {
  * ═══════════════════════════════════════════════════ */
 
 interface Stats {
-    users: { total: number; unique: number; owners: number; recentSignups: number; active24h: number };
+    users: { total: number; unique: number; superAdmins: number; owners: number; admins: number; members: number; guests: number; recentSignups: number; active24h: number };
     workspaces: { total: number; active: number; suspended: number; deleted: number; recentNew: number; active24h: number; planDistribution: Record<string, number>; paidWorkspaces: number };
-    spaces: { total: number; rooms: number; avgRoomsPerSpace: number };
     revenue: { mrrCents: number; mrrFormatted: string; arrFormatted: string; paidWorkspaces: number };
     monitoring: { openBugs: number; criticalBugs: number; activeBans: number };
 }
@@ -343,11 +343,13 @@ export default function AdminOverview() {
                                 <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Dettaglio utenti</h2>
                             </div>
                             <div className="divide-y divide-white/[0.04] mt-3">
-                                <MetricRow label="Registrati" value={stats.users.total} icon={Users} accent="text-cyan-300" />
-                                <MetricRow label="Utenti unici" value={stats.users.unique} icon={UserCheck} accent="text-cyan-300" />
-                                <MetricRow label="Proprietari" value={stats.users.owners} icon={Crown} accent="text-amber-300" />
-                                <MetricRow label="Nuovi (7gg)" value={stats.users.recentSignups} icon={UserPlus} accent="text-emerald-400" />
-                                <MetricRow label="Attivi (24h)" value={stats.users.active24h} icon={Activity} accent="text-emerald-400" />
+                                <MetricRow label="Totali" value={stats.users.total} icon={Users} accent="text-cyan-300" />
+                                <MetricRow label="Super Admin" value={stats.users.superAdmins} icon={ShieldCheck} accent="text-rose-300" />
+                                <MetricRow label="Owner" value={stats.users.owners} icon={Crown} accent="text-amber-300" />
+                                <MetricRow label="Admin" value={stats.users.admins} icon={UserCog} accent="text-purple-300" />
+                                <MetricRow label="Membri" value={stats.users.members} icon={User} accent="text-cyan-300" />
+                                <MetricRow label="Guest" value={stats.users.guests} icon={Eye} accent="text-slate-300" />
+                                <MetricRow label="Workspace" value={stats.workspaces.total} icon={Building2} accent="text-purple-300" />
                             </div>
                         </div>
                     </GlassCard>
@@ -369,17 +371,18 @@ export default function AdminOverview() {
                         </div>
                     </GlassCard>
 
-                    {/* ── Ring Gauges — Spaces & Rooms ── */}
+                    {/* ── Attività & Crescita ── */}
                     <GlassCard className="lg:col-span-4" glow="radial-gradient(circle, #3b82f6 0%, transparent 70%)">
                         <div className="p-5">
-                            <div className="flex items-center gap-2 mb-5">
-                                <Layers className="w-4 h-4 text-blue-400" />
-                                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Spazi & Stanze</h2>
+                            <div className="flex items-center gap-2 mb-1">
+                                <Activity className="w-4 h-4 text-blue-400" />
+                                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Attività & Crescita</h2>
                             </div>
-                            <div className="flex items-center justify-around">
-                                <RingGauge value={stats.spaces.total} max={Math.max(stats.spaces.total, 20)} label="Uffici" color="#60a5fa" />
-                                <RingGauge value={stats.spaces.rooms} max={Math.max(stats.spaces.rooms, 50)} label="Stanze" color="#818cf8" />
-                                <RingGauge value={stats.spaces.avgRoomsPerSpace} max={10} label="Media" color="#a78bfa" />
+                            <div className="divide-y divide-white/[0.04] mt-3">
+                                <MetricRow label="Nuovi utenti (7gg)" value={stats.users.recentSignups} icon={UserPlus} accent="text-emerald-400" />
+                                <MetricRow label="Utenti attivi (24h)" value={stats.users.active24h} icon={Activity} accent="text-emerald-400" />
+                                <MetricRow label="Workspace attivi (24h)" value={stats.workspaces.active24h} icon={Zap} accent="text-emerald-400" />
+                                <MetricRow label="Nuovi workspace (7gg)" value={stats.workspaces.recentNew} icon={Building2} accent="text-blue-300" />
                             </div>
                         </div>
                     </GlassCard>

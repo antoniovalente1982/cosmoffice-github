@@ -106,10 +106,24 @@ export async function GET(req: NextRequest) {
             activeUsers24h = activeSet.size;
         }
 
-        // Owners count (distinct users with role=owner)
+        // Role counts (distinct users per role)
         const owners = new Set(
             allMembers.filter((m: any) => m.role === 'owner').map((m: any) => m.user_id)
         ).size;
+        const admins = new Set(
+            allMembers.filter((m: any) => m.role === 'admin').map((m: any) => m.user_id)
+        ).size;
+        const members = new Set(
+            allMembers.filter((m: any) => m.role === 'member').map((m: any) => m.user_id)
+        ).size;
+        const guests = new Set(
+            allMembers.filter((m: any) => m.role === 'guest').map((m: any) => m.user_id)
+        ).size;
+
+        // Super admins count
+        const superAdmins = await safeCount(() =>
+            supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_super_admin', true)
+        );
 
         // ───────────────────────────────────────────────
         // BLOCCO 2: WORKSPACE
@@ -149,29 +163,7 @@ export async function GET(req: NextRequest) {
             }
         } catch { /* ignore */ }
 
-        // Active spaces = non-deleted spaces in active (non-deleted) workspaces
-        const activeWsIds = allWorkspaces.filter((w: any) => !w.deleted_at).map((w: any) => w.id);
 
-        const allSpaces = await safe(
-            () => supabase.from('spaces').select('id, deleted_at, workspace_id'),
-            [] as any[]
-        );
-        const activeSpaceIds = allSpaces
-            .filter((s: any) => !s.deleted_at && activeWsIds.includes(s.workspace_id))
-            .map((s: any) => s.id);
-
-        const totalSpaces = activeSpaceIds.length;
-
-        // Count only non-deleted rooms in active spaces
-        let totalRooms = 0;
-        if (activeSpaceIds.length > 0) {
-            const { data: activeRooms } = await supabase
-                .from('rooms')
-                .select('id')
-                .in('space_id', activeSpaceIds)
-                .is('deleted_at', null);
-            totalRooms = activeRooms?.length || 0;
-        }
 
         // ───────────────────────────────────────────────
         // BLOCCO 4: REVENUE
@@ -212,7 +204,11 @@ export async function GET(req: NextRequest) {
             users: {
                 total: totalUsers,
                 unique: uniqueUsers,
+                superAdmins,
                 owners,
+                admins,
+                members,
+                guests,
                 recentSignups,
                 active24h: activeUsers24h,
             },
@@ -226,11 +222,7 @@ export async function GET(req: NextRequest) {
                 planDistribution,
                 paidWorkspaces,
             },
-            spaces: {
-                total: totalSpaces,
-                rooms: totalRooms,
-                avgRoomsPerSpace: totalSpaces > 0 ? Math.round((totalRooms / totalSpaces) * 10) / 10 : 0,
-            },
+
             revenue: {
                 mrrCents,
                 mrrFormatted: `€${(mrrCents / 100).toFixed(2)}`,
