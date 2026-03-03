@@ -36,6 +36,19 @@ async function getAdminClient(req: NextRequest) {
     return { supabase: adminClient, userId: session.user.id };
 }
 
+// Safe count helper — returns 0 if query fails (e.g. missing column)
+async function safeCount(
+    queryFn: () => PromiseLike<{ count: number | null; error: any }>
+): Promise<number> {
+    try {
+        const { count, error } = await queryFn();
+        if (error) return 0;
+        return count || 0;
+    } catch {
+        return 0;
+    }
+}
+
 export async function GET(req: NextRequest) {
     const auth = await getAdminClient(req);
     if ('error' in auth) {
@@ -44,68 +57,145 @@ export async function GET(req: NextRequest) {
     const { supabase } = auth;
 
     try {
-        // Parallel queries for KPIs
-        const [
-            usersRes,
-            workspacesRes,
-            roomsRes,
-            activeUsersRes,
-            activeWorkspacesRes,
-            bugsRes,
-            criticalBugsRes,
-            billingRes,
-            recentSignupsRes,
-            plansRes,
-        ] = await Promise.all([
-            // Total users
-            supabase.from('profiles').select('id', { count: 'exact', head: true }).is('deleted_at', null),
-            // Total workspaces
-            supabase.from('workspaces').select('id', { count: 'exact', head: true }).is('deleted_at', null),
-            // Total rooms
-            supabase.from('rooms').select('id', { count: 'exact', head: true }),
-            // Active users in last 24h
+        const now = Date.now();
+        const day = 86400000;
+
+        // ── Total users ──
+        // Try profiles first, fallback to distinct workspace_members
+        let totalUsers = await safeCount(() =>
             supabase.from('profiles').select('id', { count: 'exact', head: true })
-                .gte('last_seen_at', new Date(Date.now() - 86400000).toISOString()),
-            // Active workspaces in last 24h
-            supabase.from('workspace_members').select('workspace_id', { count: 'exact', head: true })
-                .gte('last_active_at', new Date(Date.now() - 86400000).toISOString()),
-            // Open bugs
-            supabase.from('bug_reports').select('id', { count: 'exact', head: true }).eq('status', 'open'),
-            // Critical bugs
+        );
+        // If profiles returns 0, try counting distinct users from workspace_members
+        if (totalUsers === 0) {
+            const { data: memberData } = await supabase
+                .from('workspace_members')
+                .select('user_id')
+                .is('removed_at', null);
+            if (memberData) {
+                totalUsers = new Set(memberData.map((m: any) => m.user_id)).size;
+            }
+        }
+
+        // ── Total workspaces (non-deleted) ──
+        const totalWorkspaces = await safeCount(() =>
+            supabase.from('workspaces').select('id', { count: 'exact', head: true }).is('deleted_at', null)
+        );
+
+        // ── Suspended workspaces ──
+        let suspendedWorkspaces = 0;
+        try {
+            const { count } = await supabase
+                .from('workspaces')
+                .select('id', { count: 'exact', head: true })
+                .is('deleted_at', null)
+                .not('suspended_at', 'is', null);
+            suspendedWorkspaces = count || 0;
+        } catch { /* column may not exist */ }
+
+        // ── Total spaces (uffici) ──
+        const totalSpaces = await safeCount(() =>
+            supabase.from('spaces').select('id', { count: 'exact', head: true }).is('deleted_at', null)
+        );
+
+        // ── Total rooms (stanze) ──
+        const totalRooms = await safeCount(() =>
+            supabase.from('rooms').select('id', { count: 'exact', head: true })
+        );
+
+        // ── Active users in last 24h ──
+        // Try profiles.last_seen_at first, then workspace_members.last_active_at
+        let activeUsers24h = await safeCount(() =>
+            supabase.from('profiles').select('id', { count: 'exact', head: true })
+                .gte('last_seen_at', new Date(now - day).toISOString())
+        );
+        if (activeUsers24h === 0) {
+            // Fallback: count distinct users with recent activity in workspace_members
+            try {
+                const { data: activeData } = await supabase
+                    .from('workspace_members')
+                    .select('user_id')
+                    .gte('last_active_at', new Date(now - day).toISOString())
+                    .is('removed_at', null);
+                if (activeData) {
+                    activeUsers24h = new Set(activeData.map((m: any) => m.user_id)).size;
+                }
+            } catch { /* ignore */ }
+        }
+
+        // ── Active workspaces 24h ──
+        let activeWorkspaces24h = 0;
+        try {
+            const { data: awData } = await supabase
+                .from('workspace_members')
+                .select('workspace_id')
+                .gte('last_active_at', new Date(now - day).toISOString());
+            if (awData) {
+                activeWorkspaces24h = new Set(awData.map((m: any) => m.workspace_id)).size;
+            }
+        } catch { /* ignore */ }
+
+        // ── Bugs ──
+        const openBugs = await safeCount(() =>
+            supabase.from('bug_reports').select('id', { count: 'exact', head: true }).eq('status', 'open')
+        );
+        const criticalBugs = await safeCount(() =>
             supabase.from('bug_reports').select('id', { count: 'exact', head: true })
-                .eq('severity', 'critical').in('status', ['open', 'in_progress']),
-            // MRR calculation (sum of latest month's payments)
-            supabase.from('billing_events').select('amount_cents')
+                .eq('severity', 'critical').in('status', ['open', 'in_progress'])
+        );
+
+        // ── MRR ──
+        let mrrCents = 0;
+        try {
+            const { data: billingData } = await supabase
+                .from('billing_events')
+                .select('amount_cents')
                 .eq('event_type', 'payment')
-                .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
-            // Signups last 7 days
-            supabase.from('profiles').select('id, created_at')
-                .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
-                .order('created_at', { ascending: false }),
-            // Plan distribution
-            supabase.from('workspaces').select('plan').is('deleted_at', null),
-        ]);
+                .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+            mrrCents = (billingData || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0);
+        } catch { /* billing_events table may not exist */ }
 
-        // Calculate MRR
-        const mrrCents = (billingRes.data || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0);
+        // ── Recent signups (7 days) ──
+        let recentSignups = 0;
+        try {
+            const { data: signupData } = await supabase
+                .from('profiles')
+                .select('id')
+                .gte('created_at', new Date(now - 7 * day).toISOString());
+            recentSignups = signupData?.length || 0;
+        } catch { /* ignore */ }
 
-        // Plan distribution
+        // ── Active bans ──
+        const activeBans = await safeCount(() =>
+            supabase.from('workspace_bans').select('id', { count: 'exact', head: true })
+                .is('revoked_at', null)
+        );
+
+        // ── Plan distribution ──
         const planDistribution: Record<string, number> = {};
-        (plansRes.data || []).forEach((w: any) => {
-            planDistribution[w.plan] = (planDistribution[w.plan] || 0) + 1;
-        });
+        try {
+            const { data: plansData } = await supabase
+                .from('workspaces')
+                .select('plan')
+                .is('deleted_at', null);
+            (plansData || []).forEach((w: any) => {
+                planDistribution[w.plan] = (planDistribution[w.plan] || 0) + 1;
+            });
+        } catch { /* ignore */ }
 
         return NextResponse.json({
-            totalUsers: usersRes.count || 0,
-            totalWorkspaces: workspacesRes.count || 0,
-            totalRooms: roomsRes.count || 0,
-            activeUsers24h: activeUsersRes.count || 0,
-            activeWorkspaces24h: activeWorkspacesRes.count || 0,
-            openBugs: bugsRes.count || 0,
-            criticalBugs: criticalBugsRes.count || 0,
+            totalUsers,
+            totalWorkspaces,
+            suspendedWorkspaces,
+            totalSpaces,
+            totalRooms,
+            activeUsers24h,
+            activeWorkspaces24h,
+            openBugs,
+            criticalBugs,
             mrrCents,
             mrrFormatted: `€${(mrrCents / 100).toFixed(2)}`,
-            recentSignups: recentSignupsRes.data?.length || 0,
+            recentSignups,
+            activeBans,
             planDistribution,
         });
     } catch (err: any) {

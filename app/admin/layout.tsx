@@ -10,6 +10,7 @@ import {
     Bug,
     Video,
     DollarSign,
+    CreditCard,
     ScrollText,
     ArrowLeft,
     Rocket,
@@ -17,15 +18,43 @@ import {
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 
-const navItems = [
-    { href: '/admin', label: 'Overview', icon: LayoutDashboard },
-    { href: '/admin/customers', label: 'Clienti', icon: Users },
-    { href: '/admin/security', label: 'Sicurezza', icon: Shield },
-    { href: '/admin/bugs', label: 'Bug Reports', icon: Bug },
-    { href: '/admin/daily', label: 'Daily.co', icon: Video },
-    { href: '/admin/revenue', label: 'Revenue', icon: DollarSign },
-    { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
-    { href: '/admin/transfer', label: 'Gestione Super Admin', icon: Crown },
+interface NavItem { href: string; label: string; icon: any; }
+interface NavSection { label?: string; items: NavItem[]; }
+
+const navSections: NavSection[] = [
+    {
+        items: [
+            { href: '/admin', label: 'Overview', icon: LayoutDashboard },
+        ],
+    },
+    {
+        label: 'Gestione',
+        items: [
+            { href: '/admin/customers', label: 'Clienti', icon: Users },
+            { href: '/admin/transfer', label: 'Super Admin', icon: Crown },
+        ],
+    },
+    {
+        label: 'Monetizzazione',
+        items: [
+            { href: '/admin/revenue', label: 'Revenue', icon: DollarSign },
+            { href: '/admin/payments', label: 'Pagamenti', icon: CreditCard },
+        ],
+    },
+    {
+        label: 'Monitoraggio',
+        items: [
+            { href: '/admin/security', label: 'Sicurezza', icon: Shield },
+            { href: '/admin/bugs', label: 'Bug Reports', icon: Bug },
+            { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
+        ],
+    },
+    {
+        label: 'Integrazioni',
+        items: [
+            { href: '/admin/daily', label: 'Daily.co', icon: Video },
+        ],
+    },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -84,23 +113,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </div>
                 </div>
 
-                <nav className="flex-1 p-3 space-y-1">
-                    {navItems.map((item) => {
-                        const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
-                                    ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shadow-[0_0_10px_rgba(34,211,238,0.1)]'
-                                    : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
-                                    }`}
-                            >
-                                <item.icon className="w-4 h-4" />
-                                {item.label}
-                            </Link>
-                        );
-                    })}
+                <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+                    {navSections.map((section, si) => (
+                        <div key={si}>
+                            {section.label && (
+                                <>
+                                    {si > 0 && <div className="my-2 mx-2 border-t border-white/5" />}
+                                    <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                                        {section.label}
+                                    </p>
+                                </>
+                            )}
+                            {section.items.map((item) => {
+                                const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all ${isActive
+                                            ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shadow-[0_0_10px_rgba(34,211,238,0.1)]'
+                                            : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
+                                            }`}
+                                    >
+                                        <item.icon className="w-4 h-4" />
+                                        {item.label}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    ))}
                 </nav>
 
                 <div className="p-3 border-t border-white/5">

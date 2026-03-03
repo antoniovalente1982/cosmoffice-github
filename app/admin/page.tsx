@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import {
-    Users, Building2, DoorOpen, Bug, AlertTriangle,
-    TrendingUp, Shield, Activity, ArrowUpRight, ArrowDownRight,
+    Users, Building2, DoorOpen, Bug, AlertTriangle, Pause,
+    TrendingUp, Shield, Activity, ArrowUpRight, ArrowDownRight, Layers,
 } from 'lucide-react';
 
 interface Stats {
     totalUsers: number;
     totalWorkspaces: number;
+    suspendedWorkspaces: number;
+    totalSpaces: number;
     totalRooms: number;
     activeUsers24h: number;
     activeWorkspaces24h: number;
@@ -17,6 +19,7 @@ interface Stats {
     mrrCents: number;
     mrrFormatted: string;
     recentSignups: number;
+    activeBans: number;
     planDistribution: Record<string, number>;
 }
 
@@ -118,23 +121,23 @@ export default function AdminOverview() {
                 <p className="text-sm text-slate-400 mt-1">Panoramica del SaaS Cosmoffice</p>
             </div>
 
-            {/* KPI Grid */}
+            {/* KPI Grid — Row 1 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     label="Utenti Totali"
                     value={stats.totalUsers}
                     icon={Users}
                     color="cyan"
-                    trendLabel={`${stats.recentSignups} nuovi (7gg)`}
-                    trend="up"
+                    trendLabel={stats.recentSignups > 0 ? `${stats.recentSignups} nuovi (7gg)` : undefined}
+                    trend={stats.recentSignups > 0 ? 'up' : undefined}
                 />
                 <StatCard
                     label="Workspace"
                     value={stats.totalWorkspaces}
                     icon={Building2}
                     color="purple"
-                    trendLabel={`${stats.activeWorkspaces24h} attivi oggi`}
-                    trend="up"
+                    trendLabel={stats.activeWorkspaces24h > 0 ? `${stats.activeWorkspaces24h} attivi oggi` : undefined}
+                    trend={stats.activeWorkspaces24h > 0 ? 'up' : undefined}
                 />
                 <StatCard
                     label="Utenti Attivi (24h)"
@@ -143,15 +146,15 @@ export default function AdminOverview() {
                     color="emerald"
                 />
                 <StatCard
-                    label="Stanze"
-                    value={stats.totalRooms}
-                    icon={DoorOpen}
+                    label="Uffici"
+                    value={stats.totalSpaces}
+                    icon={Layers}
                     color="blue"
                 />
             </div>
 
-            {/* Second row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* KPI Grid — Row 2 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     label="MRR"
                     value={stats.mrrFormatted}
@@ -167,13 +170,29 @@ export default function AdminOverview() {
                     trendLabel={stats.criticalBugs > 0 ? `${stats.criticalBugs} critici!` : undefined}
                     trend={stats.criticalBugs > 0 ? 'down' : undefined}
                 />
+                {stats.suspendedWorkspaces > 0 && (
+                    <StatCard
+                        label="Workspace Sospesi"
+                        value={stats.suspendedWorkspaces}
+                        icon={Pause}
+                        color="amber"
+                    />
+                )}
                 <StatCard
                     label="Sicurezza"
-                    value="OK"
+                    value={stats.activeBans > 0 ? `${stats.activeBans} ban` : 'OK'}
                     icon={Shield}
-                    color="emerald"
+                    color={stats.activeBans > 0 ? 'amber' : 'emerald'}
                 />
             </div>
+
+            {/* Stanze counter — small inline stat */}
+            {stats.totalRooms > 0 && (
+                <div className="flex items-center gap-4 px-4 py-2 rounded-xl border border-white/5 bg-white/[0.02] w-fit">
+                    <DoorOpen className="w-4 h-4 text-slate-500" />
+                    <span className="text-xs text-slate-400"><strong className="text-white">{stats.totalRooms}</strong> stanze totali negli uffici</span>
+                </div>
+            )}
 
             {/* Plan Distribution */}
             <div className="rounded-2xl border border-white/5 p-6" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
