@@ -9,17 +9,19 @@ interface WorkspaceRoleData {
     role: WorkspaceRole | null;
     loading: boolean;
     isOwner: boolean;
-    isAdmin: boolean;
-    isMember: boolean;
-    isGuest: boolean;
-    canManageMembers: boolean;
-    canEditRooms: boolean;
-    canModerateChat: boolean;
-    canManageWorkspace: boolean;
-    canInvite: boolean;
+    isAdmin: boolean;      // owner or admin
+    isMember: boolean;     // owner, admin, or member
+    isGuest: boolean;      // any valid role
+    canManageMembers: boolean;  // admin+
+    canEditRooms: boolean;      // admin+
+    canModerateChat: boolean;   // admin+
+    canManageWorkspace: boolean; // owner only (settings, billing)
+    canCreateSpaces: boolean;    // owner only
+    canDeleteSpaces: boolean;    // owner only
+    canInvite: boolean;          // member+ (NOT guest)
     invitableRoles: WorkspaceRole[];
-    canKick: boolean;
-    canBan: boolean;
+    canKick: boolean;            // admin+
+    canBan: boolean;             // admin+
     refetch: () => Promise<void>;
 }
 
@@ -83,21 +85,26 @@ export function useWorkspaceRole(workspaceId: string | null): WorkspaceRoleData 
     const level = role ? ROLE_HIERARCHY[role] : -1;
 
     // Which roles can this user assign to invitees?
-    // Rule: you can only invite roles strictly below yours
+    // owner  → admin, member, guest
+    // admin  → member, guest
+    // member → guest
+    // guest  → (none)
     const invitableRoles: WorkspaceRole[] = role ? getInvitableRoles(role) : [];
 
     return {
         role,
         loading,
         isOwner: role === 'owner',
-        isAdmin: level >= ROLE_HIERARCHY.admin,
-        isMember: level >= ROLE_HIERARCHY.member,
-        isGuest: level >= ROLE_HIERARCHY.guest,
+        isAdmin: level >= ROLE_HIERARCHY.admin,     // owner or admin
+        isMember: level >= ROLE_HIERARCHY.member,    // owner, admin, member
+        isGuest: level >= ROLE_HIERARCHY.guest,      // any valid role
         canManageMembers: level >= ROLE_HIERARCHY.admin,
         canEditRooms: level >= ROLE_HIERARCHY.admin,
         canModerateChat: level >= ROLE_HIERARCHY.admin,
-        canManageWorkspace: level >= ROLE_HIERARCHY.admin,
-        canInvite: level >= ROLE_HIERARCHY.member, // members+ can invite
+        canManageWorkspace: role === 'owner',        // OWNER ONLY
+        canCreateSpaces: role === 'owner',           // OWNER ONLY
+        canDeleteSpaces: role === 'owner',           // OWNER ONLY
+        canInvite: level >= ROLE_HIERARCHY.member,   // member+ (guest cannot invite)
         invitableRoles,
         canKick: level >= ROLE_HIERARCHY.admin,
         canBan: level >= ROLE_HIERARCHY.admin,

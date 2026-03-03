@@ -11,7 +11,7 @@ import Link from 'next/link';
 
 const supabase = createClient();
 
-type InviteState = 'loading' | 'needs_auth' | 'accepting' | 'success' | 'error' | 'already_member';
+type InviteState = 'loading' | 'needs_auth' | 'guest_name' | 'accepting' | 'success' | 'error' | 'already_member';
 
 const ROLE_INFO: Record<string, { icon: React.ReactNode; label: string; color: string; description: string }> = {
     owner: { icon: <Crown className="w-5 h-5" />, label: 'Owner', color: 'text-amber-400', description: 'Controllo totale del workspace' },
@@ -30,6 +30,8 @@ export default function InvitePage() {
     const [invite, setInvite] = useState<any>(null);
     const [workspace, setWorkspace] = useState<any>(null);
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+    const [guestName, setGuestName] = useState('');
+    const [isSubmittingGuest, setIsSubmittingGuest] = useState(false);
 
     // Check auth and load invite info
     useEffect(() => {
@@ -71,48 +73,116 @@ export default function InvitePage() {
             // Check if user is authenticated
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                setState('needs_auth');
+                // Guest invites → show name form instead of login
+                if (inviteInfo.role === 'guest') {
+                    setState('guest_name');
+                } else {
+                    setState('needs_auth');
+                }
                 return;
             }
 
             // User is authenticated — accept invite
-            setState('accepting');
-            const { data: result, error: acceptError } = await supabase.rpc('accept_invite_link', {
-                p_token: token,
-            });
-
-            if (acceptError) {
-                setState('error');
-                setError(acceptError.message || 'Errore nell\'accettazione dell\'invito.');
-                return;
-            }
-
-            const res = result as any;
-            if (res.success) {
-                setWorkspaceId(res.workspace_id);
-                // Auto-redirect to the workspace office
-                const wsId = res.workspace_id;
-                const { data: space } = await supabase
-                    .from('spaces')
-                    .select('id')
-                    .eq('workspace_id', wsId)
-                    .limit(1)
-                    .single();
-
-                if (space) {
-                    router.push(`/office/${space.id}`);
-                } else {
-                    router.push('/office');
-                }
-                return;
-            } else {
-                setState('error');
-                setError(res.error || 'Errore sconosciuto.');
-            }
+            await acceptInvite();
         };
 
         checkInvite();
     }, [token]);
+
+    const acceptInvite = async () => {
+        setState('accepting');
+        const { data: result, error: acceptError } = await supabase.rpc('accept_invite_link', {
+            p_token: token,
+        });
+
+        if (acceptError) {
+            setState('error');
+            setError(acceptError.message || 'Errore nell\'accettazione dell\'invito.');
+            return;
+        }
+
+        const res = result as any;
+        if (res.success) {
+            setWorkspaceId(res.workspace_id);
+            // Auto-redirect to the workspace office
+            const wsId = res.workspace_id;
+            const { data: space } = await supabase
+                .from('spaces')
+                .select('id')
+                .eq('workspace_id', wsId)
+                .limit(1)
+                .single();
+
+            if (space) {
+                router.push(`/office/${space.id}`);
+            } else {
+                router.push('/office');
+            }
+            return;
+        } else {
+            setState('error');
+            setError(res.error || 'Errore sconosciuto.');
+        }
+    };
+
+    // Guest anonymous entry — signInAnonymously + create profile + accept invite
+    const handleGuestEntry = async () => {
+        if (!guestName.trim()) return;
+        setIsSubmittingGuest(true);
+        setError('');
+
+        try {
+            // Sign in anonymously
+            const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
+
+            if (anonError) {
+                // If anonymous sign-in is not enabled, fall back to showing login
+                console.error('Anonymous sign-in failed:', anonError);
+                setState('error');
+                setError('Accesso ospite non disponibile. Contatta l\'amministratore.');
+                setIsSubmittingGuest(false);
+                return;
+            }
+
+            if (!anonData.user) {
+                setState('error');
+                setError('Errore nella creazione della sessione ospite.');
+                setIsSubmittingGuest(false);
+                return;
+            }
+
+            // Create/update profile with guest display name
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert({
+                    id: anonData.user.id,
+                    display_name: guestName.trim(),
+                    full_name: guestName.trim(),
+                    is_anonymous: true,
+                }, { onConflict: 'id' });
+
+            if (profileError) {
+                console.warn('Profile upsert failed (may not have is_anonymous column):', profileError);
+                // Try without is_anonymous
+                await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: anonData.user.id,
+                        display_name: guestName.trim(),
+                        full_name: guestName.trim(),
+                    }, { onConflict: 'id' });
+            }
+
+            // Now accept the invite
+            await acceptInvite();
+        } catch (err: any) {
+            console.error('Guest entry error:', err);
+            setState('error');
+            setError('Errore durante l\'accesso ospite.');
+        }
+
+        setIsSubmittingGuest(false);
+    };
 
     const goToOffice = async () => {
         const wsId = workspaceId || invite?.workspace_id;
@@ -162,9 +232,10 @@ export default function InvitePage() {
                         <h1 className="text-xl font-bold text-slate-100">
                             {state === 'loading' || state === 'accepting' ? 'Caricamento invito...' :
                                 state === 'needs_auth' ? 'Sei stato invitato!' :
-                                    state === 'success' ? 'Benvenuto! 🎉' :
-                                        state === 'already_member' ? 'Già nel team! 👋' :
-                                            'Invito non valido'}
+                                    state === 'guest_name' ? 'Sei stato invitato!' :
+                                        state === 'success' ? 'Benvenuto! 🎉' :
+                                            state === 'already_member' ? 'Già nel team! 👋' :
+                                                'Invito non valido'}
                         </h1>
                         {workspace && (
                             <p className="text-sm text-slate-400 mt-2">
@@ -189,7 +260,67 @@ export default function InvitePage() {
                             </div>
                         )}
 
-                        {/* Needs Auth */}
+                        {/* Guest Name Entry — no registration required */}
+                        {state === 'guest_name' && (
+                            <div className="space-y-6">
+                                {/* Role badge */}
+                                <div className="flex items-center justify-center">
+                                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/80 border border-white/10 ${roleInfo.color}`}>
+                                        {roleInfo.icon}
+                                        <span className="text-sm font-semibold">{roleInfo.label}</span>
+                                    </div>
+                                </div>
+
+                                <p className="text-center text-sm text-slate-400">
+                                    Entra come ospite — inserisci il tuo nome per continuare.
+                                </p>
+
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Il tuo nome</label>
+                                        <input
+                                            type="text"
+                                            value={guestName}
+                                            onChange={(e) => setGuestName(e.target.value)}
+                                            placeholder="Come vuoi essere chiamato?"
+                                            className="w-full px-4 py-3 bg-slate-800/80 border border-white/10 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/30 transition-all"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && guestName.trim()) handleGuestEntry();
+                                            }}
+                                        />
+                                    </div>
+
+                                    <Button
+                                        onClick={handleGuestEntry}
+                                        disabled={!guestName.trim() || isSubmittingGuest}
+                                        className="w-full gap-2 bg-gradient-to-r from-purple-500 to-primary-500 hover:from-purple-400 hover:to-primary-400 rounded-xl py-3 font-semibold shadow-lg shadow-purple-500/20 disabled:opacity-50"
+                                    >
+                                        {isSubmittingGuest ? (
+                                            <><Loader2 className="w-4 h-4 animate-spin" /> Accesso in corso...</>
+                                        ) : (
+                                            <><Rocket className="w-4 h-4" /> Entra come Ospite</>
+                                        )}
+                                    </Button>
+                                </div>
+
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5" /></div>
+                                    <div className="relative flex justify-center"><span className="px-3 text-[10px] text-slate-600 bg-slate-900 uppercase tracking-wider">oppure</span></div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Link href={`/login?redirect=/invite/${token}`} className="block">
+                                        <Button variant="outline" className="w-full gap-2 border-white/10 hover:bg-white/5 rounded-xl py-2.5 font-medium text-slate-400 text-sm">
+                                            <LogIn className="w-3.5 h-3.5" />
+                                            Accedi con account
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Needs Auth — for non-guest roles */}
                         {state === 'needs_auth' && (
                             <div className="space-y-6">
                                 {/* Role badge */}

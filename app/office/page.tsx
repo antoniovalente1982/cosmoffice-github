@@ -73,6 +73,37 @@ export default function DashboardPage() {
             });
             setUserRoles(roles);
 
+            // Check super admin
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('is_super_admin')
+                .eq('id', user.id)
+                .single();
+            const userIsSuperAdmin = !!profile?.is_super_admin;
+            if (userIsSuperAdmin) setIsSuperAdmin(true);
+
+            // ACCESS CONTROL: Only owners and super admins can see My Workspaces
+            const isOwnerOfAny = Object.values(roles).includes('owner');
+            if (!isOwnerOfAny && !userIsSuperAdmin) {
+                // Redirect non-owners to their first available space
+                const allWsIds = Object.keys(roles);
+                if (allWsIds.length > 0) {
+                    const { data: firstSpace } = await supabase
+                        .from('spaces')
+                        .select('id')
+                        .in('workspace_id', allWsIds)
+                        .is('deleted_at', null)
+                        .is('archived_at', null)
+                        .limit(1)
+                        .single();
+                    if (firstSpace) {
+                        router.push(`/office/${firstSpace.id}`);
+                        return;
+                    }
+                }
+                // No spaces found — show empty state
+            }
+
             const memberWorkspaces = membersRes.data?.map(m => m.workspaces).filter(Boolean) || [];
             const createdWorkspaces = createdRes.data || [];
 
@@ -109,13 +140,6 @@ export default function DashboardPage() {
                     setMemberCounts(counts);
                 }
             }
-            // Check super admin
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('is_super_admin')
-                .eq('id', user.id)
-                .single();
-            if (profile?.is_super_admin) setIsSuperAdmin(true);
 
             setLoading(false);
         };

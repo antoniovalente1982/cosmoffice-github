@@ -72,6 +72,22 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/office', req.url));
   }
 
+  // ── ANONYMOUS USER RESTRICTIONS ──
+  // Anonymous users (guests) can ONLY access /office/[id] (their invited space)
+  // They cannot access: /office (My Workspaces), /admin, or create workspaces
+  const isAnonymous = session.user.is_anonymous === true;
+  if (isAnonymous) {
+    // Allow /office/[id] but NOT /office alone
+    if (pathname === '/office' || pathname === '/office/') {
+      // Anonymous users have no My Workspaces — redirect to home
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+    // Block admin routes entirely
+    if (pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+  }
+
   // ── ADMIN ROUTES: Super Admin only ──
   if (pathname.startsWith('/admin')) {
     const { data: profile } = await supabase
