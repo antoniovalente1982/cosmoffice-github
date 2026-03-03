@@ -470,11 +470,13 @@ export default function AdminOverview() {
                                 <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Dettaglio utenti</h2>
                             </div>
                             {/* Big prominent total */}
-                            <div className="flex items-baseline gap-3 mb-4 pb-4 border-b border-white/[0.06]">
-                                <p className="text-5xl font-black text-white tracking-tighter leading-none">
-                                    {stats.users.total}
-                                </p>
-                                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">utenti totali</span>
+                            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/[0.06]">
+                                <div className="px-4 py-2 rounded-2xl bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/15">
+                                    <p className="text-3xl font-black text-white tracking-tighter leading-none tabular-nums">
+                                        {stats.users.total}
+                                    </p>
+                                </div>
+                                <span className="text-sm text-slate-400 font-bold uppercase tracking-wider">utenti<br />totali</span>
                             </div>
                             {/* Role breakdown */}
                             <div className="space-y-1">
@@ -530,12 +532,20 @@ export default function AdminOverview() {
                     {/* ── Workspace Detail ── */}
                     <GlassCard className="lg:col-span-4" glow="radial-gradient(circle, #a855f7 0%, transparent 70%)">
                         <div className="p-5">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-4">
                                 <Building2 className="w-4 h-4 text-purple-400" />
                                 <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Dettaglio workspace</h2>
                             </div>
-                            <div className="divide-y divide-white/[0.04] mt-3">
-                                <MetricRow label="Totali" value={stats.workspaces.total} icon={Building2} accent="text-purple-300" />
+                            {/* Big prominent total */}
+                            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/[0.06]">
+                                <div className="px-4 py-2 rounded-2xl bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/15">
+                                    <p className="text-3xl font-black text-white tracking-tighter leading-none tabular-nums">
+                                        {stats.workspaces.total}
+                                    </p>
+                                </div>
+                                <span className="text-sm text-slate-400 font-bold uppercase tracking-wider">workspace<br />totali</span>
+                            </div>
+                            <div className="divide-y divide-white/[0.04]">
                                 <MetricRow label="Attivi" value={stats.workspaces.active} icon={Zap} accent="text-emerald-400" />
                                 <MetricRow label="Sospesi" value={stats.workspaces.suspended} icon={Pause} accent="text-amber-300" />
                                 <MetricRow label="Eliminati" value={stats.workspaces.deleted} icon={Trash2} accent="text-red-300" />

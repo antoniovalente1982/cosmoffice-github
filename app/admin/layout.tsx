@@ -31,7 +31,6 @@ const navSections: NavSection[] = [
         label: 'Gestione',
         items: [
             { href: '/admin/customers', label: 'Clienti', icon: Users },
-            { href: '/admin/transfer', label: 'Super Admin', icon: Crown },
         ],
     },
     {
@@ -144,13 +143,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     ))}
                 </nav>
 
-                <div className="p-3 border-t border-white/5">
+                <div className="p-3 border-t border-white/5 space-y-0.5">
+                    <Link
+                        href="/admin/transfer"
+                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all ${pathname === '/admin/transfer'
+                            ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shadow-[0_0_10px_rgba(34,211,238,0.1)]'
+                            : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
+                            }`}
+                    >
+                        <Crown className="w-4 h-4" />
+                        Super Admin
+                    </Link>
                     <Link
                         href="/office"
                         className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200 transition-all"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        Torna all'Office
+                        Torna all&apos;Office
                     </Link>
                 </div>
             </aside>

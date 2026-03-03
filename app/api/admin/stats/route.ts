@@ -35,21 +35,12 @@ async function getAdminClient(req: NextRequest) {
     return { supabase: adminClient, userId: session.user.id };
 }
 
-// Safe query helper — silently returns default on error
-async function safe<T>(fn: () => PromiseLike<{ data: T | null; error: any }>, fallback: T): Promise<T> {
-    try {
-        const { data, error } = await fn();
-        if (error || data === null) return fallback;
-        return data;
-    } catch { return fallback; }
-}
-
 async function safeCount(fn: () => PromiseLike<{ count: number | null; error: any }>): Promise<number> {
     try {
         const { count, error } = await fn();
-        if (error) return 0;
+        if (error) { console.error('[stats] safeCount error:', error.message); return 0; }
         return count || 0;
-    } catch { return 0; }
+    } catch (e: any) { console.error('[stats] safeCount exception:', e.message); return 0; }
 }
 
 export async function GET(req: NextRequest) {
@@ -65,48 +56,70 @@ export async function GET(req: NextRequest) {
 
         // ── Parse optional date range params ──
         const url = new URL(req.url);
-        const fromParam = url.searchParams.get('from'); // ISO date string e.g. "2026-01-01"
-        const toParam = url.searchParams.get('to');     // ISO date string e.g. "2026-03-03"
+        const fromParam = url.searchParams.get('from');
+        const toParam = url.searchParams.get('to');
         const hasRange = !!(fromParam && toParam);
         const rangeFrom = hasRange ? new Date(fromParam + 'T00:00:00Z').toISOString() : '';
         const rangeTo = hasRange ? new Date(toParam + 'T23:59:59.999Z').toISOString() : '';
 
         // ───────────────────────────────────────────────
-        // BLOCCO 1: UTENTI (always current snapshot for roles)
-        // Source: profiles + workspace_members
+        // BLOCCO 1: UTENTI
         // ───────────────────────────────────────────────
 
         // Total registered profiles
-        let totalProfiles = await safeCount(() =>
+        const totalProfiles = await safeCount(() =>
             supabase.from('profiles').select('id', { count: 'exact', head: true })
         );
 
-        // All workspace members (including cross-workspace duplicates)
-        const allMembers = await safe(
-            () => supabase.from('workspace_members').select('user_id, last_active_at, role, created_at').is('removed_at', null),
-            [] as any[]
-        );
+        // All workspace members — fetch with pagination to handle large datasets
+        let allMembers: any[] = [];
+        let page = 0;
+        const pageSize = 1000;
+        while (true) {
+            const { data, error } = await supabase
+                .from('workspace_members')
+                .select('user_id, last_active_at, role')
+                .is('removed_at', null)
+                .range(page * pageSize, (page + 1) * pageSize - 1);
+
+            if (error) {
+                console.error('[stats] workspace_members fetch error:', error.message, error.details, error.hint);
+                break;
+            }
+            if (!data || data.length === 0) break;
+            allMembers = allMembers.concat(data);
+            if (data.length < pageSize) break;
+            page++;
+        }
+
+        console.log(`[stats] Fetched ${allMembers.length} active workspace members`);
 
         // Unique users across all workspaces
         const uniqueUserIds = new Set(allMembers.map((m: any) => m.user_id));
         const uniqueUsers = uniqueUserIds.size;
 
-        // Use the larger value between profiles count and unique members
+        // Use the larger value
         const totalUsers = Math.max(totalProfiles, uniqueUsers);
 
-        // Role counts — always current snapshot (indipendente dal range)
-        const owners = new Set(
-            allMembers.filter((m: any) => m.role === 'owner').map((m: any) => m.user_id)
-        ).size;
-        const admins = new Set(
-            allMembers.filter((m: any) => m.role === 'admin').map((m: any) => m.user_id)
-        ).size;
-        const members = new Set(
-            allMembers.filter((m: any) => m.role === 'member').map((m: any) => m.user_id)
-        ).size;
-        const guests = new Set(
-            allMembers.filter((m: any) => m.role === 'guest').map((m: any) => m.user_id)
-        ).size;
+        // Role counts — always current snapshot
+        const roleCounts = { owner: 0, admin: 0, member: 0, guest: 0 };
+        const roleSets: Record<string, Set<string>> = {
+            owner: new Set(), admin: new Set(), member: new Set(), guest: new Set()
+        };
+
+        for (const m of allMembers) {
+            const role = (m.role || '').toLowerCase();
+            if (roleSets[role]) {
+                roleSets[role].add(m.user_id);
+            }
+        }
+
+        roleCounts.owner = roleSets.owner.size;
+        roleCounts.admin = roleSets.admin.size;
+        roleCounts.member = roleSets.member.size;
+        roleCounts.guest = roleSets.guest.size;
+
+        console.log(`[stats] Role breakdown — owner:${roleCounts.owner} admin:${roleCounts.admin} member:${roleCounts.member} guest:${roleCounts.guest}`);
 
         // Super admins count
         const superAdmins = await safeCount(() =>
@@ -115,7 +128,7 @@ export async function GET(req: NextRequest) {
 
         // ── Range-aware metrics ──
 
-        // Recent signups: in range or last 7 days
+        // Recent signups
         let recentSignups: number;
         if (hasRange) {
             recentSignups = await safeCount(() =>
@@ -129,10 +142,9 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // Active users: in range or last 24h
+        // Active users
         let activeUsers: number;
         if (hasRange) {
-            // Try profiles.last_seen_at first
             activeUsers = await safeCount(() =>
                 supabase.from('profiles').select('id', { count: 'exact', head: true })
                     .gte('last_seen_at', rangeFrom).lte('last_seen_at', rangeTo)
@@ -161,20 +173,18 @@ export async function GET(req: NextRequest) {
 
         // ───────────────────────────────────────────────
         // BLOCCO 2: WORKSPACE
-        // Source: workspaces table
         // ───────────────────────────────────────────────
 
-        const allWorkspaces = await safe(
-            () => supabase.from('workspaces').select('id, plan, deleted_at, suspended_at, created_at'),
-            [] as any[]
-        );
+        const { data: wsData, error: wsError } = await supabase.from('workspaces').select('id, plan, deleted_at, suspended_at, created_at');
+        if (wsError) console.error('[stats] workspaces fetch error:', wsError.message);
+        const allWorkspaces = wsData || [];
 
         const wsActive = allWorkspaces.filter((w: any) => !w.deleted_at && !w.suspended_at);
         const wsSuspended = allWorkspaces.filter((w: any) => !w.deleted_at && w.suspended_at);
         const wsDeleted = allWorkspaces.filter((w: any) => w.deleted_at);
-        const wsTotal = allWorkspaces.filter((w: any) => !w.deleted_at); // non-deleted total
+        const wsTotal = allWorkspaces.filter((w: any) => !w.deleted_at);
 
-        // New workspaces: in range or last 7 days
+        // New workspaces
         let recentWs: number;
         if (hasRange) {
             recentWs = allWorkspaces.filter((w: any) =>
@@ -188,38 +198,27 @@ export async function GET(req: NextRequest) {
             ).length;
         }
 
-        // Plan distribution (only non-deleted)
+        // Plan distribution
         const planDistribution: Record<string, number> = {};
         wsTotal.forEach((w: any) => {
             planDistribution[w.plan] = (planDistribution[w.plan] || 0) + 1;
         });
 
-        // Active workspaces: in range or last 24h
+        // Active workspaces
         let activeWs = 0;
         try {
-            if (hasRange) {
-                const { data: awData } = await supabase
-                    .from('workspace_members')
-                    .select('workspace_id')
-                    .gte('last_active_at', rangeFrom)
-                    .lte('last_active_at', rangeTo);
-                if (awData) {
-                    activeWs = new Set(awData.map((m: any) => m.workspace_id)).size;
-                }
-            } else {
-                const { data: awData } = await supabase
-                    .from('workspace_members')
-                    .select('workspace_id')
-                    .gte('last_active_at', new Date(now - day).toISOString());
-                if (awData) {
-                    activeWs = new Set(awData.map((m: any) => m.workspace_id)).size;
-                }
+            const cutoff = hasRange ? rangeFrom : new Date(now - day).toISOString();
+            let query = supabase.from('workspace_members').select('workspace_id').gte('last_active_at', cutoff);
+            if (hasRange) query = query.lte('last_active_at', rangeTo);
+
+            const { data: awData } = await query;
+            if (awData) {
+                activeWs = new Set(awData.map((m: any) => m.workspace_id)).size;
             }
         } catch { /* ignore */ }
 
         // ───────────────────────────────────────────────
-        // BLOCCO 4: REVENUE
-        // Source: billing_events
+        // BLOCCO 3: REVENUE
         // ───────────────────────────────────────────────
 
         let revenueCents = 0;
@@ -232,7 +231,6 @@ export async function GET(req: NextRequest) {
             if (hasRange) {
                 query = query.gte('created_at', rangeFrom).lte('created_at', rangeTo);
             } else {
-                // Default: current month
                 query = query.gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
             }
 
@@ -243,8 +241,7 @@ export async function GET(req: NextRequest) {
         const paidWorkspaces = wsTotal.filter((w: any) => w.plan !== 'free').length;
 
         // ───────────────────────────────────────────────
-        // BLOCCO 5: MONITORAGGIO
-        // Source: bug_reports + workspace_bans
+        // BLOCCO 4: MONITORAGGIO
         // ───────────────────────────────────────────────
 
         const openBugs = await safeCount(() =>
@@ -265,10 +262,10 @@ export async function GET(req: NextRequest) {
                 total: totalUsers,
                 unique: uniqueUsers,
                 superAdmins,
-                owners,
-                admins,
-                members,
-                guests,
+                owners: roleCounts.owner,
+                admins: roleCounts.admin,
+                members: roleCounts.member,
+                guests: roleCounts.guest,
                 recentSignups,
                 activeInPeriod: activeUsers,
             },
@@ -293,8 +290,15 @@ export async function GET(req: NextRequest) {
                 activeBans,
             },
             dateRange: hasRange ? { from: fromParam, to: toParam } : null,
+            _debug: {
+                totalProfiles,
+                totalMembers: allMembers.length,
+                uniqueUsers,
+                roles: roleCounts,
+            },
         });
     } catch (err: any) {
+        console.error('[stats] Unexpected error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
