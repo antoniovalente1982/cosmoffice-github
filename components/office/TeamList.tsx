@@ -18,7 +18,7 @@ interface WorkspaceMember {
         full_name: string | null;
         display_name: string | null;
         avatar_url: string | null;
-        email: string;
+        email: string | null;
         status: string;
     } | null;
 }
@@ -113,6 +113,30 @@ export function TeamList({ spaceId }: TeamListProps) {
         fetchMembers();
     }, [fetchMembers]);
 
+    // Realtime subscription: auto-refresh when members change (join/leave/kick)
+    useEffect(() => {
+        if (!workspaceId) return;
+        const channel = supabase.channel(`workspace-members-${workspaceId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'workspace_members',
+                    filter: `workspace_id=eq.${workspaceId}`,
+                },
+                () => {
+                    // Re-fetch member list on any change
+                    fetchMembers();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [workspaceId, fetchMembers]);
+
     // Kick member via RPC (bypasses RLS, validates role hierarchy server-side)
     const handleKick = async (userId: string, userName: string) => {
         if (!workspaceId) return;
@@ -154,9 +178,9 @@ export function TeamList({ spaceId }: TeamListProps) {
     // For the current user, use real-time myProfile from the store instead of stale DB data
     const getName = (m: WorkspaceMember) => {
         if (m.user_id === currentUserId && myProfile) {
-            return myProfile.display_name || myProfile.full_name || m.profile?.email || 'Unknown';
+            return myProfile.display_name || myProfile.full_name || m.profile?.email || 'Ospite';
         }
-        return m.profile?.display_name || m.profile?.full_name || m.profile?.email || 'Unknown';
+        return m.profile?.display_name || m.profile?.full_name || m.profile?.email || 'Ospite';
     };
 
     const getAvatarUrl = (m: WorkspaceMember) => {
