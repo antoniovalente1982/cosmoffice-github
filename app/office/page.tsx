@@ -26,7 +26,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Logo } from '../../components/ui/logo';
 import { WorkspaceSettings } from '../../components/workspace/WorkspaceSettings';
-import { OFFICE_PRESETS } from '../../components/office/MiniMap';
+import { OFFICE_PRESETS, getPresetForSize } from '../../components/office/MiniMap';
 
 export default function DashboardPage() {
     const supabase = createClient();
@@ -487,10 +487,20 @@ export default function DashboardPage() {
                                                 </div>
                                             ) : (
                                                 <div>
-                                                    <h3 className="text-xl font-bold text-slate-100 group-hover:text-primary-400 transition-colors">{space.name}</h3>
-                                                    <p className="text-slate-400 text-sm flex items-center gap-1 mt-1">
-                                                        <Globe className="w-3 h-3" /> {workspace?.name}
-                                                    </p>
+                                                    <h3 className="text-xl font-bold text-slate-100 group-hover:text-primary-400 transition-colors">{workspace?.name || 'Workspace'}</h3>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <p className="text-slate-400 text-sm flex items-center gap-1">
+                                                            <Globe className="w-3 h-3" /> {space.name}
+                                                        </p>
+                                                        {(() => {
+                                                            const preset = getPresetForSize(space.width || 4000, space.height || 3000);
+                                                            return (
+                                                                <span className="text-[10px] font-semibold text-slate-500 bg-white/5 px-1.5 py-0.5 rounded-md border border-white/5">
+                                                                    {preset.icon} {preset.label}
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

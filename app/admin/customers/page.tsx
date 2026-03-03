@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search, Building2, Users, ChevronLeft, ChevronRight, AlertTriangle,
@@ -93,6 +93,7 @@ export default function CustomersPage() {
     // Bulk selection
     const [selectedWs, setSelectedWs] = useState<Set<string>>(new Set());
     const [bulkLoading, setBulkLoading] = useState(false);
+    const bulkIdsRef = useRef<string[]>([]);
 
     // Action menu & confirmation
     const [actionMenuId, setActionMenuId] = useState<string | null>(null);
@@ -268,19 +269,12 @@ export default function CustomersPage() {
         // Route bulk actions
         if (confirmAction.action === 'bulk_delete' || confirmAction.action === 'bulk_suspend') {
             const action = confirmAction.action as 'bulk_delete' | 'bulk_suspend';
-            // Use IDs stored in confirmAction (captured at modal open time)
-            let wsIds: string[] = (confirmAction as any).bulkIds || [];
-            // Fallback: if triggered from owner menu, use that owner's workspace IDs
-            if (wsIds.length === 0 && confirmAction.ownerId) {
-                const ownerGroup = ownerGroups.find(g => g.owner.id === confirmAction.ownerId);
-                wsIds = ownerGroup ? ownerGroup.workspaces.map(w => w.id) : [];
-            }
-            // Last fallback: use current selectedWs
-            if (wsIds.length === 0) {
-                wsIds = Array.from(selectedWs);
-            }
+            const wsIds = bulkIdsRef.current;
+            console.log('[BULK] Executing', action, 'with IDs:', wsIds);
 
             if (wsIds.length === 0) {
+                console.warn('[BULK] No IDs to process!');
+                showFeedback('error', 'Nessun workspace selezionato');
                 setConfirmAction(null);
                 setConfirmText('');
                 return;
@@ -337,6 +331,16 @@ export default function CustomersPage() {
     const openConfirm = (params: typeof confirmAction) => {
         setActionMenuId(null);
         setConfirmText('');
+        // Capture bulk IDs in ref at this exact moment
+        if (params?.action === 'bulk_delete' || params?.action === 'bulk_suspend') {
+            if (params.ownerId) {
+                const ownerGroup = ownerGroups.find(g => g.owner.id === params.ownerId);
+                bulkIdsRef.current = ownerGroup ? ownerGroup.workspaces.map(w => w.id) : [];
+            } else {
+                bulkIdsRef.current = Array.from(selectedWs);
+            }
+            console.log('[BULK] IDs captured in ref:', bulkIdsRef.current);
+        }
         setConfirmAction(params);
     };
 
@@ -805,8 +809,7 @@ export default function CustomersPage() {
                                 label: `Sospendi ${selectedWs.size} Workspace`,
                                 description: `Sospenderai ${selectedWs.size} workspace contemporaneamente. Tutti i membri verranno bloccati.`,
                                 danger: true, confirmWord: 'SOSPENDI',
-                                bulkIds: Array.from(selectedWs),
-                            } as any)}
+                            })}
                             disabled={bulkLoading}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all disabled:opacity-40"
                         >
@@ -819,8 +822,7 @@ export default function CustomersPage() {
                                 label: `Elimina ${selectedWs.size} Workspace`,
                                 description: `Eliminerai definitivamente ${selectedWs.size} workspace dal database. Questa azione è IRREVERSIBILE.`,
                                 danger: true, confirmWord: 'ELIMINA',
-                                bulkIds: Array.from(selectedWs),
-                            } as any)}
+                            })}
                             disabled={bulkLoading}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-40"
                         >
