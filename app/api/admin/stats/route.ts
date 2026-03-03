@@ -63,8 +63,16 @@ export async function GET(req: NextRequest) {
         const now = Date.now();
         const day = 86400000;
 
+        // ── Parse optional date range params ──
+        const url = new URL(req.url);
+        const fromParam = url.searchParams.get('from'); // ISO date string e.g. "2026-01-01"
+        const toParam = url.searchParams.get('to');     // ISO date string e.g. "2026-03-03"
+        const hasRange = !!(fromParam && toParam);
+        const rangeFrom = hasRange ? new Date(fromParam + 'T00:00:00Z').toISOString() : '';
+        const rangeTo = hasRange ? new Date(toParam + 'T23:59:59.999Z').toISOString() : '';
+
         // ───────────────────────────────────────────────
-        // BLOCCO 1: UTENTI
+        // BLOCCO 1: UTENTI (always current snapshot for roles)
         // Source: profiles + workspace_members
         // ───────────────────────────────────────────────
 
@@ -75,7 +83,7 @@ export async function GET(req: NextRequest) {
 
         // All workspace members (including cross-workspace duplicates)
         const allMembers = await safe(
-            () => supabase.from('workspace_members').select('user_id, last_active_at, role').is('removed_at', null),
+            () => supabase.from('workspace_members').select('user_id, last_active_at, role, created_at').is('removed_at', null),
             [] as any[]
         );
 
@@ -86,27 +94,7 @@ export async function GET(req: NextRequest) {
         // Use the larger value between profiles count and unique members
         const totalUsers = Math.max(totalProfiles, uniqueUsers);
 
-        // Recent signups (last 7 days)
-        const recentSignups = await safeCount(() =>
-            supabase.from('profiles').select('id', { count: 'exact', head: true })
-                .gte('created_at', new Date(now - 7 * day).toISOString())
-        );
-
-        // Active users in last 24h — try profiles first, fallback to workspace_members
-        let activeUsers24h = await safeCount(() =>
-            supabase.from('profiles').select('id', { count: 'exact', head: true })
-                .gte('last_seen_at', new Date(now - day).toISOString())
-        );
-        if (activeUsers24h === 0 && allMembers.length > 0) {
-            const cutoff = new Date(now - day).toISOString();
-            const activeSet = new Set(
-                allMembers.filter((m: any) => m.last_active_at && m.last_active_at >= cutoff)
-                    .map((m: any) => m.user_id)
-            );
-            activeUsers24h = activeSet.size;
-        }
-
-        // Role counts (distinct users per role)
+        // Role counts — always current snapshot (indipendente dal range)
         const owners = new Set(
             allMembers.filter((m: any) => m.role === 'owner').map((m: any) => m.user_id)
         ).size;
@@ -125,6 +113,52 @@ export async function GET(req: NextRequest) {
             supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_super_admin', true)
         );
 
+        // ── Range-aware metrics ──
+
+        // Recent signups: in range or last 7 days
+        let recentSignups: number;
+        if (hasRange) {
+            recentSignups = await safeCount(() =>
+                supabase.from('profiles').select('id', { count: 'exact', head: true })
+                    .gte('created_at', rangeFrom).lte('created_at', rangeTo)
+            );
+        } else {
+            recentSignups = await safeCount(() =>
+                supabase.from('profiles').select('id', { count: 'exact', head: true })
+                    .gte('created_at', new Date(now - 7 * day).toISOString())
+            );
+        }
+
+        // Active users: in range or last 24h
+        let activeUsers: number;
+        if (hasRange) {
+            // Try profiles.last_seen_at first
+            activeUsers = await safeCount(() =>
+                supabase.from('profiles').select('id', { count: 'exact', head: true })
+                    .gte('last_seen_at', rangeFrom).lte('last_seen_at', rangeTo)
+            );
+            if (activeUsers === 0 && allMembers.length > 0) {
+                const activeSet = new Set(
+                    allMembers.filter((m: any) => m.last_active_at && m.last_active_at >= rangeFrom && m.last_active_at <= rangeTo)
+                        .map((m: any) => m.user_id)
+                );
+                activeUsers = activeSet.size;
+            }
+        } else {
+            activeUsers = await safeCount(() =>
+                supabase.from('profiles').select('id', { count: 'exact', head: true })
+                    .gte('last_seen_at', new Date(now - day).toISOString())
+            );
+            if (activeUsers === 0 && allMembers.length > 0) {
+                const cutoff = new Date(now - day).toISOString();
+                const activeSet = new Set(
+                    allMembers.filter((m: any) => m.last_active_at && m.last_active_at >= cutoff)
+                        .map((m: any) => m.user_id)
+                );
+                activeUsers = activeSet.size;
+            }
+        }
+
         // ───────────────────────────────────────────────
         // BLOCCO 2: WORKSPACE
         // Source: workspaces table
@@ -140,10 +174,19 @@ export async function GET(req: NextRequest) {
         const wsDeleted = allWorkspaces.filter((w: any) => w.deleted_at);
         const wsTotal = allWorkspaces.filter((w: any) => !w.deleted_at); // non-deleted total
 
-        // New workspaces last 7 days
-        const recentWs = allWorkspaces.filter((w: any) =>
-            !w.deleted_at && new Date(w.created_at).getTime() > now - 7 * day
-        ).length;
+        // New workspaces: in range or last 7 days
+        let recentWs: number;
+        if (hasRange) {
+            recentWs = allWorkspaces.filter((w: any) =>
+                !w.deleted_at &&
+                new Date(w.created_at).toISOString() >= rangeFrom &&
+                new Date(w.created_at).toISOString() <= rangeTo
+            ).length;
+        } else {
+            recentWs = allWorkspaces.filter((w: any) =>
+                !w.deleted_at && new Date(w.created_at).getTime() > now - 7 * day
+            ).length;
+        }
 
         // Plan distribution (only non-deleted)
         const planDistribution: Record<string, number> = {};
@@ -151,33 +194,50 @@ export async function GET(req: NextRequest) {
             planDistribution[w.plan] = (planDistribution[w.plan] || 0) + 1;
         });
 
-        // Active workspaces 24h (workspaces with at least one member active in 24h)
-        let activeWs24h = 0;
+        // Active workspaces: in range or last 24h
+        let activeWs = 0;
         try {
-            const { data: awData } = await supabase
-                .from('workspace_members')
-                .select('workspace_id')
-                .gte('last_active_at', new Date(now - day).toISOString());
-            if (awData) {
-                activeWs24h = new Set(awData.map((m: any) => m.workspace_id)).size;
+            if (hasRange) {
+                const { data: awData } = await supabase
+                    .from('workspace_members')
+                    .select('workspace_id')
+                    .gte('last_active_at', rangeFrom)
+                    .lte('last_active_at', rangeTo);
+                if (awData) {
+                    activeWs = new Set(awData.map((m: any) => m.workspace_id)).size;
+                }
+            } else {
+                const { data: awData } = await supabase
+                    .from('workspace_members')
+                    .select('workspace_id')
+                    .gte('last_active_at', new Date(now - day).toISOString());
+                if (awData) {
+                    activeWs = new Set(awData.map((m: any) => m.workspace_id)).size;
+                }
             }
         } catch { /* ignore */ }
-
-
 
         // ───────────────────────────────────────────────
         // BLOCCO 4: REVENUE
         // Source: billing_events
         // ───────────────────────────────────────────────
 
-        let mrrCents = 0;
+        let revenueCents = 0;
         try {
-            const { data: billingData } = await supabase
+            let query = supabase
                 .from('billing_events')
                 .select('amount_cents')
-                .eq('event_type', 'payment')
-                .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
-            mrrCents = (billingData || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0);
+                .eq('event_type', 'payment');
+
+            if (hasRange) {
+                query = query.gte('created_at', rangeFrom).lte('created_at', rangeTo);
+            } else {
+                // Default: current month
+                query = query.gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+            }
+
+            const { data: billingData } = await query;
+            revenueCents = (billingData || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0);
         } catch { /* billing_events may not exist */ }
 
         const paidWorkspaces = wsTotal.filter((w: any) => w.plan !== 'free').length;
@@ -210,7 +270,7 @@ export async function GET(req: NextRequest) {
                 members,
                 guests,
                 recentSignups,
-                active24h: activeUsers24h,
+                activeInPeriod: activeUsers,
             },
             workspaces: {
                 total: wsTotal.length,
@@ -218,15 +278,13 @@ export async function GET(req: NextRequest) {
                 suspended: wsSuspended.length,
                 deleted: wsDeleted.length,
                 recentNew: recentWs,
-                active24h: activeWs24h,
+                activeInPeriod: activeWs,
                 planDistribution,
                 paidWorkspaces,
             },
-
             revenue: {
-                mrrCents,
-                mrrFormatted: `€${(mrrCents / 100).toFixed(2)}`,
-                arrFormatted: `€${((mrrCents * 12) / 100).toFixed(2)}`,
+                totalCents: revenueCents,
+                totalFormatted: `€${(revenueCents / 100).toFixed(2)}`,
                 paidWorkspaces,
             },
             monitoring: {
@@ -234,6 +292,7 @@ export async function GET(req: NextRequest) {
                 criticalBugs,
                 activeBans,
             },
+            dateRange: hasRange ? { from: fromParam, to: toParam } : null,
         });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
