@@ -46,19 +46,31 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const search = url.searchParams.get('search') || '';
     const plan = url.searchParams.get('plan') || '';
+    const status = url.searchParams.get('status') || ''; // active, suspended, deleted
     const offset = (page - 1) * limit;
 
     try {
         let query = supabase
             .from('workspaces')
             .select(`
-        id, name, slug, plan, max_members, max_spaces,
-        created_at, updated_at, deleted_at,
-        workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)
-      `, { count: 'exact' })
-            .is('deleted_at', null)
+                id, name, slug, plan, max_members, max_spaces,
+                created_at, updated_at, deleted_at, suspended_at,
+                created_by,
+                workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)
+            `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
+
+        // Status filter
+        if (status === 'active') {
+            query = query.is('deleted_at', null).is('suspended_at', null);
+        } else if (status === 'suspended') {
+            query = query.is('deleted_at', null).not('suspended_at', 'is', null);
+        } else if (status === 'deleted') {
+            query = query.not('deleted_at', 'is', null);
+        } else {
+            // Default: show all (including deleted for admin view)
+        }
 
         if (search) {
             query = query.or(`name.ilike.%${search}%,slug.ilike.%${search}%`);
@@ -70,11 +82,41 @@ export async function GET(req: NextRequest) {
         const { data, count, error } = await query;
         if (error) throw error;
 
-        // Enrich with member counts
+        // Collect all owner user IDs to batch-fetch profiles
+        const ownerUserIds = new Set<string>();
+        (data || []).forEach((ws: any) => {
+            const members = ws.workspace_members || [];
+            const owner = members.find((m: any) => m.role === 'owner' && !m.removed_at);
+            if (owner) ownerUserIds.add(owner.user_id);
+            // Also check created_by
+            if (ws.created_by) ownerUserIds.add(ws.created_by);
+        });
+
+        // Fetch owner profiles
+        let ownerProfiles: Record<string, any> = {};
+        if (ownerUserIds.size > 0) {
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, email, full_name, display_name, avatar_url, suspended_at, deleted_at')
+                .in('id', Array.from(ownerUserIds));
+            if (profiles) {
+                profiles.forEach((p: any) => { ownerProfiles[p.id] = p; });
+            }
+        }
+
+        // Enrich with member counts and owner info
         const enriched = (data || []).map((ws: any) => {
             const members = ws.workspace_members || [];
             const activeMembers = members.filter((m: any) => !m.removed_at && !m.is_suspended);
-            const owner = members.find((m: any) => m.role === 'owner');
+            const ownerMember = members.find((m: any) => m.role === 'owner' && !m.removed_at);
+            const ownerUserId = ownerMember?.user_id || ws.created_by;
+            const ownerProfile = ownerUserId ? ownerProfiles[ownerUserId] : null;
+
+            // Determine workspace status
+            let wsStatus: 'active' | 'suspended' | 'deleted' = 'active';
+            if (ws.deleted_at) wsStatus = 'deleted';
+            else if (ws.suspended_at) wsStatus = 'suspended';
+
             return {
                 id: ws.id,
                 name: ws.name,
@@ -84,9 +126,19 @@ export async function GET(req: NextRequest) {
                 maxSpaces: ws.max_spaces,
                 totalMembers: activeMembers.length,
                 suspendedMembers: members.filter((m: any) => m.is_suspended).length,
-                ownerUserId: owner?.user_id || null,
+                status: wsStatus,
+                suspendedAt: ws.suspended_at,
+                deletedAt: ws.deleted_at,
                 createdAt: ws.created_at,
                 lastActivity: Math.max(...members.map((m: any) => new Date(m.last_active_at || 0).getTime())) || null,
+                owner: ownerProfile ? {
+                    id: ownerProfile.id,
+                    email: ownerProfile.email,
+                    name: ownerProfile.display_name || ownerProfile.full_name || ownerProfile.email,
+                    avatarUrl: ownerProfile.avatar_url,
+                    suspended: !!ownerProfile.suspended_at,
+                    deleted: !!ownerProfile.deleted_at,
+                } : null,
             };
         });
 
@@ -106,50 +158,205 @@ export async function POST(req: NextRequest) {
     if ('error' in auth) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-    const { supabase } = auth;
+    const { supabase, userId } = auth;
 
     try {
         const body = await req.json();
-        const { action, workspaceId, data } = body;
+        const { action, workspaceId, data: actionData } = body;
+
+        // Helper to send notification to a user
+        const sendNotification = async (targetUserId: string, title: string, body: string, entityType?: string, entityId?: string) => {
+            await supabase.from('notifications').insert({
+                user_id: targetUserId,
+                type: 'system',
+                title,
+                body,
+                entity_type: entityType || null,
+                entity_id: entityId || null,
+            });
+        };
+
+        // Helper to get workspace owner user_id
+        const getOwnerUserId = async (wsId: string): Promise<string | null> => {
+            const { data: members } = await supabase
+                .from('workspace_members')
+                .select('user_id')
+                .eq('workspace_id', wsId)
+                .eq('role', 'owner')
+                .is('removed_at', null)
+                .limit(1);
+            return members?.[0]?.user_id || null;
+        };
 
         switch (action) {
             case 'change_plan': {
                 const { data: ws, error } = await supabase
                     .from('workspaces')
-                    .update({ plan: data.plan })
+                    .update({ plan: actionData.plan })
                     .eq('id', workspaceId)
                     .select()
                     .single();
                 if (error) throw error;
 
-                // Log billing event
                 await supabase.from('billing_events').insert({
                     workspace_id: workspaceId,
                     event_type: 'plan_upgrade',
-                    plan_from: data.planFrom,
-                    plan_to: data.plan,
+                    plan_from: actionData.planFrom,
+                    plan_to: actionData.plan,
                 });
 
                 return NextResponse.json({ success: true, workspace: ws });
             }
 
             case 'suspend_workspace': {
-                // Suspend all members
-                const { error } = await supabase
+                // Suspend entire workspace
+                const { error: wsError } = await supabase
+                    .from('workspaces')
+                    .update({ suspended_at: new Date().toISOString(), suspended_by: userId })
+                    .eq('id', workspaceId);
+                if (wsError) throw wsError;
+
+                // Also suspend all members
+                await supabase
                     .from('workspace_members')
-                    .update({ is_suspended: true, suspended_at: new Date().toISOString() })
+                    .update({ is_suspended: true })
+                    .eq('workspace_id', workspaceId)
+                    .is('removed_at', null);
+
+                // Notify owner
+                const ownerId = await getOwnerUserId(workspaceId);
+                if (ownerId) {
+                    const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single();
+                    await sendNotification(
+                        ownerId,
+                        '⚠️ Workspace Sospeso',
+                        `Il workspace "${ws?.name || ''}" è stato temporaneamente sospeso dall'amministratore della piattaforma. Contattaci per maggiori informazioni.`,
+                        'workspace', workspaceId
+                    );
+                }
+
+                return NextResponse.json({ success: true });
+            }
+
+            case 'reactivate_workspace': {
+                // Clear suspension
+                const { error: wsError } = await supabase
+                    .from('workspaces')
+                    .update({ suspended_at: null, suspended_by: null })
+                    .eq('id', workspaceId);
+                if (wsError) throw wsError;
+
+                // Un-suspend all members
+                await supabase
+                    .from('workspace_members')
+                    .update({ is_suspended: false })
                     .eq('workspace_id', workspaceId);
-                if (error) throw error;
+
+                // Notify owner
+                const ownerId = await getOwnerUserId(workspaceId);
+                if (ownerId) {
+                    const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single();
+                    await sendNotification(
+                        ownerId,
+                        '✅ Workspace Riattivato',
+                        `Il workspace "${ws?.name || ''}" è stato riattivato. Puoi tornare ad utilizzarlo normalmente.`,
+                        'workspace', workspaceId
+                    );
+                }
+
                 return NextResponse.json({ success: true });
             }
 
             case 'delete_workspace': {
+                // Notify owner BEFORE deleting
+                const ownerId = await getOwnerUserId(workspaceId);
+                const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single();
+
                 // Soft delete
                 const { error } = await supabase
                     .from('workspaces')
-                    .update({ deleted_at: new Date().toISOString() })
+                    .update({ deleted_at: new Date().toISOString(), deleted_by: userId })
                     .eq('id', workspaceId);
                 if (error) throw error;
+
+                if (ownerId) {
+                    await sendNotification(
+                        ownerId,
+                        '🔴 Workspace Eliminato',
+                        `Il workspace "${ws?.name || ''}" è stato eliminato dall'amministratore della piattaforma. Se ritieni sia un errore, contattaci.`,
+                        'workspace', workspaceId
+                    );
+                }
+
+                return NextResponse.json({ success: true });
+            }
+
+            case 'restore_workspace': {
+                // Restore from soft-delete
+                const { error } = await supabase
+                    .from('workspaces')
+                    .update({ deleted_at: null, deleted_by: null, suspended_at: null, suspended_by: null })
+                    .eq('id', workspaceId);
+                if (error) throw error;
+
+                // Un-suspend members
+                await supabase
+                    .from('workspace_members')
+                    .update({ is_suspended: false })
+                    .eq('workspace_id', workspaceId);
+
+                // Notify owner
+                const ownerId = await getOwnerUserId(workspaceId);
+                if (ownerId) {
+                    const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single();
+                    await sendNotification(
+                        ownerId,
+                        '🔄 Workspace Ripristinato',
+                        `Il workspace "${ws?.name || ''}" è stato ripristinato. Tutto torna alla normalità.`,
+                        'workspace', workspaceId
+                    );
+                }
+
+                return NextResponse.json({ success: true });
+            }
+
+            case 'suspend_owner': {
+                const { ownerId } = actionData;
+                if (!ownerId) return NextResponse.json({ error: 'ownerId required' }, { status: 400 });
+
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ suspended_at: new Date().toISOString(), suspended_by: userId })
+                    .eq('id', ownerId);
+                if (error) throw error;
+
+                await sendNotification(
+                    ownerId,
+                    '⚠️ Account Sospeso',
+                    'Il tuo account è stato temporaneamente sospeso dall\'amministratore della piattaforma. Contattaci per maggiori informazioni.',
+                    'profile', ownerId
+                );
+
+                return NextResponse.json({ success: true });
+            }
+
+            case 'reactivate_owner': {
+                const { ownerId } = actionData;
+                if (!ownerId) return NextResponse.json({ error: 'ownerId required' }, { status: 400 });
+
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ suspended_at: null, suspended_by: null })
+                    .eq('id', ownerId);
+                if (error) throw error;
+
+                await sendNotification(
+                    ownerId,
+                    '✅ Account Riattivato',
+                    'Il tuo account è stato riattivato. Puoi tornare ad utilizzare la piattaforma normalmente.',
+                    'profile', ownerId
+                );
+
                 return NextResponse.json({ success: true });
             }
 
