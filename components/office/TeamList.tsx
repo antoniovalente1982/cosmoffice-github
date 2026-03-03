@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '../../utils/supabase/client';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Shield, User, Star, ChevronDown, Users } from 'lucide-react';
+import { Crown, Shield, User, Star, ChevronDown, Users, UserX, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 
 const supabase = createClient();
@@ -30,6 +30,13 @@ const ROLE_CONFIG: Record<WorkspaceRole, { icon: typeof Crown; label: string; co
     guest: { icon: Star, label: 'Ospiti', color: 'text-purple-400', dotColor: 'bg-purple-400' },
 };
 
+const ROLE_HIERARCHY: Record<WorkspaceRole, number> = {
+    owner: 3,
+    admin: 2,
+    member: 1,
+    guest: 0,
+};
+
 const ROLE_ORDER: WorkspaceRole[] = ['owner', 'admin', 'member', 'guest'];
 
 const STATUS_DOT: Record<string, string> = {
@@ -48,58 +55,101 @@ export function TeamList({ spaceId }: TeamListProps) {
     const myProfile = useAvatarStore(s => s.myProfile);
     const myStatus = useAvatarStore(s => s.myStatus);
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
-    const [showAllMembers, setShowAllMembers] = useState(false); // collapsed by default
+    const [showAllMembers, setShowAllMembers] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [myRole, setMyRole] = useState<WorkspaceRole | null>(null);
+    const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+    const [kickingUserId, setKickingUserId] = useState<string | null>(null);
 
     const peerList = Object.values(peers);
     const onlinePeerIds = new Set(peerList.map(p => p.id));
 
     // Fetch all workspace members
-    useEffect(() => {
-        let cancelled = false;
+    const fetchMembers = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setCurrentUserId(user.id);
 
-        const fetchMembers = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (cancelled || !user) return;
-            setCurrentUserId(user.id);
+        const { data: space } = await supabase
+            .from('spaces')
+            .select('workspace_id')
+            .eq('id', spaceId)
+            .single();
 
-            const { data: space } = await supabase
-                .from('spaces')
-                .select('workspace_id')
-                .eq('id', spaceId)
-                .single();
+        if (!space?.workspace_id) return;
+        setWorkspaceId(space.workspace_id);
 
-            if (!space?.workspace_id || cancelled) return;
+        const { data: membersData } = await supabase
+            .from('workspace_members')
+            .select(`
+                user_id,
+                role,
+                profiles:user_id (
+                    full_name,
+                    display_name,
+                    avatar_url,
+                    email,
+                    status
+                )
+            `)
+            .eq('workspace_id', space.workspace_id)
+            .is('removed_at', null);
 
-            const { data: membersData } = await supabase
-                .from('workspace_members')
-                .select(`
-                    user_id,
-                    role,
-                    profiles:user_id (
-                        full_name,
-                        display_name,
-                        avatar_url,
-                        email,
-                        status
-                    )
-                `)
-                .eq('workspace_id', space.workspace_id)
-                .is('removed_at', null);
+        if (membersData) {
+            const formatted = (membersData as any[]).map(m => ({
+                user_id: m.user_id,
+                role: m.role as WorkspaceRole,
+                profile: m.profiles || null,
+            }));
+            setMembers(formatted);
 
-            if (!cancelled && membersData) {
-                const formatted = (membersData as any[]).map(m => ({
-                    user_id: m.user_id,
-                    role: m.role as WorkspaceRole,
-                    profile: m.profiles || null,
-                }));
-                setMembers(formatted);
-            }
-        };
-
-        fetchMembers();
-        return () => { cancelled = true; };
+            // Find my role
+            const me = formatted.find(m => m.user_id === user.id);
+            setMyRole(me?.role || null);
+        }
     }, [spaceId]);
+
+    useEffect(() => {
+        fetchMembers();
+    }, [fetchMembers]);
+
+    // Kick member — sets removed_at in workspace_members
+    const handleKick = async (userId: string, userName: string) => {
+        if (!workspaceId) return;
+        if (!confirm(`Sei sicuro di voler rimuovere ${userName} dal workspace?`)) return;
+
+        setKickingUserId(userId);
+        try {
+            const { error } = await supabase
+                .from('workspace_members')
+                .update({
+                    removed_at: new Date().toISOString(),
+                    removed_by: currentUserId,
+                    remove_reason: 'Kicked by admin',
+                })
+                .eq('workspace_id', workspaceId)
+                .eq('user_id', userId);
+
+            if (error) {
+                console.error('Kick error:', error);
+                alert('Errore durante la rimozione: ' + error.message);
+            } else {
+                // Remove from local list
+                setMembers(prev => prev.filter(m => m.user_id !== userId));
+            }
+        } catch (err: any) {
+            console.error('Kick error:', err);
+            alert('Errore: ' + err.message);
+        }
+        setKickingUserId(null);
+    };
+
+    // Can current user kick this member?
+    const canKickMember = (targetRole: WorkspaceRole) => {
+        if (!myRole) return false;
+        // Can only kick users with LOWER role
+        return ROLE_HIERARCHY[myRole] > ROLE_HIERARCHY[targetRole];
+    };
 
     // For the current user, use real-time myProfile from the store instead of stale DB data
     const getName = (m: WorkspaceMember) => {
@@ -149,10 +199,12 @@ export function TeamList({ spaceId }: TeamListProps) {
         const isMe = m.user_id === currentUserId;
         const roleConfig = ROLE_CONFIG[m.role];
         const RIcon = roleConfig.icon;
+        const showKick = !isMe && canKickMember(m.role);
+        const isKicking = kickingUserId === m.user_id;
 
         return (
             <div
-                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${isMe ? 'bg-primary-500/5' : 'hover:bg-white/5'
+                className={`group flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${isMe ? 'bg-primary-500/5' : 'hover:bg-white/5'
                     }`}
             >
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[status] || STATUS_DOT.offline}`} />
@@ -162,6 +214,23 @@ export function TeamList({ spaceId }: TeamListProps) {
                     </p>
                 </div>
                 {showRole && <RIcon className={`w-3 h-3 ${roleConfig.color} opacity-40 flex-shrink-0`} />}
+                {showKick && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleKick(m.user_id, getName(m));
+                        }}
+                        disabled={isKicking}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-md hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-all"
+                        title={`Rimuovi ${getName(m)}`}
+                    >
+                        {isKicking ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                            <UserX className="w-3 h-3" />
+                        )}
+                    </button>
+                )}
             </div>
         );
     };
