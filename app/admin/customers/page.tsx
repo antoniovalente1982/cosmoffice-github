@@ -355,7 +355,7 @@ export default function CustomersPage() {
 
                     return (
                         <div key={group.owner.id}
-                            className="rounded-2xl border border-white/5 overflow-hidden"
+                            className="rounded-2xl border border-white/5"
                             style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
 
                             {/* Owner Row (header) */}
@@ -499,9 +499,6 @@ export default function CustomersPage() {
                                                         <p className="text-[10px] text-slate-500 truncate">/{ws.slug}</p>
                                                     </div>
 
-                                                    {/* Plan */}
-                                                    <PlanBadge plan={ws.plan} />
-
                                                     {/* Members */}
                                                     <div className="hidden sm:flex items-center gap-1 text-xs shrink-0">
                                                         <Users className="w-3.5 h-3.5 text-slate-500" />
@@ -514,8 +511,8 @@ export default function CustomersPage() {
                                                         {new Date(ws.createdAt).toLocaleDateString('it-IT')}
                                                     </span>
 
-                                                    {/* Status */}
-                                                    <StatusBadge status={ws.status} />
+                                                    {/* Status — only show if not active */}
+                                                    {ws.status !== 'active' && <StatusBadge status={ws.status} />}
 
                                                     {/* Actions */}
                                                     <div className="relative shrink-0">
