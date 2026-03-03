@@ -144,6 +144,19 @@ export async function GET(req: NextRequest) {
                 profiles.forEach((p: any) => { ownerProfiles[p.id] = p; });
             }
         }
+        // Fetch active spaces count per workspace
+        const wsIds = (data || []).map((ws: any) => ws.id);
+        const spaceCounts: Record<string, number> = {};
+        if (wsIds.length > 0) {
+            const { data: spacesData } = await supabase
+                .from('spaces')
+                .select('workspace_id')
+                .in('workspace_id', wsIds)
+                .is('deleted_at', null);
+            (spacesData || []).forEach((s: any) => {
+                spaceCounts[s.workspace_id] = (spaceCounts[s.workspace_id] || 0) + 1;
+            });
+        }
 
         // Enrich with member counts and owner info
         const enriched = (data || []).map((ws: any) => {
@@ -174,6 +187,7 @@ export async function GET(req: NextRequest) {
                 deletedAt: ws.deleted_at,
                 createdAt: ws.created_at,
                 lastActivity: Math.max(...members.map((m: any) => new Date(m.last_active_at || 0).getTime())) || null,
+                activeSpaces: spaceCounts[ws.id] || 0,
                 owner: ownerProfile ? {
                     id: ownerProfile.id,
                     email: ownerProfile.email,

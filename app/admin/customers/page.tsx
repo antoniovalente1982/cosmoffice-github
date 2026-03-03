@@ -32,6 +32,7 @@ interface Workspace {
     deletedAt: string | null;
     createdAt: string;
     lastActivity: number;
+    activeSpaces: number;
     owner: Owner | null;
 }
 
@@ -635,6 +636,18 @@ export default function CustomersPage() {
 
                                                     {/* Status — only show if not active */}
                                                     {ws.status !== 'active' && <StatusBadge status={ws.status} />}
+
+                                                    {/* Empty workspace badge */}
+                                                    {ws.activeSpaces === 0 && ws.status === 'active' && (
+                                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-red-500/20 text-red-300 border-red-500/30 animate-pulse">
+                                                            Vuoto
+                                                        </span>
+                                                    )}
+                                                    {ws.activeSpaces > 0 && (
+                                                        <span className="text-[10px] text-slate-500">
+                                                            {ws.activeSpaces} uffici
+                                                        </span>
+                                                    )}
 
                                                     {/* Actions */}
                                                     <div className="relative shrink-0">
