@@ -17,8 +17,8 @@ import {
  * ═══════════════════════════════════════════════════ */
 
 interface Stats {
-    users: { total: number; unique: number; superAdmins: number; owners: number; admins: number; members: number; guests: number; recentSignups: number; activeInPeriod: number };
-    workspaces: { total: number; active: number; suspended: number; deleted: number; recentNew: number; activeInPeriod: number; planDistribution: Record<string, number>; paidWorkspaces: number };
+    users: { total: number; unique: number; superAdmins: number; owners: number; admins: number; members: number; guests: number; recentSignups: number; activeInPeriod: number; registeredInPeriod: number };
+    workspaces: { total: number; active: number; suspended: number; deleted: number; recentNew: number; activeInPeriod: number; existedInPeriod: number; planDistribution: Record<string, number>; paidWorkspaces: number };
     revenue: { totalCents: number; totalFormatted: string; paidWorkspaces: number };
     monitoring: { openBugs: number; criticalBugs: number; activeBans: number };
     dateRange: { from: string; to: string } | null;
@@ -409,8 +409,17 @@ export default function AdminOverview() {
                                     </span>
                                 )}
                             </div>
-                            <p className="text-4xl font-extrabold text-white tracking-tighter leading-none">{stats.users.total}</p>
-                            <p className="mt-1.5 text-xs text-slate-500">{stats.users.activeInPeriod} attivi {isFiltered ? 'nel periodo' : 'oggi'}</p>
+                            {isFiltered ? (
+                                <>
+                                    <p className="text-4xl font-extrabold text-white tracking-tighter leading-none">{stats.users.registeredInPeriod}</p>
+                                    <p className="mt-1.5 text-xs text-slate-500">registrati nel periodo · {stats.users.total} totali</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-4xl font-extrabold text-white tracking-tighter leading-none">{stats.users.total}</p>
+                                    <p className="mt-1.5 text-xs text-slate-500">{stats.users.activeInPeriod} attivi oggi</p>
+                                </>
+                            )}
                         </div>
                     </GlassCard>
 
@@ -428,8 +437,17 @@ export default function AdminOverview() {
                                     </span>
                                 )}
                             </div>
-                            <p className="text-4xl font-extrabold text-white tracking-tighter leading-none">{stats.workspaces.active}</p>
-                            <p className="mt-1.5 text-xs text-slate-500">{stats.workspaces.total} totali</p>
+                            {isFiltered ? (
+                                <>
+                                    <p className="text-4xl font-extrabold text-white tracking-tighter leading-none">{stats.workspaces.recentNew}</p>
+                                    <p className="mt-1.5 text-xs text-slate-500">creati nel periodo · {stats.workspaces.total} totali</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-4xl font-extrabold text-white tracking-tighter leading-none">{stats.workspaces.active}</p>
+                                    <p className="mt-1.5 text-xs text-slate-500">{stats.workspaces.total} totali</p>
+                                </>
+                            )}
                         </div>
                     </GlassCard>
 

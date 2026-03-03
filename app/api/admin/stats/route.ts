@@ -257,6 +257,20 @@ export async function GET(req: NextRequest) {
         );
 
         // ─── RESPONSE ─────────────────────────────────
+        // When a date range is active, the hero cards should show
+        // period-scoped numbers to make filtering visible.
+        // "recentSignups" already counts users registered in period.
+        // "recentWs" already counts workspaces created in period.
+
+        // Count workspaces that existed up to rangeTo (created before rangeTo and not deleted before rangeFrom)
+        let wsInPeriod = wsTotal.length; // default: all non-deleted
+        if (hasRange) {
+            wsInPeriod = allWorkspaces.filter((w: any) =>
+                new Date(w.created_at).toISOString() <= rangeTo &&
+                (!w.deleted_at || new Date(w.deleted_at).toISOString() >= rangeFrom)
+            ).length;
+        }
+
         return NextResponse.json({
             users: {
                 total: totalUsers,
@@ -268,6 +282,7 @@ export async function GET(req: NextRequest) {
                 guests: roleCounts.guest,
                 recentSignups,
                 activeInPeriod: activeUsers,
+                registeredInPeriod: recentSignups, // same as recentSignups but clearer name
             },
             workspaces: {
                 total: wsTotal.length,
@@ -276,6 +291,7 @@ export async function GET(req: NextRequest) {
                 deleted: wsDeleted.length,
                 recentNew: recentWs,
                 activeInPeriod: activeWs,
+                existedInPeriod: wsInPeriod,
                 planDistribution,
                 paidWorkspaces,
             },
@@ -295,6 +311,9 @@ export async function GET(req: NextRequest) {
                 totalMembers: allMembers.length,
                 uniqueUsers,
                 roles: roleCounts,
+                hasRange,
+                rangeFrom: hasRange ? rangeFrom : null,
+                rangeTo: hasRange ? rangeTo : null,
             },
         });
     } catch (err: any) {
