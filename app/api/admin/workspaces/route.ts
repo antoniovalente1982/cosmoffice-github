@@ -353,6 +353,9 @@ export async function POST(req: NextRequest) {
                 const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single();
                 const wsName = ws?.name || '';
 
+                // Clean up related tables that may not have ON DELETE CASCADE in production
+                await supabase.from('workspace_invitations').delete().eq('workspace_id', workspaceId);
+
                 // Hard delete — CASCADE will handle workspace_members, spaces, etc.
                 const { error } = await supabase
                     .from('workspaces')
@@ -453,7 +456,10 @@ export async function POST(req: NextRequest) {
                     .select('id, name, created_by')
                     .in('id', ids);
 
-                // Hard delete all — do this FIRST to avoid timeout
+                // Clean up related tables that may not have ON DELETE CASCADE in production
+                await supabase.from('workspace_invitations').delete().in('workspace_id', ids);
+
+                // Hard delete all workspaces
                 const { error: delErr } = await supabase.from('workspaces').delete().in('id', ids);
                 if (delErr) throw delErr;
 
