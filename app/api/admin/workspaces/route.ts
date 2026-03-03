@@ -125,14 +125,14 @@ export async function GET(req: NextRequest) {
             let profiles: any[] | null = null;
             const { data: extProfiles, error: extError } = await supabase
                 .from('profiles')
-                .select('id, email, full_name, display_name, avatar_url, suspended_at, deleted_at')
+                .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, deleted_at')
                 .in('id', Array.from(ownerUserIds));
 
             if (extError) {
                 // Fallback: suspended_at/deleted_at columns may not exist yet
                 const { data: basicProfiles } = await supabase
                     .from('profiles')
-                    .select('id, email, full_name, display_name, avatar_url')
+                    .select('id, email, full_name, display_name, avatar_url, is_super_admin')
                     .in('id', Array.from(ownerUserIds));
                 profiles = basicProfiles;
             } else {
@@ -176,6 +176,7 @@ export async function GET(req: NextRequest) {
                     email: ownerProfile.email,
                     name: ownerProfile.display_name || ownerProfile.full_name || ownerProfile.email,
                     avatarUrl: ownerProfile.avatar_url,
+                    isSuperAdmin: !!ownerProfile.is_super_admin,
                     suspended: !!ownerProfile.suspended_at,
                     deleted: !!ownerProfile.deleted_at,
                 } : null,
@@ -333,11 +334,12 @@ export async function POST(req: NextRequest) {
                 // Notify owner BEFORE deleting
                 const ownerId = await getOwnerUserId(workspaceId);
                 const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single();
+                const wsName = ws?.name || '';
 
-                // Soft delete
+                // Hard delete — CASCADE will handle workspace_members, spaces, etc.
                 const { error } = await supabase
                     .from('workspaces')
-                    .update({ deleted_at: new Date().toISOString(), deleted_by: userId })
+                    .delete()
                     .eq('id', workspaceId);
                 if (error) throw error;
 
@@ -345,7 +347,7 @@ export async function POST(req: NextRequest) {
                     await sendNotification(
                         ownerId,
                         '🔴 Workspace Eliminato',
-                        `Il workspace "${ws?.name || ''}" è stato eliminato dall'amministratore della piattaforma. Se ritieni sia un errore, contattaci.`,
+                        `Il workspace "${wsName}" è stato eliminato definitivamente dall'amministratore della piattaforma. Se ritieni sia un errore, contattaci.`,
                         'workspace', workspaceId
                     );
                 }

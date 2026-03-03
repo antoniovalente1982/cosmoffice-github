@@ -13,6 +13,7 @@ interface Owner {
     email: string;
     name: string;
     avatarUrl: string | null;
+    isSuperAdmin: boolean;
     suspended: boolean;
     deleted: boolean;
 }
@@ -173,7 +174,7 @@ export default function CustomersPage() {
         // Add "no owner" group if any
         if (noOwner.length > 0) {
             groups.push({
-                owner: { id: '__none__', email: '', name: 'Senza Proprietario', avatarUrl: null, suspended: false, deleted: false },
+                owner: { id: '__none__', email: '', name: 'Senza Proprietario', avatarUrl: null, isSuperAdmin: false, suspended: false, deleted: false },
                 workspaces: noOwner,
                 totalMembers: noOwner.reduce((s, w) => s + w.totalMembers, 0),
                 activeWs: noOwner.filter(w => w.status === 'active').length,
@@ -315,7 +316,7 @@ export default function CustomersPage() {
 
             {/* Summary Stats Cards */}
             {summary && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div className="rounded-xl border border-white/5 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                         <div className="flex items-center gap-2 mb-1">
                             <Users className="w-4 h-4 text-cyan-400" />
@@ -327,7 +328,7 @@ export default function CustomersPage() {
                     <div className="rounded-xl border border-emerald-500/10 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                         <div className="flex items-center gap-2 mb-1">
                             <Building2 className="w-4 h-4 text-emerald-400" />
-                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">WS Attivi</span>
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Workspace Attivi</span>
                         </div>
                         <p className="text-2xl font-bold text-emerald-300">{summary.workspacesActive}</p>
                         <p className="text-[10px] text-slate-500 mt-0.5">su {total} totali</p>
@@ -335,16 +336,9 @@ export default function CustomersPage() {
                     <div className="rounded-xl border border-amber-500/10 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                         <div className="flex items-center gap-2 mb-1">
                             <Pause className="w-4 h-4 text-amber-400" />
-                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">WS Sospesi</span>
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Workspace Sospesi</span>
                         </div>
                         <p className="text-2xl font-bold text-amber-300">{summary.workspacesSuspended}</p>
-                    </div>
-                    <div className="rounded-xl border border-red-500/10 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
-                        <div className="flex items-center gap-2 mb-1">
-                            <Trash2 className="w-4 h-4 text-red-400" />
-                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">WS Eliminati</span>
-                        </div>
-                        <p className="text-2xl font-bold text-red-300">{summary.workspacesDeleted}</p>
                     </div>
                 </div>
             )}
@@ -391,6 +385,11 @@ export default function CustomersPage() {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
                                         <p className="text-sm font-semibold text-white truncate">{group.owner.name}</p>
+                                        {group.owner.isSuperAdmin && (
+                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-amber-500/20 text-amber-300 border-amber-400/40" style={{ textShadow: '0 0 8px rgba(251,191,36,0.3)' }}>
+                                                <Crown className="w-3 h-3 inline mr-0.5 -mt-0.5" />Super Admin
+                                            </span>
+                                        )}
                                         {!isNoOwner && <OwnerStatusBadge suspended={group.owner.suspended} deleted={group.owner.deleted} />}
                                     </div>
                                     {!isNoOwner && (
@@ -557,19 +556,14 @@ export default function CustomersPage() {
                                                                         </button>
                                                                         <button onClick={() => openConfirm({
                                                                             action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato definitivamente.`, danger: true, confirmWord: 'ELIMINA',
+                                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato definitivamente dal database. Questa azione è IRREVERSIBILE.`, danger: true, confirmWord: 'ELIMINA',
                                                                         })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
-                                                                            <Trash2 className="w-3.5 h-3.5" /> Elimina
+                                                                            <Trash2 className="w-3.5 h-3.5" /> Elimina Definitivamente
                                                                         </button>
                                                                     </>
                                                                 )}
                                                                 {ws.status === 'deleted' && (
-                                                                    <button onClick={() => openConfirm({
-                                                                        action: 'restore_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                                        label: 'Ripristina Workspace', description: `Il workspace "${ws.name}" sarà ripristinato con tutti i suoi dati.`, danger: false,
-                                                                    })} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
-                                                                        <RotateCcw className="w-3.5 h-3.5" /> Ripristina
-                                                                    </button>
+                                                                    <p className="px-3 py-2 text-xs text-slate-500 italic">Workspace eliminato definitivamente</p>
                                                                 )}
                                                             </div>
                                                         )}
