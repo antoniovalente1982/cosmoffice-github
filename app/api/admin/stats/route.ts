@@ -158,7 +158,7 @@ export async function GET(req: NextRequest) {
         );
 
         const totalRooms = await safeCount(() =>
-            supabase.from('rooms').select('id', { count: 'exact', head: true })
+            supabase.from('rooms').select('id', { count: 'exact', head: true }).is('deleted_at', null)
         );
 
         // ───────────────────────────────────────────────

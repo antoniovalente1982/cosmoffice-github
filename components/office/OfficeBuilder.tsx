@@ -186,14 +186,17 @@ export function OfficeBuilder() {
         setSelectedRoom(null); // Clear selection as well to avoid zombie references
         setToast({ msg: '🗑️ Stanza eliminata', type: 'ok' });
 
-        // Ensure we delete dependent records first in case ON DELETE CASCADE is missing
-        await supabase.from('room_connections').delete().or(`room_a_id.eq.${selectedRoomId},room_b_id.eq.${selectedRoomId}`);
+        // Clean up all related data before deleting the room
+        await Promise.all([
+            supabase.from('room_connections').delete().or(`room_a_id.eq.${selectedRoomId},room_b_id.eq.${selectedRoomId}`),
+            supabase.from('furniture').delete().eq('room_id', selectedRoomId),
+            supabase.from('room_participants').delete().eq('room_id', selectedRoomId),
+        ]);
 
         const { error } = await supabase.from('rooms').delete().eq('id', selectedRoomId);
         if (error) {
             console.error("Error deleting room from DB:", error);
             setToast({ msg: `❌ Errore DB: ${error.message}`, type: 'err' });
-            // Ideally we'd rollback here, but for now at least we show the error
         }
     }, [selectedRoomId, supabase, removeRoom, setSelectedRoom]);
 
@@ -266,10 +269,14 @@ export function OfficeBuilder() {
         setConfirmTemplate(null);
 
         try {
-            // 1. Delete all existing rooms
+            // 1. Delete all existing rooms and their related data
             const existingRooms = useWorkspaceStore.getState().rooms;
             for (const room of existingRooms) {
-                await supabase.from('room_connections').delete().or(`room_a_id.eq.${room.id},room_b_id.eq.${room.id}`);
+                await Promise.all([
+                    supabase.from('room_connections').delete().or(`room_a_id.eq.${room.id},room_b_id.eq.${room.id}`),
+                    supabase.from('furniture').delete().eq('room_id', room.id),
+                    supabase.from('room_participants').delete().eq('room_id', room.id),
+                ]);
                 await supabase.from('rooms').delete().eq('id', room.id);
             }
             setRooms([]);
