@@ -106,6 +106,7 @@ export default function OfficePage() {
     const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
     const [workspaceName, setWorkspaceName] = useState('');
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
 
     // Avatar sync via PartyKit
@@ -149,6 +150,21 @@ export default function OfficePage() {
 
     // Role-based access
     const { isAdmin, role, canInvite, invitableRoles } = useWorkspaceRole(workspaceId);
+
+    // Check if current user is super admin
+    useEffect(() => {
+        const checkSuperAdmin = async () => {
+            const { data: { user: u } } = await supabase.auth.getUser();
+            if (!u) return;
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('is_super_admin')
+                .eq('id', u.id)
+                .single();
+            if (profile?.is_super_admin) setIsSuperAdmin(true);
+        };
+        checkSuperAdmin();
+    }, [supabase]);
 
 
 
@@ -508,7 +524,9 @@ export default function OfficePage() {
 
 
 
-                            <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
+                            {(role === 'owner' || isSuperAdmin) && (
+                                <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
+                            )}
                         </motion.div>
                     </div>
                 )}

@@ -44,6 +44,7 @@ export default function DashboardPage() {
     const [spaceMenuOpen, setSpaceMenuOpen] = useState<string | null>(null);
     const [settingsWorkspace, setSettingsWorkspace] = useState<{ id: string; name: string } | null>(null);
     const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+    const [userRoles, setUserRoles] = useState<Record<string, string>>({});
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     useEffect(() => {
@@ -57,9 +58,20 @@ export default function DashboardPage() {
 
             // Fetch workspaces from both memberships AND created workspaces to be safe
             const [membersRes, createdRes] = await Promise.all([
-                supabase.from('workspace_members').select('workspace_id, workspaces(*)').eq('user_id', user.id).is('removed_at', null),
+                supabase.from('workspace_members').select('workspace_id, role, workspaces(*)').eq('user_id', user.id).is('removed_at', null),
                 supabase.from('workspaces').select('*').eq('created_by', user.id)
             ]);
+
+            // Build role map from membership data
+            const roles: Record<string, string> = {};
+            membersRes.data?.forEach((m: any) => {
+                if (m.workspace_id && m.role) roles[m.workspace_id] = m.role;
+            });
+            // Creator is always owner
+            createdRes.data?.forEach((w: any) => {
+                if (!roles[w.id]) roles[w.id] = 'owner';
+            });
+            setUserRoles(roles);
 
             const memberWorkspaces = membersRes.data?.map(m => m.workspaces).filter(Boolean) || [];
             const createdWorkspaces = createdRes.data || [];
@@ -373,6 +385,7 @@ export default function DashboardPage() {
                         const workspace = workspaces.find(w => w.id === space.workspace_id);
                         const isEditing = editingSpace === space.id;
                         const isMenuOpen = spaceMenuOpen === space.id;
+                        const isOwnerOfWs = userRoles[space.workspace_id] === 'owner' || isSuperAdmin;
 
                         return (
                             <motion.div
@@ -396,55 +409,59 @@ export default function DashboardPage() {
                                                     <Users className="w-3 h-3" />
                                                     {memberCounts[space.workspace_id] || 1}
                                                 </div>
-                                                {/* Settings button */}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-slate-400 hover:text-cyan-400 transition-colors"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSettingsWorkspace(workspace ? { id: workspace.id, name: workspace.name } : null);
-                                                    }}
-                                                >
-                                                    <Settings className="w-4 h-4" />
-                                                </Button>
-                                                {/* Menu pulsante */}
-                                                <div className="relative">
+                                                {/* Settings button — owner only */}
+                                                {isOwnerOfWs && (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 text-slate-400 hover:text-slate-100"
+                                                        className="h-8 w-8 text-slate-400 hover:text-cyan-400 transition-colors"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            setSpaceMenuOpen(isMenuOpen ? null : space.id);
+                                                            setSettingsWorkspace(workspace ? { id: workspace.id, name: workspace.name } : null);
                                                         }}
                                                     >
-                                                        <MoreVertical className="w-4 h-4" />
+                                                        <Settings className="w-4 h-4" />
                                                     </Button>
-                                                    {/* Dropdown menu */}
-                                                    {isMenuOpen && (
-                                                        <div className="absolute right-0 top-full mt-1 w-44 bg-slate-800 border border-white/10 rounded-xl shadow-xl z-20 py-1">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    startEditing(space);
-                                                                }}
-                                                                className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/5 flex items-center gap-2"
-                                                            >
-                                                                <Edit2 className="w-4 h-4" /> Modifica nome
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleDeleteSpace(space.id);
-                                                                }}
-                                                                className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/5 flex items-center gap-2"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" /> Elimina Ufficio
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                )}
+                                                {/* Menu pulsante — owner only */}
+                                                {isOwnerOfWs && (
+                                                    <div className="relative">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-slate-400 hover:text-slate-100"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSpaceMenuOpen(isMenuOpen ? null : space.id);
+                                                            }}
+                                                        >
+                                                            <MoreVertical className="w-4 h-4" />
+                                                        </Button>
+                                                        {/* Dropdown menu */}
+                                                        {isMenuOpen && (
+                                                            <div className="absolute right-0 top-full mt-1 w-44 bg-slate-800 border border-white/10 rounded-xl shadow-xl z-20 py-1">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        startEditing(space);
+                                                                    }}
+                                                                    className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/5 flex items-center gap-2"
+                                                                >
+                                                                    <Edit2 className="w-4 h-4" /> Modifica nome
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDeleteSpace(space.id);
+                                                                    }}
+                                                                    className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/5 flex items-center gap-2"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" /> Elimina Ufficio
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                         <div>
