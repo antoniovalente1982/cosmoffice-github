@@ -13,6 +13,7 @@ import {
     ScrollText,
     ArrowLeft,
     Rocket,
+    Crown,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 
@@ -24,6 +25,7 @@ const navItems = [
     { href: '/admin/daily', label: 'Daily.co', icon: Video },
     { href: '/admin/revenue', label: 'Revenue', icon: DollarSign },
     { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
+    { href: '/admin/transfer', label: 'Gestione Admin', icon: Crown },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
