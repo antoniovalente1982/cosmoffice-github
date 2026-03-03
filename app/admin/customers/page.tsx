@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search, Building2, Users, ChevronLeft, ChevronRight, AlertTriangle,
     Pause, Play, Trash2, RotateCcw, MoreVertical, X, Check, Loader2,
-    UserX, UserCheck, Mail, ChevronDown, Crown,
+    UserX, UserCheck, Mail, ChevronDown, Crown, Square, CheckSquare,
 } from 'lucide-react';
 
 interface Owner {
@@ -86,6 +86,10 @@ export default function CustomersPage() {
 
     // Expanded owners
     const [expandedOwners, setExpandedOwners] = useState<Set<string>>(new Set());
+
+    // Bulk selection
+    const [selectedWs, setSelectedWs] = useState<Set<string>>(new Set());
+    const [bulkLoading, setBulkLoading] = useState(false);
 
     // Action menu & confirmation
     const [actionMenuId, setActionMenuId] = useState<string | null>(null);
@@ -196,6 +200,47 @@ export default function CustomersPage() {
         });
     };
 
+    const toggleSelectWs = (id: string) => {
+        setSelectedWs(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const selectAllVisible = () => {
+        const allIds = workspaces.filter(w => w.status !== 'deleted').map(w => w.id);
+        setSelectedWs(new Set(allIds));
+        // Expand all owners so user can see what's selected
+        setExpandedOwners(new Set(ownerGroups.map(g => g.owner.id)));
+    };
+
+    const deselectAll = () => setSelectedWs(new Set());
+
+    const executeBulkAction = async (action: 'bulk_delete' | 'bulk_suspend') => {
+        if (selectedWs.size === 0) return;
+        setBulkLoading(true);
+        try {
+            const res = await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, workspaceIds: Array.from(selectedWs) }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            showFeedback('success', action === 'bulk_delete'
+                ? `${selectedWs.size} workspace eliminati definitivamente`
+                : `${selectedWs.size} workspace sospesi`);
+            setSelectedWs(new Set());
+            await fetchData();
+        } catch (err: any) {
+            showFeedback('error', err.message);
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
     // ─── Actions ────────────────────────────────────
     const showFeedback = (type: 'success' | 'error', message: string) => {
         setFeedback({ type, message });
@@ -205,6 +250,15 @@ export default function CustomersPage() {
     const executeAction = async () => {
         if (!confirmAction) return;
         if (confirmAction.confirmWord && confirmText !== confirmAction.confirmWord) return;
+
+        // Route bulk actions
+        if (confirmAction.action === 'bulk_delete' || confirmAction.action === 'bulk_suspend') {
+            setConfirmAction(null);
+            setConfirmText('');
+            await executeBulkAction(confirmAction.action);
+            return;
+        }
+
         setActionLoading(true);
         try {
             const body: any = { action: confirmAction.action, workspaceId: confirmAction.workspaceId };
@@ -434,23 +488,23 @@ export default function CustomersPage() {
                                             <MoreVertical className="w-4 h-4" />
                                         </button>
                                         {actionMenuId === `owner-${group.owner.id}` && (
-                                            <div className="absolute right-0 top-full mt-1 w-52 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left">
-                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Owner</p>
+                                            <div className="absolute right-0 top-full mt-1 w-56 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left">
+                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Gestione Owner</p>
                                                 {!group.owner.suspended ? (
                                                     <button onClick={() => openConfirm({
                                                         action: 'suspend_owner', workspaceId: group.workspaces[0]?.id || '', ownerId: group.owner.id,
                                                         ownerName: group.owner.name, workspaceName: group.owner.name,
                                                         label: 'Sospendi Owner', description: `Sospenderai l'account di ${group.owner.name}. Non potrà accedere alla piattaforma.`, danger: true, confirmWord: 'SOSPENDI',
                                                     })} className="w-full px-3 py-2 text-left text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2">
-                                                        <UserX className="w-3.5 h-3.5" /> Sospendi Account
+                                                        <Pause className="w-3.5 h-3.5" /> Sospendi Owner
                                                     </button>
                                                 ) : (
                                                     <button onClick={() => openConfirm({
                                                         action: 'reactivate_owner', workspaceId: group.workspaces[0]?.id || '', ownerId: group.owner.id,
                                                         ownerName: group.owner.name, workspaceName: group.owner.name,
-                                                        label: 'Riattiva Owner', description: `Riattiverai l'account di ${group.owner.name}.`, danger: false,
+                                                        label: 'Riattiva Owner', description: `Riattiverai l'account di ${group.owner.name}. Potrà nuovamente accedere.`, danger: false,
                                                     })} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
-                                                        <UserCheck className="w-3.5 h-3.5" /> Riattiva Account
+                                                        <Play className="w-3.5 h-3.5" /> Riattiva Owner
                                                     </button>
                                                 )}
                                             </div>
@@ -485,9 +539,20 @@ export default function CustomersPage() {
                                     >
                                         <div className="divide-y divide-white/5">
                                             {group.workspaces.map(ws => (
-                                                <div key={ws.id} className={`flex items-center gap-4 px-5 py-3 hover:bg-white/[0.02] transition-colors ${ws.status === 'deleted' ? 'opacity-40' : ''}`}>
-                                                    {/* Indent + Icon */}
-                                                    <div className="w-10 flex justify-center shrink-0">
+                                                <div key={ws.id} className={`flex items-center gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors ${ws.status === 'deleted' ? 'opacity-40' : ''}`}>
+                                                    {/* Checkbox */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); toggleSelectWs(ws.id); }}
+                                                        className="shrink-0"
+                                                    >
+                                                        {selectedWs.has(ws.id)
+                                                            ? <CheckSquare className="w-4 h-4 text-cyan-400" />
+                                                            : <Square className="w-4 h-4 text-slate-600 hover:text-slate-400" />
+                                                        }
+                                                    </button>
+
+                                                    {/* Icon */}
+                                                    <div className="shrink-0">
                                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center text-cyan-400">
                                                             <Building2 className="w-4 h-4" />
                                                         </div>
@@ -593,6 +658,61 @@ export default function CustomersPage() {
                     </div>
                 </div>
             )}
+            {/* Floating Bulk Action Bar */}
+            <AnimatePresence>
+                {selectedWs.size > 0 && (
+                    <motion.div
+                        initial={{ y: 80, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 80, opacity: 0 }}
+                        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-6 py-3 rounded-2xl border border-cyan-500/20 shadow-2xl"
+                        style={{ background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)' }}
+                    >
+                        <span className="text-sm font-medium text-white">
+                            <span className="text-cyan-400 font-bold">{selectedWs.size}</span> workspace selezionati
+                        </span>
+
+                        <div className="w-px h-5 bg-white/10" />
+
+                        <button onClick={selectAllVisible}
+                            className="text-xs text-slate-400 hover:text-white transition-colors">
+                            Seleziona tutti
+                        </button>
+                        <button onClick={deselectAll}
+                            className="text-xs text-slate-400 hover:text-white transition-colors">
+                            Deseleziona
+                        </button>
+
+                        <div className="w-px h-5 bg-white/10" />
+
+                        <button
+                            onClick={() => openConfirm({
+                                action: 'bulk_suspend', workspaceId: '', workspaceName: `${selectedWs.size} workspace`,
+                                label: `Sospendi ${selectedWs.size} Workspace`,
+                                description: `Sospenderai ${selectedWs.size} workspace contemporaneamente. Tutti i membri verranno bloccati.`,
+                                danger: true, confirmWord: 'SOSPENDI',
+                            })}
+                            disabled={bulkLoading}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all disabled:opacity-40"
+                        >
+                            <Pause className="w-3.5 h-3.5" /> Sospendi
+                        </button>
+
+                        <button
+                            onClick={() => openConfirm({
+                                action: 'bulk_delete', workspaceId: '', workspaceName: `${selectedWs.size} workspace`,
+                                label: `Elimina ${selectedWs.size} Workspace`,
+                                description: `Eliminerai definitivamente ${selectedWs.size} workspace dal database. Questa azione è IRREVERSIBILE.`,
+                                danger: true, confirmWord: 'ELIMINA',
+                            })}
+                            disabled={bulkLoading}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-40"
+                        >
+                            {bulkLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Elimina
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Confirmation Modal */}
             <AnimatePresence>

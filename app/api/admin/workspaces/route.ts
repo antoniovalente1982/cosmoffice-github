@@ -50,6 +50,17 @@ export async function GET(req: NextRequest) {
     const offset = (page - 1) * limit;
 
     try {
+        // ── Auto-cleanup: hard-delete any workspaces that users soft-deleted ──
+        const { data: softDeleted } = await supabase
+            .from('workspaces')
+            .select('id')
+            .not('deleted_at', 'is', null);
+
+        if (softDeleted && softDeleted.length > 0) {
+            const ids = softDeleted.map((w: any) => w.id);
+            await supabase.from('workspaces').delete().in('id', ids);
+        }
+
         // Try with suspended_at first, fall back if column doesn't exist yet
         let hasSuspendedColumn = true;
         const buildQuery = (withSuspended: boolean) => {
@@ -422,6 +433,64 @@ export async function POST(req: NextRequest) {
                 );
 
                 return NextResponse.json({ success: true });
+            }
+
+            case 'bulk_delete': {
+                const ids: string[] = body.workspaceIds;
+                if (!ids || !Array.isArray(ids) || ids.length === 0) {
+                    return NextResponse.json({ error: 'workspaceIds richiesti' }, { status: 400 });
+                }
+
+                // Notify owners before deleting
+                for (const wsId of ids) {
+                    const ownId = await getOwnerUserId(wsId);
+                    const { data: wsData } = await supabase.from('workspaces').select('name').eq('id', wsId).single();
+                    if (ownId) {
+                        await sendNotification(
+                            ownId,
+                            '🔴 Workspace Eliminato',
+                            `Il workspace "${wsData?.name || ''}" è stato eliminato definitivamente dall'amministratore.`,
+                            'workspace', wsId
+                        );
+                    }
+                }
+
+                // Hard delete all
+                const { error: delErr } = await supabase.from('workspaces').delete().in('id', ids);
+                if (delErr) throw delErr;
+
+                return NextResponse.json({ success: true, deleted: ids.length });
+            }
+
+            case 'bulk_suspend': {
+                const ids: string[] = body.workspaceIds;
+                if (!ids || !Array.isArray(ids) || ids.length === 0) {
+                    return NextResponse.json({ error: 'workspaceIds richiesti' }, { status: 400 });
+                }
+
+                for (const wsId of ids) {
+                    await supabase.from('workspaces')
+                        .update({ suspended_at: new Date().toISOString(), suspended_by: userId })
+                        .eq('id', wsId);
+
+                    await supabase.from('workspace_members')
+                        .update({ is_suspended: true })
+                        .eq('workspace_id', wsId)
+                        .is('removed_at', null);
+
+                    const ownId = await getOwnerUserId(wsId);
+                    const { data: wsData } = await supabase.from('workspaces').select('name').eq('id', wsId).single();
+                    if (ownId) {
+                        await sendNotification(
+                            ownId,
+                            '🟡 Workspace Sospeso',
+                            `Il workspace "${wsData?.name || ''}" è stato sospeso dall'amministratore.`,
+                            'workspace', wsId
+                        );
+                    }
+                }
+
+                return NextResponse.json({ success: true, suspended: ids.length });
             }
 
             default:
