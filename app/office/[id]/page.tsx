@@ -173,6 +173,26 @@ export default function OfficePage() {
         useAvatarStore.getState().setMyRole(role as any);
     }, [role]);
 
+    // Periodic check: detect if current user has been kicked
+    useEffect(() => {
+        if (!workspaceId || !user) return;
+        const interval = setInterval(async () => {
+            const { data: membership } = await supabase
+                .from('workspace_members')
+                .select('removed_at')
+                .eq('workspace_id', workspaceId)
+                .eq('user_id', user.id)
+                .single();
+
+            if (!membership || membership.removed_at) {
+                clearInterval(interval);
+                alert('Sei stato rimosso da questo workspace.');
+                router.push('/');
+            }
+        }, 10000); // check every 10 seconds
+        return () => clearInterval(interval);
+    }, [workspaceId, user, supabase, router]);
+
     // Screen sharing via Daily.co WebRTC — NOT local getDisplayMedia
     // The useDaily hook exposes startScreenShare/stopScreenShare that go through Daily.co
     // so remote peers can actually see the shared screen
@@ -506,21 +526,23 @@ export default function OfficePage() {
                             >
                                 <SlidersHorizontal className="w-5 h-5" />
                             </Button>
-                            {/* Chat Toggle */}
-                            <Button
-                                variant={isChatOpen ? "default" : "secondary"}
-                                size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button relative ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                onClick={toggleChat}
-                                title={isChatOpen ? 'Chiudi Chat' : 'Apri Chat'}
-                            >
-                                <MessageCircle className="w-5 h-5" />
-                                {totalChatUnread > 0 && (
-                                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse">
-                                        {totalChatUnread > 99 ? '99+' : totalChatUnread}
-                                    </span>
-                                )}
-                            </Button>
+                            {/* Chat Toggle — hidden for guests */}
+                            {role !== 'guest' && (
+                                <Button
+                                    variant={isChatOpen ? "default" : "secondary"}
+                                    size="icon"
+                                    className={`rounded-full w-12 h-12 transition-all glow-button relative ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                    onClick={toggleChat}
+                                    title={isChatOpen ? 'Chiudi Chat' : 'Apri Chat'}
+                                >
+                                    <MessageCircle className="w-5 h-5" />
+                                    {totalChatUnread > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse">
+                                            {totalChatUnread > 99 ? '99+' : totalChatUnread}
+                                        </span>
+                                    )}
+                                </Button>
+                            )}
 
 
 
@@ -548,8 +570,8 @@ export default function OfficePage() {
                     isInitialSetup={true}
                 />
 
-                {/* Room Chat via PartyKit */}
-                {user && (
+                {/* Room Chat via PartyKit — hidden for guests */}
+                {user && role !== 'guest' && (
                     <RoomChat
                         workspaceId={workspaceId}
                         userId={user.id}

@@ -113,29 +113,29 @@ export function TeamList({ spaceId }: TeamListProps) {
         fetchMembers();
     }, [fetchMembers]);
 
-    // Kick member — sets removed_at in workspace_members
+    // Kick member via RPC (bypasses RLS, validates role hierarchy server-side)
     const handleKick = async (userId: string, userName: string) => {
         if (!workspaceId) return;
         if (!confirm(`Sei sicuro di voler rimuovere ${userName} dal workspace?`)) return;
 
         setKickingUserId(userId);
         try {
-            const { error } = await supabase
-                .from('workspace_members')
-                .update({
-                    removed_at: new Date().toISOString(),
-                    removed_by: currentUserId,
-                    remove_reason: 'Kicked by admin',
-                })
-                .eq('workspace_id', workspaceId)
-                .eq('user_id', userId);
+            const { data, error } = await supabase.rpc('kick_workspace_member', {
+                p_workspace_id: workspaceId,
+                p_target_user_id: userId,
+            });
 
             if (error) {
-                console.error('Kick error:', error);
+                console.error('Kick RPC error:', error);
                 alert('Errore durante la rimozione: ' + error.message);
             } else {
-                // Remove from local list
-                setMembers(prev => prev.filter(m => m.user_id !== userId));
+                const result = data as any;
+                if (result?.success) {
+                    // Remove from local list
+                    setMembers(prev => prev.filter(m => m.user_id !== userId));
+                } else {
+                    alert(result?.error || 'Errore sconosciuto');
+                }
             }
         } catch (err: any) {
             console.error('Kick error:', err);
