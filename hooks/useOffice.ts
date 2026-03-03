@@ -44,8 +44,7 @@ export function useOffice(spaceId?: string) {
         const { data: rooms, error: roomsError } = await supabase
             .from('rooms')
             .select('*')
-            .eq('space_id', spaceId)
-            .is('deleted_at', null);
+            .eq('space_id', spaceId);
 
         if (roomsError) {
             console.error('Error fetching rooms:', roomsError);
