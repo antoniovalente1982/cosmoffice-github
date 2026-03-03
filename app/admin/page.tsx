@@ -182,6 +182,12 @@ function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, o
     onCustomChange: (from: string, to: string) => void;
 }) {
     const [showCustom, setShowCustom] = useState(false);
+    // Local state for custom date inputs (not applied until user presses "Applica")
+    const [localFrom, setLocalFrom] = useState(customFrom);
+    const [localTo, setLocalTo] = useState(customTo);
+    const canApply = !!(localFrom && localTo && localFrom <= localTo);
+    // Track if custom is already applied with these exact values
+    const isApplied = showCustom && customFrom === localFrom && customTo === localTo && localFrom !== '' && localTo !== '';
 
     return (
         <div className="flex flex-wrap items-center gap-2">
@@ -216,26 +222,38 @@ function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, o
                 <ChevronDown className={`w-3 h-3 transition-transform ${showCustom ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Custom date inputs */}
+            {/* Custom date inputs + Applica button */}
             {showCustom && (
-                <div className="flex items-center gap-2 p-2 rounded-xl border border-purple-500/20 animate-in fade-in slide-in-from-top-1"
+                <div className="flex items-center gap-2 p-2 rounded-xl border border-purple-500/20"
                     style={{ background: 'rgba(12,17,35,0.7)', backdropFilter: 'blur(16px)' }}>
                     <label className="text-[10px] text-slate-500 font-medium uppercase">Da</label>
                     <input
                         type="date"
-                        value={customFrom}
-                        onChange={e => onCustomChange(e.target.value, customTo)}
+                        value={localFrom}
+                        onChange={e => setLocalFrom(e.target.value)}
                         className="px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
                         style={{ colorScheme: 'dark' }}
                     />
                     <label className="text-[10px] text-slate-500 font-medium uppercase">A</label>
                     <input
                         type="date"
-                        value={customTo}
-                        onChange={e => onCustomChange(customFrom, e.target.value)}
+                        value={localTo}
+                        onChange={e => setLocalTo(e.target.value)}
                         className="px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
                         style={{ colorScheme: 'dark' }}
                     />
+                    <button
+                        onClick={() => { if (canApply) onCustomChange(localFrom, localTo); }}
+                        disabled={!canApply || isApplied}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${isApplied
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 cursor-default'
+                                : canApply
+                                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 cursor-pointer'
+                                    : 'bg-white/[0.03] text-slate-600 border border-white/[0.06] cursor-not-allowed'
+                            }`}
+                    >
+                        {isApplied ? '✓ Applicato' : 'Applica'}
+                    </button>
                 </div>
             )}
         </div>
