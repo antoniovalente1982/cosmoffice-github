@@ -7,7 +7,7 @@ import {
     Layers, DoorOpen, LayoutGrid,
     TrendingUp, DollarSign, CreditCard,
     Bug, AlertTriangle, Shield, Ban,
-    ArrowUpRight, Loader2, Sparkles,
+    ArrowUpRight,
 } from 'lucide-react';
 
 interface Stats {
@@ -122,43 +122,14 @@ export default function AdminOverview() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Cleanup state
-    const [cleanupData, setCleanupData] = useState<any>(null);
-    const [cleanupLoading, setCleanupLoading] = useState(false);
-    const [cleanupResult, setCleanupResult] = useState<any>(null);
-
     const loadStats = useCallback(() => {
-        fetch('/api/admin/stats')
+        fetch(`/api/admin/stats?t=${Date.now()}`, { cache: 'no-store' })
             .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
             .then(data => { setStats(data); setLoading(false); })
             .catch(err => { setError(err.message); setLoading(false); });
     }, []);
 
     useEffect(() => { loadStats(); }, [loadStats]);
-
-    const analyzeCleanup = async () => {
-        setCleanupLoading(true);
-        setCleanupResult(null);
-        try {
-            const r = await fetch('/api/admin/cleanup');
-            const data = await r.json();
-            setCleanupData(data);
-        } catch (e: any) { setCleanupData({ error: e.message }); }
-        setCleanupLoading(false);
-    };
-
-    const executeCleanup = async () => {
-        setCleanupLoading(true);
-        try {
-            const r = await fetch('/api/admin/cleanup', { method: 'POST' });
-            const data = await r.json();
-            setCleanupResult(data);
-            setCleanupData(null);
-            // Refresh stats
-            loadStats();
-        } catch (e: any) { setCleanupResult({ error: e.message }); }
-        setCleanupLoading(false);
-    };
 
     if (loading) {
         return (
@@ -252,70 +223,6 @@ export default function AdminOverview() {
                         <MiniStat label="Uffici" value={stats.spaces.total} icon={Layers} accent="text-blue-300" />
                         <MiniStat label="Stanze" value={stats.spaces.rooms} icon={DoorOpen} accent="text-blue-300" />
                         <MiniStat label="Media stanze/ufficio" value={stats.spaces.avgRoomsPerSpace} icon={LayoutGrid} accent="text-slate-300" />
-                    </div>
-
-                    {/* DB Cleanup */}
-                    <div className="pt-3 border-t border-white/5 space-y-3">
-                        <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pulizia Database</p>
-                            <button
-                                onClick={analyzeCleanup}
-                                disabled={cleanupLoading}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-blue-300 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all disabled:opacity-50"
-                            >
-                                {cleanupLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                                Analizza
-                            </button>
-                        </div>
-
-                        {cleanupData && !cleanupData.error && (
-                            <div className="space-y-2 p-3 rounded-xl bg-black/20 border border-white/5">
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div><span className="text-slate-500">Stanze nel DB:</span> <span className="text-white font-bold">{cleanupData.totalRoomsInDb}</span></div>
-                                    <div><span className="text-slate-500">Stanze valide:</span> <span className="text-emerald-300 font-bold">{cleanupData.validRooms}</span></div>
-                                    <div><span className="text-slate-500">Stanze orfane:</span> <span className={`font-bold ${cleanupData.orphanedRooms > 0 ? 'text-red-300' : 'text-emerald-300'}`}>{cleanupData.orphanedRooms}</span></div>
-                                    <div><span className="text-slate-500">Arredi orfani:</span> <span className="text-white font-bold">{cleanupData.orphanedFurniture}</span></div>
-                                </div>
-
-                                {cleanupData.roomsPerSpace && Object.keys(cleanupData.roomsPerSpace).length > 0 && (
-                                    <div className="pt-2 border-t border-white/5">
-                                        <p className="text-[10px] text-slate-500 mb-1">Stanze per ufficio:</p>
-                                        {Object.values(cleanupData.roomsPerSpace).map((s: any, i: number) => (
-                                            <div key={i} className="text-[11px] flex justify-between">
-                                                <span className="text-slate-400">{s.spaceName}</span>
-                                                <span className="text-white font-bold">{s.count}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {cleanupData.orphanedRooms > 0 && (
-                                    <button
-                                        onClick={executeCleanup}
-                                        disabled={cleanupLoading}
-                                        className="w-full mt-2 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold text-white bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 transition-all disabled:opacity-50"
-                                    >
-                                        {cleanupLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                        Elimina {cleanupData.orphanedRooms} stanze orfane
-                                    </button>
-                                )}
-
-                                {cleanupData.orphanedRooms === 0 && (
-                                    <p className="text-[11px] text-emerald-400 flex items-center gap-1"><Shield className="w-3 h-3" /> Database pulito — nessuna stanza orfana</p>
-                                )}
-                            </div>
-                        )}
-
-                        {cleanupData?.error && (
-                            <p className="text-[11px] text-red-400"><AlertTriangle className="w-3 h-3 inline mr-1" />{cleanupData.error}</p>
-                        )}
-
-                        {cleanupResult?.success && (
-                            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300">
-                                <Sparkles className="w-3 h-3 inline mr-1" />
-                                Pulizia completata: {cleanupResult.cleaned.rooms} stanze, {cleanupResult.cleaned.furniture} arredi, {cleanupResult.cleaned.participants} partecipanti rimossi
-                            </div>
-                        )}
                     </div>
                 </SectionBlock>
 

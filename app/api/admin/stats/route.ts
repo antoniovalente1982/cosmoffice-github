@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
+export const dynamic = 'force-dynamic';
 async function getAdminClient(req: NextRequest) {
     const res = NextResponse.next();
     const supabase = createServerClient(
