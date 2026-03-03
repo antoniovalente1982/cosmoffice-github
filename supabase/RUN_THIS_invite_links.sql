@@ -101,6 +101,7 @@ DECLARE
   v_invite RECORD;
   v_user_id UUID;
   v_existing RECORD;
+  v_space_id UUID;
 BEGIN
   v_user_id := auth.uid();
   IF v_user_id IS NULL THEN
@@ -138,7 +139,9 @@ BEGIN
   WHERE workspace_id = v_invite.workspace_id AND user_id = v_user_id;
 
   IF FOUND AND v_existing.removed_at IS NULL THEN
-    RETURN jsonb_build_object('success', true, 'already_member', true, 'workspace_id', v_invite.workspace_id);
+    -- Already a member, find first space for redirect
+    SELECT id INTO v_space_id FROM spaces WHERE workspace_id = v_invite.workspace_id LIMIT 1;
+    RETURN jsonb_build_object('success', true, 'already_member', true, 'workspace_id', v_invite.workspace_id, 'space_id', v_space_id);
   END IF;
 
   IF FOUND AND v_existing.removed_at IS NOT NULL THEN
@@ -156,6 +159,10 @@ BEGIN
     UPDATE workspace_invitations SET use_count = use_count + 1 WHERE id = v_invite.id;
   END IF;
 
-  RETURN jsonb_build_object('success', true, 'workspace_id', v_invite.workspace_id, 'role', v_invite.role);
+  -- Fetch first space for direct redirect (bypasses RLS since this is SECURITY DEFINER)
+  SELECT id INTO v_space_id FROM spaces WHERE workspace_id = v_invite.workspace_id LIMIT 1;
+
+  RETURN jsonb_build_object('success', true, 'workspace_id', v_invite.workspace_id, 'role', v_invite.role, 'space_id', v_space_id);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+

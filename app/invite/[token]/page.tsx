@@ -83,6 +83,8 @@ export default function InvitePage() {
             }
 
             // User is authenticated — accept invite
+            // NOTE: If the user was previously kicked (removed_at != null),
+            // the accept_invite_link RPC handles re-activation by clearing removed_at.
             await acceptInvite();
         };
 
@@ -104,7 +106,14 @@ export default function InvitePage() {
         const res = result as any;
         if (res.success) {
             setWorkspaceId(res.workspace_id);
-            // Auto-redirect to the workspace office
+
+            // Use space_id from RPC response (bypasses RLS, always reliable)
+            if (res.space_id) {
+                router.push(`/office/${res.space_id}`);
+                return;
+            }
+
+            // Fallback: query spaces directly (may fail for re-entering guests due to RLS timing)
             const wsId = res.workspace_id;
             const { data: space } = await supabase
                 .from('spaces')
@@ -132,19 +141,37 @@ export default function InvitePage() {
         setError('');
 
         try {
+            // If there's a stale/broken anonymous session, sign out first
+            const { data: { user: existingUser } } = await supabase.auth.getUser();
+            if (existingUser?.is_anonymous) {
+                // Sign out the old anonymous session so we get a fresh one
+                await supabase.auth.signOut();
+            }
+
             // Sign in anonymously
-            const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
+            let { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
 
             if (anonError) {
-                // If anonymous sign-in is not enabled, fall back to showing login
+                // Retry once after a brief delay (in case of transient auth issues)
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const retry = await supabase.auth.signInAnonymously();
+                anonData = retry.data;
+                anonError = retry.error;
+            }
+
+            if (anonError) {
+                // Anonymous sign-in is not enabled or another error
                 console.error('Anonymous sign-in failed:', anonError);
                 setState('error');
-                setError('Accesso ospite non disponibile. Contatta l\'amministratore.');
+                setError(
+                    `Accesso ospite non disponibile (${anonError.message}). ` +
+                    'Verifica che "Allow anonymous sign-ins" sia abilitato nelle impostazioni di Supabase Authentication.'
+                );
                 setIsSubmittingGuest(false);
                 return;
             }
 
-            if (!anonData.user) {
+            if (!anonData?.user) {
                 setState('error');
                 setError('Errore nella creazione della sessione ospite.');
                 setIsSubmittingGuest(false);
@@ -174,11 +201,14 @@ export default function InvitePage() {
             }
 
             // Now accept the invite
+            // The accept_invite_link RPC handles both:
+            // - New users (INSERT into workspace_members)
+            // - Previously kicked users (UPDATE: clear removed_at)
             await acceptInvite();
         } catch (err: any) {
             console.error('Guest entry error:', err);
             setState('error');
-            setError('Errore durante l\'accesso ospite.');
+            setError('Errore durante l\'accesso ospite: ' + (err.message || 'Errore sconosciuto'));
         }
 
         setIsSubmittingGuest(false);
