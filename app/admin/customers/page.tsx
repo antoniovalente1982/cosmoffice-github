@@ -25,6 +25,7 @@ interface Workspace {
     plan: string;
     maxMembers: number;
     totalMembers: number;
+    memberUserIds: string[];
     suspendedMembers: number;
     status: 'active' | 'suspended' | 'deleted';
     suspendedAt: string | null;
@@ -38,6 +39,7 @@ interface OwnerGroup {
     owner: Owner;
     workspaces: Workspace[];
     totalMembers: number;
+    uniqueMembers: number;
     activeWs: number;
     suspendedWs: number;
     deletedWs: number;
@@ -156,6 +158,7 @@ export default function CustomersPage() {
                     owner: ws.owner,
                     workspaces: [],
                     totalMembers: 0,
+                    uniqueMembers: 0,
                     activeWs: 0, suspendedWs: 0, deletedWs: 0,
                     bestPlan: 'free',
                 });
@@ -171,7 +174,16 @@ export default function CustomersPage() {
             }
         });
 
+        // Compute unique members per owner
         const groups = Array.from(map.values());
+        groups.forEach(group => {
+            const uniqueIds = new Set<string>();
+            group.workspaces.forEach(ws => {
+                (ws.memberUserIds || []).forEach(uid => uniqueIds.add(uid));
+            });
+            group.uniqueMembers = uniqueIds.size;
+            group.totalMembers = group.workspaces.reduce((s, w) => s + w.totalMembers, 0);
+        });
         // Sort: most workspaces first
         groups.sort((a, b) => b.workspaces.length - a.workspaces.length);
 
@@ -181,6 +193,7 @@ export default function CustomersPage() {
                 owner: { id: '__none__', email: '', name: 'Senza Proprietario', avatarUrl: null, isSuperAdmin: false, suspended: false, deleted: false },
                 workspaces: noOwner,
                 totalMembers: noOwner.reduce((s, w) => s + w.totalMembers, 0),
+                uniqueMembers: new Set(noOwner.flatMap(w => w.memberUserIds || [])).size,
                 activeWs: noOwner.filter(w => w.status === 'active').length,
                 suspendedWs: noOwner.filter(w => w.status === 'suspended').length,
                 deletedWs: noOwner.filter(w => w.status === 'deleted').length,
@@ -253,9 +266,43 @@ export default function CustomersPage() {
 
         // Route bulk actions
         if (confirmAction.action === 'bulk_delete' || confirmAction.action === 'bulk_suspend') {
+            const action = confirmAction.action as 'bulk_delete' | 'bulk_suspend';
+            // If triggered from owner menu, use that owner's workspace IDs
+            let wsIds: string[];
+            if (confirmAction.ownerId && selectedWs.size === 0) {
+                const ownerGroup = ownerGroups.find(g => g.owner.id === confirmAction.ownerId);
+                wsIds = ownerGroup ? ownerGroup.workspaces.map(w => w.id) : [];
+            } else {
+                wsIds = Array.from(selectedWs);
+            }
+
+            if (wsIds.length === 0) {
+                setConfirmAction(null);
+                setConfirmText('');
+                return;
+            }
+
             setConfirmAction(null);
             setConfirmText('');
-            await executeBulkAction(confirmAction.action);
+            setBulkLoading(true);
+            try {
+                const res = await fetch('/api/admin/workspaces', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, workspaceIds: wsIds }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                showFeedback('success', action === 'bulk_delete'
+                    ? `${wsIds.length} workspace eliminati definitivamente`
+                    : `${wsIds.length} workspace sospesi`);
+                setSelectedWs(new Set());
+                await fetchData();
+            } catch (err: any) {
+                showFeedback('error', err.message);
+            } finally {
+                setBulkLoading(false);
+            }
             return;
         }
 
@@ -462,8 +509,8 @@ export default function CustomersPage() {
                                     </div>
                                     <div className="flex items-center gap-1.5 text-xs">
                                         <Users className="w-3.5 h-3.5 text-purple-400" />
-                                        <span className="text-white font-medium">{group.totalMembers}</span>
-                                        <span className="text-slate-600">utenti</span>
+                                        <span className="text-white font-medium">{group.uniqueMembers}</span>
+                                        <span className="text-slate-600">utenti unici</span>
                                     </div>
                                     <PlanBadge plan={group.bestPlan} />
                                     {group.suspendedWs > 0 && (
@@ -507,6 +554,16 @@ export default function CustomersPage() {
                                                         <Play className="w-3.5 h-3.5" /> Riattiva Owner
                                                     </button>
                                                 )}
+                                                <div className="border-t border-white/5 my-1" />
+                                                <button onClick={() => openConfirm({
+                                                    action: 'bulk_delete', workspaceId: '', workspaceName: `tutti i workspace di ${group.owner.name}`,
+                                                    label: `Elimina tutti i workspace di ${group.owner.name}`,
+                                                    description: `Eliminerai definitivamente tutti i ${group.workspaces.length} workspace di ${group.owner.name} dal database. L'account owner rimarrà nel sistema per lo storico. Questa azione è IRREVERSIBILE.`,
+                                                    danger: true, confirmWord: 'ELIMINA',
+                                                    ownerId: group.owner.id,
+                                                })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
+                                                    <Trash2 className="w-3.5 h-3.5" /> Elimina Workspace
+                                                </button>
                                             </div>
                                         )}
                                     </div>
@@ -522,7 +579,7 @@ export default function CustomersPage() {
                                     <Building2 className="w-3 h-3" /> {group.workspaces.length} ws
                                 </div>
                                 <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                                    <Users className="w-3 h-3" /> {group.totalMembers} utenti
+                                    <Users className="w-3 h-3" /> {group.uniqueMembers} utenti unici
                                 </div>
                                 <PlanBadge plan={group.bestPlan} />
                             </div>

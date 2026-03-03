@@ -159,6 +159,7 @@ export async function GET(req: NextRequest) {
         const enriched = (data || []).map((ws: any) => {
             const members = ws.workspace_members || [];
             const activeMembers = members.filter((m: any) => !m.removed_at && !m.is_suspended);
+            const memberUserIds = activeMembers.map((m: any) => m.user_id);
             const ownerMember = members.find((m: any) => m.role === 'owner' && !m.removed_at);
             const ownerUserId = ownerMember?.user_id || ws.created_by;
             const ownerProfile = ownerUserId ? ownerProfiles[ownerUserId] : null;
@@ -176,6 +177,7 @@ export async function GET(req: NextRequest) {
                 maxMembers: ws.max_members,
                 maxSpaces: ws.max_spaces,
                 totalMembers: activeMembers.length,
+                memberUserIds,
                 suspendedMembers: members.filter((m: any) => m.is_suspended).length,
                 status: wsStatus,
                 suspendedAt: ws.suspended_at,
