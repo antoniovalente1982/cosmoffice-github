@@ -182,11 +182,33 @@ export async function GET(req: NextRequest) {
             };
         });
 
+        // ── Compute global summary stats ──
+        const allUniqueUserIds = new Set<string>();
+        let wsActive = 0, wsSuspended = 0, wsDeleted = 0;
+
+        (data || []).forEach((ws: any) => {
+            const members = ws.workspace_members || [];
+            members.forEach((m: any) => {
+                if (!m.removed_at) allUniqueUserIds.add(m.user_id);
+            });
+
+            if (ws.deleted_at) wsDeleted++;
+            else if (ws.suspended_at) wsSuspended++;
+            else wsActive++;
+        });
+
         return NextResponse.json({
             workspaces: enriched,
             total: count || 0,
             page,
             totalPages: Math.ceil((count || 0) / limit),
+            summary: {
+                uniqueUsers: allUniqueUserIds.size,
+                totalOwners: Object.keys(ownerProfiles).length,
+                workspacesActive: wsActive,
+                workspacesSuspended: wsSuspended,
+                workspacesDeleted: wsDeleted,
+            },
         });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });

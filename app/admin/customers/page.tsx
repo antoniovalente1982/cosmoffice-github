@@ -81,6 +81,7 @@ export default function CustomersPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
+    const [summary, setSummary] = useState<{ uniqueUsers: number; totalOwners: number; workspacesActive: number; workspacesSuspended: number; workspacesDeleted: number } | null>(null);
 
     // Expanded owners
     const [expandedOwners, setExpandedOwners] = useState<Set<string>>(new Set());
@@ -116,6 +117,7 @@ export default function CustomersPage() {
             setWorkspaces(data.workspaces);
             setTotalPages(data.totalPages);
             setTotal(data.total);
+            if (data.summary) setSummary(data.summary);
         } catch (err: any) { setError(err.message); }
         setLoading(false);
     };
@@ -311,12 +313,41 @@ export default function CustomersPage() {
                 </div>
             )}
 
-            {/* Summary */}
-            <div className="flex items-center gap-4 text-xs text-slate-500">
-                <span>{ownerGroups.length} proprietari</span>
-                <span className="text-white/10">·</span>
-                <span>{total} workspace totali</span>
-            </div>
+            {/* Summary Stats Cards */}
+            {summary && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="rounded-xl border border-white/5 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Users className="w-4 h-4 text-cyan-400" />
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Utenti Unici</span>
+                        </div>
+                        <p className="text-2xl font-bold text-white">{summary.uniqueUsers}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{summary.totalOwners} proprietari</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-500/10 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Building2 className="w-4 h-4 text-emerald-400" />
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">WS Attivi</span>
+                        </div>
+                        <p className="text-2xl font-bold text-emerald-300">{summary.workspacesActive}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">su {total} totali</p>
+                    </div>
+                    <div className="rounded-xl border border-amber-500/10 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Pause className="w-4 h-4 text-amber-400" />
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">WS Sospesi</span>
+                        </div>
+                        <p className="text-2xl font-bold text-amber-300">{summary.workspacesSuspended}</p>
+                    </div>
+                    <div className="rounded-xl border border-red-500/10 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Trash2 className="w-4 h-4 text-red-400" />
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">WS Eliminati</span>
+                        </div>
+                        <p className="text-2xl font-bold text-red-300">{summary.workspacesDeleted}</p>
+                    </div>
+                </div>
+            )}
 
             {/* Owner Groups */}
             <div className="space-y-3">
@@ -379,7 +410,7 @@ export default function CustomersPage() {
                                     <div className="flex items-center gap-1.5 text-xs">
                                         <Users className="w-3.5 h-3.5 text-purple-400" />
                                         <span className="text-white font-medium">{group.totalMembers}</span>
-                                        <span className="text-slate-600">membri</span>
+                                        <span className="text-slate-600">utenti</span>
                                     </div>
                                     <PlanBadge plan={group.bestPlan} />
                                     {group.suspendedWs > 0 && (
@@ -438,7 +469,7 @@ export default function CustomersPage() {
                                     <Building2 className="w-3 h-3" /> {group.workspaces.length} ws
                                 </div>
                                 <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                                    <Users className="w-3 h-3" /> {group.totalMembers} membri
+                                    <Users className="w-3 h-3" /> {group.totalMembers} utenti
                                 </div>
                                 <PlanBadge plan={group.bestPlan} />
                             </div>
