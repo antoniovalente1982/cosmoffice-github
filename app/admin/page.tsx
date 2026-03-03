@@ -221,7 +221,7 @@ export default function AdminOverview() {
                 <SectionBlock title="Spazi & Stanze" icon={Layers} color="blue">
                     <div className="grid grid-cols-3 gap-3">
                         <MiniStat label="Uffici" value={stats.spaces.total} icon={Layers} accent="text-blue-300" />
-                        <MiniStat label="Stanze" value={stats.spaces.rooms} icon={DoorOpen} accent="text-blue-300" />
+                        <MiniStat label="Stanze Attive" value={stats.spaces.rooms} icon={DoorOpen} accent="text-blue-300" />
                         <MiniStat label="Media stanze/ufficio" value={stats.spaces.avgRoomsPerSpace} icon={LayoutGrid} accent="text-slate-300" />
                     </div>
                 </SectionBlock>

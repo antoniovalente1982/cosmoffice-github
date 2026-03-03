@@ -149,18 +149,28 @@ export async function GET(req: NextRequest) {
             }
         } catch { /* ignore */ }
 
-        // ───────────────────────────────────────────────
-        // BLOCCO 3: SPAZI & STANZE
-        // Source: spaces + rooms
-        // ───────────────────────────────────────────────
+        // Active spaces = non-deleted spaces in active (non-deleted) workspaces
+        const activeWsIds = allWorkspaces.filter((w: any) => !w.deleted_at).map((w: any) => w.id);
 
-        const totalSpaces = await safeCount(() =>
-            supabase.from('spaces').select('id', { count: 'exact', head: true }).is('deleted_at', null)
+        const allSpaces = await safe(
+            () => supabase.from('spaces').select('id, deleted_at, workspace_id'),
+            [] as any[]
         );
+        const activeSpaceIds = allSpaces
+            .filter((s: any) => !s.deleted_at && activeWsIds.includes(s.workspace_id))
+            .map((s: any) => s.id);
 
-        const totalRooms = await safeCount(() =>
-            supabase.from('rooms').select('id', { count: 'exact', head: true })
-        );
+        const totalSpaces = activeSpaceIds.length;
+
+        // Count only rooms in active spaces
+        let totalRooms = 0;
+        if (activeSpaceIds.length > 0) {
+            const { data: activeRooms } = await supabase
+                .from('rooms')
+                .select('id')
+                .in('space_id', activeSpaceIds);
+            totalRooms = activeRooms?.length || 0;
+        }
 
         // ───────────────────────────────────────────────
         // BLOCCO 4: REVENUE
