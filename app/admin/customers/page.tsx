@@ -525,8 +525,8 @@ export default function CustomersPage() {
                                     )}
                                 </div>
 
-                                {/* Owner actions */}
-                                {!isNoOwner && (
+                                {/* Owner actions — hidden for Super Admins (managed in Gestione Super Admin) */}
+                                {!isNoOwner && !group.owner.isSuperAdmin && (
                                     <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === `owner-${group.owner.id}` ? null : `owner-${group.owner.id}`); }}
@@ -682,7 +682,12 @@ export default function CustomersPage() {
                                                                     </>
                                                                 )}
                                                                 {ws.status === 'deleted' && (
-                                                                    <p className="px-3 py-2 text-xs text-slate-500 italic">Workspace eliminato definitivamente</p>
+                                                                    <button onClick={() => openConfirm({
+                                                                        action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
+                                                                        label: 'Elimina dal Database', description: `Il workspace "${ws.name}" (già eliminato dall'utente) sarà rimosso definitivamente dal database. Questa azione è IRREVERSIBILE.`, danger: true, confirmWord: 'ELIMINA',
+                                                                    })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
+                                                                        <Trash2 className="w-3.5 h-3.5" /> Elimina dal DB
+                                                                    </button>
                                                                 )}
                                                             </div>
                                                         )}

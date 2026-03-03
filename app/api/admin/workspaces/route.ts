@@ -50,16 +50,6 @@ export async function GET(req: NextRequest) {
     const offset = (page - 1) * limit;
 
     try {
-        // ── Auto-cleanup: hard-delete any workspaces that users soft-deleted ──
-        const { data: softDeleted } = await supabase
-            .from('workspaces')
-            .select('id')
-            .not('deleted_at', 'is', null);
-
-        if (softDeleted && softDeleted.length > 0) {
-            const ids = softDeleted.map((w: any) => w.id);
-            await supabase.from('workspaces').delete().in('id', ids);
-        }
 
         // Try with suspended_at first, fall back if column doesn't exist yet
         let hasSuspendedColumn = true;

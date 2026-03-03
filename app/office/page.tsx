@@ -252,6 +252,30 @@ export default function DashboardPage() {
         }
     };
 
+    const handleDeleteWorkspace = async (workspaceId: string, workspaceName: string) => {
+        const confirmMsg = `Sei sicuro di voler eliminare DEFINITIVAMENTE il workspace "${workspaceName}" e tutti i suoi dati?\n\nScrivi ELIMINA per confermare:`;
+        const answer = prompt(confirmMsg);
+        if (answer !== 'ELIMINA') return;
+
+        try {
+            // Hard delete — rimuovi workspace e tutti i dati collegati
+            const { error } = await supabase
+                .from('workspaces')
+                .delete()
+                .eq('id', workspaceId);
+
+            if (error) throw error;
+
+            // Aggiorna le liste locali
+            setWorkspaces(workspaces.filter(w => w.id !== workspaceId));
+            setSpaces(spaces.filter(s => s.workspace_id !== workspaceId));
+            setSpaceMenuOpen(null);
+        } catch (err: any) {
+            console.error('Error deleting workspace:', err);
+            alert('Errore durante la cancellazione del workspace: ' + err.message);
+        }
+    };
+
     const handleUpdateSpace = async (spaceId: string) => {
         if (!editName.trim()) return;
 
@@ -426,7 +450,8 @@ export default function DashboardPage() {
                                                     </Button>
                                                     {/* Dropdown menu */}
                                                     {isMenuOpen && (
-                                                        <div className="absolute right-0 top-full mt-1 w-40 bg-slate-800 border border-white/10 rounded-xl shadow-xl z-20 py-1">
+                                                        <div className="absolute right-0 top-full mt-1 w-48 bg-slate-800 border border-white/10 rounded-xl shadow-xl z-20 py-1">
+                                                            <p className="px-4 py-1 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Ufficio</p>
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
@@ -443,7 +468,18 @@ export default function DashboardPage() {
                                                                 }}
                                                                 className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/5 flex items-center gap-2"
                                                             >
-                                                                <Trash2 className="w-4 h-4" /> Elimina
+                                                                <Trash2 className="w-4 h-4" /> Elimina Ufficio
+                                                            </button>
+                                                            <div className="border-t border-white/10 my-1" />
+                                                            <p className="px-4 py-1 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Workspace</p>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteWorkspace(space.workspace_id, workspace?.name || '');
+                                                                }}
+                                                                className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/5 flex items-center gap-2"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" /> Elimina Workspace
                                                             </button>
                                                         </div>
                                                     )}
