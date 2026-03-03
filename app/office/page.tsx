@@ -19,7 +19,8 @@ import {
     Edit2,
     X,
     Check,
-    DoorOpen
+    DoorOpen,
+    Crown
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -43,6 +44,7 @@ export default function DashboardPage() {
     const [spaceMenuOpen, setSpaceMenuOpen] = useState<string | null>(null);
     const [settingsWorkspace, setSettingsWorkspace] = useState<{ id: string; name: string } | null>(null);
     const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     useEffect(() => {
         const initDashboard = async () => {
@@ -95,6 +97,14 @@ export default function DashboardPage() {
                     setMemberCounts(counts);
                 }
             }
+            // Check super admin
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('is_super_admin')
+                .eq('id', user.id)
+                .single();
+            if (profile?.is_super_admin) setIsSuperAdmin(true);
+
             setLoading(false);
         };
         initDashboard();
@@ -290,6 +300,16 @@ export default function DashboardPage() {
                         <Button variant="outline" className="gap-2" onClick={() => setIsCreatingWorkspace(true)}>
                             <Plus className="w-4 h-4" /> New Workspace
                         </Button>
+                        {isSuperAdmin && (
+                            <Button
+                                variant="outline"
+                                className="gap-2 border-amber-400/40 hover:border-amber-300 text-amber-300 hover:text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_25px_rgba(245,158,11,0.3)] transition-all"
+                                style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(217,119,6,0.15))' }}
+                                onClick={() => router.push('/admin')}
+                            >
+                                <Crown className="w-4 h-4" /> Admin Dashboard
+                            </Button>
+                        )}
                         <div className="w-px h-6 bg-white/10 mx-2"></div>
                         <div className="flex items-center gap-3">
                             <div className="text-right">
