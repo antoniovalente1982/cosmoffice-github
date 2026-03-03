@@ -50,36 +50,62 @@ export async function GET(req: NextRequest) {
     const offset = (page - 1) * limit;
 
     try {
-        let query = supabase
-            .from('workspaces')
-            .select(`
-                id, name, slug, plan, max_members, max_spaces,
-                created_at, updated_at, deleted_at, suspended_at,
-                created_by,
-                workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)
-            `, { count: 'exact' })
-            .order('created_at', { ascending: false })
-            .range(offset, offset + limit - 1);
+        // Try with suspended_at first, fall back if column doesn't exist yet
+        let hasSuspendedColumn = true;
+        const buildQuery = (withSuspended: boolean) => {
+            const selectFields = withSuspended
+                ? `id, name, slug, plan, max_members, max_spaces, created_at, updated_at, deleted_at, suspended_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`
+                : `id, name, slug, plan, max_members, max_spaces, created_at, updated_at, deleted_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`;
 
-        // Status filter
-        if (status === 'active') {
-            query = query.is('deleted_at', null).is('suspended_at', null);
-        } else if (status === 'suspended') {
-            query = query.is('deleted_at', null).not('suspended_at', 'is', null);
-        } else if (status === 'deleted') {
-            query = query.not('deleted_at', 'is', null);
+            let q = supabase
+                .from('workspaces')
+                .select(selectFields, { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(offset, offset + limit - 1);
+
+            // Status filter
+            if (withSuspended) {
+                if (status === 'active') {
+                    q = q.is('deleted_at', null).is('suspended_at', null);
+                } else if (status === 'suspended') {
+                    q = q.is('deleted_at', null).not('suspended_at', 'is', null);
+                } else if (status === 'deleted') {
+                    q = q.not('deleted_at', 'is', null);
+                }
+            } else {
+                if (status === 'active' || status === 'suspended') {
+                    q = q.is('deleted_at', null);
+                } else if (status === 'deleted') {
+                    q = q.not('deleted_at', 'is', null);
+                }
+            }
+
+            if (search) {
+                q = q.or(`name.ilike.%${search}%,slug.ilike.%${search}%`);
+            }
+            if (plan) {
+                q = q.eq('plan', plan);
+            }
+            return q;
+        };
+
+        let data: any[] | null = null;
+        let count: number | null = null;
+        let error: any = null;
+
+        // Attempt with suspended_at
+        const res1 = await buildQuery(true);
+        if (res1.error) {
+            // Fallback without suspended_at
+            hasSuspendedColumn = false;
+            const res2 = await buildQuery(false);
+            data = res2.data;
+            count = res2.count ?? null;
+            error = res2.error;
         } else {
-            // Default: show all (including deleted for admin view)
+            data = res1.data;
+            count = res1.count ?? null;
         }
-
-        if (search) {
-            query = query.or(`name.ilike.%${search}%,slug.ilike.%${search}%`);
-        }
-        if (plan) {
-            query = query.eq('plan', plan);
-        }
-
-        const { data, count, error } = await query;
         if (error) throw error;
 
         // Collect all owner user IDs to batch-fetch profiles
@@ -92,13 +118,27 @@ export async function GET(req: NextRequest) {
             if (ws.created_by) ownerUserIds.add(ws.created_by);
         });
 
-        // Fetch owner profiles
+        // Fetch owner profiles (use safe select — suspended_at may not exist yet)
         let ownerProfiles: Record<string, any> = {};
         if (ownerUserIds.size > 0) {
-            const { data: profiles } = await supabase
+            // First try with extended columns, fallback to basic if migration not applied
+            let profiles: any[] | null = null;
+            const { data: extProfiles, error: extError } = await supabase
                 .from('profiles')
                 .select('id, email, full_name, display_name, avatar_url, suspended_at, deleted_at')
                 .in('id', Array.from(ownerUserIds));
+
+            if (extError) {
+                // Fallback: suspended_at/deleted_at columns may not exist yet
+                const { data: basicProfiles } = await supabase
+                    .from('profiles')
+                    .select('id, email, full_name, display_name, avatar_url')
+                    .in('id', Array.from(ownerUserIds));
+                profiles = basicProfiles;
+            } else {
+                profiles = extProfiles;
+            }
+
             if (profiles) {
                 profiles.forEach((p: any) => { ownerProfiles[p.id] = p; });
             }

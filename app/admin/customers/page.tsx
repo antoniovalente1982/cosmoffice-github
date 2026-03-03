@@ -84,7 +84,9 @@ export default function CustomersPage() {
         label: string;
         description: string;
         danger: boolean;
+        confirmWord?: string; // Word to type for dangerous actions
     } | null>(null);
+    const [confirmText, setConfirmText] = useState('');
 
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -130,6 +132,8 @@ export default function CustomersPage() {
 
     const executeAction = async () => {
         if (!confirmAction) return;
+        // Block if confirmation word required but not matched
+        if (confirmAction.confirmWord && confirmText !== confirmAction.confirmWord) return;
         setActionLoading(true);
         try {
             const body: any = { action: confirmAction.action, workspaceId: confirmAction.workspaceId };
@@ -146,6 +150,7 @@ export default function CustomersPage() {
 
             showFeedback('success', `${confirmAction.label} completato`);
             setConfirmAction(null);
+            setConfirmText('');
             await fetchData();
         } catch (err: any) {
             showFeedback('error', err.message);
@@ -156,6 +161,7 @@ export default function CustomersPage() {
 
     const openConfirm = (params: typeof confirmAction) => {
         setActionMenuId(null);
+        setConfirmText('');
         setConfirmAction(params);
     };
 
@@ -335,7 +341,7 @@ export default function CustomersPage() {
                                                             <button onClick={() => openConfirm({
                                                                 action: 'suspend_owner', workspaceId: ws.id, ownerId: ws.owner!.id,
                                                                 ownerName: ws.owner!.name, workspaceName: ws.name,
-                                                                label: 'Sospendi Owner', description: `Sospenderai l'account di ${ws.owner!.name}. Non potrà accedere alla piattaforma.`, danger: true,
+                                                                label: 'Sospendi Owner', description: `Sospenderai l'account di ${ws.owner!.name}. Non potrà accedere alla piattaforma.`, danger: true, confirmWord: 'SOSPENDI',
                                                             })} className="w-full px-3 py-2 text-left text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2">
                                                                 <UserX className="w-3.5 h-3.5" /> Sospendi Owner
                                                             </button>
@@ -358,13 +364,13 @@ export default function CustomersPage() {
                                                     <>
                                                         <button onClick={() => openConfirm({
                                                             action: 'suspend_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                            label: 'Sospendi Workspace', description: `Il workspace "${ws.name}" sarà sospeso. Tutti i membri non potranno accedervi.`, danger: true,
+                                                            label: 'Sospendi Workspace', description: `Il workspace "${ws.name}" sarà sospeso. Tutti i membri non potranno accedervi.`, danger: true, confirmWord: 'SOSPENDI',
                                                         })} className="w-full px-3 py-2 text-left text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2">
                                                             <Pause className="w-3.5 h-3.5" /> Sospendi
                                                         </button>
                                                         <button onClick={() => openConfirm({
                                                             action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato. L'owner riceverà una notifica.`, danger: true,
+                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato. L'owner riceverà una notifica.`, danger: true, confirmWord: 'ELIMINA',
                                                         })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
                                                             <Trash2 className="w-3.5 h-3.5" /> Elimina
                                                         </button>
@@ -380,7 +386,7 @@ export default function CustomersPage() {
                                                         </button>
                                                         <button onClick={() => openConfirm({
                                                             action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato definitivamente.`, danger: true,
+                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato definitivamente.`, danger: true, confirmWord: 'ELIMINA',
                                                         })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
                                                             <Trash2 className="w-3.5 h-3.5" /> Elimina
                                                         </button>
@@ -426,39 +432,74 @@ export default function CustomersPage() {
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-                        onClick={() => setConfirmAction(null)}
+                        onClick={() => { setConfirmAction(null); setConfirmText(''); }}
                     >
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
                             onClick={(e) => e.stopPropagation()}
-                            className={`w-full max-w-sm rounded-2xl border p-6 space-y-4 ${confirmAction.danger ? 'border-red-500/30' : 'border-emerald-500/20'}`}
+                            className={`w-full max-w-md rounded-2xl border p-6 space-y-4 ${confirmAction.danger ? 'border-red-500/30' : 'border-emerald-500/20'}`}
                             style={{ background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(30px)' }}
                         >
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${confirmAction.danger ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
-                                    {confirmAction.danger
-                                        ? <AlertTriangle className="w-5 h-5 text-red-400" />
-                                        : <Check className="w-5 h-5 text-emerald-400" />
-                                    }
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${confirmAction.danger ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
+                                        {confirmAction.danger
+                                            ? <AlertTriangle className="w-5 h-5 text-red-400" />
+                                            : <Check className="w-5 h-5 text-emerald-400" />
+                                        }
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-bold text-white">{confirmAction.label}</h3>
+                                        <p className="text-[11px] text-slate-500">{confirmAction.workspaceName}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-base font-bold text-white">{confirmAction.label}</h3>
-                                    <p className="text-[11px] text-slate-500">{confirmAction.workspaceName}</p>
-                                </div>
+                                <button onClick={() => { setConfirmAction(null); setConfirmText(''); }} className="text-slate-500 hover:text-slate-300">
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
 
-                            <p className="text-sm text-slate-300">{confirmAction.description}</p>
+                            {confirmAction.danger && (
+                                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                                    <div className="flex items-start gap-2">
+                                        <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                                        <p className="text-xs text-red-300/80">{confirmAction.description}</p>
+                                    </div>
+                                </div>
+                            )}
 
-                            <p className="text-xs text-slate-500 italic">L'owner riceverà una notifica automatica.</p>
+                            {!confirmAction.danger && (
+                                <p className="text-sm text-slate-300">{confirmAction.description}</p>
+                            )}
+
+                            <p className="text-xs text-slate-500 italic flex items-center gap-1.5">
+                                <Mail className="w-3 h-3" /> L'owner riceverà una notifica automatica.
+                            </p>
+
+                            {/* Safety text input for dangerous actions */}
+                            {confirmAction.confirmWord && (
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                                        Scrivi <span className="text-red-400 font-bold font-mono">{confirmAction.confirmWord}</span> per confermare
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={confirmText}
+                                        onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
+                                        placeholder={confirmAction.confirmWord}
+                                        className="w-full bg-slate-900/50 border-2 border-red-500/20 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-red-500/50 outline-none transition-colors font-mono tracking-widest text-center uppercase"
+                                        autoFocus
+                                    />
+                                </div>
+                            )}
 
                             <div className="flex gap-3 pt-1">
-                                <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5 transition-all">
+                                <button onClick={() => { setConfirmAction(null); setConfirmText(''); }} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5 transition-all">
                                     Annulla
                                 </button>
                                 <button
                                     onClick={executeAction}
-                                    disabled={actionLoading}
-                                    className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2 ${confirmAction.danger
+                                    disabled={actionLoading || (!!confirmAction.confirmWord && confirmText !== confirmAction.confirmWord)}
+                                    className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${confirmAction.danger
                                         ? 'bg-red-500 hover:bg-red-400 shadow-[0_0_15px_rgba(239,68,68,0.3)]'
                                         : 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.3)]'
                                         }`}
