@@ -162,13 +162,14 @@ export async function GET(req: NextRequest) {
 
         const totalSpaces = activeSpaceIds.length;
 
-        // Count only rooms in active spaces
+        // Count only non-deleted rooms in active spaces
         let totalRooms = 0;
         if (activeSpaceIds.length > 0) {
             const { data: activeRooms } = await supabase
                 .from('rooms')
                 .select('id')
-                .in('space_id', activeSpaceIds);
+                .in('space_id', activeSpaceIds)
+                .is('deleted_at', null);
             totalRooms = activeRooms?.length || 0;
         }
 
