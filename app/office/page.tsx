@@ -26,7 +26,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Logo } from '../../components/ui/logo';
 import { WorkspaceSettings } from '../../components/workspace/WorkspaceSettings';
-import { OFFICE_PRESETS, getPresetForSize } from '../../components/office/MiniMap';
+import { OFFICE_PRESETS, getPresetForSize } from '../../lib/officePresets';
 
 export default function DashboardPage() {
     const supabase = createClient();

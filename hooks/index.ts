@@ -32,13 +32,7 @@ export {
 // Room
 export {
   useRoom,
-  useRoomChat,
 } from './useRoom';
-
-// Edge Functions
-export { useEdgeFunctions } from './useEdgeFunctions';
-
-
 
 // Re-export types
 export type { ModerationState } from './useModeration';
