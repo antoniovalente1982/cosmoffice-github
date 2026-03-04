@@ -43,6 +43,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     // Read media toggles from daily store
     const isAudioOn = useDailyStore(s => s.isAudioOn);
     const isVideoOn = useDailyStore(s => s.isVideoOn);
+    const isRemoteAudioEnabled = useDailyStore(s => s.isRemoteAudioEnabled);
 
     // ─── Room name — generates Daily.co room name for a given context ─
     const getContextRoomName = useCallback((contextType: 'room' | 'proximity', contextId: string) => {
@@ -454,6 +455,14 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             delete (window as any).__leaveDailyContext;
         };
     }, [joinDailyContext, leaveDailyContext]);
+
+    // ─── Mute/Unmute ALL peer audio when remote audio toggle changes ──
+    useEffect(() => {
+        const audioElements = document.querySelectorAll<HTMLAudioElement>('[id^="daily-audio-"]');
+        audioElements.forEach(el => {
+            el.muted = !isRemoteAudioEnabled;
+        });
+    }, [isRemoteAudioEnabled]);
 
     // ─── MEDIA-TRIGGERED JOIN/LEAVE (core optimization) ─────
     // Daily connects ONLY when user enables mic/cam.
