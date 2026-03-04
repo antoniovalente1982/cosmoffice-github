@@ -472,6 +472,7 @@ export function PixiOffice() {
             if (isDraggingAvatarRef.current) {
                 isDraggingAvatarRef.current = false;
                 setIsDraggingAvatar(false);
+                useAvatarStore.getState().setDragging(false);
                 const { mouseX, mouseY, posX, posY, zoom: startZoom } = dragStartRef.current;
                 const finalX = posX + (e.clientX - mouseX) / startZoom;
                 const finalY = posY + (e.clientY - mouseY) / startZoom;
@@ -539,6 +540,7 @@ export function PixiOffice() {
         e.stopPropagation();
         isDraggingAvatarRef.current = true;
         setIsDraggingAvatar(true);
+        useAvatarStore.getState().setDragging(true);
         dragStartRef.current = {
             mouseX: e.clientX, mouseY: e.clientY,
             posX: myPosition.x, posY: myPosition.y, zoom,

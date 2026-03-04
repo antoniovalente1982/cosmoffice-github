@@ -50,6 +50,7 @@ interface AvatarState {
 
     // Peers
     peers: Record<string, Peer>;
+    isDragging: boolean;
 
     // Actions
     setMyPosition: (position: UserPosition) => void;
@@ -66,6 +67,7 @@ interface AvatarState {
     updatePeer: (id: string, data: Partial<Peer>) => void;
     removePeer: (id: string) => void;
     clearPeers: () => void;
+    setDragging: (dragging: boolean) => void;
 }
 
 const AVATAR_RADIUS = 25; // Half of 50px minimum distance between avatar centers
@@ -82,9 +84,16 @@ export const useAvatarStore = create<AvatarState>((set, get) => ({
     myAdminMutedVideo: false,
     myProximityGroupId: null,
     knockingAtRoom: null,
+    isDragging: false,
     peers: {},
 
     setMyPosition: (position) => {
+        // Skip collision resolution during drag to prevent rubber banding
+        if (get().isDragging) {
+            set({ myPosition: position });
+            return;
+        }
+
         const peers = get().peers;
         let resolved = { ...position };
 
@@ -124,6 +133,7 @@ export const useAvatarStore = create<AvatarState>((set, get) => ({
     setMyAdminMutedVideo: (myAdminMutedVideo) => set({ myAdminMutedVideo }),
     setMyProximityGroup: (myProximityGroupId) => set({ myProximityGroupId }),
     setKnockingAtRoom: (knockingAtRoom) => set({ knockingAtRoom }),
+    setDragging: (isDragging) => set({ isDragging }),
 
     updatePeer: (id, data) => {
         const current = get().peers[id];
