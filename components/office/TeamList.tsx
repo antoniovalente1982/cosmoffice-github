@@ -197,13 +197,16 @@ export function TeamList({ spaceId }: TeamListProps) {
 
     const isOnline = (m: WorkspaceMember) => {
         if (m.user_id === currentUserId) return true;
-        return onlinePeerIds.has(m.user_id);
+        // Only count as online if peer exists in avatarStore with valid position
+        const peer = peers[m.user_id];
+        return !!peer && peer.position && peer.position.x !== -9999;
     };
 
     const getMemberStatus = (m: WorkspaceMember) => {
         if (m.user_id === currentUserId) return myStatus || 'online';
         const peer = peerList.find(p => p.id === m.user_id);
-        return peer?.status || 'online';
+        if (!peer) return 'offline';
+        return peer.status || 'online';
     };
 
     // Group members by role

@@ -150,47 +150,7 @@ export function MediaManager() {
                 removeScreenContainer(streamId);
             };
 
-            // Add "+" button per aggiungere altri schermi
-            const addBtn = document.createElement('button');
-            addBtn.innerHTML = '+';
-            addBtn.title = 'Aggiungi altro schermo';
-            addBtn.style.cssText = `
-                width: 26px;
-                height: 26px;
-                border-radius: 6px;
-                background: rgba(16, 185, 129, 0.8);
-                color: white;
-                border: none;
-                cursor: pointer;
-                font-size: 18px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s;
-                margin-right: 8px;
-            `;
-            addBtn.onmouseenter = () => {
-                addBtn.style.background = 'rgba(16, 185, 129, 1)';
-                addBtn.style.transform = 'scale(1.05)';
-            };
-            addBtn.onmouseleave = () => {
-                addBtn.style.background = 'rgba(16, 185, 129, 0.8)';
-                addBtn.style.transform = 'scale(1)';
-            };
-            addBtn.onclick = async () => {
-                try {
-                    const newStream = await navigator.mediaDevices.getDisplayMedia({
-                        video: true,
-                        audio: false
-                    });
-                    useDailyStore.getState().addScreenStream(newStream);
-                } catch (err) {
-                    console.error('Failed to add screen:', err);
-                }
-            };
-
             toolbar.appendChild(label);
-            toolbar.appendChild(addBtn);
             toolbar.appendChild(closeBtn);
 
             // Drag handlers for toolbar

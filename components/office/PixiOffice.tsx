@@ -714,30 +714,6 @@ export function PixiOffice() {
                     const screenPos = getScreenPos(peer.position);
                     if (!isInViewport(screenPos)) return null;
                     const dist = getDistanceFromMe(peer.position);
-                    if (dist > LOD_DISTANCE) {
-                        return (
-                            <div
-                                key={peer.id}
-                                className="absolute"
-                                style={{
-                                    left: screenPos.x,
-                                    top: screenPos.y,
-                                    width: 12 * zoom,
-                                    height: 12 * zoom,
-                                    marginLeft: -(6 * zoom),
-                                    marginTop: -(6 * zoom),
-                                    borderRadius: '50%',
-                                    backgroundColor: peer.status === 'online' ? '#10b981'
-                                        : peer.status === 'away' ? '#f59e0b'
-                                            : peer.status === 'busy' ? '#ef4444' : '#64748b',
-                                    border: `${1.5 * zoom}px solid rgba(15,23,42,0.8)`,
-                                    boxShadow: `0 0 ${6 * zoom}px rgba(16,185,129,0.4)`,
-                                    transition: 'left 0.15s, top 0.15s',
-                                }}
-                                title={peer.full_name}
-                            />
-                        );
-                    }
                     // Look up video stream from dailyStore participants
                     const dailyParticipants = useDailyStore.getState().participants;
                     let peerStream: MediaStream | null = peer.stream || null;

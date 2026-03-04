@@ -54,7 +54,10 @@ type IncomingMessage =
     | { type: "knock"; userId: string; roomId: string }
     | { type: "knock_response"; userId: string; roomId: string; targetUserId: string; accepted: boolean }
     | { type: "admin_command"; adminId: string; command: AdminCommand; targetUserId?: string; roomId?: string }
-    | { type: "update_state"; userId: string; isDnd?: boolean; isAway?: boolean };
+    | { type: "update_state"; userId: string; isDnd?: boolean; isAway?: boolean }
+    | { type: "speaking"; userId: string; isSpeaking: boolean }
+    | { type: "media_state"; userId: string; audioEnabled: boolean; videoEnabled: boolean; remoteAudioEnabled: boolean }
+    | { type: "status_change"; userId: string; status: string };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
@@ -326,6 +329,42 @@ export default class AvatarServer {
                     },
                 };
                 this.party.broadcast(JSON.stringify(stateMsg), [sender.id]);
+                break;
+            }
+
+            // ─── Speaking state relay ────────────────────────
+            case "speaking": {
+                // Relay speaking state to all other clients
+                this.party.broadcast(JSON.stringify({
+                    type: "speaking",
+                    userId: parsed.userId,
+                    isSpeaking: parsed.isSpeaking,
+                }), [sender.id]);
+                break;
+            }
+
+            // ─── Media state relay (mic/cam/remoteAudio) ────
+            case "media_state": {
+                // Relay media state to all other clients
+                this.party.broadcast(JSON.stringify({
+                    type: "media_state",
+                    userId: parsed.userId,
+                    audioEnabled: parsed.audioEnabled,
+                    videoEnabled: parsed.videoEnabled,
+                    remoteAudioEnabled: parsed.remoteAudioEnabled,
+                }), [sender.id]);
+                break;
+            }
+
+            // ─── Status change relay (online/away/busy) ─────
+            case "status_change": {
+                const user = this.users.get(parsed.userId);
+                if (user) user.status = parsed.status;
+                this.party.broadcast(JSON.stringify({
+                    type: "status_change",
+                    userId: parsed.userId,
+                    status: parsed.status,
+                }), [sender.id]);
                 break;
             }
 

@@ -124,6 +124,17 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         document.getElementById(`daily-audio-${supabaseId}`)?.remove();
         document.getElementById(`daily-audio-${id}`)?.remove();
         useDailyStore.getState().removeParticipant(id);
+
+        // Clean up video state in avatarStore so tile disappears
+        if (useAvatarStore.getState().peers[supabaseId]) {
+            useAvatarStore.getState().updatePeer(supabaseId, {
+                id: supabaseId,
+                videoEnabled: false,
+                stream: null,
+                isSpeaking: false,
+            });
+        }
+
         gDailyToSupabase.delete(id);
         gLastSubscribeState.delete(id);
     }, []);
@@ -407,9 +418,25 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         roomUrlRef.current = null;
         currentRoomNameRef.current = null;
         gLocalTracks.clear();
+
+        // Clear ALL remote participants from dailyStore to prevent stale tiles
+        useDailyStore.getState().clearParticipants();
         useDailyStore.getState().setLocalStream(null);
         useDailyStore.getState().setConnected(false);
         useDailyStore.getState().setActiveContext('none', null);
+
+        // Clear video streams from peers in avatarStore so tiles disappear
+        const peers = useAvatarStore.getState().peers;
+        Object.keys(peers).forEach(peerId => {
+            const peer = peers[peerId];
+            if (peer.stream || peer.videoEnabled) {
+                useAvatarStore.getState().updatePeer(peerId, {
+                    id: peerId,
+                    stream: null,
+                    videoEnabled: false,
+                });
+            }
+        });
     }, []);
 
     // ─── Register global functions for proximity/rooms engine ──

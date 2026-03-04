@@ -194,6 +194,17 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         }
     }, [userId]);
 
+    // ─── Status change broadcast (online/away/busy) ──────────
+    const sendStatusChange = useCallback((status: string) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'status_change',
+                userId,
+                status,
+            }));
+        }
+    }, [userId]);
+
     // ─── Connect ────────────────────────────────────────────
     useEffect(() => {
         if (!workspaceId || !userId) return;
@@ -332,6 +343,15 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                         audioEnabled: msg.audioEnabled || false,
                         videoEnabled: msg.videoEnabled || false,
                         remoteAudioEnabled: msg.remoteAudioEnabled !== false,
+                    });
+                    break;
+                }
+
+                case 'status_change': {
+                    if (msg.userId === userId) return;
+                    useAvatarStore.getState().updatePeer(msg.userId, {
+                        id: msg.userId,
+                        status: msg.status || 'online',
                     });
                     break;
                 }
@@ -520,6 +540,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         (window as any).__sendLeaveRoom = sendLeaveRoom;
         (window as any).__sendStateUpdate = sendStateUpdate;
         (window as any).__sendMediaState = sendMediaState;
+        (window as any).__sendStatusChange = sendStatusChange;
         return () => {
             delete (window as any).__sendChatMessage;
             delete (window as any).__sendOfficeChatMessage;
@@ -531,8 +552,9 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             delete (window as any).__sendLeaveRoom;
             delete (window as any).__sendStateUpdate;
             delete (window as any).__sendMediaState;
+            delete (window as any).__sendStatusChange;
         };
-    }, [sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendLeaveRoom, sendStateUpdate, sendMediaState]);
+    }, [sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendLeaveRoom, sendStateUpdate, sendMediaState, sendStatusChange]);
 
     // ─── Auto-broadcast media state when dailyStore changes ──
     useEffect(() => {
@@ -546,5 +568,15 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         return () => unsubDaily();
     }, [sendMediaState]);
 
-    return { sendPosition, sendJoinRoom, sendLeaveRoom, sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendStateUpdate, sendMediaState };
+    // ─── Auto-broadcast status changes (online/away/busy) ────
+    useEffect(() => {
+        const unsubAvatar = useAvatarStore.subscribe((state, prevState) => {
+            if (state.myStatus !== prevState.myStatus) {
+                sendStatusChange(state.myStatus);
+            }
+        });
+        return () => unsubAvatar();
+    }, [sendStatusChange]);
+
+    return { sendPosition, sendJoinRoom, sendLeaveRoom, sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendStateUpdate, sendMediaState, sendStatusChange };
 }
