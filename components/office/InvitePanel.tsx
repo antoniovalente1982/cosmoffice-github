@@ -272,10 +272,10 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                                 onChange={(e) => setLinkMaxUses(e.target.value === 'unlimited' ? null : parseInt(e.target.value))}
                                 className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
                             >
-                                <option value="1">1 persona</option>
-                                <option value="5">5 persone</option>
-                                <option value="10">10 persone</option>
-                                <option value="25">25 persone</option>
+                                <option value="1">1 accesso</option>
+                                <option value="5">5 accessi</option>
+                                <option value="10">10 accessi</option>
+                                <option value="25">25 accessi</option>
                                 <option value="unlimited">Illimitato</option>
                             </select>
                         </div>
