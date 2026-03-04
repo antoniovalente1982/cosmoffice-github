@@ -492,7 +492,7 @@ export default function OfficePage() {
                             <Button
                                 variant="secondary"
                                 size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]'}`}
+                                className={`rounded-full w-12 h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-teal-600/70 hover:bg-teal-500/70 text-white shadow-[0_0_12px_rgba(20,184,166,0.3)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-400'}`}
                                 onClick={toggleRemoteAudio}
                                 title={isRemoteAudioEnabled ? 'Audio in entrata attivo - Clicca per silenziare gli altri' : 'Modalità Focus - Audio degli altri disattivato'}
                             >

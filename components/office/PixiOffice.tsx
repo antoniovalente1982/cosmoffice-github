@@ -266,7 +266,7 @@ export function PixiOffice() {
                         drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount, useWorkspaceStore.getState().landingPadScale);
                     }
 
-                    // Proximity aura
+                    // Proximity aura — runs EVERY FRAME so aura has no position lag
                     if (auraRef.current) {
                         try {
                             const avatarState = useAvatarStore.getState();
@@ -284,7 +284,7 @@ export function PixiOffice() {
                             }));
 
                             auraRef.current.setState(auraState);
-                            auraRef.current.update(66, myPos.x, myPos.y, roomRects);
+                            auraRef.current.update(16, myPos.x, myPos.y, roomRects);
                         } catch (e) {
                             console.warn('[Aura] Error in aura update:', e);
                         }
