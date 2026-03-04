@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '../../../utils/supabase/client';
 import { useRouter, useParams } from 'next/navigation';
@@ -70,6 +70,8 @@ export default function OfficePage() {
     const clearAllScreenStreams = useDailyStore(s => s.clearAllScreenStreams);
     const isGridViewOpen = useDailyStore(s => s.isGridViewOpen);
     const toggleGridView = useDailyStore(s => s.toggleGridView);
+    const isConnected = useDailyStore(s => s.isConnected);
+    const activeContext = useDailyStore(s => s.activeContext);
 
     // Avatar store
     const myStatus = useAvatarStore(s => s.myStatus);
@@ -81,6 +83,61 @@ export default function OfficePage() {
     const officeChatUnread = useChatStore(s => s.officeUnreadCount);
     const toggleChat = useChatStore(s => s.toggleChat);
     const totalChatUnread = chatUnread + officeChatUnread;
+
+    // Toast for no-proximity feedback
+    const [mediaToast, setMediaToast] = useState<string | null>(null);
+    const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const showMediaToast = useCallback((msg: string) => {
+        if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+        setMediaToast(msg);
+        toastTimeoutRef.current = setTimeout(() => setMediaToast(null), 3500);
+    }, []);
+
+    // Smart toggle with proximity check
+    const smartToggleMic = useCallback(async () => {
+        const { myProximityGroupId, myRoomId } = useAvatarStore.getState();
+        const ds = useDailyStore.getState();
+        if (ds.isAudioOn) {
+            // Always allow turning OFF
+            await toggleMic();
+            return;
+        }
+        if (!myProximityGroupId && !myRoomId) {
+            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza per usare il microfono');
+            return;
+        }
+        await toggleMic();
+    }, [toggleMic, showMediaToast]);
+
+    const smartToggleVideo = useCallback(async () => {
+        const { myProximityGroupId, myRoomId } = useAvatarStore.getState();
+        const ds = useDailyStore.getState();
+        if (ds.isVideoOn) {
+            await toggleVideo();
+            return;
+        }
+        if (!myProximityGroupId && !myRoomId) {
+            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza per usare la webcam');
+            return;
+        }
+        await toggleVideo();
+    }, [toggleVideo, showMediaToast]);
+
+    const smartStartScreenShare = useCallback(async () => {
+        const { myProximityGroupId, myRoomId } = useAvatarStore.getState();
+        if (!myProximityGroupId && !myRoomId) {
+            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza per condividere lo schermo');
+            return;
+        }
+        // Call Daily.co screen share directly
+        const daily = (window as any).__dailyCall;
+        if (daily) {
+            try { await daily.startScreenShare(); } catch (err) { console.error('Screen share failed:', err); }
+        } else {
+            showMediaToast('⚠️ Connessione Daily.co non disponibile');
+        }
+    }, [showMediaToast]);
 
     // Workspace store
     const activeTab = useWorkspaceStore(s => s.activeTab);
@@ -404,6 +461,14 @@ export default function OfficePage() {
                             <PixiOffice />
                             <MediaManager />
                             <DailyErrorToast />
+                            {mediaToast && (
+                                <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[999] animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                    <div className="px-5 py-3 rounded-xl border border-amber-500/30 shadow-2xl"
+                                        style={{ background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)' }}>
+                                        <span className="text-sm font-medium text-amber-300">{mediaToast}</span>
+                                    </div>
+                                </div>
+                            )}
                             <VideoGrid />
                             {isBuilderMode && <OfficeBuilder />}
                         </>
@@ -434,7 +499,7 @@ export default function OfficePage() {
                                 variant={isMicEnabled ? "secondary" : "default"}
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isMicEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
-                                onClick={async () => await toggleMic()}
+                                onClick={smartToggleMic}
                             >
                                 {isMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
                             </Button>
@@ -442,7 +507,7 @@ export default function OfficePage() {
                                 variant={isVideoEnabled ? "secondary" : "default"}
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isVideoEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
-                                onClick={async () => await toggleVideo()}
+                                onClick={smartToggleVideo}
                             >
                                 {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
                             </Button>
@@ -450,23 +515,11 @@ export default function OfficePage() {
                                 variant={isScreenSharing ? "default" : "secondary"}
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                onClick={isScreenSharing ? stopAllScreens : startScreenShare}
+                                onClick={isScreenSharing ? stopAllScreens : smartStartScreenShare}
                                 title={isScreenSharing ? `Stop tutti gli schermi (${screenStreams.length})` : 'Condividi schermo'}
                             >
                                 {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                             </Button>
-
-                            {isScreenSharing && (
-                                <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    className="rounded-full w-10 h-12 bg-emerald-500/80 hover:bg-emerald-500 text-white transition-all glow-button"
-                                    onClick={startScreenShare}
-                                    title="Aggiungi altro schermo"
-                                >
-                                    <span className="text-lg font-bold">+</span>
-                                </Button>
-                            )}
 
                             {/* Grid View Toggle */}
                             <Button

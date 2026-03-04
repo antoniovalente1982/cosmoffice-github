@@ -545,9 +545,11 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                 // New proximity group while media is on → join Daily
                 joinDailyContext('proximity', newGroup);
             } else if (!newGroup && oldGroup && dailyStore.activeContext === 'proximity') {
-                // Left proximity while media is on → leave Daily
+                // Left proximity while media is on → leave Daily + turn off media buttons
                 leaveDailyContext();
-                console.log('[Daily] Walked away with media on → left proximity');
+                // Auto-turn off media buttons so toolbar reflects disconnected state
+                useDailyStore.setState({ isAudioOn: false, isVideoOn: false, isScreenSharing: false });
+                console.log('[Daily] Walked away → left proximity, media buttons reset');
             }
         });
         return unsubscribe;

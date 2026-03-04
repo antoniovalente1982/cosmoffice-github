@@ -16,6 +16,8 @@ interface UserState {
     role: string | null;
     isDnd: boolean;
     isAway: boolean;
+    audioEnabled: boolean;
+    videoEnabled: boolean;
 }
 
 interface ChatMessage {
@@ -143,6 +145,8 @@ export default class AvatarServer {
                     role: parsed.role || existing?.role || null,
                     isDnd: parsed.isDnd || false,
                     isAway: parsed.isAway || false,
+                    audioEnabled: existing?.audioEnabled ?? false,
+                    videoEnabled: existing?.videoEnabled ?? false,
                 });
                 // Broadcast updated user info (including position)
                 const state = this.users.get(userId)!;
@@ -185,6 +189,8 @@ export default class AvatarServer {
                         role: null,
                         isDnd: false,
                         isAway: false,
+                        audioEnabled: false,
+                        videoEnabled: false,
                     });
                     this.connectionToUser.set(sender.id, userId);
                     this.userToConnection.set(userId, sender.id);
@@ -345,6 +351,12 @@ export default class AvatarServer {
 
             // ─── Media state relay (mic/cam/remoteAudio) ────
             case "media_state": {
+                // Store media state on the server for init broadcasts
+                const user = this.users.get(parsed.userId);
+                if (user) {
+                    user.audioEnabled = parsed.audioEnabled;
+                    user.videoEnabled = parsed.videoEnabled;
+                }
                 // Relay media state to all other clients
                 this.party.broadcast(JSON.stringify({
                     type: "media_state",

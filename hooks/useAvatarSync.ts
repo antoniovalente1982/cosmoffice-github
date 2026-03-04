@@ -247,6 +247,19 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             broadcastPosition();
             setTimeout(broadcastPosition, 500);
             setTimeout(broadcastPosition, 1500);
+
+            // Broadcast current media state so existing peers get our mic/cam status
+            setTimeout(() => {
+                if (socket.readyState !== WebSocket.OPEN) return;
+                const ds = useDailyStore.getState();
+                socket.send(JSON.stringify({
+                    type: 'media_state',
+                    userId,
+                    audioEnabled: ds.isAudioOn,
+                    videoEnabled: ds.isVideoOn,
+                    remoteAudioEnabled: ds.isRemoteAudioEnabled,
+                }));
+            }, 800);
         };
 
         socket.onmessage = (ev) => {
@@ -271,6 +284,8 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             role: state.role || undefined,
                             isDnd: state.isDnd || false,
                             isAway: state.isAway || false,
+                            audioEnabled: state.audioEnabled ?? false,
+                            videoEnabled: state.videoEnabled ?? false,
                         });
                     });
                     break;
