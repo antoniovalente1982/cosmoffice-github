@@ -399,6 +399,46 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                     const liveTracks = Array.from(gLocalTracks.values()).filter(t => t.readyState === 'live');
                     useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
                 }
+
+                // Also sync REMOTE participant tracks (fixes first-join audio bug)
+                const allParticipants = callRef.current.participants();
+                if (allParticipants) {
+                    Object.entries(allParticipants).forEach(([key, p]: [string, any]) => {
+                        if (key === 'local' || !p) return;
+                        const dailyId = p.user_id || p.session_id;
+                        const supabaseId = gDailyToSupabase.get(dailyId) || dailyId;
+
+                        // Sync audio track
+                        const remoteAudioTrack = p.tracks?.audio?.persistentTrack;
+                        if (remoteAudioTrack && remoteAudioTrack.readyState === 'live') {
+                            const audioElId = `daily-audio-${supabaseId}`;
+                            let el = document.getElementById(audioElId) as HTMLAudioElement;
+                            if (!el) {
+                                el = document.createElement('audio');
+                                el.id = audioElId;
+                                el.autoplay = true;
+                                el.style.display = 'none';
+                                el.muted = !useDailyStore.getState().isRemoteAudioEnabled;
+                                document.body.appendChild(el);
+                            }
+                            if (!el.srcObject || (el.srcObject as MediaStream).getAudioTracks()[0] !== remoteAudioTrack) {
+                                el.srcObject = new MediaStream([remoteAudioTrack]);
+                            }
+                            useDailyStore.getState().setParticipant(dailyId, { audioTrack: remoteAudioTrack, audioEnabled: true });
+                        }
+
+                        // Sync video track
+                        const remoteVideoTrack = p.tracks?.video?.persistentTrack;
+                        if (remoteVideoTrack && remoteVideoTrack.readyState === 'live') {
+                            const videoStream = new MediaStream([remoteVideoTrack]);
+                            useDailyStore.getState().setParticipant(dailyId, { videoTrack: remoteVideoTrack, videoEnabled: true, videoStream });
+                            if (useAvatarStore.getState().peers[supabaseId]) {
+                                useAvatarStore.getState().updatePeer(supabaseId, { id: supabaseId, videoEnabled: true, stream: videoStream });
+                            }
+                        }
+                    });
+                }
+
                 const ds = useDailyStore.getState();
                 const hasAll = (!ds.isVideoOn || gLocalTracks.has('video')) && (!ds.isAudioOn || gLocalTracks.has('audio'));
                 if (hasAll) clearInterval(syncInterval);
