@@ -122,6 +122,18 @@ function UserAvatarInner({
                     </span>
                 </div>
 
+                {/* Pulse Ripple when Speaking */}
+                {isSpeaking && (
+                    <div
+                        className="absolute inset-0 rounded-full animate-ping"
+                        style={{
+                            border: `2px solid #34d399`,
+                            opacity: 0.4,
+                            animationDuration: '1.5s'
+                        }}
+                    />
+                )}
+
                 {/* Avatar Circle — ring = ROLE color */}
                 <div
                     style={{
@@ -135,8 +147,9 @@ function UserAvatarInner({
                         overflow: 'hidden',
                         background: 'linear-gradient(to bottom right, #334155, #0f172a)',
                         boxShadow: `${ringBoxShadow}, 0 25px 50px -12px rgba(0,0,0,0.25)`,
-                        transform: isSpeaking ? 'scale(1.1)' : undefined,
+                        transform: isSpeaking ? 'scale(1.05)' : undefined,
                         transition: 'transform 0.3s, box-shadow 0.3s',
+                        zIndex: 2,
                     }}
                 >
                     {/* Video / Image / Initials */}

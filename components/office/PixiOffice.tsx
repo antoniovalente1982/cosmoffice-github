@@ -91,22 +91,25 @@ function drawRoom(container: Container, room: any, isHovered: boolean, occupants
     body.roundRect(room.x - 3, room.y - 3, room.width + 6, room.height + 6, 19);
     body.fill({ color: colorNum, alpha: isHovered ? 0.14 : 0.07 });
 
-    // Main card background — dark glass
+    // ─── Main card background — dark glass ──────────────────
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.fill({ color: 0x0c1222, alpha: 0.94 });
+    body.fill({ color: 0x070c18, alpha: 0.85 });
 
-    // Color tint overlay
+    // ─── Color tint overlay ─────────────────────────────────
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.08 : 0.04 });
+    body.fill({ color: colorNum, alpha: isHovered ? 0.12 : 0.05 });
 
-    // Border — thick and glowing
+    // ─── Premium Glass Shine (Top Edge Glow) ────────────────
+    body.roundRect(room.x + 1, room.y + 1, room.width - 2, 2, 8);
+    body.fill({ color: 0xffffff, alpha: isHovered ? 0.25 : 0.15 });
+
+    // ─── Border — thick and glowing ─────────────────────────
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.stroke({ color: colorNum, width: isHovered ? 3.5 : 3, alpha: isHovered ? 0.9 : 0.6 });
+    body.stroke({ color: colorNum, width: isHovered ? 2.5 : 1.5, alpha: isHovered ? 0.9 : 0.5 });
 
-
-    // Bottom subtle line
-    body.rect(room.x + 16, room.y + room.height - 28, room.width - 32, 1);
-    body.fill({ color: 0xffffff, alpha: 0.04 });
+    // ─── Bottom subtle line (divider for occupants area) ────
+    body.rect(room.x + 16, room.y + room.height - 30, room.width - 32, 1);
+    body.fill({ color: 0xffffff, alpha: 0.06 });
 
     container.addChild(body);
 
