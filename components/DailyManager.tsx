@@ -349,9 +349,15 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             const supabaseUserId = profile?.id || null;
             const dailyState = useDailyStore.getState();
 
+            // Build display name with multiple fallbacks for guests
+            const displayName = profile?.display_name
+                || profile?.full_name
+                || profile?.email?.split('@')[0]
+                || 'User';
+
             await callRef.current!.join({
                 url,
-                userName: `${profile?.display_name || profile?.full_name || 'Anonymous'}|${supabaseUserId || 'unknown'}`,
+                userName: `${displayName}|${supabaseUserId || 'unknown'}`,
                 startVideoOff: !dailyState.isVideoOn,
                 startAudioOff: !dailyState.isAudioOn,
                 ...(supabaseUserId ? { userData: { supabaseUserId } } : {}),
