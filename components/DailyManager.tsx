@@ -504,6 +504,52 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         });
     }, [isRemoteAudioEnabled]);
 
+    // ─── Audio auto-recovery: detect frozen tracks and recreate audio elements ──
+    useEffect(() => {
+        if (!callRef.current || !joinedRef.current) return;
+
+        const recoveryInterval = setInterval(() => {
+            if (!callRef.current || !joinedRef.current) return;
+            const participants = callRef.current.participants();
+            if (!participants) return;
+
+            Object.entries(participants).forEach(([key, p]: [string, any]) => {
+                if (key === 'local' || !p) return;
+                const dailyId = p.user_id || p.session_id;
+                const supabaseId = gDailyToSupabase.get(dailyId) || dailyId;
+
+                const remoteAudioTrack = p.tracks?.audio?.persistentTrack;
+                if (!remoteAudioTrack || remoteAudioTrack.readyState !== 'live') return;
+
+                const audioElId = `daily-audio-${supabaseId}`;
+                const el = document.getElementById(audioElId) as HTMLAudioElement;
+
+                // Check if audio element is missing or has a stale/dead track
+                const needsRecovery = !el
+                    || !el.srcObject
+                    || (el.srcObject as MediaStream).getAudioTracks().length === 0
+                    || (el.srcObject as MediaStream).getAudioTracks()[0]?.readyState === 'ended';
+
+                if (needsRecovery) {
+                    console.log('[Daily] 🔧 Audio recovery for:', supabaseId.slice(0, 8));
+                    // Remove old element if exists
+                    el?.remove();
+                    // Create fresh audio element
+                    const newEl = document.createElement('audio');
+                    newEl.id = audioElId;
+                    newEl.autoplay = true;
+                    newEl.style.display = 'none';
+                    newEl.muted = !useDailyStore.getState().isRemoteAudioEnabled;
+                    newEl.srcObject = new MediaStream([remoteAudioTrack]);
+                    document.body.appendChild(newEl);
+                    newEl.play().catch(() => { });
+                }
+            });
+        }, 5000); // Check every 5 seconds
+
+        return () => clearInterval(recoveryInterval);
+    }, [isAudioOn, isVideoOn]); // Re-run when media state changes (proxy for join state)
+
     // ─── MEDIA-TRIGGERED JOIN/LEAVE (core optimization) ─────
     // Daily connects ONLY when user enables mic/cam.
     // Rooms and proximity set state in avatarStore (visual only).
