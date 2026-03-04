@@ -44,7 +44,7 @@ const AURA_CONFIGS = {
     },
 };
 
-const PROXIMITY_RADIUS = 250;
+const PROXIMITY_RADIUS = 500;
 
 // Movement fade constants
 const FADE_IN_SPEED = 4.0;   // per-second (reaches 1.0 in ~250ms)

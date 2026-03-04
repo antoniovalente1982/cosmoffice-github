@@ -13,7 +13,7 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 import { isPointInRect, isBlockedByWall, distance, type Rect, type Point } from '../utils/wallDetection';
 import { getAdaptiveVolume, canFormProximityConnection } from '../utils/avatarStateMachine';
 
-const PROXIMITY_RADIUS = 250;
+const PROXIMITY_RADIUS = 500;
 const CHECK_INTERVAL_MS = 500;   // 2 checks/sec — smooth enough for aura
 const FADE_OUT_MS = 1500;
 

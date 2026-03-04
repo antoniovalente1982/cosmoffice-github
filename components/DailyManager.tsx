@@ -651,7 +651,9 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                         console.log('[Daily] Left room with media → switched to proximity');
                     } else if (joinedRef.current) {
                         leaveDailyContext();
-                        console.log('[Daily] Left room with media → no one nearby, left Daily');
+                        // Auto-turn off media buttons so toolbar reflects disconnected state
+                        useDailyStore.setState({ isAudioOn: false, isVideoOn: false, isScreenSharing: false });
+                        console.log('[Daily] Left room → no one nearby, media buttons reset');
                     }
                 }
             }, 300);
