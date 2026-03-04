@@ -33,6 +33,8 @@ const PixiOffice = dynamic(() => import('../../../components/office/PixiOffice')
 const VideoGrid = dynamic(() => import('../../../components/media/VideoGrid').then(mod => mod.VideoGrid), { ssr: false });
 const MediaManager = dynamic(() => import('../../../components/media/MediaManager').then(mod => mod.MediaManager), { ssr: false });
 const DailyErrorToast = dynamic(() => import('../../../components/media/DailyErrorToast'), { ssr: false });
+const CallRequestModal = dynamic(() => import('../../../components/office/CallRequestModal'), { ssr: false });
+const CallResponseToast = dynamic(() => import('../../../components/office/CallResponseToast'), { ssr: false });
 const TeamList = dynamic(() => import('../../../components/office/TeamList').then(mod => mod.TeamList), { ssr: false });
 const OfficeManagement = dynamic(() => import('../../../components/office/OfficeManagement'), { ssr: false });
 const DeviceSettings = dynamic(() => import('../../../components/settings/DeviceSettings').then(mod => mod.DeviceSettings), { ssr: false });
@@ -461,6 +463,8 @@ export default function OfficePage() {
                             <PixiOffice />
                             <MediaManager />
                             <DailyErrorToast />
+                            <CallRequestModal />
+                            <CallResponseToast />
                             {mediaToast && (
                                 <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[999] animate-in fade-in slide-in-from-bottom-4 duration-300">
                                     <div className="px-5 py-3 rounded-xl border border-amber-500/30 shadow-2xl"

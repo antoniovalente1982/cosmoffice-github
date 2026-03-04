@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '../../utils/supabase/client';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Shield, User, Star, ChevronDown, Users, UserX, Loader2 } from 'lucide-react';
+import { Crown, Shield, User, Star, ChevronDown, Users, UserX, Loader2, Phone } from 'lucide-react';
 import { Button } from '../ui/button';
+import { useCallStore } from '../../stores/callStore';
 
 const supabase = createClient();
 
@@ -241,6 +242,46 @@ export function TeamList({ spaceId }: TeamListProps) {
                     </p>
                 </div>
                 {showRole && <RIcon className={`w-3 h-3 ${roleConfig.color} opacity-40 flex-shrink-0`} />}
+                {!isMe && online && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const myProfile = useAvatarStore.getState().myProfile;
+                            const socket = (window as any).__partykitSocket;
+                            if (socket?.readyState === WebSocket.OPEN && myProfile) {
+                                const callId = crypto.randomUUID();
+                                socket.send(JSON.stringify({
+                                    type: 'call_request',
+                                    id: callId,
+                                    fromUserId: currentUserId,
+                                    fromName: myProfile.display_name || myProfile.full_name || 'User',
+                                    fromAvatarUrl: myProfile.avatar_url || null,
+                                    toUserId: m.user_id,
+                                }));
+                                useCallStore.getState().setOutgoingCall({
+                                    id: callId,
+                                    fromUserId: currentUserId || '',
+                                    fromName: myProfile.display_name || myProfile.full_name || 'User',
+                                    toUserId: m.user_id,
+                                    timestamp: Date.now(),
+                                    status: 'pending',
+                                });
+                                // Auto-timeout after 30s
+                                setTimeout(() => {
+                                    const current = useCallStore.getState().outgoingCall;
+                                    if (current?.id === callId) {
+                                        useCallStore.getState().setOutgoingCall(null);
+                                        useCallStore.getState().setCallResponse({ type: 'timeout', fromName: getName(m) });
+                                    }
+                                }, 30000);
+                            }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-md hover:bg-primary-500/20 text-slate-500 hover:text-primary-400 transition-all"
+                        title={`Chiedi di parlare con ${getName(m)}`}
+                    >
+                        <Phone className="w-3 h-3" />
+                    </button>
+                )}
                 {showKick && (
                     <button
                         onClick={(e) => {

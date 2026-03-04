@@ -6,6 +6,8 @@ import { useAvatarStore } from '../stores/avatarStore';
 import { useDailyStore } from '../stores/dailyStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useChatStore } from '../stores/chatStore';
+import { useCallStore } from '../stores/callStore';
+import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound } from '../utils/sounds';
 
 // ============================================
 // useAvatarSync — PartyKit client for avatar sync + room chat + office chat
@@ -69,6 +71,14 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             socketRef.current.send(JSON.stringify({
                 type: 'join_room',
                 userId,
+                roomId,
+            }));
+            // Also send knock so room members hear a knock sound
+            const myProfile = useAvatarStore.getState().myProfile;
+            socketRef.current.send(JSON.stringify({
+                type: 'knock',
+                userId,
+                userName: myProfile?.display_name || myProfile?.full_name || 'User',
                 roomId,
             }));
         }
@@ -368,6 +378,53 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                         id: msg.userId,
                         status: msg.status || 'online',
                     });
+                    break;
+                }
+
+                case 'call_request': {
+                    // Someone wants to talk to me
+                    if (msg.toUserId !== userId) return;
+
+                    const avatarState = useAvatarStore.getState();
+                    // Block if DND
+                    if (avatarState.myDnd) return;
+                    useCallStore.getState().setIncomingCall({
+                        id: msg.id,
+                        fromUserId: msg.fromUserId,
+                        fromName: msg.fromName,
+                        fromAvatarUrl: msg.fromAvatarUrl,
+                        toUserId: msg.toUserId,
+                        timestamp: Date.now(),
+                        status: 'pending',
+                    });
+                    break;
+                }
+
+                case 'call_response': {
+                    // Response to my call request
+                    if (msg.toUserId !== userId) return;
+
+                    useCallStore.getState().setOutgoingCall(null);
+                    useCallStore.getState().setCallResponse({
+                        type: msg.response === 'accepted' ? 'accepted' : 'declined',
+                        fromName: msg.fromName,
+                    });
+                    if (msg.response === 'accepted') {
+                        playCallAcceptedSound();
+                    } else {
+                        playCallDeclinedSound();
+                    }
+                    break;
+                }
+
+                case 'knock': {
+                    // Someone entered a room — play knock if I'm in that room
+                    if (msg.userId === userId) return;
+                    const myRoom = useAvatarStore.getState().myRoomId;
+                    if (myRoom && myRoom === msg.roomId) {
+
+                        playKnockSound();
+                    }
                     break;
                 }
 

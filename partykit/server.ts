@@ -53,13 +53,15 @@ type IncomingMessage =
     | { type: "office_chat"; userId: string; content: string }
     | { type: "delete_message"; userId: string; messageId: string; roomId: string | null }
     | { type: "clear_chat"; userId: string; roomId: string | null }
-    | { type: "knock"; userId: string; roomId: string }
+    | { type: "knock"; userId: string; roomId: string; userName?: string }
     | { type: "knock_response"; userId: string; roomId: string; targetUserId: string; accepted: boolean }
     | { type: "admin_command"; adminId: string; command: AdminCommand; targetUserId?: string; roomId?: string }
     | { type: "update_state"; userId: string; isDnd?: boolean; isAway?: boolean }
     | { type: "speaking"; userId: string; isSpeaking: boolean }
     | { type: "media_state"; userId: string; audioEnabled: boolean; videoEnabled: boolean; remoteAudioEnabled: boolean }
-    | { type: "status_change"; userId: string; status: string };
+    | { type: "status_change"; userId: string; status: string }
+    | { type: "call_request"; id: string; fromUserId: string; fromName: string; fromAvatarUrl?: string; toUserId: string }
+    | { type: "call_response"; id: string; fromUserId: string; fromName: string; toUserId: string; response: string };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
@@ -376,6 +378,61 @@ export default class AvatarServer {
                     type: "status_change",
                     userId: parsed.userId,
                     status: parsed.status,
+                }), [sender.id]);
+                break;
+            }
+
+            // ─── Call request (routed to specific user) ─────
+            case "call_request": {
+                const targetConn = this.userToConnection.get(parsed.toUserId);
+                if (targetConn) {
+                    // Send directly to the target user
+                    for (const conn of this.party.getConnections()) {
+                        if (conn.id === targetConn) {
+                            conn.send(JSON.stringify({
+                                type: "call_request",
+                                id: parsed.id,
+                                fromUserId: parsed.fromUserId,
+                                fromName: parsed.fromName,
+                                fromAvatarUrl: parsed.fromAvatarUrl,
+                                toUserId: parsed.toUserId,
+                            }));
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+
+            // ─── Call response (routed back to caller) ─────
+            case "call_response": {
+                const callerConn = this.userToConnection.get(parsed.toUserId);
+                if (callerConn) {
+                    for (const conn of this.party.getConnections()) {
+                        if (conn.id === callerConn) {
+                            conn.send(JSON.stringify({
+                                type: "call_response",
+                                id: parsed.id,
+                                fromUserId: parsed.fromUserId,
+                                fromName: parsed.fromName,
+                                toUserId: parsed.toUserId,
+                                response: parsed.response, // 'accepted' | 'declined'
+                            }));
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+
+            // ─── Knock (broadcast to everyone in the same room) ─────
+            case "knock": {
+                // Broadcast knock to everyone except sender
+                this.party.broadcast(JSON.stringify({
+                    type: "knock",
+                    userId: parsed.userId,
+                    userName: parsed.userName,
+                    roomId: parsed.roomId,
                 }), [sender.id]);
                 break;
             }
