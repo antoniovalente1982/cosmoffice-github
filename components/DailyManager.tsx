@@ -250,6 +250,32 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         useDailyStore.getState().setDailyError(ev?.errorMsg || 'Errore Daily.co sconosciuto');
     }, []);
 
+    // ─── Active Speaker Change — broadcast via PartyKit ─────
+    const lastSpeakingRef = useRef(false);
+    const handleActiveSpeakerChange = useCallback((ev: any) => {
+        // ev.activeSpeaker.peerId — the session_id of the active speaker
+        const localPeerId = callRef.current?.participants()?.local?.session_id;
+        const isLocal = ev?.activeSpeaker?.peerId === localPeerId;
+        const nowSpeaking = isLocal;
+
+        // Only broadcast on change to avoid flooding
+        if (nowSpeaking !== lastSpeakingRef.current) {
+            lastSpeakingRef.current = nowSpeaking;
+            useDailyStore.getState().setSpeaking(nowSpeaking);
+
+            // Broadcast via PartyKit to all peers
+            const socket = (window as any).__partykitSocket;
+            if (socket?.readyState === WebSocket.OPEN) {
+                const profile = useAvatarStore.getState().myProfile;
+                socket.send(JSON.stringify({
+                    type: 'speaking',
+                    userId: profile?.id,
+                    isSpeaking: nowSpeaking,
+                }));
+            }
+        }
+    }, []);
+
 
     // ─── Pre-create call object on mount (FREE — no billing) ─
     useEffect(() => {
@@ -261,6 +287,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             call.on('participant-updated', handleParticipantUpdated);
             call.on('track-started', handleTrackStarted);
             call.on('track-stopped', handleTrackStopped);
+            call.on('active-speaker-change', handleActiveSpeakerChange);
             call.on('error', handleError);
             callRef.current = call;
             (window as any).__dailyCall = call;
@@ -420,7 +447,7 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                 // Near someone → join proximity context
                 joinDailyContext('proximity', proximityGroupId);
             }
-            // If alone (no room, no proximity) → do nothing, just toggle local state
+            // If alone (no room, no proximity) → set up periodic retry below
         } else {
             // Both mic and cam OFF → ALWAYS leave Daily (stop billing!)
             if (joinedRef.current) {
@@ -447,6 +474,30 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             useDailyStore.getState().setLocalStream(liveTracks.length > 0 ? new MediaStream(liveTracks) : null);
         }
     }, [isAudioOn, isVideoOn, joinDailyContext, leaveDailyContext]);
+
+    // ─── Retry connection when media is ON but Daily not joined ──
+    // Catches the case where proximity group forms AFTER mic/cam toggle.
+    useEffect(() => {
+        const anyMediaOn = isAudioOn || isVideoOn;
+        if (!anyMediaOn) return;
+
+        const retryInterval = setInterval(() => {
+            if (joinedRef.current || joiningRef.current) {
+                clearInterval(retryInterval);
+                return;
+            }
+            const { myRoomId, myProximityGroupId } = useAvatarStore.getState();
+            if (myRoomId) {
+                joinDailyContext('room', myRoomId);
+                clearInterval(retryInterval);
+            } else if (myProximityGroupId) {
+                joinDailyContext('proximity', myProximityGroupId);
+                clearInterval(retryInterval);
+            }
+        }, ROOM_CHECK_INTERVAL);
+
+        return () => clearInterval(retryInterval);
+    }, [isAudioOn, isVideoOn, joinDailyContext]);
 
     // ─── Watch proximity group changes while media is ON ─────
     // If user has mic/cam on and walks away from everyone, disconnect.

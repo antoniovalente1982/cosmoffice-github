@@ -5,26 +5,24 @@ import { useDailyStore } from '../stores/dailyStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 
 /**
- * usePresence — Supabase Presence for status & media state sync.
- * Position sync is handled by PartyKit (useAvatarSync), NOT here.
- * This only broadcasts: status, roomId, audioEnabled, videoEnabled, isSpeaking, remoteAudioEnabled, profile.
+ * usePresence — Lightweight Supabase Presence for online/offline detection ONLY.
+ * 
+ * Media state (mic/cam/speaking) is now broadcast via PartyKit (useAvatarSync),
+ * NOT here. This avoids conflicting updates between two presence systems.
+ * 
+ * This only handles:
+ * - Detecting when a user comes online / goes offline (leave event → removePeer)
+ * - Basic profile sync on first join (full_name, avatar_url)
  */
 export function usePresence() {
     const supabase = createClient();
     const channelRef = useRef<any>(null);
     const userIdRef = useRef<string | null>(null);
-    const lastSentRef = useRef({ status: '', roomId: '', mic: false, vid: false, remoteAudio: true });
 
     const buildPayload = useCallback(() => {
         const avatar = useAvatarStore.getState();
-        const daily = useDailyStore.getState();
         return {
             status: avatar.myStatus,
-            roomId: avatar.myRoomId,
-            audioEnabled: daily.isAudioOn,
-            videoEnabled: daily.isVideoOn,
-            remoteAudioEnabled: daily.isRemoteAudioEnabled,
-            isSpeaking: daily.isSpeaking,
             full_name: avatar.myProfile?.display_name || avatar.myProfile?.full_name || 'User',
             avatar_url: avatar.myProfile?.avatar_url || null,
             online_at: new Date().toISOString(),
@@ -49,43 +47,20 @@ export function usePresence() {
             });
 
             channel
-                .on('presence', { event: 'sync' }, () => {
-                    const state = channel.presenceState();
-                    Object.keys(state).forEach((key) => {
-                        if (key !== user.id) {
-                            const presenceData = state[key][0] as any;
-                            // Update peer metadata (status, media) — NOT position
-                            useAvatarStore.getState().updatePeer(key, {
-                                id: key,
-                                status: presenceData.status,
-                                roomId: presenceData.roomId,
-                                audioEnabled: presenceData.audioEnabled,
-                                videoEnabled: presenceData.videoEnabled,
-                                remoteAudioEnabled: presenceData.remoteAudioEnabled,
-                                isSpeaking: presenceData.isSpeaking,
-                                full_name: presenceData.full_name,
-                                avatar_url: presenceData.avatar_url,
-                            });
-                        }
-                    });
-                })
                 .on('presence', { event: 'join' }, ({ key, newPresences }) => {
                     if (key !== user.id) {
                         const p = newPresences[0] as any;
+                        // Only set profile info on join — no media state here
                         useAvatarStore.getState().updatePeer(key, {
                             id: key,
-                            status: p.status,
-                            roomId: p.roomId,
-                            audioEnabled: p.audioEnabled,
-                            videoEnabled: p.videoEnabled,
-                            remoteAudioEnabled: p.remoteAudioEnabled,
-                            isSpeaking: p.isSpeaking,
+                            status: p.status || 'online',
                             full_name: p.full_name,
                             avatar_url: p.avatar_url,
                         });
                     }
                 })
                 .on('presence', { event: 'leave' }, ({ key }) => {
+                    // User went offline — remove peer
                     useAvatarStore.getState().removePeer(key);
                 })
                 .subscribe(async (status) => {
@@ -102,30 +77,16 @@ export function usePresence() {
         return () => { if (cleanupFn) cleanupFn(); };
     }, [supabase, buildPayload]);
 
-    // Update presence on status/media state changes (not position — that's PartyKit)
+    // Update presence only on status changes (online/away/busy)
     useEffect(() => {
         if (!channelRef.current || !userIdRef.current) return;
 
-        // Subscribe to state changes from both stores
-        const unsubAvatar = useAvatarStore.subscribe((state) => {
-            const last = lastSentRef.current;
-            if (last.status !== state.myStatus || last.roomId !== (state.myRoomId || '')) {
-                lastSentRef.current = { ...last, status: state.myStatus, roomId: state.myRoomId || '' };
+        const unsubAvatar = useAvatarStore.subscribe((state, prevState) => {
+            if (state.myStatus !== prevState.myStatus) {
                 channelRef.current?.track(buildPayload());
             }
         });
 
-        const unsubDaily = useDailyStore.subscribe((state) => {
-            const last = lastSentRef.current;
-            if (last.mic !== state.isAudioOn || last.vid !== state.isVideoOn || last.remoteAudio !== state.isRemoteAudioEnabled) {
-                lastSentRef.current = { ...last, mic: state.isAudioOn, vid: state.isVideoOn, remoteAudio: state.isRemoteAudioEnabled };
-                channelRef.current?.track(buildPayload());
-            }
-        });
-
-        return () => {
-            unsubAvatar();
-            unsubDaily();
-        };
+        return () => { unsubAvatar(); };
     }, [buildPayload]);
 }

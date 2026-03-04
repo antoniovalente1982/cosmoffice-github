@@ -14,6 +14,7 @@ export function useOffice(spaceId?: string) {
     const setLandingPad = useWorkspaceStore(s => s.setLandingPad);
     const setLandingPadScale = useWorkspaceStore(s => s.setLandingPadScale);
 
+    // ─── Initial full fetch (once) ───────────────────────────
     const fetchOfficeData = useCallback(async () => {
         if (!spaceId) return;
 
@@ -81,33 +82,119 @@ export function useOffice(spaceId?: string) {
 
         if (!spaceId) return;
 
+        // ─── Delta updates for rooms ─────────────────────────────
         const roomsChannel = supabase
             .channel(`rooms_${spaceId}`)
             .on('postgres_changes', {
-                event: '*',
+                event: 'INSERT',
                 schema: 'public',
                 table: 'rooms',
                 filter: `space_id=eq.${spaceId}`
-            }, () => fetchOfficeData())
+            }, (payload) => {
+                const newRoom = payload.new as any;
+                const store = useWorkspaceStore.getState();
+                // Only add if not already present (avoid duplicates from optimistic updates)
+                if (!store.rooms.find((r: any) => r.id === newRoom.id)) {
+                    store.addRoom(newRoom);
+                }
+            })
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'rooms',
+                filter: `space_id=eq.${spaceId}`
+            }, (payload) => {
+                const updated = payload.new as any;
+                const store = useWorkspaceStore.getState();
+                store.setRooms(store.rooms.map((r: any) =>
+                    r.id === updated.id ? { ...r, ...updated } : r
+                ));
+            })
+            .on('postgres_changes', {
+                event: 'DELETE',
+                schema: 'public',
+                table: 'rooms',
+                filter: `space_id=eq.${spaceId}`
+            }, (payload) => {
+                const deletedId = (payload.old as any).id;
+                if (deletedId) {
+                    useWorkspaceStore.getState().removeRoom(deletedId);
+                }
+            })
             .subscribe();
 
+        // ─── Delta updates for connections ────────────────────────
         const connChannel = supabase
             .channel(`connections_${spaceId}`)
             .on('postgres_changes', {
-                event: '*',
+                event: 'INSERT',
                 schema: 'public',
                 table: 'room_connections',
                 filter: `space_id=eq.${spaceId}`
-            }, () => fetchOfficeData())
+            }, (payload) => {
+                const store = useWorkspaceStore.getState();
+                const newConn = payload.new as any;
+                if (!store.roomConnections.find((c: any) => c.id === newConn.id)) {
+                    store.setRoomConnections([...store.roomConnections, newConn]);
+                }
+            })
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'room_connections',
+                filter: `space_id=eq.${spaceId}`
+            }, (payload) => {
+                const updated = payload.new as any;
+                const store = useWorkspaceStore.getState();
+                store.setRoomConnections(store.roomConnections.map((c: any) =>
+                    c.id === updated.id ? { ...c, ...updated } : c
+                ));
+            })
+            .on('postgres_changes', {
+                event: 'DELETE',
+                schema: 'public',
+                table: 'room_connections',
+                filter: `space_id=eq.${spaceId}`
+            }, (payload) => {
+                const deletedId = (payload.old as any).id;
+                const store = useWorkspaceStore.getState();
+                store.setRoomConnections(store.roomConnections.filter((c: any) => c.id !== deletedId));
+            })
             .subscribe();
 
+        // ─── Delta updates for furniture ──────────────────────────
         const furnitureChannel = supabase
             .channel(`furniture_${spaceId}`)
             .on('postgres_changes', {
-                event: '*',
+                event: 'INSERT',
                 schema: 'public',
                 table: 'furniture',
-            }, () => fetchOfficeData())
+            }, (payload) => {
+                const newItem = payload.new as any;
+                const store = useWorkspaceStore.getState();
+                // Only add if belonging to a room in this space
+                if (store.rooms.find((r: any) => r.id === newItem.room_id)) {
+                    store.addFurniture(newItem);
+                }
+            })
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'furniture',
+            }, (payload) => {
+                const updated = payload.new as any;
+                useWorkspaceStore.getState().updateFurniture(updated.id, updated);
+            })
+            .on('postgres_changes', {
+                event: 'DELETE',
+                schema: 'public',
+                table: 'furniture',
+            }, (payload) => {
+                const deletedId = (payload.old as any).id;
+                if (deletedId) {
+                    useWorkspaceStore.getState().removeFurniture(deletedId);
+                }
+            })
             .subscribe();
 
         return () => {

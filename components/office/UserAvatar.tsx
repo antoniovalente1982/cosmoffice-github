@@ -94,8 +94,8 @@ function UserAvatarInner({
                 pointerEvents: onMouseDown ? 'auto' : 'none',
                 cursor: isDragging ? 'grabbing' : onMouseDown ? 'grab' : 'default',
                 transition: isMe
-                    ? (isDragging ? 'none' : 'left 0.08s ease-out, top 0.08s ease-out')
-                    : 'left 0.15s ease-out, top 0.15s ease-out',
+                    ? (isDragging ? 'none' : 'left 0.06s linear, top 0.06s linear')
+                    : 'left 0.08s linear, top 0.08s linear',
             }}
             onMouseDown={onMouseDown}
         >

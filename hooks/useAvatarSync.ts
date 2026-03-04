@@ -49,7 +49,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
     const socketRef = useRef<PartySocket | null>(null);
     const connectedRef = useRef(false);
 
-    // ─── Send position (100ms throttle — lerp on peers compensates) ───
+    // ─── Send position (50ms throttle — faster sync, 80ms CSS transition compensates) ───
     const sendPosition = useCallback(
         throttle((x: number, y: number, roomId: string | null) => {
             if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -59,7 +59,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     x, y, roomId,
                 }));
             }
-        }, 100),
+        }, 50),
         [userId]
     );
 
@@ -177,6 +177,19 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 userId,
                 isDnd,
                 isAway,
+            }));
+        }
+    }, [userId]);
+
+    // ─── Media state broadcast (mic/cam/remoteAudio) ─────────
+    const sendMediaState = useCallback((audioEnabled: boolean, videoEnabled: boolean, remoteAudioEnabled: boolean) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'media_state',
+                userId,
+                audioEnabled,
+                videoEnabled,
+                remoteAudioEnabled,
             }));
         }
     }, [userId]);
@@ -300,6 +313,26 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 case 'leave': {
                     if (msg.userId === userId) return;
                     useAvatarStore.getState().removePeer(msg.userId);
+                    break;
+                }
+
+                case 'speaking': {
+                    if (msg.userId === userId) return;
+                    useAvatarStore.getState().updatePeer(msg.userId, {
+                        id: msg.userId,
+                        isSpeaking: msg.isSpeaking || false,
+                    });
+                    break;
+                }
+
+                case 'media_state': {
+                    if (msg.userId === userId) return;
+                    useAvatarStore.getState().updatePeer(msg.userId, {
+                        id: msg.userId,
+                        audioEnabled: msg.audioEnabled || false,
+                        videoEnabled: msg.videoEnabled || false,
+                        remoteAudioEnabled: msg.remoteAudioEnabled !== false,
+                    });
                     break;
                 }
 
@@ -486,6 +519,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         (window as any).__sendAdminCommand = sendAdminCommand;
         (window as any).__sendLeaveRoom = sendLeaveRoom;
         (window as any).__sendStateUpdate = sendStateUpdate;
+        (window as any).__sendMediaState = sendMediaState;
         return () => {
             delete (window as any).__sendChatMessage;
             delete (window as any).__sendOfficeChatMessage;
@@ -496,8 +530,21 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             delete (window as any).__sendAdminCommand;
             delete (window as any).__sendLeaveRoom;
             delete (window as any).__sendStateUpdate;
+            delete (window as any).__sendMediaState;
         };
-    }, [sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendLeaveRoom, sendStateUpdate]);
+    }, [sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendLeaveRoom, sendStateUpdate, sendMediaState]);
 
-    return { sendPosition, sendJoinRoom, sendLeaveRoom, sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendStateUpdate };
+    // ─── Auto-broadcast media state when dailyStore changes ──
+    useEffect(() => {
+        const unsubDaily = useDailyStore.subscribe((state, prevState) => {
+            if (state.isAudioOn !== prevState.isAudioOn ||
+                state.isVideoOn !== prevState.isVideoOn ||
+                state.isRemoteAudioEnabled !== prevState.isRemoteAudioEnabled) {
+                sendMediaState(state.isAudioOn, state.isVideoOn, state.isRemoteAudioEnabled);
+            }
+        });
+        return () => unsubDaily();
+    }, [sendMediaState]);
+
+    return { sendPosition, sendJoinRoom, sendLeaveRoom, sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendStateUpdate, sendMediaState };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEvent } from 'pixi.js';
+import { Application, Container, Graphics } from 'pixi.js';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { useDailyStore } from '../../stores/dailyStore';
@@ -12,221 +12,16 @@ import { ProximityAura, type AuraVisualState } from './ProximityAura';
 import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
-import { getRoomColor } from './OfficeBuilder';
 import { createClient } from '../../utils/supabase/client';
+
+// ─── Extracted modules ──────────────────────────────────────────
+import { drawSpaceship } from './PixiSpaceship';
+import { drawRoom, drawRoomConnections } from './PixiRoomLayer';
+import { createParticles, updateParticles, type Particle } from './PixiParticles';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 function lerp(a: number, b: number, t: number) {
     return a + (b - a) * t;
-}
-
-function hexColor(hex: string): number {
-    return parseInt(hex.replace('#', ''), 16);
-}
-
-// Room color palette (same as OfficeBuilder)
-const ROOM_COLORS: Record<string, string> = {
-    reception: '#3b82f6',
-    open: '#6366f1',
-    meeting: '#8b5cf6',
-    focus: '#06b6d4',
-    break: '#10b981',
-    default: '#6366f1',
-};
-
-// Room type labels (clean, no emoji)
-const ROOM_TYPE_LABELS: Record<string, string> = {
-    reception: 'RECEPTION',
-    open: 'OPEN SPACE',
-    meeting: 'MEETING',
-    focus: 'FOCUS',
-    break: 'BREAK',
-    default: 'ROOM',
-};
-
-// ─── Particle System (GPU) ───────────────────────────────────────
-interface Particle {
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    size: number;
-    alpha: number;
-}
-
-function createParticles(count: number, w: number, h: number): Particle[] {
-    return Array.from({ length: count }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        size: Math.random() * 2 + 0.5,
-        alpha: Math.random() * 0.5 + 0.2,
-    }));
-}
-
-// ─── Draw functions ──────────────────────────────────────────────
-function drawRoundedRect(g: Graphics, x: number, y: number, w: number, h: number, r: number, fill: number, alpha: number) {
-    g.roundRect(x, y, w, h, r);
-    g.fill({ color: fill, alpha });
-}
-
-function drawRoom(container: Container, room: any, isHovered: boolean, occupants: number = 0) {
-    // Clear old children
-    container.removeChildren();
-
-    const color = getRoomColor(room);
-    const colorNum = hexColor(color);
-    const department = room.settings?.department || room.department || null;
-    const typeLabel = ROOM_TYPE_LABELS[room.type] || ROOM_TYPE_LABELS.default;
-
-    // ─── Background layers ───────────────────────────────────
-    const body = new Graphics();
-
-    // Outer soft glow
-    body.roundRect(room.x - 8, room.y - 8, room.width + 16, room.height + 16, 24);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.20 : 0.10 });
-
-    // Mid glow
-    body.roundRect(room.x - 3, room.y - 3, room.width + 6, room.height + 6, 19);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.14 : 0.07 });
-
-    // ─── Main card background — dark glass ──────────────────
-    body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.fill({ color: 0x070c18, alpha: 0.85 });
-
-    // ─── Color tint overlay ─────────────────────────────────
-    body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.12 : 0.05 });
-
-    // ─── Premium Glass Shine (Top Edge Glow) ────────────────
-    body.roundRect(room.x + 1, room.y + 1, room.width - 2, 2, 8);
-    body.fill({ color: 0xffffff, alpha: isHovered ? 0.25 : 0.15 });
-
-    // ─── Border — thick and glowing ─────────────────────────
-    body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.stroke({ color: colorNum, width: isHovered ? 2.5 : 1.5, alpha: isHovered ? 0.9 : 0.5 });
-
-    // ─── Bottom subtle line (divider for occupants area) ────
-    body.rect(room.x + 16, room.y + room.height - 30, room.width - 32, 1);
-    body.fill({ color: 0xffffff, alpha: 0.06 });
-
-    container.addChild(body);
-
-    // ─── Room name — large, bold, modern ─────────────────────
-    const nameStyle = new TextStyle({
-        fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 15,
-        fontWeight: '700',
-        fill: 0xf8fafc,
-        letterSpacing: 0.3,
-    });
-    const nameText = new Text({ text: room.name, style: nameStyle });
-    nameText.position.set(room.x + 16, room.y + 16);
-    container.addChild(nameText);
-
-    // ─── Pill label — shows department (white) or type (colored) ─────
-    const pillText = department ? department.toUpperCase() : typeLabel;
-    const pillIsDepart = !!department;
-
-    const typePillBg = new Graphics();
-    const typePillW = pillText.length * 6.5 + 14;
-    typePillBg.roundRect(room.x + 16, room.y + 38, typePillW, 18, 9);
-    typePillBg.fill({ color: pillIsDepart ? 0x1e293b : colorNum, alpha: pillIsDepart ? 0.6 : 0.18 });
-    typePillBg.stroke({ color: pillIsDepart ? 0x475569 : colorNum, width: 0.8, alpha: pillIsDepart ? 0.5 : 0.35 });
-    container.addChild(typePillBg);
-
-    const typeStyle = new TextStyle({
-        fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 9,
-        fontWeight: '700',
-        fill: pillIsDepart ? 0xf1f5f9 : hexColor(color),
-        letterSpacing: 1.2,
-    });
-    const typeLabelText = new Text({ text: pillText, style: typeStyle });
-    typeLabelText.position.set(room.x + 23, room.y + 42);
-    container.addChild(typeLabelText);
-
-    // ─── Bottom status line (bigger) ──────────────────────────
-    if (occupants > 0) {
-        // Dot
-        const statusDot = new Graphics();
-        statusDot.circle(room.x + 16, room.y + room.height - 18, 4);
-        statusDot.fill({ color: 0x34d399, alpha: 1 });
-        container.addChild(statusDot);
-
-        const statusStyle = new TextStyle({
-            fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 12,
-            fontWeight: '700',
-            fill: 0x34d399,
-            letterSpacing: 0.3,
-        });
-        const status = new Text({ text: `${occupants} online`, style: statusStyle });
-        status.position.set(room.x + 26, room.y + room.height - 26);
-        container.addChild(status);
-    }
-}
-
-// ─── Draw Spaceship Landing Pad ──────────────────────────────────
-function drawSpaceship(container: Container, x: number, y: number, frameCount: number = 0, padScale: number = 1) {
-    container.removeChildren();
-    const s = padScale;
-
-    const beamAlpha = 0.12 + Math.sin(frameCount * 0.05) * 0.06;
-
-    // Light beam cone (triangle from ship to ground)
-    const beam = new Graphics();
-    beam.moveTo(x - 6 * s, y + 10 * s);
-    beam.lineTo(x + 6 * s, y + 10 * s);
-    beam.lineTo(x + 40 * s, y + 70 * s);
-    beam.lineTo(x - 40 * s, y + 70 * s);
-    beam.closePath();
-    beam.fill({ color: 0x06b6d4, alpha: beamAlpha });
-
-    // Outer glow circle on ground
-    beam.circle(x, y + 70 * s, 45 * s);
-    beam.fill({ color: 0x06b6d4, alpha: beamAlpha * 0.5 });
-    beam.circle(x, y + 70 * s, 30 * s);
-    beam.fill({ color: 0x22d3ee, alpha: beamAlpha * 0.7 });
-    container.addChild(beam);
-
-    // Ship body (triangle/capsule shape)
-    const ship = new Graphics();
-    // Main hull
-    ship.moveTo(x, y - 18 * s);
-    ship.lineTo(x + 16 * s, y + 8 * s);
-    ship.lineTo(x + 8 * s, y + 14 * s);
-    ship.lineTo(x - 8 * s, y + 14 * s);
-    ship.lineTo(x - 16 * s, y + 8 * s);
-    ship.closePath();
-    ship.fill({ color: 0x1e293b, alpha: 0.95 });
-    ship.stroke({ color: 0x06b6d4, width: 2, alpha: 0.8 });
-
-    // Cockpit window
-    ship.circle(x, y - 2 * s, 5 * s);
-    ship.fill({ color: 0x22d3ee, alpha: 0.7 });
-
-    // Engine glow
-    ship.circle(x - 6 * s, y + 12 * s, 3 * s);
-    ship.fill({ color: 0x06b6d4, alpha: 0.6 + Math.sin(frameCount * 0.1) * 0.3 });
-    ship.circle(x + 6 * s, y + 12 * s, 3 * s);
-    ship.fill({ color: 0x06b6d4, alpha: 0.6 + Math.sin(frameCount * 0.1 + 1) * 0.3 });
-
-    container.addChild(ship);
-
-    // Label
-    const labelStyle = new TextStyle({
-        fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: Math.max(7, 8 * s),
-        fontWeight: '700',
-        fill: 0x06b6d4,
-        letterSpacing: 2,
-    });
-    const label = new Text({ text: 'LANDING ZONE', style: labelStyle });
-    label.anchor.set(0.5, 0);
-    label.position.set(x, y + 78 * s);
-    container.addChild(label);
 }
 
 // ─── Main Component ──────────────────────────────────────────────
@@ -261,7 +56,6 @@ export function PixiOffice() {
     const saveLandingPadToDb = useCallback(async () => {
         const state = useWorkspaceStore.getState();
         if (!state.activeSpaceId) return;
-        // Read current layout_data first, then merge landing pad
         const { data: space } = await supabase
             .from('spaces')
             .select('layout_data')
@@ -304,10 +98,9 @@ export function PixiOffice() {
     const [isDraggingPad, setIsDraggingPad] = useState(false);
     const padDragStartRef = useRef({ mouseX: 0, mouseY: 0, padX: 0, padY: 0 });
 
-    // Landing pad drag effect — global window listeners (same pattern as RoomEditor)
+    // Landing pad drag effect
     useEffect(() => {
         if (!isDraggingPad) return;
-
         const handleMove = (ev: MouseEvent) => {
             const z = useWorkspaceStore.getState().zoom || 1;
             const dx = (ev.clientX - padDragStartRef.current.mouseX) / z;
@@ -318,13 +111,10 @@ export function PixiOffice() {
             const newY = Math.max(50, Math.min(padDragStartRef.current.padY + dy, bh - 50));
             setLandingPad({ x: newX, y: newY });
         };
-
         const handleUp = () => {
             setIsDraggingPad(false);
-            // Auto-save to DB
             saveLandingPadToDb();
         };
-
         window.addEventListener('mousemove', handleMove);
         window.addEventListener('mouseup', handleUp);
         return () => {
@@ -339,13 +129,9 @@ export function PixiOffice() {
     zoomRef.current = zoom;
     stagePosRef.current = stagePos;
 
-
-
     // Initialize presence, proximity/rooms engine
     usePresence();
     useProximityAndRooms();
-
-    // DailyManager is mounted in page.tsx — no hook call needed here
 
     // PixiJS refs for layers
     const worldRef = useRef<Container | null>(null);
@@ -383,6 +169,9 @@ export function PixiOffice() {
         if (!canvasRef.current || appRef.current) return;
 
         const app = new Application();
+        const oW = useWorkspaceStore.getState().officeWidth || 4000;
+        const oH = useWorkspaceStore.getState().officeHeight || 4000;
+
         const initApp = async () => {
             await app.init({
                 canvas: canvasRef.current!,
@@ -395,7 +184,7 @@ export function PixiOffice() {
 
             appRef.current = app;
 
-            // Create world container (this gets transformed for pan/zoom)
+            // Create world container
             const world = new Container();
             world.label = 'world';
             app.stage.addChild(world);
@@ -416,13 +205,13 @@ export function PixiOffice() {
             world.addChild(connectionGfx);
             connectionGfxRef.current = connectionGfx;
 
-            // Room layer — always on top of platform/particles/connections
+            // Room layer
             const roomLayer = new Container();
             roomLayer.label = 'rooms';
             world.addChild(roomLayer);
             roomLayerRef.current = roomLayer;
 
-            // Proximity aura layer — below rooms, above connections
+            // Proximity aura layer
             const aura = new ProximityAura();
             world.addChildAt(aura.graphics, world.getChildIndex(roomLayer));
             auraRef.current = aura;
@@ -438,91 +227,69 @@ export function PixiOffice() {
             drawSpaceship(spaceshipContainer, padPos.x, padPos.y, 0, useWorkspaceStore.getState().landingPadScale);
 
             // Initialize particles
-            const oW = useWorkspaceStore.getState().officeWidth || 4000;
-            const oH = useWorkspaceStore.getState().officeHeight || 4000;
             particlesRef.current = createParticles(60, oW, oH);
 
-            // ─── Draw platform ONCE (static — never changes at 60fps) ───
+            // Draw platform ONCE (static)
             if (platformGfxRef.current) {
                 const pg = platformGfxRef.current;
-                const bw = oW;
-                const bh = oH;
-                pg.roundRect(0, 0, bw, bh, 120);
+                pg.roundRect(0, 0, oW, oH, 120);
                 pg.fill({ color: 0x06b6d4, alpha: 0.02 });
-                pg.roundRect(40, 40, bw - 80, bh - 80, 80);
+                pg.roundRect(40, 40, oW - 80, oH - 80, 80);
                 pg.fill({ color: 0x0a0f1e, alpha: 0.75 });
-                pg.roundRect(40, 40, bw - 80, bh - 80, 80);
+                pg.roundRect(40, 40, oW - 80, oH - 80, 80);
                 pg.stroke({ color: 0x06b6d4, width: 1, alpha: 0.15 });
             }
 
-            // ─── Render loop (OPTIMIZED — only transform + throttled particles) ───
+            // ─── Render loop ─────────────────────────────────────
             let frameCount = 0;
             app.ticker.add(() => {
                 const curZoom = zoomRef.current;
                 const curPos = stagePosRef.current;
 
-                // Update world transform (lightweight — just setting position/scale)
+                // Update world transform
                 if (worldRef.current) {
                     worldRef.current.position.set(curPos.x, curPos.y);
                     worldRef.current.scale.set(curZoom);
                 }
 
-                // ─── Update particles at ~15fps (every 4 frames) ────
                 frameCount++;
-                if (frameCount % 4 === 0 && particleGfxRef.current) {
-                    const pg = particleGfxRef.current;
-                    pg.clear();
-
-                    const isPerf = useWorkspaceStore.getState().isPerformanceMode;
-                    if (!isPerf) {
-                        particlesRef.current.forEach(p => {
-                            p.x = (p.x + p.vx * 4 + oW) % oW;
-                            p.y = (p.y + p.vy * 4 + oH) % oH;
-                            pg.circle(p.x, p.y, p.size);
-                            pg.fill({ color: 0x6366f1, alpha: p.alpha });
-                        });
+                if (frameCount % 4 === 0) {
+                    // Particles at ~15fps
+                    if (particleGfxRef.current) {
+                        updateParticles(particleGfxRef.current, particlesRef.current, oW, oH, useWorkspaceStore.getState().isPerformanceMode);
                     }
-                }
 
-                // ─── Update spaceship beam animation at ~15fps ────
-                if (frameCount % 4 === 0 && spaceshipRef.current) {
-                    spaceshipFrameRef.current = frameCount;
-                    const padPos = useWorkspaceStore.getState().landingPad;
-                    drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount, useWorkspaceStore.getState().landingPadScale);
-                }
+                    // Spaceship beam animation
+                    if (spaceshipRef.current) {
+                        spaceshipFrameRef.current = frameCount;
+                        const padPos = useWorkspaceStore.getState().landingPad;
+                        drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount, useWorkspaceStore.getState().landingPadScale);
+                    }
 
-                // ─── Update proximity aura at ~15fps ────
-                if (frameCount % 4 === 0 && auraRef.current) {
-                    try {
-                        const avatarState = useAvatarStore.getState();
-                        const dailyState = useDailyStore.getState();
-                        const wsState = useWorkspaceStore.getState();
-                        const myPos = avatarState.myPosition;
+                    // Proximity aura
+                    if (auraRef.current) {
+                        try {
+                            const avatarState = useAvatarStore.getState();
+                            const dailyState = useDailyStore.getState();
+                            const wsState = useWorkspaceStore.getState();
+                            const myPos = avatarState.myPosition;
 
-                        // Determine aura visual state
-                        let auraState: AuraVisualState = 'idle';
-                        if (avatarState.myDnd) {
-                            auraState = 'dnd';
-                        } else if (avatarState.myRoomId) {
-                            auraState = 'none'; // No aura inside rooms
-                        } else if (dailyState.activeContext === 'proximity') {
-                            auraState = 'active';
+                            let auraState: AuraVisualState = 'idle';
+                            if (avatarState.myDnd) auraState = 'dnd';
+                            else if (avatarState.myRoomId) auraState = 'none';
+                            else if (dailyState.activeContext === 'proximity') auraState = 'active';
+
+                            const roomRects = (wsState.rooms || []).map((r: any) => ({
+                                x: r.x, y: r.y, width: r.width, height: r.height,
+                            }));
+
+                            auraRef.current.setState(auraState);
+                            auraRef.current.update(66, myPos.x, myPos.y, roomRects);
+                        } catch (e) {
+                            console.warn('[Aura] Error in aura update:', e);
                         }
-
-                        // Collect room rects for wall-aware dimming
-                        const roomRects = (wsState.rooms || []).map((r: any) => ({
-                            x: r.x, y: r.y, width: r.width, height: r.height,
-                        }));
-
-                        auraRef.current.setState(auraState);
-                        auraRef.current.update(66, myPos.x, myPos.y, roomRects);
-                    } catch (e) {
-                        // Never crash the render loop because of the aura
-                        console.warn('[Aura] Error in aura update:', e);
                     }
                 }
-
-                // Room connections are now drawn in the rooms useEffect (static)
             });
         };
 
@@ -537,10 +304,9 @@ export function PixiOffice() {
     }, []);
 
     // ─── Draw rooms when they change ─────────────────────
-    // (decoupled from peers — occupant counts update via separate interval)
     const peersByRoomRef = useRef<Record<string, number>>({});
 
-    // Update occupant counts every 2 seconds (not on every presence update)
+    // Update occupant counts every 2 seconds
     useEffect(() => {
         if (!appReady) return;
         const updateOccupants = () => {
@@ -551,28 +317,20 @@ export function PixiOffice() {
             });
             if (avatarState.myRoomId) counts[avatarState.myRoomId] = (counts[avatarState.myRoomId] || 0) + 1;
 
-            // Only redraw if counts actually changed
             const prev = peersByRoomRef.current;
             const changed = Object.keys({ ...prev, ...counts }).some(
                 k => (prev[k] || 0) !== (counts[k] || 0)
             );
             if (changed) {
                 peersByRoomRef.current = counts;
-                // Trigger room redraw with new counts
-                const layer = roomLayerRef.current;
                 const existingContainers = roomContainersRef.current;
-                if (layer) {
-                    useWorkspaceStore.getState().rooms.forEach((room: any) => {
-                        const rc = existingContainers.get(room.id);
-                        if (rc) {
-                            const isHovered = false; // Hover is handled by the main draw
-                            drawRoom(rc, room, isHovered, counts[room.id] || 0);
-                        }
-                    });
-                }
+                useWorkspaceStore.getState().rooms.forEach((room: any) => {
+                    const rc = existingContainers.get(room.id);
+                    if (rc) drawRoom(rc, room, false, counts[room.id] || 0);
+                });
             }
         };
-        updateOccupants(); // Initial
+        updateOccupants();
         const interval = setInterval(updateOccupants, 2000);
         return () => clearInterval(interval);
     }, [appReady]);
@@ -583,7 +341,7 @@ export function PixiOffice() {
         const layer = roomLayerRef.current;
         const existingContainers = roomContainersRef.current;
 
-        // Remove old room containers that are no longer in the list
+        // Remove old room containers
         const currentIds = new Set(rooms.map((r: any) => r.id));
         existingContainers.forEach((container, id) => {
             if (!currentIds.has(id)) {
@@ -593,7 +351,7 @@ export function PixiOffice() {
             }
         });
 
-        // Create/update room containers (using cached occupant counts)
+        // Create/update room containers
         const peersByRoom = peersByRoomRef.current;
         rooms.forEach((room: any) => {
             let rc = existingContainers.get(room.id);
@@ -606,33 +364,12 @@ export function PixiOffice() {
                 existingContainers.set(room.id, rc);
             }
             const isHovered = hoveredRoomId === room.id;
-            const occupants = peersByRoom[room.id] || 0;
-            drawRoom(rc, room, isHovered, occupants);
+            drawRoom(rc, room, isHovered, peersByRoom[room.id] || 0);
         });
 
-        // ─── Draw room connections (static — only when rooms change) ───
+        // Draw room connections
         if (connectionGfxRef.current) {
-            const cg = connectionGfxRef.current;
-            cg.clear();
-            const isPerf = useWorkspaceStore.getState().isPerformanceMode;
-            if (!isPerf) {
-                for (let i = 0; i < rooms.length; i++) {
-                    for (let j = i + 1; j < rooms.length; j++) {
-                        const r1 = rooms[i];
-                        const r2 = rooms[j];
-                        const cx1 = r1.x + r1.width / 2;
-                        const cy1 = r1.y + r1.height / 2;
-                        const cx2 = r2.x + r2.width / 2;
-                        const cy2 = r2.y + r2.height / 2;
-                        const dist = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
-                        if (dist > 800) continue;
-                        const alpha = 0.15 * (1 - dist / 800);
-                        cg.moveTo(cx1, cy1);
-                        cg.lineTo(cx2, cy2);
-                        cg.stroke({ color: 0x6366f1, width: 1, alpha });
-                    }
-                }
-            }
+            drawRoomConnections(connectionGfxRef.current, rooms, useWorkspaceStore.getState().isPerformanceMode);
         }
     }, [rooms, hoveredRoomId, appReady]);
 
@@ -663,28 +400,21 @@ export function PixiOffice() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dimensions.width, dimensions.height]);
 
-
-
     // ─── Mouse handlers: panning & avatar drag ───────────────
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
 
         const handleMouseDown = (e: MouseEvent) => {
-            // Don't pan if dragging avatar (handled separately)
             if (isDraggingAvatarRef.current) return;
             if ((e.target as HTMLElement).closest('[data-avatar]')) return;
-            // Don't pan if interacting with room editor (drag/resize in builder mode)
             if ((e.target as HTMLElement).closest('[data-room-editor]')) return;
-            // Don't pan if interacting with landing pad
             if ((e.target as HTMLElement).closest('[data-landing-pad]')) return;
 
             isPanningRef.current = true;
             panStartRef.current = {
-                mouseX: e.clientX,
-                mouseY: e.clientY,
-                stagePosX: stagePosRef.current.x,
-                stagePosY: stagePosRef.current.y,
+                mouseX: e.clientX, mouseY: e.clientY,
+                stagePosX: stagePosRef.current.x, stagePosY: stagePosRef.current.y,
             };
             container.style.cursor = 'grabbing';
         };
@@ -694,16 +424,13 @@ export function PixiOffice() {
                 const { mouseX, mouseY, posX, posY, zoom: startZoom } = dragStartRef.current;
                 const rawX = posX + (e.clientX - mouseX) / startZoom;
                 const rawY = posY + (e.clientY - mouseY) / startZoom;
-
                 const bounds = useWorkspaceStore.getState();
                 const bw = bounds.officeWidth || 4000;
                 const bh = bounds.officeHeight || 4000;
                 const r = 24;
-
                 const newX = Math.max(r, Math.min(rawX, bw - r));
                 const newY = Math.max(r, Math.min(rawY, bh - r));
                 setMyPosition({ x: newX, y: newY });
-                // Broadcast position via PartyKit
                 const sendFn = (window as any).__sendAvatarPosition;
                 if (sendFn) sendFn(newX, newY, useAvatarStore.getState().myRoomId);
                 return;
@@ -720,7 +447,7 @@ export function PixiOffice() {
                 setStagePos(clamped);
             }
 
-            // Room hover detection — convert screen coords to world coords
+            // Room hover detection
             if (!isPanningRef.current && !isDraggingAvatarRef.current && container) {
                 const rect = container.getBoundingClientRect();
                 const curZoom = zoomRef.current;
@@ -745,8 +472,6 @@ export function PixiOffice() {
             if (isDraggingAvatarRef.current) {
                 isDraggingAvatarRef.current = false;
                 setIsDraggingAvatar(false);
-
-                // Check room entry
                 const { mouseX, mouseY, posX, posY, zoom: startZoom } = dragStartRef.current;
                 const finalX = posX + (e.clientX - mouseX) / startZoom;
                 const finalY = posY + (e.clientY - mouseY) / startZoom;
@@ -758,13 +483,11 @@ export function PixiOffice() {
                     }
                 });
                 setMyRoom(found);
-                // Broadcast room change via PartyKit
                 if (found) {
                     const joinFn = (window as any).__sendJoinRoom;
                     if (joinFn) joinFn(found);
                 }
             }
-
             if (isPanningRef.current) {
                 isPanningRef.current = false;
                 if (container) container.style.cursor = 'grab';
@@ -778,26 +501,21 @@ export function PixiOffice() {
             const rect = container.getBoundingClientRect();
             const pointerX = e.clientX - rect.left;
             const pointerY = e.clientY - rect.top;
-
             const mousePointTo = {
                 x: (pointerX - stagePosRef.current.x) / oldScale,
                 y: (pointerY - stagePosRef.current.y) / oldScale,
             };
-
             const newScale = e.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
-
             const dw = dimensions.width || container.clientWidth;
             const dh = dimensions.height || container.clientHeight;
             const minScaleX = dw / (officeWidth || 4000);
             const minScaleY = dh / (officeHeight || 4000);
             const minScale = Math.max(minScaleX, minScaleY);
-
             const clampedScale = Math.max(minScale, Math.min(3, newScale));
             const newPos = clampStagePosition({
                 x: pointerX - mousePointTo.x * clampedScale,
                 y: pointerY - mousePointTo.y * clampedScale,
             }, clampedScale);
-
             setZoom(clampedScale);
             setStagePos(newPos);
         };
@@ -822,11 +540,8 @@ export function PixiOffice() {
         isDraggingAvatarRef.current = true;
         setIsDraggingAvatar(true);
         dragStartRef.current = {
-            mouseX: e.clientX,
-            mouseY: e.clientY,
-            posX: myPosition.x,
-            posY: myPosition.y,
-            zoom,
+            mouseX: e.clientX, mouseY: e.clientY,
+            posX: myPosition.x, posY: myPosition.y, zoom,
         };
     }, [myPosition, zoom]);
 
@@ -842,14 +557,12 @@ export function PixiOffice() {
             x: (centerX - stagePosRef.current.x) / oldScale,
             y: (centerY - stagePosRef.current.y) / oldScale,
         };
-
         const dw = dimensions.width || clientWidth;
         const dh = dimensions.height || clientHeight;
         const minScaleX = dw / (officeWidth || 4000);
         const minScaleY = dh / (officeHeight || 4000);
         const minScale = Math.max(minScaleX, minScaleY);
         const clampedScale = Math.max(minScale, Math.min(3, newScale));
-
         const newPos = clampStagePosition({
             x: centerX - mousePointTo.x * clampedScale,
             y: centerY - mousePointTo.y * clampedScale,
@@ -868,25 +581,18 @@ export function PixiOffice() {
                 x: clientWidth / 2 - myPosition.x * currentZoom,
                 y: clientHeight / 2 - myPosition.y * currentZoom,
             };
-            const clamped = clampStagePosition(newPos, currentZoom);
-            setStagePos(clamped);
+            setStagePos(clampStagePosition(newPos, currentZoom));
         };
-
         const handleZoomIn = () => zoomAroundCenter(zoomRef.current * 1.15);
         const handleZoomOut = () => zoomAroundCenter(zoomRef.current / 1.15);
         const handleZoomReset = () => zoomAroundCenter(1);
-
         const handleNavigate = (e: Event) => {
             const { x, y } = (e as CustomEvent).detail;
             if (!containerRef.current) return;
             const { clientWidth, clientHeight } = containerRef.current;
             const currentZoom = zoomRef.current;
-            const newPos = {
-                x: clientWidth / 2 - x * currentZoom,
-                y: clientHeight / 2 - y * currentZoom,
-            };
-            const clamped = clampStagePosition(newPos, currentZoom);
-            setStagePos(clamped);
+            const newPos = { x: clientWidth / 2 - x * currentZoom, y: clientHeight / 2 - y * currentZoom };
+            setStagePos(clampStagePosition(newPos, currentZoom));
         };
 
         window.addEventListener('center-on-me', handleCenterOnMe);
@@ -909,9 +615,9 @@ export function PixiOffice() {
         y: pos.y * zoom + stagePos.y,
     }), [zoom, stagePos]);
 
-    // ─── Viewport culling: only render visible avatars ───────
-    const AVATAR_MARGIN = 100; // px buffer outside viewport
-    const LOD_DISTANCE = 2000;  // world-units: beyond this, use simple dot
+    // ─── Viewport culling ────────────────────────────────────
+    const AVATAR_MARGIN = 100;
+    const LOD_DISTANCE = 2000;
 
     const isInViewport = useCallback((screenPos: { x: number; y: number }) => {
         return (
@@ -963,8 +669,6 @@ export function PixiOffice() {
                 />
             )}
 
-
-
             {/* Mini Map */}
             <MiniMap />
 
@@ -1008,10 +712,8 @@ export function PixiOffice() {
                 {/* Peers — with viewport culling & LOD */}
                 {Object.values(peers).map((peer: any) => {
                     const screenPos = getScreenPos(peer.position);
-                    // Viewport culling: skip peers outside visible area
                     if (!isInViewport(screenPos)) return null;
                     const dist = getDistanceFromMe(peer.position);
-                    // LOD: distant peers render as a simple colored dot
                     if (dist > LOD_DISTANCE) {
                         return (
                             <div
@@ -1036,12 +738,10 @@ export function PixiOffice() {
                             />
                         );
                     }
-                    // Full avatar: nearby peers
                     // Look up video stream from dailyStore participants
                     const dailyParticipants = useDailyStore.getState().participants;
                     let peerStream: MediaStream | null = peer.stream || null;
                     if (!peerStream) {
-                        // Find the daily participant with matching supabaseId
                         const dailyEntry = Object.values(dailyParticipants).find(
                             (dp: any) => dp.supabaseId === peer.id
                         ) as any;
@@ -1092,107 +792,77 @@ export function PixiOffice() {
             {/* Draggable spaceship overlay (builder mode only) */}
             {isBuilderMode && (() => {
                 const padScreen = getScreenPos(landingPad);
-                // Fixed overlay size — doesn't scale with padScale, always easy to grab
                 const overlayW = 90;
                 const overlayH = 100;
                 return (
                     <>
-                        {/* Scale toolbar — fixed size, above the spaceship */}
+                        {/* Scale toolbar */}
                         <div
                             data-landing-pad
                             style={{
                                 position: 'absolute',
                                 left: padScreen.x - 50,
                                 top: padScreen.y - 30 * landingPadScale * zoom - 40,
-                                width: 100,
-                                height: 32,
-                                zIndex: 160,
-                                pointerEvents: 'auto',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 6,
+                                width: 100, height: 32,
+                                zIndex: 160, pointerEvents: 'auto',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                 background: 'rgba(10, 15, 30, 0.9)',
-                                borderRadius: 8,
-                                border: '1px solid rgba(6, 182, 212, 0.4)',
+                                borderRadius: 8, border: '1px solid rgba(6, 182, 212, 0.4)',
                                 backdropFilter: 'blur(8px)',
                             }}
                         >
                             <button
                                 onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale - 0.25); setTimeout(saveLandingPadToDb, 100); }}
                                 style={{
-                                    width: 24, height: 24,
-                                    borderRadius: 6,
+                                    width: 24, height: 24, borderRadius: 6,
                                     border: '1px solid rgba(6, 182, 212, 0.5)',
                                     background: 'rgba(6, 182, 212, 0.15)',
-                                    color: '#06b6d4',
-                                    fontSize: 16, fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    lineHeight: 1,
+                                    color: '#06b6d4', fontSize: 16, fontWeight: 700,
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
                                 }}
                             >−</button>
                             <span style={{
-                                fontSize: 11, fontWeight: 700,
-                                color: '#22d3ee',
-                                minWidth: 32, textAlign: 'center',
-                                userSelect: 'none',
+                                fontSize: 11, fontWeight: 700, color: '#22d3ee',
+                                minWidth: 32, textAlign: 'center', userSelect: 'none',
                             }}>{Math.round(landingPadScale * 100)}%</span>
                             <button
                                 onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale + 0.25); setTimeout(saveLandingPadToDb, 100); }}
                                 style={{
-                                    width: 24, height: 24,
-                                    borderRadius: 6,
+                                    width: 24, height: 24, borderRadius: 6,
                                     border: '1px solid rgba(6, 182, 212, 0.5)',
                                     background: 'rgba(6, 182, 212, 0.15)',
-                                    color: '#06b6d4',
-                                    fontSize: 16, fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    lineHeight: 1,
+                                    color: '#06b6d4', fontSize: 16, fontWeight: 700,
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
                                 }}
                             >+</button>
                         </div>
-
-                        {/* Drag area — fixed comfortable size */}
+                        {/* Drag area */}
                         <div
                             data-landing-pad
                             style={{
                                 position: 'absolute',
                                 left: padScreen.x - overlayW / 2,
                                 top: padScreen.y - 25 * landingPadScale * zoom,
-                                width: overlayW,
-                                height: overlayH,
+                                width: overlayW, height: overlayH,
                                 cursor: isDraggingPad ? 'grabbing' : 'grab',
-                                zIndex: 150,
-                                borderRadius: 12,
+                                zIndex: 150, borderRadius: 12,
                                 border: '2px dashed rgba(6, 182, 212, 0.5)',
                                 background: 'rgba(6, 182, 212, 0.05)',
-                                display: 'flex',
-                                alignItems: 'flex-end',
-                                justifyContent: 'center',
-                                paddingBottom: 6,
+                                display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 6,
                                 pointerEvents: 'auto',
                             }}
                             onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
+                                e.preventDefault(); e.stopPropagation();
                                 setIsDraggingPad(true);
                                 padDragStartRef.current = {
-                                    mouseX: e.clientX,
-                                    mouseY: e.clientY,
-                                    padX: landingPad.x,
-                                    padY: landingPad.y,
+                                    mouseX: e.clientX, mouseY: e.clientY,
+                                    padX: landingPad.x, padY: landingPad.y,
                                 };
                             }}
                         >
                             <span style={{
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: 'rgba(6, 182, 212, 0.8)',
-                                letterSpacing: 1,
-                                textTransform: 'uppercase',
-                                userSelect: 'none',
+                                fontSize: 10, fontWeight: 700, color: 'rgba(6, 182, 212, 0.8)',
+                                letterSpacing: 1, textTransform: 'uppercase', userSelect: 'none',
                             }}>
                                 ✦ Trascina
                             </span>
