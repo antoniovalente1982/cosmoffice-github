@@ -417,12 +417,12 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     break;
                 }
 
-                case 'knock': {
+                case 'knock':
+                case 'knock_request': {
                     // Someone entered a room — play knock if I'm in that room
                     if (msg.userId === userId) return;
                     const myRoom = useAvatarStore.getState().myRoomId;
-                    if (myRoom && myRoom === msg.roomId) {
-
+                    if (myRoom && (msg.roomId === myRoom)) {
                         playKnockSound();
                     }
                     break;

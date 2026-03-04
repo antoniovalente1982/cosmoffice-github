@@ -425,17 +425,6 @@ export default class AvatarServer {
                 break;
             }
 
-            // ─── Knock (broadcast to everyone in the same room) ─────
-            case "knock": {
-                // Broadcast knock to everyone except sender
-                this.party.broadcast(JSON.stringify({
-                    type: "knock",
-                    userId: parsed.userId,
-                    userName: parsed.userName,
-                    roomId: parsed.roomId,
-                }), [sender.id]);
-                break;
-            }
 
             case "chat": {
                 const userId = parsed.userId;
