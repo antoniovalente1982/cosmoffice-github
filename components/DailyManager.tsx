@@ -313,9 +313,13 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
     // API calls (and billing) on every office entry even with mic/cam off.
     // Rooms are created on-demand via joinDailyContext when user enables media.
 
+
     // ─── Join a Daily.co context (room or proximity group) ─────
+    const leavingRef = useRef(false); // Guard: prevent joins during leave
+
     const joinDailyContext = useCallback(async (contextType: 'room' | 'proximity', contextId: string) => {
         if (!spaceId || !callRef.current) return;
+        if (leavingRef.current) return; // A leave is in progress, don't join yet
 
         const roomName = getContextRoomName(contextType, contextId);
         if (!roomName) return;
@@ -326,19 +330,29 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
             return;
         }
 
-        if (joinedRef.current) {
-            // Already in a different call — leave first
+        // ─── ROBUST LEAVE: check ACTUAL call state, not just joinedRef ─────
+        // This catches orphaned sessions where joinedRef is false but the
+        // call object is still connected (race condition from async leave)
+        const meetingState = callRef.current.meetingState?.() || 'new';
+        if (joinedRef.current || meetingState === 'joined-meeting' || meetingState === 'joining-meeting') {
+            console.log('[Daily] Leaving previous session (state:', meetingState, ') before joining', roomName);
             try { await callRef.current.leave(); } catch { }
             joinedRef.current = false;
             currentRoomNameRef.current = null;
             gLocalTracks.clear();
+            // Wait for Daily.co server-side cleanup to complete
+            await new Promise(r => setTimeout(r, 500));
         }
+
         if (joiningRef.current) return;
         joiningRef.current = true;
 
         try {
             const url = await ensureRoom(roomName);
             if (!url) { joiningRef.current = false; return; }
+
+            // Re-check: if someone called leave while we were fetching the room URL
+            if (leavingRef.current) { joiningRef.current = false; return; }
 
             useDailyStore.getState().clearDailyError();
             const profile = useAvatarStore.getState().myProfile;
@@ -466,15 +480,21 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
 
     // ─── Leave current Daily.co context ────────────────────────
     const leaveDailyContext = useCallback(async () => {
+        // Set leavingRef to block any concurrent join attempts
+        leavingRef.current = true;
         // Reset joiningRef ALWAYS — prevents stuck state if leave is called mid-join
         joiningRef.current = false;
 
-        if (!callRef.current) return;
-        // Allow leave even if joinedRef is false (handles mid-join cleanup)
-        const state = callRef.current.meetingState?.() || 'new';
-        if (!joinedRef.current && state !== 'joining-meeting' && state !== 'joined-meeting') return;
+        if (!callRef.current) { leavingRef.current = false; return; }
 
-        console.log('[Daily] 🔌 Leaving context (billing stopped)');
+        // Check ACTUAL meeting state — not just joinedRef
+        const meetingState = callRef.current.meetingState?.() || 'new';
+        if (!joinedRef.current && meetingState !== 'joining-meeting' && meetingState !== 'joined-meeting') {
+            leavingRef.current = false;
+            return;
+        }
+
+        console.log('[Daily] 🔌 Leaving context (state:', meetingState, ', billing stopped)');
         try { await callRef.current.leave(); } catch { }
         joinedRef.current = false;
         roomUrlRef.current = null;
@@ -499,6 +519,10 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                 });
             }
         });
+
+        // Cooldown: let Daily.co server fully close the session before allowing another join
+        await new Promise(r => setTimeout(r, 300));
+        leavingRef.current = false;
     }, []);
 
     // ─── Register global functions for proximity/rooms engine ──

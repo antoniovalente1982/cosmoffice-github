@@ -656,8 +656,15 @@ export default function OfficePage() {
 
 
 
-                            {(role === 'owner' || isSuperAdmin) && (
+                            {(role === 'owner' || isSuperAdmin) ? (
                                 <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
+                            ) : (
+                                <Button
+                                    className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button"
+                                    onClick={() => window.location.href = 'https://www.cosmoffice.io'}
+                                >
+                                    Exit
+                                </Button>
                             )}
                         </motion.div>
                     </div>
