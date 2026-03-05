@@ -58,20 +58,23 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     body.stroke({ color: colorNum, width: isHovered ? 2.5 : 1.5, alpha: isHovered ? 0.9 : 0.5 });
 
     // ─── Bottom subtle line (divider for occupants area) ────
-    body.rect(room.x + 16, room.y + room.height - 30, room.width - 32, 1);
+    body.rect(room.x + 16, room.y + room.height - 34, room.width - 32, 1);
     body.fill({ color: 0xffffff, alpha: 0.06 });
 
     container.addChild(body);
 
-    // ─── Room name — large, bold, very visible ────────────────
+    // ─── Room center X for alignment ──────────────────────
+    const centerX = room.x + room.width / 2;
+
+    // ─── Room name — large, bold, centered ────────────────
     const nameStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: '800',
         fill: 0xffffff,
         letterSpacing: 0.5,
         dropShadow: {
-            alpha: 0.6,
+            alpha: 0.5,
             angle: Math.PI / 4,
             blur: 4,
             distance: 0,
@@ -79,48 +82,62 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         },
     });
     const nameText = new Text({ text: room.name, style: nameStyle });
-    nameText.position.set(room.x + 16, room.y + 14);
+    // Center horizontally
+    nameText.anchor.set(0.5, 0);
+    nameText.position.set(centerX, room.y + 14);
     container.addChild(nameText);
 
-    // ─── Pill label — shows department (white) or type (colored) ─────
+    // ─── Pill label — centered under name ─────────────────
     const pillText = department ? department.toUpperCase() : typeLabel;
     const pillIsDepart = !!department;
 
-    const typePillBg = new Graphics();
-    const typePillW = pillText.length * 8 + 18;
-    typePillBg.roundRect(room.x + 16, room.y + 44, typePillW, 22, 11);
-    typePillBg.fill({ color: pillIsDepart ? 0x1e293b : colorNum, alpha: pillIsDepart ? 0.6 : 0.22 });
-    typePillBg.stroke({ color: pillIsDepart ? 0x475569 : colorNum, width: 1, alpha: pillIsDepart ? 0.5 : 0.4 });
-    container.addChild(typePillBg);
-
     const typeStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: '700',
         fill: pillIsDepart ? 0xf1f5f9 : hexColor(color),
-        letterSpacing: 1.4,
+        letterSpacing: 1.6,
     });
     const typeLabelText = new Text({ text: pillText, style: typeStyle });
-    typeLabelText.position.set(room.x + 25, room.y + 48);
+    // Measure text to properly size the pill
+    const textMetrics = typeLabelText.width;
+    const pillH = 20;
+    const pillW = textMetrics + 16;
+    const pillX = centerX - pillW / 2;
+    const pillY = room.y + 42;
+
+    const typePillBg = new Graphics();
+    typePillBg.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+    typePillBg.fill({ color: pillIsDepart ? 0x1e293b : colorNum, alpha: pillIsDepart ? 0.6 : 0.20 });
+    typePillBg.stroke({ color: pillIsDepart ? 0x475569 : colorNum, width: 1, alpha: pillIsDepart ? 0.5 : 0.35 });
+    container.addChild(typePillBg);
+
+    // Center text inside pill
+    typeLabelText.anchor.set(0.5, 0.5);
+    typeLabelText.position.set(centerX, pillY + pillH / 2);
     container.addChild(typeLabelText);
 
-    // ─── Bottom status line (bigger) ──────────────────────────
+    // ─── Bottom status — centered ─────────────────────────
     if (occupants > 0) {
-        // Dot
-        const statusDot = new Graphics();
-        statusDot.circle(room.x + 16, room.y + room.height - 18, 4);
-        statusDot.fill({ color: 0x34d399, alpha: 1 });
-        container.addChild(statusDot);
-
         const statusStyle = new TextStyle({
             fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: '700',
             fill: 0x34d399,
             letterSpacing: 0.3,
         });
-        const status = new Text({ text: `${occupants} online`, style: statusStyle });
-        status.position.set(room.x + 26, room.y + room.height - 27);
+        const statusText = `${occupants} online`;
+        const status = new Text({ text: statusText, style: statusStyle });
+        status.anchor.set(0.5, 0.5);
+        const statusY = room.y + room.height - 18;
+        status.position.set(centerX, statusY);
+
+        // Green dot to the left of status text
+        const dotX = centerX - status.width / 2 - 10;
+        const statusDot = new Graphics();
+        statusDot.circle(dotX, statusY, 3.5);
+        statusDot.fill({ color: 0x34d399, alpha: 1 });
+        container.addChild(statusDot);
         container.addChild(status);
     }
 }
