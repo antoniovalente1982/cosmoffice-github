@@ -316,39 +316,34 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
     }, []);
 
-    // ─── Create room object on mount ────────────────────────────
-    useEffect(() => {
-        if (!spaceId || roomRef.current) return;
-        try {
-            const room = new Room({
-                // Optimize for avatar-sized video
-                adaptiveStream: true,
-                dynacast: true,
-                videoCaptureDefaults: {
-                    resolution: { width: 320, height: 240 },
-                    facingMode: 'user',
-                },
-                publishDefaults: {
-                    videoSimulcastLayers: [], // No simulcast needed for tiny avatars
-                    videoCodec: 'vp8',
-                    dtx: true, // Discontinuous transmission — saves bandwidth when silent
-                    red: true, // Redundant encoding for audio recovery
-                },
-            });
+    // ─── Create a fresh Room object with optimized settings ────
+    const createRoom = useCallback(() => {
+        const room = new Room({
+            adaptiveStream: true,
+            dynacast: true,
+            videoCaptureDefaults: {
+                resolution: { width: 320, height: 240 },
+                facingMode: 'user',
+            },
+            publishDefaults: {
+                videoSimulcastLayers: [],
+                videoCodec: 'vp8',
+                dtx: true,
+                red: true,
+            },
+        });
+        setupRoomEvents(room);
+        return room;
+    }, [setupRoomEvents]);
 
-            setupRoomEvents(room);
-            roomRef.current = room;
-            // Expose for screen sharing button in page.tsx
-            (window as any).__livekitRoom = room;
-            console.log('[LiveKit] Room object created (no billing until connect)');
-        } catch (err: any) {
-            console.error('[LiveKit] Failed to create room:', err?.message);
-        }
-    }, [spaceId, setupRoomEvents]);
+    // Expose room ref for screen sharing (updated on each join)
+    useEffect(() => {
+        return () => { (window as any).__livekitRoom = null; };
+    }, []);
 
     // ─── Join a LiveKit room (room or proximity group) ─────────
     const joinContext = useCallback(async (contextType: 'room' | 'proximity', contextId: string) => {
-        if (!spaceId || !roomRef.current) return;
+        if (!spaceId) return;
         if (leavingRef.current) return;
 
         const roomName = getContextRoomName(contextType, contextId);
@@ -360,14 +355,17 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             return;
         }
 
-        // Leave previous room if connected
-        const connState = roomRef.current.state;
-        if (joinedRef.current || connState === ConnectionState.Connected || connState === ConnectionState.Connecting) {
-            console.log('[LiveKit] Leaving previous room (state:', connState, ')');
-            try { await roomRef.current.disconnect(); } catch { }
+        // ─── ALWAYS destroy old Room before creating new one ─────
+        // This guarantees the old server-side session is fully closed
+        if (roomRef.current) {
+            console.log('[LiveKit] Destroying old room before new join');
+            try { await roomRef.current.disconnect(true); } catch { }
+            roomRef.current = null;
+            (window as any).__livekitRoom = null;
             joinedRef.current = false;
             currentRoomNameRef.current = null;
-            await new Promise(r => setTimeout(r, 300));
+            // Wait for server-side session cleanup
+            await new Promise(r => setTimeout(r, 500));
         }
 
         if (joiningRef.current) return;
@@ -376,13 +374,17 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
         try {
             const token = await getToken(roomName);
             if (!token) { joiningRef.current = false; return; }
-
             if (leavingRef.current) { joiningRef.current = false; return; }
+
+            // Create a FRESH Room object — no stale state from previous connection
+            const room = createRoom();
+            roomRef.current = room;
+            (window as any).__livekitRoom = room;
 
             useDailyStore.getState().clearDailyError();
             const dailyState = useDailyStore.getState();
 
-            await roomRef.current.connect(LIVEKIT_URL, token);
+            await room.connect(LIVEKIT_URL, token);
 
             joinedRef.current = true;
             currentRoomNameRef.current = roomName;
@@ -390,12 +392,11 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             useDailyStore.getState().setActiveContext(contextType, contextId);
             console.log(`[LiveKit] ✅ Joined ${contextType}:`, roomName);
 
-            // Enable mic/cam based on current state
             if (dailyState.isAudioOn) {
-                await roomRef.current.localParticipant.setMicrophoneEnabled(true);
+                await room.localParticipant.setMicrophoneEnabled(true);
             }
             if (dailyState.isVideoOn) {
-                await roomRef.current.localParticipant.setCameraEnabled(true);
+                await room.localParticipant.setCameraEnabled(true);
             }
 
         } catch (err: any) {
@@ -405,23 +406,20 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
         } finally {
             joiningRef.current = false;
         }
-    }, [spaceId, getContextRoomName, getToken]);
+    }, [spaceId, getContextRoomName, getToken, createRoom]);
 
     // ─── Leave current room ────────────────────────────────────
     const leaveContext = useCallback(async () => {
         leavingRef.current = true;
         joiningRef.current = false;
 
-        if (!roomRef.current) { leavingRef.current = false; return; }
-
-        const connState = roomRef.current.state;
-        if (!joinedRef.current && connState !== ConnectionState.Connected && connState !== ConnectionState.Connecting) {
-            leavingRef.current = false;
-            return;
+        if (roomRef.current) {
+            console.log('[LiveKit] 🔌 Disconnecting + destroying room (billing stopped)');
+            try { await roomRef.current.disconnect(true); } catch { }
+            roomRef.current = null;
+            (window as any).__livekitRoom = null;
         }
 
-        console.log('[LiveKit] 🔌 Disconnecting (billing stopped)');
-        try { await roomRef.current.disconnect(); } catch { }
         joinedRef.current = false;
         currentRoomNameRef.current = null;
 
@@ -443,7 +441,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             }
         });
 
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 500));
         leavingRef.current = false;
     }, []);
 
@@ -593,7 +591,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
     useEffect(() => {
         const handleUnload = () => {
             if (roomRef.current) {
-                try { roomRef.current.disconnect(); } catch { }
+                try { roomRef.current.disconnect(true); } catch { }
                 roomRef.current = null;
                 (window as any).__livekitRoom = null;
                 joinedRef.current = false;
