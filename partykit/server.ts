@@ -61,7 +61,10 @@ type IncomingMessage =
     | { type: "media_state"; userId: string; audioEnabled: boolean; videoEnabled: boolean; remoteAudioEnabled: boolean }
     | { type: "status_change"; userId: string; status: string }
     | { type: "call_request"; id: string; fromUserId: string; fromName: string; fromAvatarUrl?: string; toUserId: string }
-    | { type: "call_response"; id: string; fromUserId: string; fromName: string; toUserId: string; response: string };
+    | { type: "call_response"; id: string; fromUserId: string; fromName: string; toUserId: string; response: string }
+    | { type: "wb_stroke"; scope: string; roomId: string | null; stroke: any }
+    | { type: "wb_cursor"; scope: string; roomId: string | null; cursor: any }
+    | { type: "wb_clear"; scope: string; roomId: string | null };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
@@ -476,6 +479,59 @@ export default class AvatarServer {
                     roomId: parsed.roomId,
                 };
                 this.party.broadcast(JSON.stringify(deleteMsg));
+                break;
+            }
+
+            // ─── Whiteboard relay ────────────────────────────
+            case "wb_stroke": {
+                const payload = JSON.stringify(parsed);
+                if (parsed.scope === 'room' && parsed.roomId) {
+                    // Send to room occupants only
+                    for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+                        if (uid === (parsed as any).stroke?.userId) continue;
+                        const u = this.users.get(uid);
+                        if (u && u.roomId === parsed.roomId) {
+                            const conn = this.party.getConnection(connId);
+                            if (conn) conn.send(payload);
+                        }
+                    }
+                } else {
+                    // Office-wide: broadcast to all
+                    this.party.broadcast(payload, [sender.id]);
+                }
+                break;
+            }
+
+            case "wb_cursor": {
+                const cursorPayload = JSON.stringify(parsed);
+                if (parsed.scope === 'room' && parsed.roomId) {
+                    for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+                        if (uid === (parsed as any).cursor?.userId) continue;
+                        const u = this.users.get(uid);
+                        if (u && u.roomId === parsed.roomId) {
+                            const conn = this.party.getConnection(connId);
+                            if (conn) conn.send(cursorPayload);
+                        }
+                    }
+                } else {
+                    this.party.broadcast(cursorPayload, [sender.id]);
+                }
+                break;
+            }
+
+            case "wb_clear": {
+                const clearWbPayload = JSON.stringify(parsed);
+                if (parsed.scope === 'room' && parsed.roomId) {
+                    for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+                        const u = this.users.get(uid);
+                        if (u && u.roomId === parsed.roomId) {
+                            const conn = this.party.getConnection(connId);
+                            if (conn) conn.send(clearWbPayload);
+                        }
+                    }
+                } else {
+                    this.party.broadcast(clearWbPayload, [sender.id]);
+                }
                 break;
             }
 

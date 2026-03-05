@@ -24,6 +24,7 @@ import {
     UserPlus,
     Grid3X3,
     MessageCircle,
+    PenTool,
 
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
@@ -42,11 +43,13 @@ const OfficeBuilder = dynamic(() => import('../../../components/office/OfficeBui
 const InvitePanel = dynamic(() => import('../../../components/office/InvitePanel'), { ssr: false });
 const FullscreenGrid = dynamic(() => import('../../../components/media/FullscreenGrid').then(mod => mod.FullscreenGrid), { ssr: false });
 const RoomChat = dynamic(() => import('../../../components/office/RoomChat').then(mod => mod.RoomChat), { ssr: false });
+const Whiteboard = dynamic(() => import('../../../components/office/Whiteboard').then(mod => mod.Whiteboard), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
 import { useWorkspaceStore } from '../../../stores/workspaceStore';
 import { useChatStore } from '../../../stores/chatStore';
+import { useWhiteboardStore } from '../../../stores/whiteboardStore';
 import { useOffice } from '../../../hooks/useOffice';
 import { useWorkspaceRole, getWorkspaceIdFromSpace } from '../../../hooks/useWorkspaceRole';
 import { useAvatarSync } from '../../../hooks/useAvatarSync';
@@ -85,6 +88,10 @@ export default function OfficePage() {
     const officeChatUnread = useChatStore(s => s.officeUnreadCount);
     const toggleChat = useChatStore(s => s.toggleChat);
     const totalChatUnread = chatUnread + officeChatUnread;
+
+    // Whiteboard store
+    const isWhiteboardOpen = useWhiteboardStore(s => s.isOpen);
+    const toggleWhiteboard = useWhiteboardStore(s => s.toggleWhiteboard);
 
     // Toast for no-proximity feedback
     const [mediaToast, setMediaToast] = useState<string | null>(null);
@@ -583,6 +590,19 @@ export default function OfficePage() {
                             >
                                 <SlidersHorizontal className="w-5 h-5" />
                             </Button>
+                            {/* Whiteboard Toggle — hidden for guests */}
+                            {role !== 'guest' && (
+                                <Button
+                                    variant={isWhiteboardOpen ? "default" : "secondary"}
+                                    size="icon"
+                                    className={`rounded-full w-12 h-12 transition-all glow-button relative ${isWhiteboardOpen ? 'bg-cyan-500/80 hover:bg-cyan-500 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                    onClick={toggleWhiteboard}
+                                    title={isWhiteboardOpen ? 'Chiudi Lavagna' : 'Apri Lavagna'}
+                                >
+                                    <PenTool className="w-5 h-5" />
+                                </Button>
+                            )}
+
                             {/* Chat Toggle — hidden for guests */}
                             {role !== 'guest' && (
                                 <Button
@@ -634,6 +654,16 @@ export default function OfficePage() {
                         userId={user.id}
                         userName={myProfile?.display_name || myProfile?.full_name || 'Anonymous'}
                         userAvatarUrl={myProfile?.avatar_url || null}
+                        isAdmin={isAdmin}
+                    />
+                )}
+
+                {/* Collaborative Whiteboard — hidden for guests */}
+                {user && role !== 'guest' && (
+                    <Whiteboard
+                        workspaceId={workspaceId}
+                        userId={user.id}
+                        userName={myProfile?.display_name || myProfile?.full_name || 'Anonymous'}
                         isAdmin={isAdmin}
                     />
                 )}

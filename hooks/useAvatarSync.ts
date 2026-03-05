@@ -464,6 +464,14 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     break;
                 }
 
+                // ─── Whiteboard messages ─────────────────────
+                case 'wb_stroke':
+                case 'wb_cursor':
+                case 'wb_clear': {
+                    window.dispatchEvent(new CustomEvent('whiteboard-message', { detail: msg }));
+                    break;
+                }
+
                 case 'leave_room': {
                     if (msg.userId === userId) return;
                     useAvatarStore.getState().updatePeer(msg.userId, {
