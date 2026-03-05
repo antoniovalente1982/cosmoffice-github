@@ -14,6 +14,7 @@ import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
 import { createClient } from '../../utils/supabase/client';
 import { useCallStore } from '../../stores/callStore';
+import { playCallRingSound } from '../../utils/sounds';
 
 // ─── Extracted modules ──────────────────────────────────────────
 import { drawSpaceship } from './PixiSpaceship';
@@ -640,6 +641,8 @@ export function PixiOffice() {
             fromAvatarUrl: myProfileData.avatar_url || null,
             toUserId: peerId,
         }));
+        // Caller hears the ring immediately
+        playCallRingSound();
         useCallStore.getState().setOutgoingCall({
             id: callId,
             fromUserId: myId,

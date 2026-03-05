@@ -8,7 +8,7 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useChatStore } from '../stores/chatStore';
 import { useCallStore } from '../stores/callStore';
 import { useNotificationStore } from '../stores/notificationStore';
-import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound, playWelcomeSound, playChatPingSound } from '../utils/sounds';
+import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound, playWelcomeSound, playChatPingSound, playCallRingSound } from '../utils/sounds';
 
 // ============================================
 // useAvatarSync — PartyKit client for avatar sync + room chat + office chat
@@ -399,6 +399,15 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                         toUserId: msg.toUserId,
                         timestamp: Date.now(),
                         status: 'pending',
+                    });
+                    // Receiver hears the ring
+                    playCallRingSound();
+                    // Add notification
+                    useNotificationStore.getState().addNotification({
+                        type: 'call',
+                        title: msg.fromName || 'Chiamata',
+                        body: 'Ti sta chiamando...',
+                        avatarUrl: msg.fromAvatarUrl,
                     });
                     break;
                 }

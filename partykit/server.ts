@@ -138,6 +138,19 @@ export default class AvatarServer {
         switch (parsed.type) {
             case "identify": {
                 const userId = parsed.userId;
+
+                // If this userId already has an active connection, close the old one
+                const existingConnId = this.userToConnection.get(userId);
+                if (existingConnId && existingConnId !== sender.id) {
+                    // Remove old connection mapping (don't delete user state — we're replacing it)
+                    this.connectionToUser.delete(existingConnId);
+                    // Try to close old connection gracefully
+                    try {
+                        const oldConn = this.party.getConnection(existingConnId);
+                        if (oldConn) oldConn.close();
+                    } catch { }
+                }
+
                 this.connectionToUser.set(sender.id, userId);
                 this.userToConnection.set(userId, sender.id);
                 const existing = this.users.get(userId);
@@ -585,11 +598,17 @@ export default class AvatarServer {
     onClose(connection: any) {
         const userId = this.connectionToUser.get(connection.id);
         if (userId) {
-            this.users.delete(userId);
             this.connectionToUser.delete(connection.id);
-            this.userToConnection.delete(userId);
-            const leaveMsg: OutgoingMessage = { type: "leave", userId };
-            this.party.broadcast(JSON.stringify(leaveMsg));
+
+            // Only remove user state if this connection was the ACTIVE one for this userId
+            // (prevents a stale connection from removing a reconnected user)
+            const activeConnId = this.userToConnection.get(userId);
+            if (activeConnId === connection.id) {
+                this.users.delete(userId);
+                this.userToConnection.delete(userId);
+                const leaveMsg: OutgoingMessage = { type: "leave", userId };
+                this.party.broadcast(JSON.stringify(leaveMsg));
+            }
         }
     }
 }
