@@ -57,100 +57,53 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     body.roundRect(room.x, room.y, room.width, room.height, 16);
     body.stroke({ color: colorNum, width: isHovered ? 2.5 : 1.5, alpha: isHovered ? 0.9 : 0.5 });
 
-    // ─── Bottom subtle line (divider for occupants area) ────
-    body.rect(room.x + 16, room.y + room.height - 34, room.width - 32, 1);
-    body.fill({ color: 0xffffff, alpha: 0.06 });
+
 
     container.addChild(body);
 
-    // ─── Room center X for alignment ──────────────────────
-    const centerX = room.x + room.width / 2;
+    // ═══════════════════════════════════════════════════════
+    // LABELS — OUTSIDE the room, above top-left
+    // Keeps the interior clean for avatars
+    // ═══════════════════════════════════════════════════════
 
-    // ─── Room name — large, bold, centered ────────────────
+    // ─── Room name — above the room, left-aligned ─────────
     const nameStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 20,
-        fontWeight: '800',
+        fontSize: 14,
+        fontWeight: '700',
         fill: 0xffffff,
-        letterSpacing: 0.5,
-        dropShadow: {
-            alpha: 0.5,
-            angle: Math.PI / 4,
-            blur: 4,
-            distance: 0,
-            color: colorNum,
-        },
+        letterSpacing: 0.3,
     });
     const nameText = new Text({ text: room.name, style: nameStyle });
-    // Center horizontally
-    nameText.anchor.set(0.5, 0);
-    nameText.position.set(centerX, room.y + 14);
+    nameText.position.set(room.x + 2, room.y - 34);
     container.addChild(nameText);
 
-    // ─── Department tab — left-protruding flag ─────────────
-    if (department) {
-        const deptText = department.toUpperCase();
-        const deptStyle = new TextStyle({
-            fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 9,
-            fontWeight: '800',
-            fill: 0xffffff,
-            letterSpacing: 1.8,
-        });
-        const deptLabel = new Text({ text: deptText, style: deptStyle });
-        const tabPadH = 10;
-        const tabPadV = 5;
-        const tabW = deptLabel.width + tabPadH * 2;
-        const tabH = deptLabel.height + tabPadV * 2;
-        const tabX = room.x - 12; // protrudes 12px to the left
-        const tabY = room.y + 16;
+    // ─── Subtitle line: DEPARTMENT · TYPE — below name ────
+    const subtitleParts: string[] = [];
+    if (department) subtitleParts.push(department.toUpperCase());
+    subtitleParts.push(typeLabel);
+    const subtitleStr = subtitleParts.join('  ·  ');
 
-        const tabGfx = new Graphics();
-        // Tab shape: rounded left side, straight right side flush with room edge
-        tabGfx.roundRect(tabX, tabY, tabW + 12, tabH, 4);
-        tabGfx.fill({ color: colorNum, alpha: 0.85 });
-        // Subtle border
-        tabGfx.roundRect(tabX, tabY, tabW + 12, tabH, 4);
-        tabGfx.stroke({ color: 0xffffff, width: 0.5, alpha: 0.2 });
-        container.addChild(tabGfx);
-
-        // White text centered in tab
-        deptLabel.anchor.set(0, 0.5);
-        deptLabel.position.set(tabX + tabPadH, tabY + tabH / 2);
-        container.addChild(deptLabel);
-    }
-
-    // ─── Type pill — centered under name ──────────────────
-    const typeStyle = new TextStyle({
+    const subStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 10,
-        fontWeight: '700',
+        fontSize: 9,
+        fontWeight: '600',
         fill: hexColor(color),
-        letterSpacing: 1.6,
+        letterSpacing: 1.2,
     });
-    const typeLabelText = new Text({ text: typeLabel, style: typeStyle });
-    // Measure text to properly size the pill
-    const pillH = 20;
-    const pillW = typeLabelText.width + 16;
-    const pillX = centerX - pillW / 2;
-    const pillY = room.y + 42;
+    const subText = new Text({ text: subtitleStr, style: subStyle });
+    subText.position.set(room.x + 2, room.y - 16);
+    container.addChild(subText);
 
-    const typePillBg = new Graphics();
-    typePillBg.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
-    typePillBg.fill({ color: colorNum, alpha: 0.18 });
-    typePillBg.stroke({ color: colorNum, width: 1, alpha: 0.30 });
-    container.addChild(typePillBg);
+    // ═══════════════════════════════════════════════════════
+    // INSIDE — only the occupant status at bottom
+    // ═══════════════════════════════════════════════════════
+    const centerX = room.x + room.width / 2;
 
-    // Center text inside pill
-    typeLabelText.anchor.set(0.5, 0.5);
-    typeLabelText.position.set(centerX, pillY + pillH / 2);
-    container.addChild(typeLabelText);
-
-    // ─── Bottom status — centered ─────────────────────────
     if (occupants > 0) {
         const statusStyle = new TextStyle({
             fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: '700',
             fill: 0x34d399,
             letterSpacing: 0.3,
@@ -158,13 +111,13 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         const statusText = `${occupants} online`;
         const status = new Text({ text: statusText, style: statusStyle });
         status.anchor.set(0.5, 0.5);
-        const statusY = room.y + room.height - 18;
+        const statusY = room.y + room.height - 14;
         status.position.set(centerX, statusY);
 
         // Green dot to the left of status text
-        const dotX = centerX - status.width / 2 - 10;
+        const dotX = centerX - status.width / 2 - 8;
         const statusDot = new Graphics();
-        statusDot.circle(dotX, statusY, 3.5);
+        statusDot.circle(dotX, statusY, 3);
         statusDot.fill({ color: 0x34d399, alpha: 1 });
         container.addChild(statusDot);
         container.addChild(status);
