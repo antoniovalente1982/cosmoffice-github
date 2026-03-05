@@ -55,15 +55,16 @@ export function DayNightCycle() {
             )}
 
             {/* Time indicator — bottom right */}
-            <div className="absolute bottom-3 right-3 z-[2] flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/20 backdrop-blur-sm pointer-events-none">
-                <span className="text-[10px]">
+            <div className="absolute bottom-4 right-4 z-[2] flex items-center gap-2 px-4 py-2 rounded-2xl border border-white/10 pointer-events-none"
+                style={{ background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(12px)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+                <span className="text-lg leading-none">
                     {phase.name === 'dawn' ? '🌅' :
                         phase.name === 'morning' ? '☀️' :
                             phase.name === 'afternoon' ? '🌤️' :
                                 phase.name === 'sunset' ? '🌇' :
                                     phase.name === 'dusk' ? '🌆' : '🌙'}
                 </span>
-                <span className="text-[9px] font-medium text-white/50">
+                <span className="text-sm font-semibold text-white/80 tabular-nums tracking-wide">
                     {new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
                 </span>
             </div>
