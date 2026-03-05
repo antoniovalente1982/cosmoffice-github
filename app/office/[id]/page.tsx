@@ -183,7 +183,7 @@ export default function OfficePage() {
     const { sendPosition, sendJoinRoom } = useAvatarSync({
         workspaceId: spaceId,
         userId: user?.id || '',
-        userName: myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || 'Anonymous',
+        userName: myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.display_name || 'Ospite',
         email: user?.email || '',
         avatarUrl: myProfile?.avatar_url || null,
         status: myStatus,
@@ -412,7 +412,7 @@ export default function OfficePage() {
                         </div>
                         <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-medium truncate text-slate-200">
-                                {useAvatarStore.getState().myProfile?.display_name || useAvatarStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || 'Anonymous'}
+                                {useAvatarStore.getState().myProfile?.display_name || useAvatarStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || 'Ospite'}
                             </p>
                             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
                         </div>
@@ -661,7 +661,7 @@ export default function OfficePage() {
                     <RoomChat
                         workspaceId={workspaceId}
                         userId={user.id}
-                        userName={myProfile?.display_name || myProfile?.full_name || 'Anonymous'}
+                        userName={myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.display_name || 'Ospite'}
                         userAvatarUrl={myProfile?.avatar_url || null}
                         isAdmin={isAdmin}
                     />
@@ -672,7 +672,7 @@ export default function OfficePage() {
                     <Whiteboard
                         workspaceId={workspaceId}
                         userId={user.id}
-                        userName={myProfile?.display_name || myProfile?.full_name || 'Anonymous'}
+                        userName={myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.display_name || 'Ospite'}
                         isAdmin={isAdmin}
                     />
                 )}

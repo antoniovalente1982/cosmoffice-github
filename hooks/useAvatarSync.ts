@@ -427,11 +427,21 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     if (myRoom && (msg.roomId === myRoom)) {
                         playKnockSound();
                     }
+                    // Also trigger knock UI notification
+                    const handleKnockFn = (window as any).__handleKnockRequest;
+                    if (handleKnockFn) {
+                        handleKnockFn({
+                            userId: msg.userId,
+                            roomId: msg.roomId,
+                            name: msg.name || msg.userName,
+                            avatarUrl: msg.avatarUrl,
+                            timestamp: Date.now(),
+                        });
+                    }
                     break;
                 }
 
                 case 'chat_message': {
-                    // Room-scoped chat message from server (skip own — already added optimistically)
                     if (msg.message && msg.message.userId !== userId) {
                         useChatStore.getState().addMessage(msg.message);
                     }
@@ -439,7 +449,6 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 }
 
                 case 'office_chat_message': {
-                    // Office-wide global chat message (skip own — already added optimistically)
                     if (msg.message && msg.message.userId !== userId) {
                         useChatStore.getState().addOfficeMessage(msg.message);
                     }
@@ -447,7 +456,6 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 }
 
                 case 'message_deleted': {
-                    // A message was deleted — remove from correct store
                     if (msg.roomId) {
                         useChatStore.getState().removeMessage(msg.messageId);
                     } else {
@@ -457,7 +465,6 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 }
 
                 case 'chat_cleared': {
-                    // All messages cleared for a room or office
                     if (msg.roomId) {
                         useChatStore.getState().clearMessages();
                     } else {
@@ -485,20 +492,6 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     break;
                 }
 
-                // ─── Knock messages ──────────────────────────
-                case 'knock_request': {
-                    const handleKnockFn = (window as any).__handleKnockRequest;
-                    if (handleKnockFn) {
-                        handleKnockFn({
-                            userId: msg.userId,
-                            roomId: msg.roomId,
-                            name: msg.name,
-                            avatarUrl: msg.avatarUrl,
-                            timestamp: Date.now(),
-                        });
-                    }
-                    break;
-                }
                 case 'knock_accepted': {
                     const handleAcceptFn = (window as any).__handleKnockAccepted;
                     if (handleAcceptFn) handleAcceptFn(msg.roomId);
@@ -611,6 +604,23 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             delete (window as any).__partykitSocket;
         };
     }, [workspaceId, userId]); // Only reconnect on workspace/user change
+
+    // ─── Re-identify when profile/name/avatar/status/role change ─
+    useEffect(() => {
+        if (!connectedRef.current || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+        if (!userName || userName === 'Anonymous') return; // Don't re-identify with placeholder name
+        socketRef.current.send(JSON.stringify({
+            type: 'identify',
+            userId,
+            name: userName,
+            email,
+            avatarUrl,
+            status,
+            role,
+            isDnd: useAvatarStore.getState().myDnd,
+            isAway: useAvatarStore.getState().myAway,
+        }));
+    }, [userName, avatarUrl, status, role, userId, email]);
 
     // Expose functions globally for hooks
     useEffect(() => {

@@ -87,6 +87,60 @@ export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: 
         return () => { cancelled = true; };
     }, [workspaceId, supabase, setOfficeMessages]);
 
+    // ─── Supabase Realtime: office-wide chat backup sync ───────
+    useEffect(() => {
+        if (!workspaceId) return;
+
+        const channel = supabase.channel(`office-chat-${workspaceId}`)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'messages',
+                filter: `workspace_id=eq.${workspaceId}`,
+            }, async (payload: any) => {
+                const row = payload.new;
+                if (!row || row.room_id !== null) return; // Only office-wide (room_id=NULL)
+                if (row.user_id === userId) return; // Skip own messages
+
+                // Deduplicate
+                const existing = useChatStore.getState().officeMessages;
+                if (existing.some((m: any) => m.id === row.id)) return;
+
+                // Fetch sender profile
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('display_name, full_name, avatar_url')
+                    .eq('id', row.user_id)
+                    .single();
+
+                const msg: ChatMessage = {
+                    id: row.id,
+                    userId: row.user_id,
+                    userName: profile?.display_name || profile?.full_name || 'User',
+                    avatarUrl: profile?.avatar_url || null,
+                    content: row.content,
+                    roomId: null,
+                    timestamp: row.created_at,
+                };
+                addOfficeMessage(msg);
+            })
+            .on('postgres_changes', {
+                event: 'DELETE',
+                schema: 'public',
+                table: 'messages',
+                filter: `workspace_id=eq.${workspaceId}`,
+            }, (payload: any) => {
+                if (payload.old?.id) {
+                    removeOfficeMessage(payload.old.id);
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [workspaceId, userId, supabase, addOfficeMessage, removeOfficeMessage]);
+
     // ─── Send message: Optimistic + PartyKit + Supabase ──────
     const sendMessage = useCallback(async (content: string) => {
         if (!content.trim() || !workspaceId) return;

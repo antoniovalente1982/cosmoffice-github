@@ -13,6 +13,7 @@ import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
 import { createClient } from '../../utils/supabase/client';
+import { useCallStore } from '../../stores/callStore';
 
 // ─── Extracted modules ──────────────────────────────────────────
 import { drawSpaceship } from './PixiSpaceship';
@@ -618,6 +619,46 @@ export function PixiOffice() {
         y: pos.y * zoom + stagePos.y,
     }), [zoom, stagePos]);
 
+    // ─── Click-to-call on peer avatar ────────────────────────
+    const handlePeerClick = useCallback((peerId: string, peerName: string) => {
+        const myProfileData = useAvatarStore.getState().myProfile;
+        const myId = useAvatarStore.getState().myProfile?.id;
+        const socket = (window as any).__partykitSocket;
+
+        if (!socket || socket.readyState !== WebSocket.OPEN || !myProfileData || !myId) return;
+
+        // Don't call if already in a call
+        const { outgoingCall, incomingCall } = useCallStore.getState();
+        if (outgoingCall || incomingCall) return;
+
+        const callId = crypto.randomUUID();
+        socket.send(JSON.stringify({
+            type: 'call_request',
+            id: callId,
+            fromUserId: myId,
+            fromName: myProfileData.display_name || myProfileData.full_name || 'User',
+            fromAvatarUrl: myProfileData.avatar_url || null,
+            toUserId: peerId,
+        }));
+        useCallStore.getState().setOutgoingCall({
+            id: callId,
+            fromUserId: myId,
+            fromName: myProfileData.display_name || myProfileData.full_name || 'User',
+            toUserId: peerId,
+            toName: peerName,
+            timestamp: Date.now(),
+            status: 'pending',
+        });
+        // Auto-timeout after 30s
+        setTimeout(() => {
+            const current = useCallStore.getState().outgoingCall;
+            if (current?.id === callId) {
+                useCallStore.getState().setOutgoingCall(null);
+                useCallStore.getState().setCallResponse({ type: 'timeout', fromName: peerName });
+            }
+        }, 30000);
+    }, []);
+
     // ─── Viewport culling ────────────────────────────────────
     const AVATAR_MARGIN = 100;
     const LOD_DISTANCE = 2000;
@@ -741,6 +782,7 @@ export function PixiOffice() {
                             isSpeaking={peer.isSpeaking}
                             stream={peerStream}
                             zoom={zoom}
+                            onClick={() => handlePeerClick(peer.id, peer.full_name || 'User')}
                         />
                     );
                 })}
