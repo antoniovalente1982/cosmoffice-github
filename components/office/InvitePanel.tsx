@@ -191,7 +191,8 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.95 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-                className="absolute top-full left-0 mt-2 w-[400px] bg-slate-900/98 border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-[100]"
+                className="absolute top-full left-0 mt-2 w-[400px] border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-[100]"
+                style={{ background: '#0c1222', boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)' }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
