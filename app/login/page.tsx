@@ -3,9 +3,7 @@
 import { Suspense, useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Button } from '../../components/ui/button';
-import { Card } from '../../components/ui/card';
 import { Mail, Lock, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Logo } from '../../components/ui/logo';
 import { login } from './actions';
@@ -21,132 +19,69 @@ function LoginForm() {
     e.preventDefault();
     setErrorMsg('');
     const formData = new FormData(e.currentTarget);
-
     startTransition(async () => {
       const result = await login(formData);
-      if (result?.error) {
-        setErrorMsg(result.error);
-      }
+      if (result?.error) setErrorMsg(result.error);
     });
   };
 
   return (
-    <div className="relative group">
-      {/* Outer Glow */}
-      <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-[24px] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
-
-      {/* Card Content */}
-      <div className="relative bg-slate-900/80 backdrop-blur-xl border border-white/10 p-8 sm:p-10 rounded-[24px] shadow-2xl">
-        <div className="text-center mb-10">
-          <motion.div
-            className="flex justify-center mb-6"
-            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
-            transition={{ duration: 0.5 }}
-          >
-            <Logo size="lg" showText={false} variant="glow" />
-          </motion.div>
-          <h1 className="text-3xl font-extrabold bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent mb-3 tracking-tight">
-            {isInvite ? 'Accept Invitation' : 'Welcome Back'}
-          </h1>
-          <p className="text-slate-400 text-sm font-medium">
-            {isInvite
-              ? 'Sign in to accept your invitation to the workspace'
-              : 'Enter your credentials to access your office'}
-          </p>
+    <div className="auth-card">
+      <div className="auth-card__glow" />
+      <div className="auth-card__inner">
+        <div className="auth-header">
+          <Logo size="lg" showText={false} variant="glow" />
+          <h1>{isInvite ? 'Accept Invitation' : 'Welcome Back'}</h1>
+          <p>{isInvite ? 'Sign in to accept your invitation' : 'Enter your credentials to access your office'}</p>
         </div>
 
         {isInvite && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-            className="mb-8 p-4 bg-gradient-to-r from-violet-500/10 to-cyan-500/10 border border-cyan-500/20 rounded-2xl text-center shadow-[0_0_15px_rgba(34,211,238,0.1)]"
-          >
-            <p className="text-xs font-semibold text-cyan-300 uppercase tracking-widest flex items-center justify-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              Invitation Pending
-            </p>
-          </motion.div>
+          <div className="auth-invite-badge">
+            <span className="auth-invite-badge__dot" />
+            Invitation Pending
+          </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="auth-form">
           {redirectTo && <input type="hidden" name="redirect" value={redirectTo} />}
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Email</label>
-            <div className="relative group/input">
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-500/20 to-cyan-500/20 rounded-xl blur opacity-0 group-focus-within/input:opacity-100 transition-opacity" />
-              <div className="relative flex items-center bg-slate-950 border border-white/10 rounded-xl overflow-hidden focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
-                <div className="pl-4 pr-3 flex items-center justify-center">
-                  <Mail className="w-5 h-5 text-slate-500 group-focus-within/input:text-cyan-400 transition-colors" />
-                </div>
-                <input
-                  type="email"
-                  name="email"
-                  className="w-full py-3.5 pr-4 bg-transparent text-slate-100 placeholder-slate-600 focus:outline-none text-sm"
-                  placeholder="name@company.com"
-                  required
-                />
-              </div>
+          <div className="auth-field">
+            <label>Email</label>
+            <div className="auth-input-wrap">
+              <Mail className="auth-input-icon" />
+              <input type="email" name="email" placeholder="name@company.com" required />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between ml-1">
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Password</label>
-              <Link href="#" className="text-xs text-cyan-400 hover:text-cyan-300 font-medium transition-colors">Forgot?</Link>
+          <div className="auth-field">
+            <div className="auth-field__head">
+              <label>Password</label>
+              <Link href="#" className="auth-forgot">Forgot?</Link>
             </div>
-            <div className="relative group/input">
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-500/20 to-cyan-500/20 rounded-xl blur opacity-0 group-focus-within/input:opacity-100 transition-opacity" />
-              <div className="relative flex items-center bg-slate-950 border border-white/10 rounded-xl overflow-hidden focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
-                <div className="pl-4 pr-3 flex items-center justify-center">
-                  <Lock className="w-5 h-5 text-slate-500 group-focus-within/input:text-cyan-400 transition-colors" />
-                </div>
-                <input
-                  type="password"
-                  name="password"
-                  className="w-full py-3.5 pr-4 bg-transparent text-slate-100 placeholder-slate-600 focus:outline-none text-sm"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
+            <div className="auth-input-wrap">
+              <Lock className="auth-input-icon" />
+              <input type="password" name="password" placeholder="••••••••" required />
             </div>
           </div>
 
           {errorMsg && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="flex items-center gap-3 text-red-400 text-sm mt-4 bg-red-500/10 p-4 rounded-xl border border-red-500/20"
-            >
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <p className="font-medium">{errorMsg}</p>
-            </motion.div>
+            <div className="auth-error">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
           )}
 
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={isPending}
-              className="relative w-full group/btn overflow-hidden rounded-xl font-bold text-white transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-cyan-600 to-violet-600 bg-[length:200%_auto] group-hover/btn:bg-[position:100%_0] transition-all duration-500" />
-              <div className="relative px-6 py-4 flex items-center justify-center gap-2">
-                {isPending ? 'Authenticating...' : isInvite ? 'Sign In to Join' : 'Sign In'}
-                {!isPending && <ArrowLeft className="w-4 h-4 rotate-180 group-hover/btn:translate-x-1 transition-transform" />}
-              </div>
-            </button>
-          </div>
+          <button type="submit" disabled={isPending} className="auth-submit">
+            <span>{isPending ? 'Authenticating...' : isInvite ? 'Sign In to Join' : 'Sign In'}</span>
+            {!isPending && <ArrowLeft className="w-4 h-4 rotate-180" />}
+          </button>
         </form>
 
-        <div className="mt-8 text-center border-t border-white/5 pt-6">
-          <p className="text-sm text-slate-400 font-medium">
-            Don't have an account?{' '}
-            <Link
-              href={redirectTo ? `/signup?redirect=${encodeURIComponent(redirectTo)}` : '/signup'}
-              className="text-cyan-400 hover:text-cyan-300 font-bold tracking-wide transition-colors"
-            >
-              Create one now
-            </Link>
-          </p>
+        <div className="auth-footer">
+          Don't have an account?{' '}
+          <Link href={redirectTo ? `/signup?redirect=${encodeURIComponent(redirectTo)}` : '/signup'}>
+            Create one now
+          </Link>
         </div>
       </div>
     </div>
@@ -155,57 +90,305 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 relative overflow-hidden bg-[#020617]">
-      {/* Animated Background Orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{ x: [0, 30, 0], y: [0, -30, 0], scale: [1, 1.1, 1] }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-violet-600/20 rounded-full blur-[120px]"
-        />
-        <motion.div
-          animate={{ x: [0, -30, 0], y: [0, 40, 0], scale: [1, 1.2, 1] }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute top-[20%] -right-[10%] w-[40%] h-[60%] bg-cyan-600/20 rounded-full blur-[120px]"
-        />
-        <motion.div
-          animate={{ x: [0, 20, 0], y: [0, 20, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -bottom-[20%] left-[20%] w-[60%] h-[50%] bg-purple-600/10 rounded-full blur-[100px]"
-        />
-
-        {/* Subtle grid pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.15]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(139, 92, 246, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(139, 92, 246, 0.4) 1px, transparent 1px)`,
-            backgroundSize: '40px 40px'
-          }}
-        />
+    <div className="auth-page">
+      <div className="auth-bg" aria-hidden>
+        <div className="auth-bg__orb auth-bg__orb--1" />
+        <div className="auth-bg__orb auth-bg__orb--2" />
+        <div className="auth-bg__grid" />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md"
-      >
-        <Link
-          href="/"
-          className="group inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20 mb-10 transition-all backdrop-blur-md"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+      <div className="auth-container fade-up">
+        <Link href="/" className="auth-back">
+          <ArrowLeft className="w-3.5 h-3.5" />
           Back to Cosmos
         </Link>
 
         <Suspense fallback={
-          <div className="h-[400px] flex items-center justify-center">
-            <div className="w-10 h-10 border-[3px] border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+          <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="auth-spinner" />
           </div>
         }>
           <LoginForm />
         </Suspense>
-      </motion.div>
+      </div>
+
+      <style jsx global>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up {
+          opacity: 0;
+          animation: fadeUp 0.5s ease-out forwards;
+        }
+
+        /* ─── Auth Page Layout ─── */
+        .auth-page {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+          position: relative;
+          overflow: hidden;
+          background: #020617;
+        }
+        .auth-bg {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          overflow: hidden;
+        }
+        .auth-bg__orb {
+          position: absolute;
+          border-radius: 50%;
+        }
+        .auth-bg__orb--1 {
+          width: 50%; height: 50%;
+          top: -15%; left: -10%;
+          background: radial-gradient(circle, rgba(139,92,246,0.18), transparent 70%);
+        }
+        .auth-bg__orb--2 {
+          width: 45%; height: 60%;
+          top: 20%; right: -10%;
+          background: radial-gradient(circle, rgba(6,182,212,0.15), transparent 70%);
+        }
+        .auth-bg__grid {
+          position: absolute;
+          inset: 0;
+          opacity: 0.06;
+          background-image:
+            linear-gradient(rgba(139,92,246,0.4) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(139,92,246,0.4) 1px, transparent 1px);
+          background-size: 40px 40px;
+        }
+        .auth-container {
+          position: relative;
+          z-index: 10;
+          width: 100%;
+          max-width: 440px;
+        }
+
+        /* ─── Back Link ─── */
+        .auth-back {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #94a3b8;
+          text-decoration: none;
+          margin-bottom: 32px;
+          transition: all 0.2s;
+        }
+        .auth-back:hover { color: #fff; background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
+
+        /* ─── Card ─── */
+        .auth-card {
+          position: relative;
+        }
+        .auth-card__glow {
+          position: absolute;
+          inset: -1px;
+          border-radius: 24px;
+          background: linear-gradient(135deg, rgba(139,92,246,0.4), rgba(6,182,212,0.4));
+          opacity: 0.2;
+          filter: blur(1px);
+          transition: opacity 0.4s;
+        }
+        .auth-card:hover .auth-card__glow { opacity: 0.35; }
+        .auth-card__inner {
+          position: relative;
+          background: rgba(15,23,42,0.8);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 24px;
+          padding: 40px;
+        }
+
+        /* ─── Header ─── */
+        .auth-header {
+          text-align: center;
+          margin-bottom: 32px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+        .auth-header h1 {
+          font-size: 1.7rem;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          background: linear-gradient(to right, #fff, #94a3b8);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .auth-header p {
+          font-size: 0.85rem;
+          color: #64748b;
+          font-weight: 500;
+        }
+
+        /* ─── Invite Badge ─── */
+        .auth-invite-badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 12px;
+          margin-bottom: 24px;
+          border-radius: 14px;
+          background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(6,182,212,0.08));
+          border: 1px solid rgba(6,182,212,0.2);
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #67e8f9;
+        }
+        .auth-invite-badge__dot {
+          width: 6px; height: 6px;
+          border-radius: 50%;
+          background: #22d3ee;
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+
+        /* ─── Form ─── */
+        .auth-form { display: flex; flex-direction: column; gap: 18px; }
+        .auth-field { display: flex; flex-direction: column; gap: 6px; }
+        .auth-field__head { display: flex; justify-content: space-between; align-items: center; }
+        .auth-field label {
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: #64748b;
+          margin-left: 2px;
+        }
+        .auth-forgot {
+          font-size: 0.75rem;
+          color: #22d3ee;
+          text-decoration: none;
+          font-weight: 600;
+          transition: color 0.2s;
+        }
+        .auth-forgot:hover { color: #67e8f9; }
+        .auth-input-wrap {
+          display: flex;
+          align-items: center;
+          background: rgba(2,6,23,0.8);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 14px;
+          overflow: hidden;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .auth-input-wrap:focus-within {
+          border-color: rgba(6,182,212,0.4);
+          box-shadow: 0 0 0 3px rgba(6,182,212,0.1);
+        }
+        .auth-input-icon {
+          width: 18px; height: 18px;
+          margin-left: 16px;
+          color: #475569;
+          flex-shrink: 0;
+          transition: color 0.2s;
+        }
+        .auth-input-wrap:focus-within .auth-input-icon { color: #22d3ee; }
+        .auth-input-wrap input {
+          flex: 1;
+          padding: 14px 16px;
+          background: transparent;
+          border: none;
+          outline: none;
+          color: #e2e8f0;
+          font-size: 0.9rem;
+        }
+        .auth-input-wrap input::placeholder { color: #334155; }
+
+        /* ─── Error ─── */
+        .auth-error {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 16px;
+          border-radius: 12px;
+          background: rgba(239,68,68,0.08);
+          border: 1px solid rgba(239,68,68,0.2);
+          color: #fca5a5;
+          font-size: 0.85rem;
+          font-weight: 500;
+        }
+
+        /* ─── Submit ─── */
+        .auth-submit {
+          width: 100%;
+          padding: 14px 24px;
+          border-radius: 14px;
+          border: none;
+          cursor: pointer;
+          font-weight: 700;
+          font-size: 0.95rem;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          background: linear-gradient(135deg, #7c3aed, #0891b2);
+          background-size: 200% auto;
+          transition: background-position 0.4s, box-shadow 0.3s, transform 0.2s;
+          box-shadow: 0 4px 20px rgba(124,58,237,0.3);
+          margin-top: 4px;
+        }
+        .auth-submit:hover {
+          background-position: 100% 0;
+          box-shadow: 0 6px 28px rgba(124,58,237,0.45);
+          transform: translateY(-1px);
+        }
+        .auth-submit:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        /* ─── Footer ─── */
+        .auth-footer {
+          text-align: center;
+          margin-top: 28px;
+          padding-top: 20px;
+          border-top: 1px solid rgba(255,255,255,0.05);
+          font-size: 0.85rem;
+          color: #64748b;
+          font-weight: 500;
+        }
+        .auth-footer a {
+          color: #22d3ee;
+          text-decoration: none;
+          font-weight: 700;
+          transition: color 0.2s;
+        }
+        .auth-footer a:hover { color: #67e8f9; }
+
+        /* ─── Spinner ─── */
+        .auth-spinner {
+          width: 32px; height: 32px;
+          border: 3px solid rgba(6,182,212,0.2);
+          border-top-color: #22d3ee;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }

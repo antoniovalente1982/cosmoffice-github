@@ -1,997 +1,1000 @@
 'use client';
 
 import Link from 'next/link';
-import { motion, useScroll, useTransform, useSpring, useMotionValue } from 'framer-motion';
 import { Button } from '../components/ui/button';
-import { Card } from '../components/ui/card';
-import { 
-  Users, Video, MessageSquare, Map, Zap, Shield, Globe, Sparkles, 
-  ArrowRight, CheckCircle2, Rocket, Orbit, Star, Satellite, 
-  Radio, Cpu, Wifi, Crown, ArrowUpRight, Hexagon, 
-  Triangle, Circle, Moon
+import {
+  Users, Video, MessageSquare, Map, Zap, Shield, Globe,
+  ArrowRight, CheckCircle2, Rocket, Star, Wifi, Radio,
+  Crown, ArrowUpRight
 } from 'lucide-react';
 import { Logo } from '../components/ui/logo';
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '../utils/supabase/client';
 
-// Animated Star Field Component
-function StarField() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-    
-    const stars: { x: number; y: number; size: number; speed: number; opacity: number }[] = [];
-    const starCount = 150;
-    
-    for (let i = 0; i < starCount; i++) {
-      stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        size: Math.random() * 2,
-        speed: Math.random() * 0.5 + 0.1,
-        opacity: Math.random()
-      });
-    }
-    
-    let animationId: number;
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      stars.forEach(star => {
-        star.y += star.speed;
-        if (star.y > canvas.height) {
-          star.y = 0;
-          star.x = Math.random() * canvas.width;
-        }
-        
-        const twinkle = Math.sin(Date.now() * 0.003 + star.x) * 0.3 + 0.7;
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity * twinkle})`;
-        ctx.fill();
-      });
-      
-      animationId = requestAnimationFrame(animate);
-    };
-    animate();
-    
-    return () => {
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animationId);
-    };
-  }, []);
-  
-  return (
-    <canvas 
-      ref={canvasRef} 
-      className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.8 }}
-    />
-  );
-}
-
-// Floating Orbs Component
-function FloatingOrbs() {
-  return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-      {/* Purple Planet */}
-      <motion.div
-        className="absolute -top-20 -right-20 w-96 h-96 rounded-full"
-        style={{
-          background: 'radial-gradient(circle at 30% 30%, rgba(168, 85, 247, 0.4), rgba(88, 28, 135, 0.2))',
-          filter: 'blur(60px)',
-        }}
-        animate={{
-          y: [0, 50, 0],
-          x: [0, -30, 0],
-          scale: [1, 1.1, 1],
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
-      
-      {/* Cyan Nebula */}
-      <motion.div
-        className="absolute top-1/3 -left-32 w-[500px] h-[500px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(34, 211, 238, 0.15), transparent 70%)',
-          filter: 'blur(80px)',
-        }}
-        animate={{
-          y: [0, 80, 0],
-          x: [0, 40, 0],
-        }}
-        transition={{
-          duration: 15,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 2
-        }}
-      />
-      
-      {/* Pink Glow */}
-      <motion.div
-        className="absolute bottom-0 right-1/4 w-80 h-80 rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(236, 72, 153, 0.2), transparent 70%)',
-          filter: 'blur(60px)',
-        }}
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.5, 0.8, 0.5],
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 1
-        }}
-      />
-      
-      {/* Orange Accent */}
-      <motion.div
-        className="absolute bottom-1/4 left-1/4 w-64 h-64 rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(251, 146, 60, 0.15), transparent 70%)',
-          filter: 'blur(50px)',
-        }}
-        animate={{
-          y: [0, -40, 0],
-          scale: [1, 1.15, 1],
-        }}
-        transition={{
-          duration: 12,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 3
-        }}
-      />
-    </div>
-  );
-}
-
-// Floating Icons Animation
-function FloatingIcon({ 
-  children, 
-  delay = 0, 
-  x, 
-  y,
-  duration = 4
-}: { 
-  children: React.ReactNode; 
-  delay?: number; 
-  x: string;
-  y: string;
-  duration?: number;
-}) {
-  return (
-    <motion.div
-      className="absolute text-white/20"
-      style={{ left: x, top: y }}
-      animate={{
-        y: [0, -20, 0],
-        rotate: [0, 10, -10, 0],
-      }}
-      transition={{
-        duration,
-        repeat: Infinity,
-        ease: "easeInOut",
-        delay
-      }}
-    >
-      {children}
-    </motion.div>
-  );
-}
+/* ─── Static data ──────────────────────────── */
 
 const features = [
-  { 
-    icon: <Map className="w-7 h-7" />, 
-    title: 'Virtual Office Space', 
-    description: 'Navigate a 2D office map just like a real workspace. Move around freely and interact with your team.',
-    color: 'from-violet-500 to-purple-600',
-    glow: 'shadow-violet-500/30'
-  },
-  { 
-    icon: <Video className="w-7 h-7" />, 
-    title: 'Seamless Video Calls', 
-    description: 'High-quality video and audio with screen sharing. Proximity-based conversations that feel natural.',
-    color: 'from-cyan-500 to-blue-600',
-    glow: 'shadow-cyan-500/30'
-  },
-  { 
-    icon: <MessageSquare className="w-7 h-7" />, 
-    title: 'Team Chat', 
-    description: 'Real-time messaging with channels and direct messages. Never miss important conversations.',
-    color: 'from-pink-500 to-rose-600',
-    glow: 'shadow-pink-500/30'
-  },
-  { 
-    icon: <Users className="w-7 h-7" />, 
-    title: 'Team Presence', 
-    description: 'See who is online, away, or busy. Know exactly when your teammates are available.',
-    color: 'from-amber-500 to-orange-600',
-    glow: 'shadow-amber-500/30'
-  },
-  { 
-    icon: <Zap className="w-7 h-7" />, 
-    title: 'Lightning Fast', 
-    description: 'Built with modern web technologies for instant load times and smooth interactions.',
-    color: 'from-emerald-500 to-teal-600',
-    glow: 'shadow-emerald-500/30'
-  },
-  { 
-    icon: <Shield className="w-7 h-7" />, 
-    title: 'Enterprise Security', 
-    description: 'End-to-end encryption and SSO support. Your data is always protected.',
-    color: 'from-indigo-500 to-violet-600',
-    glow: 'shadow-indigo-500/30'
-  },
+  { icon: Map, title: 'Virtual Office Space', description: 'Navigate a 2D office map just like a real workspace. Move around freely and interact with your team.', accent: '#8b5cf6' },
+  { icon: Video, title: 'Seamless Video Calls', description: 'High-quality video and audio with screen sharing. Proximity-based conversations that feel natural.', accent: '#06b6d4' },
+  { icon: MessageSquare, title: 'Team Chat', description: 'Real-time messaging with channels and direct messages. Never miss important conversations.', accent: '#ec4899' },
+  { icon: Users, title: 'Team Presence', description: 'See who is online, away, or busy. Know exactly when your teammates are available.', accent: '#f59e0b' },
+  { icon: Zap, title: 'Lightning Fast', description: 'Built with modern web technologies for instant load times and smooth interactions.', accent: '#10b981' },
+  { icon: Shield, title: 'Enterprise Security', description: 'End-to-end encryption and SSO support. Your data is always protected.', accent: '#6366f1' },
 ];
 
 const stats = [
-  { value: '10K+', label: 'Active Teams', icon: Users },
-  { value: '50+', label: 'Countries', icon: Globe },
-  { value: '99.9%', label: 'Uptime', icon: Wifi },
-  { value: '24/7', label: 'Support', icon: Radio },
+  { value: '10K+', label: 'Active Teams', Icon: Users },
+  { value: '50+', label: 'Countries', Icon: Globe },
+  { value: '99.9%', label: 'Uptime', Icon: Wifi },
+  { value: '24/7', label: 'Support', Icon: Radio },
 ];
 
 const pricingPlans = [
-  { 
-    name: 'Starter', 
-    price: 'Free', 
-    features: ['Up to 10 members', '1 office', 'Basic video', 'Team chat', 'Community support'],
-    highlighted: false,
-    icon: Star
-  },
-  { 
-    name: 'Pro', 
-    price: '$12', 
-    period: '/user/month', 
-    features: ['Unlimited members', 'Unlimited offices', 'HD video', 'Screen sharing', 'Priority support', 'Analytics dashboard'],
-    highlighted: true,
-    icon: Rocket
-  },
-  { 
-    name: 'Enterprise', 
-    price: 'Custom', 
-    features: ['Everything in Pro', 'SSO & SAML', 'Advanced analytics', 'Custom integrations', 'SLA guarantee', 'Dedicated manager'],
-    highlighted: false,
-    icon: Crown
-  },
+  { name: 'Starter', price: 'Free', features: ['Up to 10 members', '1 office', 'Basic video', 'Team chat', 'Community support'], highlighted: false, Icon: Star },
+  { name: 'Pro', price: '$12', period: '/user/month', features: ['Unlimited members', 'Unlimited offices', 'HD video', 'Screen sharing', 'Priority support', 'Analytics dashboard'], highlighted: true, Icon: Rocket },
+  { name: 'Enterprise', price: 'Custom', features: ['Everything in Pro', 'SSO & SAML', 'Advanced analytics', 'Custom integrations', 'SLA guarantee', 'Dedicated manager'], highlighted: false, Icon: Crown },
 ];
+
+const steps = [
+  { step: '01', title: 'Create Your Space', description: 'Set up your virtual office in minutes. Customize the layout, add rooms, and make it yours.', Icon: Rocket, accent: '#8b5cf6' },
+  { step: '02', title: 'Invite Your Team', description: 'Send invites to your team members. They can join instantly from anywhere in the world.', Icon: Users, accent: '#06b6d4' },
+  { step: '03', title: 'Start Collaborating', description: 'Move around, start conversations, and work together just like in a physical office.', Icon: Zap, accent: '#ec4899' },
+];
+
+/* ─── Component ────────────────────────────── */
 
 export default function LandingPage() {
   const [user, setUser] = useState<any>(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const supabase = createClient();
-  const heroRef = useRef<HTMLDivElement>(null);
-  
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    checkUser();
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
   }, [supabase]);
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
   return (
-    <div className="min-h-screen relative overflow-hidden bg-dark-bg flex flex-col">
-      <StarField />
-      <FloatingOrbs />
-      
-      {/* Progress Bar */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-cyan-500 to-pink-500 z-[100] origin-left"
-        style={{ scaleX }}
-      />
-      
-      {/* Cursor Glow Effect */}
-      <motion.div
-        className="fixed w-96 h-96 rounded-full pointer-events-none z-0 mix-blend-screen"
-        style={{
-          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%)',
-          left: mousePosition.x - 192,
-          top: mousePosition.y - 192,
-        }}
-        animate={{
-          scale: [1, 1.2, 1],
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
+    <div className="landing-page">
+      {/* ─── CSS-only animated background ─── */}
+      <div className="landing-bg" aria-hidden>
+        <div className="landing-orb landing-orb--purple" />
+        <div className="landing-orb landing-orb--cyan" />
+        <div className="landing-orb landing-orb--pink" />
+        <div className="landing-grid" />
+      </div>
 
-      {/* Navigation */}
-      <motion.nav 
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="fixed top-0 left-0 right-0 z-50 bg-dark-bg/60 backdrop-blur-2xl border-b border-white/5 flex-shrink-0"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <Link href="/" className="flex items-center gap-3 group">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Logo size="md" animated={false} showText={false} variant="glow" />
-              </motion.div>
-              <span className="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                Cosmoffice
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center gap-8">
-              {['Features', 'How it Works', 'Pricing'].map((item, i) => (
-                <motion.a 
-                  key={item}
-                  href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} 
-                  className="text-sm text-slate-400 hover:text-white transition-colors relative group"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 * i + 0.3 }}
-                >
-                  {item}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-violet-500 to-cyan-500 group-hover:w-full transition-all duration-300" />
-                </motion.a>
-              ))}
+      {/* ─── Navigation ─── */}
+      <nav className="landing-nav">
+        <div className="landing-nav__inner">
+          <Link href="/" className="landing-nav__logo">
+            <Logo size="md" animated={false} showText={false} variant="glow" />
+            <span>Cosmoffice</span>
+          </Link>
+
+          <div className="landing-nav__links">
+            {['Features', 'How it Works', 'Pricing'].map(item => (
+              <a key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} className="landing-nav__link">{item}</a>
+            ))}
+          </div>
+
+          <div className="landing-nav__actions">
+            {user ? (
+              <Link href="/office">
+                <Button size="sm" className="landing-btn-primary">Go to Office</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="sm" className="landing-btn-ghost">Sign In</Button>
+                </Link>
+                <Link href="/signup">
+                  <Button size="sm" className="landing-btn-primary">Get Started</Button>
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      <main>
+        {/* ─── Hero ─── */}
+        <section className="landing-hero">
+          <div className="landing-hero__content fade-up">
+            <Logo size="xl" animated={false} showText={false} variant="default" />
+
+            <div className="landing-badge fade-up" style={{ animationDelay: '0.1s' }}>
+              <span className="landing-badge__dot" />
+              Now in Public Beta
             </div>
-            
-            <div className="flex items-center gap-3">
+
+            <h1 className="landing-hero__title fade-up" style={{ animationDelay: '0.15s' }}>
+              <span className="landing-text-white">Your Office in the</span>
+              <br />
+              <span className="landing-text-gradient">Cosmos</span>
+            </h1>
+
+            <p className="landing-hero__subtitle fade-up" style={{ animationDelay: '0.2s' }}>
+              Bring your remote team together in a virtual workspace that feels like a real office.{' '}
+              <strong>Move, meet, and collaborate</strong> like never before.
+            </p>
+
+            <div className="landing-hero__cta fade-up" style={{ animationDelay: '0.3s' }}>
               {user ? (
                 <Link href="/office">
-                  <Button size="sm" className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25">
-                    Go to Office
+                  <Button size="lg" className="landing-btn-primary landing-btn-lg">
+                    Enter Your Office <Rocket className="w-5 h-5" />
                   </Button>
                 </Link>
               ) : (
                 <>
-                  <Link href="/login">
-                    <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white hover:bg-white/5">
-                      Sign In
+                  <Link href="/signup">
+                    <Button size="lg" className="landing-btn-primary landing-btn-lg">
+                      Start Free Trial <ArrowRight className="w-5 h-5" />
                     </Button>
                   </Link>
-                  <Link href="/signup">
-                    <Button size="sm" className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-shadow">
-                      Get Started
+                  <Link href="/login">
+                    <Button variant="outline" size="lg" className="landing-btn-outline landing-btn-lg">
+                      Watch Demo
                     </Button>
                   </Link>
                 </>
               )}
             </div>
           </div>
-        </div>
-      </motion.nav>
 
-      {/* Main Content */}
-      <main className="flex-grow">
-      {/* Hero Section */}
-      <section ref={heroRef} className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        {/* Floating Decorative Icons */}
-        <FloatingIcon x="10%" y="20%" delay={0} duration={5}>
-          <Star className="w-8 h-8 text-violet-400/30" />
-        </FloatingIcon>
-        <FloatingIcon x="85%" y="15%" delay={1} duration={6}>
-          <Satellite className="w-10 h-10 text-cyan-400/30" />
-        </FloatingIcon>
-        <FloatingIcon x="75%" y="60%" delay={2} duration={4.5}>
-          <Triangle className="w-12 h-12 text-pink-400/30 rotate-45" />
-        </FloatingIcon>
-        <FloatingIcon x="5%" y="70%" delay={1.5} duration={5.5}>
-          <Orbit className="w-10 h-10 text-amber-400/30" />
-        </FloatingIcon>
-        <FloatingIcon x="90%" y="80%" delay={0.5} duration={4}>
-          <Cpu className="w-8 h-8 text-emerald-400/30" />
-        </FloatingIcon>
-        <FloatingIcon x="15%" y="40%" delay={0.8} duration={5.2}>
-          <Hexagon className="w-6 h-6 text-purple-400/30" />
-        </FloatingIcon>
-        <FloatingIcon x="80%" y="45%" delay={1.2} duration={4.8}>
-          <Moon className="w-9 h-9 text-indigo-400/30" />
-        </FloatingIcon>
-
-        <div className="max-w-7xl mx-auto text-center relative z-10">
-          <motion.div 
-            initial={{ opacity: 0, y: 30, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="flex justify-center mb-8"
-          >
-            <Logo size="xl" animated={true} showText={false} variant="default" />
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 30, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
-          >
-            <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/20 text-violet-300 text-sm font-medium mb-8 backdrop-blur-sm">
-              <motion.span
-                animate={{ rotate: 360 }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-              >
-                <Sparkles className="w-4 h-4" />
-              </motion.span>
-              Now in Public Beta
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            </span>
-          </motion.div>
-
-          <motion.h1 
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
-            className="text-5xl sm:text-7xl lg:text-8xl font-extrabold tracking-tight mb-8"
-          >
-            <span className="block bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              Your Office in the
-            </span>
-            <span className="block mt-2">
-              <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent animate-gradient">
-                Cosmos
-              </span>
-            </span>
-          </motion.h1>
-
-          <motion.p 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-            className="text-xl sm:text-2xl text-slate-400 max-w-3xl mx-auto mb-12 leading-relaxed"
-          >
-            Bring your remote team together in a virtual workspace that feels like a real office. 
-            <span className="text-slate-300"> Move, meet, and collaborate</span> like never before.
-          </motion.p>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            {user ? (
-              <Link href="/office">
-                <Button 
-                  size="lg" 
-                  className="gap-2 bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 hover:from-violet-600 hover:via-purple-600 hover:to-pink-600 text-white shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50 transition-all duration-300 text-lg px-8 h-14 group"
-                >
-                  Enter Your Office
-                  <motion.span
-                    animate={{ x: [0, 5, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    <Rocket className="w-5 h-5" />
-                  </motion.span>
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/signup">
-                  <Button 
-                    size="lg" 
-                    className="gap-2 bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 hover:from-violet-600 hover:via-purple-600 hover:to-pink-600 text-white shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50 transition-all duration-300 text-lg px-8 h-14 group"
-                  >
-                    Start Free Trial
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button 
-                    variant="outline" 
-                    size="lg"
-                    className="border-slate-700 text-slate-300 hover:text-white hover:border-slate-600 hover:bg-white/5 text-lg px-8 h-14"
-                  >
-                    Watch Demo
-                  </Button>
-                </Link>
-              </>
-            )}
-          </motion.div>
-
-          {/* Hero Visual */}
-          <motion.div 
-            initial={{ opacity: 0, y: 60, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-            className="mt-20 relative"
-          >
-            <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-sm">
-              {/* Window Controls */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-white/5">
-                <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
-                <div className="flex-1" />
-                <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-white/5 text-xs text-slate-400">
+          {/* Mock Office Preview */}
+          <div className="landing-hero__preview fade-up" style={{ animationDelay: '0.45s' }}>
+            <div className="landing-preview">
+              <div className="landing-preview__bar">
+                <div className="landing-preview__dot" style={{ background: '#ef4444' }} />
+                <div className="landing-preview__dot" style={{ background: '#f59e0b' }} />
+                <div className="landing-preview__dot" style={{ background: '#22c55e' }} />
+                <div className="landing-preview__url">
                   <Globe className="w-3 h-3" />
                   cosmoffice.app/office/team
                 </div>
               </div>
-              
-              {/* Mock Content */}
-              <div className="aspect-[16/9] relative overflow-hidden">
-                {/* Grid Background */}
-                <div 
-                  className="absolute inset-0 opacity-20"
-                  style={{
-                    backgroundImage: `
-                      linear-gradient(rgba(139, 92, 246, 0.3) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(139, 92, 246, 0.3) 1px, transparent 1px)
-                    `,
-                    backgroundSize: '40px 40px'
-                  }}
-                />
-                
-                {/* Office Floor Plan Mock */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="relative w-full max-w-4xl h-full p-8">
-                    {/* Office Rooms */}
-                    <motion.div 
-                      className="absolute top-1/4 left-1/4 w-48 h-32 rounded-xl border-2 border-violet-500/30 bg-violet-500/5 flex items-center justify-center"
-                      animate={{ boxShadow: ['0 0 20px rgba(139, 92, 246, 0.2)', '0 0 40px rgba(139, 92, 246, 0.4)', '0 0 20px rgba(139, 92, 246, 0.2)'] }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                    >
-                      <div className="flex items-center gap-2 text-violet-300">
-                        <Video className="w-5 h-5" />
-                        <span className="text-sm">Meeting Room A</span>
-                      </div>
-                    </motion.div>
-                    
-                    <motion.div 
-                      className="absolute top-1/4 right-1/4 w-48 h-32 rounded-xl border-2 border-cyan-500/30 bg-cyan-500/5 flex items-center justify-center"
-                      animate={{ boxShadow: ['0 0 20px rgba(34, 211, 238, 0.2)', '0 0 40px rgba(34, 211, 238, 0.4)', '0 0 20px rgba(34, 211, 238, 0.2)'] }}
-                      transition={{ duration: 3, repeat: Infinity, delay: 1 }}
-                    >
-                      <div className="flex items-center gap-2 text-cyan-300">
-                        <MessageSquare className="w-5 h-5" />
-                        <span className="text-sm">Lounge</span>
-                      </div>
-                    </motion.div>
-                    
-                    <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-96 h-24 rounded-xl border-2 border-pink-500/30 bg-pink-500/5 flex items-center justify-center">
-                      <div className="flex items-center gap-2 text-pink-300">
-                        <Users className="w-5 h-5" />
-                        <span className="text-sm">Open Workspace</span>
-                      </div>
-                    </div>
-                    
-                    {/* User Avatars */}
-                    {[
-                      { x: '30%', y: '35%', color: 'bg-violet-500', name: 'You' },
-                      { x: '35%', y: '40%', color: 'bg-cyan-500', name: 'Alex' },
-                      { x: '70%', y: '35%', color: 'bg-pink-500', name: 'Sam' },
-                      { x: '50%', y: '65%', color: 'bg-amber-500', name: 'Jordan' },
-                    ].map((user, i) => (
-                      <motion.div
-                        key={user.name}
-                        className="absolute"
-                        style={{ left: user.x, top: user.y }}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.8 + i * 0.2 }}
-                      >
-                        <motion.div
-                          className={`w-10 h-10 rounded-full ${user.color} flex items-center justify-center text-white font-bold text-sm shadow-lg cursor-pointer`}
-                          whileHover={{ scale: 1.2 }}
-                          animate={{
-                            y: [0, -5, 0],
-                          }}
-                          transition={{
-                            y: { duration: 2 + i * 0.3, repeat: Infinity, ease: "easeInOut" },
-                          }}
-                        >
-                          {user.name[0]}
-                        </motion.div>
-                        <motion.div
-                          className="absolute -bottom-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-slate-800 text-xs text-slate-300 whitespace-nowrap"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 1.2 + i * 0.2 }}
-                        >
-                          {user.name}
-                        </motion.div>
-                      </motion.div>
-                    ))}
-                  </div>
+              <div className="landing-preview__content">
+                <div className="landing-preview__grid-bg" />
+                {/* Office rooms */}
+                <div className="landing-preview__room landing-preview__room--violet" style={{ top: '20%', left: '15%' }}>
+                  <Video className="w-4 h-4" /> Meeting Room A
                 </div>
+                <div className="landing-preview__room landing-preview__room--cyan" style={{ top: '20%', right: '15%' }}>
+                  <MessageSquare className="w-4 h-4" /> Lounge
+                </div>
+                <div className="landing-preview__room landing-preview__room--pink" style={{ bottom: '20%', left: '50%', transform: 'translateX(-50%)' }}>
+                  <Users className="w-4 h-4" /> Open Workspace
+                </div>
+                {/* Avatars */}
+                {[
+                  { x: '25%', y: '35%', color: '#8b5cf6', name: 'You' },
+                  { x: '30%', y: '42%', color: '#06b6d4', name: 'Alex' },
+                  { x: '70%', y: '30%', color: '#ec4899', name: 'Sam' },
+                  { x: '52%', y: '60%', color: '#f59e0b', name: 'Jordan' },
+                ].map(u => (
+                  <div key={u.name} className="landing-preview__avatar" style={{ left: u.x, top: u.y }}>
+                    <div className="landing-preview__avatar-circle" style={{ background: u.color }}>{u.name[0]}</div>
+                    <span className="landing-preview__avatar-name">{u.name}</span>
+                  </div>
+                ))}
               </div>
             </div>
-            
-            {/* Glow Effect Behind */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-violet-500/20 via-purple-500/20 to-pink-500/20 blur-3xl -z-10 rounded-[3rem]" />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            className="grid grid-cols-2 lg:grid-cols-4 gap-8"
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                className="text-center group"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/20 mb-4 group-hover:scale-110 transition-transform">
-                  <stat.icon className="w-7 h-7 text-violet-400" />
-                </div>
-                <div className="text-4xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-slate-500">{stat.label}</div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-24 px-4 sm:px-6 lg:px-8 relative">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            className="text-center mb-20"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="inline-block px-4 py-2 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm font-medium mb-6">
-              Features
-            </span>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                Everything you need for
-              </span>
-              <br />
-              <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
-                cosmic collaboration
-              </span>
-            </h2>
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-              Powerful features designed to make remote work feel natural and engaging.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <motion.div 
-                key={feature.title} 
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-              >
-                <Card className="h-full p-8 bg-slate-900/40 backdrop-blur-xl border-white/5 hover:border-white/10 transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl">
-                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.color} flex items-center justify-center text-white mb-6 shadow-lg ${feature.glow} group-hover:scale-110 transition-transform`}>
-                    {feature.icon}
-                  </div>
-                  <h3 className="text-xl font-semibold text-white mb-3 group-hover:text-violet-300 transition-colors">
-                    {feature.title}
-                  </h3>
-                  <p className="text-slate-400 leading-relaxed">
-                    {feature.description}
-                  </p>
-                </Card>
-              </motion.div>
-            ))}
+            <div className="landing-preview__glow" />
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* How it Works Section */}
-      <section id="how-it-works" className="py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-500/5 to-transparent" />
-        
-        <div className="max-w-7xl mx-auto relative">
-          <motion.div 
-            className="text-center mb-20"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="inline-block px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-sm font-medium mb-6">
-              How it Works
-            </span>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                Three steps to
-              </span>
-              <br />
-              <span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">
-                launch your office
-              </span>
-            </h2>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { 
-                step: '01', 
-                title: 'Create Your Space', 
-                description: 'Set up your virtual office in minutes. Customize the layout, add rooms, and make it yours.',
-                icon: Rocket,
-                color: 'from-violet-500 to-purple-600'
-              },
-              { 
-                step: '02', 
-                title: 'Invite Your Team', 
-                description: 'Send invites to your team members. They can join instantly from anywhere in the world.',
-                icon: Users,
-                color: 'from-cyan-500 to-blue-600'
-              },
-              { 
-                step: '03', 
-                title: 'Start Collaborating', 
-                description: 'Move around, start conversations, and work together just like in a physical office.',
-                icon: Zap,
-                color: 'from-pink-500 to-rose-600'
-              },
-            ].map((item, index) => (
-              <motion.div
-                key={item.step}
-                className="relative"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.2 }}
-              >
-                {/* Connection Line */}
-                {index < 2 && (
-                  <div className="hidden md:block absolute top-16 left-full w-full h-0.5 bg-gradient-to-r from-white/20 to-transparent" />
-                )}
-                
-                <div className="text-center group">
-                  <div className={`inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br ${item.color} mb-6 shadow-2xl group-hover:scale-110 transition-transform`}>
-                    <item.icon className="w-10 h-10 text-white" />
-                  </div>
-                  <div className="text-5xl font-bold text-white/10 mb-4">{item.step}</div>
-                  <h3 className="text-2xl font-semibold text-white mb-3">{item.title}</h3>
-                  <p className="text-slate-400">{item.description}</p>
+        {/* ─── Stats ─── */}
+        <section className="landing-section">
+          <div className="landing-container">
+            <div className="landing-stats">
+              {stats.map((s, i) => (
+                <div key={s.label} className="landing-stat fade-up" style={{ animationDelay: `${i * 0.08}s` }}>
+                  <div className="landing-stat__icon"><s.Icon className="w-6 h-6" /></div>
+                  <div className="landing-stat__value">{s.value}</div>
+                  <div className="landing-stat__label">{s.label}</div>
                 </div>
-              </motion.div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            className="text-center mb-20"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="inline-block px-4 py-2 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-300 text-sm font-medium mb-6">
-              Pricing
-            </span>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                Simple, transparent
-              </span>
-              <br />
-              <span className="bg-gradient-to-r from-pink-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
-                pricing
-              </span>
-            </h2>
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-              Start free and scale as your team grows. No hidden fees.
-            </p>
-          </motion.div>
+        {/* ─── Features ─── */}
+        <section id="features" className="landing-section">
+          <div className="landing-container">
+            <div className="landing-section-header fade-up">
+              <span className="landing-section-tag" style={{ borderColor: 'rgba(139,92,246,.3)', color: '#a78bfa', background: 'rgba(139,92,246,.08)' }}>Features</span>
+              <h2>
+                <span className="landing-text-white">Everything you need for</span><br />
+                <span className="landing-text-gradient">cosmic collaboration</span>
+              </h2>
+              <p>Powerful features designed to make remote work feel natural and engaging.</p>
+            </div>
+            <div className="landing-features-grid">
+              {features.map((f, i) => (
+                <div key={f.title} className="landing-feature fade-up" style={{ animationDelay: `${i * 0.08}s` }}>
+                  <div className="landing-feature__icon" style={{ background: `linear-gradient(135deg, ${f.accent}, ${f.accent}88)` }}>
+                    <f.icon className="w-6 h-6 text-white" />
+                  </div>
+                  <h3>{f.title}</h3>
+                  <p>{f.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {pricingPlans.map((plan, index) => (
-              <motion.div 
-                key={plan.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className={plan.highlighted ? 'md:-mt-4 md:mb-4' : ''}
-              >
-                <Card className={`h-full p-8 relative overflow-hidden transition-all duration-300 hover:-translate-y-2 ${
-                  plan.highlighted 
-                    ? 'bg-gradient-to-b from-violet-600/20 to-purple-900/20 border-violet-500/50 shadow-2xl shadow-violet-500/20' 
-                    : 'bg-slate-900/40 backdrop-blur-xl border-white/5 hover:border-white/10'
-                }`}>
-                  {plan.highlighted && (
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-cyan-500 to-pink-500" />
-                  )}
-                  
-                  <div className="mb-8">
-                    <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4 ${
-                      plan.highlighted 
-                        ? 'bg-gradient-to-br from-violet-500 to-purple-600' 
-                        : 'bg-white/5'
-                    }`}>
-                      <plan.icon className={`w-6 h-6 ${plan.highlighted ? 'text-white' : 'text-slate-400'}`} />
+        {/* ─── How it Works ─── */}
+        <section id="how-it-works" className="landing-section landing-section--accent">
+          <div className="landing-container">
+            <div className="landing-section-header fade-up">
+              <span className="landing-section-tag" style={{ borderColor: 'rgba(6,182,212,.3)', color: '#67e8f9', background: 'rgba(6,182,212,.08)' }}>How it Works</span>
+              <h2>
+                <span className="landing-text-white">Three steps to</span><br />
+                <span className="landing-text-gradient">launch your office</span>
+              </h2>
+            </div>
+            <div className="landing-steps">
+              {steps.map((s, i) => (
+                <div key={s.step} className="landing-step fade-up" style={{ animationDelay: `${i * 0.12}s` }}>
+                  <div className="landing-step__icon" style={{ background: `linear-gradient(135deg, ${s.accent}, ${s.accent}88)` }}>
+                    <s.Icon className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="landing-step__number">{s.step}</div>
+                  <h3>{s.title}</h3>
+                  <p>{s.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Pricing ─── */}
+        <section id="pricing" className="landing-section">
+          <div className="landing-container">
+            <div className="landing-section-header fade-up">
+              <span className="landing-section-tag" style={{ borderColor: 'rgba(236,72,153,.3)', color: '#f472b6', background: 'rgba(236,72,153,.08)' }}>Pricing</span>
+              <h2>
+                <span className="landing-text-white">Simple, transparent</span><br />
+                <span className="landing-text-gradient">pricing</span>
+              </h2>
+              <p>Start free and scale as your team grows. No hidden fees.</p>
+            </div>
+            <div className="landing-pricing">
+              {pricingPlans.map((plan, i) => (
+                <div key={plan.name} className={`landing-plan fade-up ${plan.highlighted ? 'landing-plan--pro' : ''}`} style={{ animationDelay: `${i * 0.1}s` }}>
+                  {plan.highlighted && <div className="landing-plan__ribbon" />}
+                  <div className="landing-plan__header">
+                    <div className={`landing-plan__icon ${plan.highlighted ? 'landing-plan__icon--pro' : ''}`}>
+                      <plan.Icon className="w-5 h-5" />
                     </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">{plan.name}</h3>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-5xl font-bold text-white">{plan.price}</span>
-                      {plan.period && <span className="text-slate-400">{plan.period}</span>}
+                    <h3>{plan.name}</h3>
+                    <div className="landing-plan__price">
+                      <span>{plan.price}</span>
+                      {plan.period && <small>{plan.period}</small>}
                     </div>
                   </div>
-                  
-                  <ul className="space-y-4 mb-8">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-3 text-slate-300">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                          plan.highlighted ? 'bg-violet-500/20' : 'bg-white/5'
-                        }`}>
-                          <CheckCircle2 className={`w-3.5 h-3.5 ${plan.highlighted ? 'text-violet-400' : 'text-slate-400'}`} />
-                        </div>
-                        {feature}
-                      </li>
+                  <ul>
+                    {plan.features.map(f => (
+                      <li key={f}><CheckCircle2 className="w-4 h-4" />{f}</li>
                     ))}
                   </ul>
-                  
-                  <Button 
-                    variant={plan.highlighted ? 'default' : 'secondary'}
-                    className={`w-full h-12 text-base ${
-                      plan.highlighted 
-                        ? 'bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25' 
-                        : 'bg-white/5 hover:bg-white/10 text-white'
-                    }`}
-                  >
+                  <Button className={`w-full h-12 ${plan.highlighted ? 'landing-btn-primary' : 'landing-btn-secondary'}`}>
                     {plan.name === 'Enterprise' ? 'Contact Sales' : 'Get Started'}
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                    <ArrowUpRight className="w-4 h-4 ml-1" />
                   </Button>
-                </Card>
-              </motion.div>
-            ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-600/10 via-purple-600/10 to-pink-600/10" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-violet-500/10 via-transparent to-transparent" />
-        
-        <motion.div 
-          className="max-w-4xl mx-auto text-center relative"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              Ready to launch your
-            </span>
-            <br />
-            <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
-              virtual office?
-            </span>
-          </h2>
-          <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
-            Join thousands of teams already working in the cosmos. Start your free trial today.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/signup">
-              <Button 
-                size="lg" 
-                className="bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 hover:from-violet-600 hover:via-purple-600 hover:to-pink-600 text-white shadow-2xl shadow-violet-500/30 text-lg px-10 h-14 group"
-              >
-                Get Started Free
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button 
-                variant="outline" 
-                size="lg"
-                className="border-slate-700 text-slate-300 hover:text-white hover:border-slate-600 hover:bg-white/5 text-lg px-10 h-14"
-              >
-                Sign In
-              </Button>
-            </Link>
+        {/* ─── CTA ─── */}
+        <section className="landing-section landing-cta fade-up">
+          <div className="landing-container" style={{ textAlign: 'center' }}>
+            <h2 className="landing-cta__title">
+              <span className="landing-text-white">Ready to launch your</span><br />
+              <span className="landing-text-gradient">virtual office?</span>
+            </h2>
+            <p className="landing-cta__sub">Join thousands of teams already working in the cosmos. Start your free trial today.</p>
+            <div className="landing-hero__cta">
+              <Link href="/signup">
+                <Button size="lg" className="landing-btn-primary landing-btn-lg">
+                  Get Started Free <ArrowRight className="w-5 h-5 ml-1" />
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button variant="outline" size="lg" className="landing-btn-outline landing-btn-lg">Sign In</Button>
+              </Link>
+            </div>
           </div>
-        </motion.div>
-      </section>
+        </section>
       </main>
 
-      {/* Footer */}
-      <footer className="py-16 px-4 sm:px-6 lg:px-8 border-t border-white/5 bg-slate-950 flex-shrink-0">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-12 mb-12">
-            <div className="md:col-span-2">
-              <Link href="/" className="flex items-center gap-3 mb-6">
+      {/* ─── Footer ─── */}
+      <footer className="landing-footer">
+        <div className="landing-container">
+          <div className="landing-footer__grid">
+            <div className="landing-footer__brand">
+              <Link href="/" className="landing-nav__logo" style={{ marginBottom: 16 }}>
                 <Logo size="md" showText={false} variant="glow" />
-                <span className="text-xl font-bold text-white">Cosmoffice</span>
+                <span>Cosmoffice</span>
               </Link>
-              <p className="text-slate-400 max-w-sm mb-6">
-                The next generation virtual office platform for remote teams. Work together, anywhere in the cosmos.
-              </p>
-              <div className="flex items-center gap-4">
-                {['Twitter', 'GitHub', 'Discord'].map((social) => (
-                  <a 
-                    key={social}
-                    href="#" 
-                    className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                  >
-                    <Globe className="w-5 h-5" />
-                  </a>
-                ))}
-              </div>
+              <p>The next generation virtual office platform for remote teams. Work together, anywhere in the cosmos.</p>
             </div>
-            
             <div>
-              <h4 className="text-white font-semibold mb-4">Product</h4>
-              <ul className="space-y-3">
-                {['Features', 'Pricing', 'Security', 'Integrations'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-slate-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
+              <h4>Product</h4>
+              <ul>{['Features', 'Pricing', 'Security', 'Integrations'].map(i => <li key={i}><a href="#">{i}</a></li>)}</ul>
             </div>
-            
             <div>
-              <h4 className="text-white font-semibold mb-4">Company</h4>
-              <ul className="space-y-3">
-                {['About', 'Blog', 'Careers', 'Contact'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-slate-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
+              <h4>Company</h4>
+              <ul>{['About', 'Blog', 'Careers', 'Contact'].map(i => <li key={i}><a href="#">{i}</a></li>)}</ul>
             </div>
           </div>
-          
-          <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-slate-500 text-sm">
-              © 2024 Cosmoffice. All rights reserved.
-            </p>
-            <div className="flex items-center gap-6">
-              <a href="#" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</a>
-              <a href="#" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Terms of Service</a>
+          <div className="landing-footer__bottom">
+            <p>© 2024 Cosmoffice. All rights reserved.</p>
+            <div>
+              <a href="#">Privacy Policy</a>
+              <a href="#">Terms of Service</a>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* ─── Critical CSS (embedded to avoid FOUC) ─── */}
+      <style jsx global>{`
+        /* ─── Animations ─── */
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes orbDrift {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50%      { transform: translate(20px, -15px) scale(1.05); }
+        }
+        @keyframes gradientShift {
+          0%   { background-position: 0% 50%; }
+          50%  { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+
+        .fade-up {
+          opacity: 0;
+          animation: fadeUp 0.6s ease-out forwards;
+        }
+
+        /* ─── Page ─── */
+        .landing-page {
+          min-height: 100vh;
+          position: relative;
+          overflow-x: hidden;
+          background: #020617;
+          color: #e2e8f0;
+          font-family: inherit;
+        }
+
+        /* ─── Background ─── */
+        .landing-bg {
+          position: fixed;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+          overflow: hidden;
+        }
+        .landing-orb {
+          position: absolute;
+          border-radius: 50%;
+          will-change: transform;
+        }
+        .landing-orb--purple {
+          width: 45vw; height: 45vw;
+          top: -15%; right: -10%;
+          background: radial-gradient(circle, rgba(139,92,246,0.2), transparent 70%);
+          animation: orbDrift 25s ease-in-out infinite;
+        }
+        .landing-orb--cyan {
+          width: 50vw; height: 50vw;
+          top: 30%; left: -15%;
+          background: radial-gradient(circle, rgba(6,182,212,0.12), transparent 70%);
+          animation: orbDrift 30s ease-in-out infinite reverse;
+        }
+        .landing-orb--pink {
+          width: 35vw; height: 35vw;
+          bottom: -10%; right: 20%;
+          background: radial-gradient(circle, rgba(236,72,153,0.12), transparent 70%);
+          animation: orbDrift 20s ease-in-out infinite 5s;
+        }
+        .landing-grid {
+          position: absolute;
+          inset: 0;
+          opacity: 0.06;
+          background-image:
+            linear-gradient(rgba(139,92,246,0.5) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(139,92,246,0.5) 1px, transparent 1px);
+          background-size: 50px 50px;
+        }
+
+        /* ─── Nav ─── */
+        .landing-nav {
+          position: fixed;
+          top: 0; left: 0; right: 0;
+          z-index: 50;
+          background: rgba(2,6,23,0.7);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .landing-nav__inner {
+          max-width: 1280px;
+          margin: 0 auto;
+          padding: 0 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          height: 72px;
+        }
+        .landing-nav__logo {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          text-decoration: none;
+        }
+        .landing-nav__logo span {
+          font-size: 1.2rem;
+          font-weight: 700;
+          background: linear-gradient(to right, #fff, #94a3b8);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .landing-nav__links {
+          display: none;
+          gap: 32px;
+        }
+        @media (min-width: 768px) {
+          .landing-nav__links { display: flex; }
+        }
+        .landing-nav__link {
+          font-size: 0.875rem;
+          color: #94a3b8;
+          text-decoration: none;
+          transition: color 0.2s;
+          position: relative;
+        }
+        .landing-nav__link:hover { color: #fff; }
+        .landing-nav__link::after {
+          content: '';
+          position: absolute;
+          bottom: -4px; left: 0;
+          width: 0; height: 2px;
+          background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+          transition: width 0.3s;
+        }
+        .landing-nav__link:hover::after { width: 100%; }
+        .landing-nav__actions { display: flex; gap: 8px; }
+
+        /* ─── Buttons ─── */
+        .landing-btn-primary {
+          background: linear-gradient(135deg, #8b5cf6, #a855f7, #ec4899) !important;
+          color: #fff !important;
+          border: none !important;
+          box-shadow: 0 4px 20px rgba(139,92,246,0.3);
+          transition: box-shadow 0.3s, transform 0.2s !important;
+        }
+        .landing-btn-primary:hover {
+          box-shadow: 0 6px 30px rgba(139,92,246,0.5) !important;
+          transform: translateY(-1px);
+        }
+        .landing-btn-ghost {
+          color: #94a3b8 !important;
+          background: transparent !important;
+        }
+        .landing-btn-ghost:hover { color: #fff !important; background: rgba(255,255,255,0.05) !important; }
+        .landing-btn-outline {
+          border: 1px solid #334155 !important;
+          color: #cbd5e1 !important;
+          background: transparent !important;
+        }
+        .landing-btn-outline:hover {
+          border-color: #475569 !important;
+          color: #fff !important;
+          background: rgba(255,255,255,0.05) !important;
+        }
+        .landing-btn-secondary {
+          background: rgba(255,255,255,0.05) !important;
+          color: #fff !important;
+          border: none !important;
+        }
+        .landing-btn-secondary:hover { background: rgba(255,255,255,0.1) !important; }
+        .landing-btn-lg {
+          font-size: 1.05rem !important;
+          padding: 0 32px !important;
+          height: 52px !important;
+          gap: 8px;
+        }
+
+        /* ─── Hero ─── */
+        .landing-hero {
+          position: relative;
+          z-index: 1;
+          padding: 140px 24px 80px;
+          text-align: center;
+        }
+        .landing-hero__content {
+          max-width: 900px;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+        }
+        .landing-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 18px;
+          border-radius: 999px;
+          background: rgba(139,92,246,0.08);
+          border: 1px solid rgba(139,92,246,0.2);
+          color: #c4b5fd;
+          font-size: 0.85rem;
+          font-weight: 500;
+        }
+        .landing-badge__dot {
+          width: 8px; height: 8px;
+          border-radius: 50%;
+          background: #34d399;
+          animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+        .landing-hero__title {
+          font-size: clamp(2.8rem, 7vw, 5.5rem);
+          font-weight: 800;
+          line-height: 1.05;
+          letter-spacing: -0.03em;
+          margin-top: 8px;
+        }
+        .landing-text-white {
+          background: linear-gradient(to right, #fff, #94a3b8);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .landing-text-gradient {
+          background: linear-gradient(135deg, #a78bfa, #22d3ee, #f472b6);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: gradientShift 4s ease-in-out infinite;
+        }
+        .landing-hero__subtitle {
+          font-size: clamp(1.05rem, 2vw, 1.35rem);
+          color: #94a3b8;
+          max-width: 680px;
+          line-height: 1.7;
+        }
+        .landing-hero__subtitle strong { color: #cbd5e1; font-weight: 500; }
+        .landing-hero__cta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          justify-content: center;
+          margin-top: 8px;
+        }
+
+        /* ─── Preview ─── */
+        .landing-hero__preview {
+          position: relative;
+          max-width: 900px;
+          margin: 48px auto 0;
+          z-index: 1;
+        }
+        .landing-preview {
+          border-radius: 16px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(15,23,42,0.8);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .landing-preview__bar {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 12px 16px;
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+          background: rgba(255,255,255,0.03);
+        }
+        .landing-preview__dot {
+          width: 10px; height: 10px;
+          border-radius: 50%;
+        }
+        .landing-preview__url {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.75rem;
+          color: #64748b;
+          padding: 4px 10px;
+          border-radius: 6px;
+          background: rgba(255,255,255,0.05);
+        }
+        .landing-preview__content {
+          position: relative;
+          aspect-ratio: 16/9;
+          overflow: hidden;
+        }
+        .landing-preview__grid-bg {
+          position: absolute;
+          inset: 0;
+          opacity: 0.12;
+          background-image:
+            linear-gradient(rgba(139,92,246,0.4) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(139,92,246,0.4) 1px, transparent 1px);
+          background-size: 36px 36px;
+        }
+        .landing-preview__room {
+          position: absolute;
+          padding: 16px 24px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.8rem;
+          font-weight: 500;
+        }
+        .landing-preview__room--violet {
+          border: 1.5px solid rgba(139,92,246,0.3);
+          background: rgba(139,92,246,0.06);
+          color: #c4b5fd;
+        }
+        .landing-preview__room--cyan {
+          border: 1.5px solid rgba(6,182,212,0.3);
+          background: rgba(6,182,212,0.06);
+          color: #67e8f9;
+        }
+        .landing-preview__room--pink {
+          border: 1.5px solid rgba(236,72,153,0.3);
+          background: rgba(236,72,153,0.06);
+          color: #f9a8d4;
+          padding: 16px 48px;
+        }
+        .landing-preview__avatar {
+          position: absolute;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+        .landing-preview__avatar-circle {
+          width: 32px; height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          font-size: 0.75rem;
+          font-weight: 700;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .landing-preview__avatar-name {
+          font-size: 0.65rem;
+          color: #94a3b8;
+          background: rgba(15,23,42,0.8);
+          padding: 1px 6px;
+          border-radius: 4px;
+        }
+        .landing-preview__glow {
+          position: absolute;
+          inset: -16px;
+          z-index: -1;
+          background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(168,85,247,0.1), rgba(236,72,153,0.1));
+          border-radius: 28px;
+          filter: blur(40px);
+        }
+
+        /* ─── Sections ─── */
+        .landing-section {
+          position: relative;
+          z-index: 1;
+          padding: 100px 24px;
+        }
+        .landing-section--accent {
+          background: linear-gradient(180deg, transparent, rgba(139,92,246,0.03), transparent);
+        }
+        .landing-container {
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        .landing-section-header {
+          text-align: center;
+          margin-bottom: 64px;
+        }
+        .landing-section-header h2 {
+          font-size: clamp(2rem, 4.5vw, 3.5rem);
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          line-height: 1.15;
+          margin: 16px 0;
+        }
+        .landing-section-header p {
+          font-size: 1.15rem;
+          color: #94a3b8;
+          max-width: 600px;
+          margin: 0 auto;
+        }
+        .landing-section-tag {
+          display: inline-block;
+          padding: 6px 16px;
+          border-radius: 999px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          border: 1px solid;
+        }
+
+        /* ─── Stats ─── */
+        .landing-stats {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 32px;
+        }
+        @media (min-width: 768px) { .landing-stats { grid-template-columns: repeat(4, 1fr); } }
+        .landing-stat { text-align: center; }
+        .landing-stat__icon {
+          width: 48px; height: 48px;
+          border-radius: 14px;
+          background: rgba(139,92,246,0.08);
+          border: 1px solid rgba(139,92,246,0.2);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #a78bfa;
+          margin-bottom: 12px;
+        }
+        .landing-stat__value {
+          font-size: 2.2rem;
+          font-weight: 800;
+          background: linear-gradient(to right, #fff, #94a3b8);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .landing-stat__label { font-size: 0.9rem; color: #64748b; }
+
+        /* ─── Features Grid ─── */
+        .landing-features-grid {
+          display: grid;
+          gap: 20px;
+        }
+        @media (min-width: 640px) { .landing-features-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1024px) { .landing-features-grid { grid-template-columns: repeat(3, 1fr); } }
+        .landing-feature {
+          padding: 32px;
+          border-radius: 20px;
+          background: rgba(15,23,42,0.5);
+          border: 1px solid rgba(255,255,255,0.06);
+          transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+        }
+        .landing-feature:hover {
+          border-color: rgba(255,255,255,0.12);
+          transform: translateY(-4px);
+          box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+        }
+        .landing-feature__icon {
+          width: 48px; height: 48px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 20px;
+        }
+        .landing-feature h3 {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: #fff;
+          margin-bottom: 8px;
+        }
+        .landing-feature p {
+          font-size: 0.9rem;
+          color: #94a3b8;
+          line-height: 1.6;
+        }
+
+        /* ─── Steps ─── */
+        .landing-steps {
+          display: grid;
+          gap: 32px;
+        }
+        @media (min-width: 768px) { .landing-steps { grid-template-columns: repeat(3, 1fr); } }
+        .landing-step {
+          text-align: center;
+        }
+        .landing-step__icon {
+          width: 64px; height: 64px;
+          border-radius: 20px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 16px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        .landing-step__number {
+          font-size: 3rem;
+          font-weight: 800;
+          color: rgba(255,255,255,0.06);
+          line-height: 1;
+          margin-bottom: 8px;
+        }
+        .landing-step h3 {
+          font-size: 1.3rem;
+          font-weight: 700;
+          color: #fff;
+          margin-bottom: 8px;
+        }
+        .landing-step p {
+          font-size: 0.9rem;
+          color: #94a3b8;
+          line-height: 1.6;
+        }
+
+        /* ─── Pricing ─── */
+        .landing-pricing {
+          display: grid;
+          gap: 24px;
+          max-width: 1000px;
+          margin: 0 auto;
+        }
+        @media (min-width: 768px) { .landing-pricing { grid-template-columns: repeat(3, 1fr); } }
+        .landing-plan {
+          padding: 32px;
+          border-radius: 20px;
+          background: rgba(15,23,42,0.5);
+          border: 1px solid rgba(255,255,255,0.06);
+          display: flex;
+          flex-direction: column;
+          transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .landing-plan:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+        }
+        .landing-plan--pro {
+          border-color: rgba(139,92,246,0.4);
+          background: linear-gradient(180deg, rgba(139,92,246,0.1), rgba(88,28,135,0.05));
+          box-shadow: 0 0 40px rgba(139,92,246,0.15);
+          position: relative;
+          overflow: hidden;
+        }
+        @media (min-width: 768px) { .landing-plan--pro { transform: scale(1.04); } }
+        .landing-plan__ribbon {
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 3px;
+          background: linear-gradient(90deg, #8b5cf6, #06b6d4, #ec4899);
+        }
+        .landing-plan__header { margin-bottom: 24px; }
+        .landing-plan__icon {
+          width: 40px; height: 40px;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.05);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #94a3b8;
+          margin-bottom: 12px;
+        }
+        .landing-plan__icon--pro {
+          background: linear-gradient(135deg, #8b5cf6, #a855f7);
+          color: #fff;
+        }
+        .landing-plan__header h3 {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: #fff;
+          margin-bottom: 8px;
+        }
+        .landing-plan__price span {
+          font-size: 2.8rem;
+          font-weight: 800;
+          color: #fff;
+        }
+        .landing-plan__price small {
+          font-size: 0.9rem;
+          color: #64748b;
+          margin-left: 4px;
+        }
+        .landing-plan ul {
+          list-style: none;
+          padding: 0;
+          margin: 0 0 24px;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .landing-plan li {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 0.9rem;
+          color: #cbd5e1;
+        }
+        .landing-plan li svg { color: #64748b; flex-shrink: 0; }
+        .landing-plan--pro li svg { color: #a78bfa; }
+
+        /* ─── CTA ─── */
+        .landing-cta {
+          background: linear-gradient(135deg, rgba(139,92,246,0.06), rgba(168,85,247,0.04), rgba(236,72,153,0.04));
+        }
+        .landing-cta__title {
+          font-size: clamp(2rem, 4.5vw, 3.5rem);
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          line-height: 1.15;
+          margin-bottom: 16px;
+        }
+        .landing-cta__sub {
+          font-size: 1.15rem;
+          color: #94a3b8;
+          max-width: 600px;
+          margin: 0 auto 32px;
+        }
+
+        /* ─── Footer ─── */
+        .landing-footer {
+          position: relative;
+          z-index: 1;
+          padding: 64px 24px;
+          border-top: 1px solid rgba(255,255,255,0.05);
+          background: rgba(2,6,23,0.95);
+        }
+        .landing-footer__grid {
+          display: grid;
+          gap: 40px;
+          margin-bottom: 40px;
+        }
+        @media (min-width: 768px) {
+          .landing-footer__grid { grid-template-columns: 2fr 1fr 1fr; }
+        }
+        .landing-footer__brand p {
+          font-size: 0.9rem;
+          color: #64748b;
+          max-width: 300px;
+          line-height: 1.6;
+        }
+        .landing-footer h4 {
+          font-size: 0.9rem;
+          font-weight: 700;
+          color: #fff;
+          margin-bottom: 16px;
+        }
+        .landing-footer ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .landing-footer a {
+          font-size: 0.85rem;
+          color: #64748b;
+          text-decoration: none;
+          transition: color 0.2s;
+        }
+        .landing-footer a:hover { color: #fff; }
+        .landing-footer__bottom {
+          padding-top: 32px;
+          border-top: 1px solid rgba(255,255,255,0.05);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+        }
+        @media (min-width: 768px) {
+          .landing-footer__bottom { flex-direction: row; justify-content: space-between; }
+        }
+        .landing-footer__bottom p { font-size: 0.8rem; color: #475569; }
+        .landing-footer__bottom div { display: flex; gap: 24px; }
+      `}</style>
     </div>
   );
 }
