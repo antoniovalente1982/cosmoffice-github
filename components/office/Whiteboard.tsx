@@ -627,14 +627,26 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
         ctx.fillText('Cosmoffice Whiteboard', exportCanvas.width / dpr - 12, exportCanvas.height / dpr - 10);
         ctx.restore();
 
-        // Auto-download as PNG
+        // Convert data URL to Blob synchronously (stays in user gesture for Safari)
         const dataUrl = exportCanvas.toDataURL('image/png');
+        const byteString = atob(dataUrl.split(',')[1]);
+        const mimeType = 'image/png';
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mimeType });
+
+        // Create object URL (supports download attribute in all browsers)
+        const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = `cosmoffice-whiteboard-${new Date().toISOString().slice(0, 10)}.png`;
+        a.href = blobUrl;
+        a.download = 'cosmoffice-whiteboard.png';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 200);
     }, []);
 
     // ─── Clear dialog ─────────────────────────────────────────
