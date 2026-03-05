@@ -602,38 +602,42 @@ export default function OfficePage() {
                             </Button>
                             {/* Whiteboard Toggle */}
                             {(
-                                <Button
-                                    variant={isWhiteboardOpen ? "default" : "secondary"}
-                                    size="icon"
-                                    className={`rounded-full w-12 h-12 transition-all glow-button relative ${isWhiteboardOpen ? 'bg-cyan-500/80 hover:bg-cyan-500 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                    onClick={toggleWhiteboard}
-                                    title={isWhiteboardOpen ? 'Chiudi Lavagna' : 'Apri Lavagna'}
-                                >
-                                    <PenTool className="w-5 h-5" />
+                                <div className="relative">
+                                    <Button
+                                        variant={isWhiteboardOpen ? "default" : "secondary"}
+                                        size="icon"
+                                        className={`rounded-full w-12 h-12 transition-all glow-button ${isWhiteboardOpen ? 'bg-cyan-500/80 hover:bg-cyan-500 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                        onClick={toggleWhiteboard}
+                                        title={isWhiteboardOpen ? 'Chiudi Lavagna' : 'Apri Lavagna'}
+                                    >
+                                        <PenTool className="w-5 h-5" />
+                                    </Button>
                                     {wbActiveCount > 0 && !isWhiteboardOpen && (
-                                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-cyan-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(34,211,238,0.5)] animate-pulse">
+                                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-cyan-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(34,211,238,0.5)] animate-pulse pointer-events-none">
                                             {wbActiveCount}
                                         </span>
                                     )}
-                                </Button>
+                                </div>
                             )}
 
                             {/* Chat Toggle */}
                             {(
-                                <Button
-                                    variant={isChatOpen ? "default" : "secondary"}
-                                    size="icon"
-                                    className={`rounded-full w-12 h-12 transition-all glow-button relative ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                    onClick={toggleChat}
-                                    title={isChatOpen ? 'Chiudi Chat' : 'Apri Chat'}
-                                >
-                                    <MessageCircle className="w-5 h-5" />
+                                <div className="relative">
+                                    <Button
+                                        variant={isChatOpen ? "default" : "secondary"}
+                                        size="icon"
+                                        className={`rounded-full w-12 h-12 transition-all glow-button ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                        onClick={toggleChat}
+                                        title={isChatOpen ? 'Chiudi Chat' : 'Apri Chat'}
+                                    >
+                                        <MessageCircle className="w-5 h-5" />
+                                    </Button>
                                     {totalChatUnread > 0 && (
-                                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse">
+                                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse pointer-events-none">
                                             {totalChatUnread > 99 ? '99+' : totalChatUnread}
                                         </span>
                                     )}
-                                </Button>
+                                </div>
                             )}
 
 

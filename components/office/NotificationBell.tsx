@@ -81,8 +81,7 @@ export default function NotificationBell() {
                     style={{
                         width: 320,
                         maxHeight: 420,
-                        background: 'rgba(15, 23, 42, 0.96)',
-                        backdropFilter: 'blur(20px)',
+                        background: 'rgba(15, 23, 42, 0.98)',
                         borderRadius: 16,
                         border: '1px solid rgba(255,255,255,0.08)',
                         boxShadow: '0 20px 50px rgba(0,0,0,0.5)',

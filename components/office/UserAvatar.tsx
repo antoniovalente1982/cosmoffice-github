@@ -138,6 +138,8 @@ function UserAvatarInner({
                 pointerEvents: (onMouseDown || onClick) ? 'auto' : 'none',
                 cursor: isDragging ? 'grabbing' : onMouseDown ? 'grab' : onClick && !isMe ? 'pointer' : 'default',
                 transition: 'none',
+                willChange: 'transform',
+                transform: 'translateZ(0)',
             }}
             onMouseDown={(e) => {
                 if (popupRef.current?.contains(e.target as Node)) return;
@@ -283,8 +285,7 @@ function UserAvatarInner({
                             alignItems: 'center',
                             gap: 10,
                             padding: '8px 10px 8px 14px',
-                            background: 'rgba(15, 23, 42, 0.95)',
-                            backdropFilter: 'blur(16px)',
+                            background: 'rgba(15, 23, 42, 0.97)',
                             borderRadius: 14,
                             border: '1px solid rgba(255,255,255,0.1)',
                             boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',

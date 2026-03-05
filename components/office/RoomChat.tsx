@@ -58,8 +58,7 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (emoji: string) => void;
                 gap: '4px',
                 padding: '8px',
                 width: '244px',
-                background: 'rgba(15, 20, 40, 0.95)',
-                backdropFilter: 'blur(20px)',
+                background: 'rgba(15, 20, 40, 0.98)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 animation: 'chatSlideUp 0.15s ease-out forwards',
             }}
@@ -226,9 +225,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                 <div
                     className="fixed bottom-32 right-6 z-[199] w-[380px] max-h-[480px] rounded-2xl flex flex-col overflow-hidden shadow-2xl"
                     style={{
-                        background: 'rgba(10, 15, 30, 0.88)',
-                        backdropFilter: 'blur(40px)',
-                        WebkitBackdropFilter: 'blur(40px)',
+                        background: 'rgba(10, 15, 30, 0.97)',
                         border: '1px solid rgba(255, 255, 255, 0.08)',
                         animation: 'chatSlideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                     }}

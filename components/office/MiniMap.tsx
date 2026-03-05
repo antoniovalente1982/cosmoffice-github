@@ -138,9 +138,7 @@ function MiniMapInner() {
             <div
                 className="overflow-hidden transition-all duration-300"
                 style={{
-                    background: 'rgba(10, 15, 30, 0.92)',
-                    backdropFilter: 'blur(24px)',
-                    WebkitBackdropFilter: 'blur(24px)',
+                    background: 'rgba(10, 15, 30, 0.96)',
                     borderRadius: 16,
                     border: '1px solid rgba(255,255,255,0.08)',
                     boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03) inset',

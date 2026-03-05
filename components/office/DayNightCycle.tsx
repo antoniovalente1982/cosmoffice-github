@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 // ============================================
 // DayNightCycle — ambient lighting overlay
 // Changes office ambiance based on real time
+// OPTIMIZED: fewer stars, no backdrop-filter,
+// pre-computed star positions via useMemo
 // ============================================
 
 function getTimePhase(hour: number): { name: string; overlay: string; stars: boolean } {
@@ -17,62 +19,76 @@ function getTimePhase(hour: number): { name: string; overlay: string; stars: boo
     return { name: 'night', overlay: 'rgba(10, 15, 40, 0.12)', stars: true };
 }
 
+// Pre-generate star data once (stable across renders)
+const STAR_DATA = Array.from({ length: 12 }, (_, i) => ({
+    key: i,
+    width: `${1 + (((i * 7 + 3) % 5) / 5) * 2}px`,
+    height: `${1 + (((i * 7 + 3) % 5) / 5) * 2}px`,
+    left: `${((i * 37 + 11) % 100)}%`,
+    top: `${((i * 53 + 7) % 100)}%`,
+    opacity: 0.2 + ((i * 13 + 5) % 10) / 20,
+    animDelay: `${(i * 1.3) % 4}s`,
+    animDuration: `${3 + (i % 3)}s`,
+}));
+
 export function DayNightCycle() {
     const [phase, setPhase] = useState(() => getTimePhase(new Date().getHours()));
+    const [timeStr, setTimeStr] = useState(() => new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }));
 
     useEffect(() => {
-        const update = () => setPhase(getTimePhase(new Date().getHours()));
-        const interval = setInterval(update, 60000); // check every minute
+        const update = () => {
+            setPhase(getTimePhase(new Date().getHours()));
+            setTimeStr(new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }));
+        };
+        const interval = setInterval(update, 60000);
         return () => clearInterval(interval);
     }, []);
+
+    const phaseEmoji = phase.name === 'dawn' ? '🌅' :
+        phase.name === 'morning' ? '☀️' :
+            phase.name === 'afternoon' ? '🌤️' :
+                phase.name === 'sunset' ? '🌇' :
+                    phase.name === 'dusk' ? '🌆' : '🌙';
 
     return (
         <>
             {/* Ambient overlay */}
             <div
-                className="absolute inset-0 pointer-events-none z-[1] transition-all duration-[3000ms]"
-                style={{ backgroundColor: phase.overlay }}
+                className="absolute inset-0 pointer-events-none z-[1]"
+                style={{ backgroundColor: phase.overlay, transition: 'background-color 3s' }}
             />
 
-            {/* Stars (night/dusk only) */}
+            {/* Stars (night/dusk only) — reduced count, pre-computed positions */}
             {phase.stars && (
                 <div className="absolute inset-0 pointer-events-none z-[1] overflow-hidden">
-                    {Array.from({ length: 30 }).map((_, i) => (
+                    {STAR_DATA.map(star => (
                         <div
-                            key={i}
+                            key={star.key}
                             className="absolute rounded-full bg-white"
                             style={{
-                                width: `${1 + Math.random() * 2}px`,
-                                height: `${1 + Math.random() * 2}px`,
-                                left: `${Math.random() * 100}%`,
-                                top: `${Math.random() * 100}%`,
-                                opacity: 0.2 + Math.random() * 0.5,
-                                animation: `starTwinkle ${2 + Math.random() * 4}s ease-in-out infinite ${Math.random() * 3}s`,
+                                width: star.width,
+                                height: star.height,
+                                left: star.left,
+                                top: star.top,
+                                opacity: star.opacity,
+                                animation: `starTwinkle ${star.animDuration} ease-in-out infinite ${star.animDelay}`,
                             }}
                         />
                     ))}
                 </div>
             )}
 
-            {/* Time indicator — bottom right */}
+            {/* Time indicator — bottom right — NO backdrop-filter */}
             <div className="absolute bottom-4 right-4 z-[2] flex items-center gap-2 px-4 py-2 rounded-2xl border border-white/10 pointer-events-none"
-                style={{ background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(12px)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-                <span className="text-lg leading-none">
-                    {phase.name === 'dawn' ? '🌅' :
-                        phase.name === 'morning' ? '☀️' :
-                            phase.name === 'afternoon' ? '🌤️' :
-                                phase.name === 'sunset' ? '🌇' :
-                                    phase.name === 'dusk' ? '🌆' : '🌙'}
-                </span>
-                <span className="text-sm font-semibold text-white/80 tabular-nums tracking-wide">
-                    {new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                style={{ background: 'rgba(15, 23, 42, 0.85)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+                <span className="text-lg leading-none">{phaseEmoji}</span>
+                <span className="text-sm font-semibold text-white/80 tabular-nums tracking-wide">{timeStr}</span>
             </div>
 
             <style jsx global>{`
                 @keyframes starTwinkle {
-                    0%, 100% { opacity: 0.2; transform: scale(1); }
-                    50% { opacity: 0.8; transform: scale(1.3); }
+                    0%, 100% { opacity: 0.2; }
+                    50% { opacity: 0.7; }
                 }
             `}</style>
         </>

@@ -361,6 +361,19 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                 userName: `${displayName}|${supabaseUserId || 'unknown'}`,
                 startVideoOff: !dailyState.isVideoOn,
                 startAudioOff: !dailyState.isAudioOn,
+                // ─── Performance: constrain video to small avatar tiles ───
+                // Avatars are ~64px circles — no need for HD video
+                sendSettings: {
+                    video: {
+                        maxQuality: 'low',       // ~320x240
+                        encodings: {
+                            low: {
+                                maxBitrate: 150_000,   // 150kbps max
+                                maxFramerate: 15,       // 15fps is enough for tiny avatars
+                            },
+                        },
+                    },
+                },
                 ...(supabaseUserId ? { userData: { supabaseUserId } } : {}),
             } as any);
 

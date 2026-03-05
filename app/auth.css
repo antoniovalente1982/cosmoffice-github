@@ -274,6 +274,17 @@
     color: #334155;
 }
 
+/* Override browser autofill white background */
+.auth-input-wrap input:-webkit-autofill,
+.auth-input-wrap input:-webkit-autofill:hover,
+.auth-input-wrap input:-webkit-autofill:focus,
+.auth-input-wrap input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px rgba(2, 6, 23, 0.95) inset !important;
+    -webkit-text-fill-color: #e2e8f0 !important;
+    caret-color: #e2e8f0;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
 /* ─── Error ─── */
 .auth-error {
     display: flex;

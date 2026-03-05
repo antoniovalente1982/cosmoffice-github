@@ -178,8 +178,8 @@ export function PixiOffice() {
             await app.init({
                 canvas: canvasRef.current!,
                 background: 0x050a15,
-                antialias: true,
-                resolution: Math.min(window.devicePixelRatio, 2),
+                antialias: false,
+                resolution: 1,
                 autoDensity: true,
                 resizeTo: containerRef.current!,
             });
@@ -229,7 +229,7 @@ export function PixiOffice() {
             drawSpaceship(spaceshipContainer, padPos.x, padPos.y, 0, useWorkspaceStore.getState().landingPadScale);
 
             // Initialize particles
-            particlesRef.current = createParticles(60, oW, oH);
+            particlesRef.current = createParticles(20, oW, oH);
 
             // Draw platform ONCE (static)
             if (platformGfxRef.current) {
@@ -244,52 +244,52 @@ export function PixiOffice() {
 
             // ─── Render loop ─────────────────────────────────────
             let frameCount = 0;
+            app.ticker.maxFPS = 30; // Cap at 30fps — more than enough for office
             app.ticker.add(() => {
                 const curZoom = zoomRef.current;
                 const curPos = stagePosRef.current;
 
-                // Update world transform
+                // Update world transform (every frame for smooth panning)
                 if (worldRef.current) {
                     worldRef.current.position.set(curPos.x, curPos.y);
                     worldRef.current.scale.set(curZoom);
                 }
 
                 frameCount++;
-                if (frameCount % 4 === 0) {
-                    // Particles at ~15fps
+
+                // Particles + Spaceship at ~4fps (every 8th frame at 30fps)
+                if (frameCount % 8 === 0) {
                     if (particleGfxRef.current) {
                         updateParticles(particleGfxRef.current, particlesRef.current, oW, oH, useWorkspaceStore.getState().isPerformanceMode);
                     }
-
-                    // Spaceship beam animation
                     if (spaceshipRef.current) {
                         spaceshipFrameRef.current = frameCount;
                         const padPos = useWorkspaceStore.getState().landingPad;
                         drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount, useWorkspaceStore.getState().landingPadScale);
                     }
+                }
 
-                    // Proximity aura — runs EVERY FRAME so aura has no position lag
-                    if (auraRef.current) {
-                        try {
-                            const avatarState = useAvatarStore.getState();
-                            const dailyState = useDailyStore.getState();
-                            const wsState = useWorkspaceStore.getState();
-                            const myPos = avatarState.myPosition;
+                // Proximity aura at ~7fps (every 4th frame at 30fps)
+                if (frameCount % 4 === 0 && auraRef.current) {
+                    try {
+                        const avatarState = useAvatarStore.getState();
+                        const dailyState = useDailyStore.getState();
+                        const wsState = useWorkspaceStore.getState();
+                        const myPos = avatarState.myPosition;
 
-                            let auraState: AuraVisualState = 'idle';
-                            if (avatarState.myDnd) auraState = 'dnd';
-                            else if (avatarState.myRoomId) auraState = 'none';
-                            else if (dailyState.activeContext === 'proximity') auraState = 'active';
+                        let auraState: AuraVisualState = 'idle';
+                        if (avatarState.myDnd) auraState = 'dnd';
+                        else if (avatarState.myRoomId) auraState = 'none';
+                        else if (dailyState.activeContext === 'proximity') auraState = 'active';
 
-                            const roomRects = (wsState.rooms || []).map((r: any) => ({
-                                x: r.x, y: r.y, width: r.width, height: r.height,
-                            }));
+                        const roomRects = (wsState.rooms || []).map((r: any) => ({
+                            x: r.x, y: r.y, width: r.width, height: r.height,
+                        }));
 
-                            auraRef.current.setState(auraState);
-                            auraRef.current.update(16, myPos.x, myPos.y, roomRects);
-                        } catch (e) {
-                            console.warn('[Aura] Error in aura update:', e);
-                        }
+                        auraRef.current.setState(auraState);
+                        auraRef.current.update(16, myPos.x, myPos.y, roomRects);
+                    } catch (e) {
+                        console.warn('[Aura] Error in aura update:', e);
                     }
                 }
             });
@@ -733,7 +733,7 @@ export function PixiOffice() {
             {/* HUD Top-left */}
             <div className="absolute top-4 left-4 pointer-events-none z-10">
                 <div className="px-4 py-2.5 rounded-xl border border-white/10 shadow-2xl flex items-center gap-3"
-                    style={{ background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(20px)' }}>
+                    style={{ background: 'rgba(15, 23, 42, 0.9)' }}>
                     <div className="flex items-center gap-2 border-r border-white/10 pr-3">
                         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
                         <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Live</span>
@@ -830,9 +830,8 @@ export function PixiOffice() {
                                 width: 100, height: 32,
                                 zIndex: 160, pointerEvents: 'auto',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                                background: 'rgba(10, 15, 30, 0.9)',
+                                background: 'rgba(10, 15, 30, 0.95)',
                                 borderRadius: 8, border: '1px solid rgba(6, 182, 212, 0.4)',
-                                backdropFilter: 'blur(8px)',
                             }}
                         >
                             <button
