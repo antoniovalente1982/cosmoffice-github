@@ -49,9 +49,6 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     body.roundRect(room.x, room.y, room.width, room.height, 16);
     body.fill({ color: colorNum, alpha: isHovered ? 0.12 : 0.05 });
 
-    // ─── Premium Glass Shine (Top Edge Glow) ────────────────
-    body.roundRect(room.x + 1, room.y + 1, room.width - 2, 2, 8);
-    body.fill({ color: 0xffffff, alpha: isHovered ? 0.25 : 0.15 });
 
     // ─── Border — thick and glowing ─────────────────────────
     body.roundRect(room.x, room.y, room.width, room.height, 16);
@@ -69,13 +66,13 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     // ─── Room name — above the room, left-aligned ─────────
     const nameStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 14,
+        fontSize: 18,
         fontWeight: '700',
         fill: 0xffffff,
         letterSpacing: 0.3,
     });
     const nameText = new Text({ text: room.name, style: nameStyle });
-    nameText.position.set(room.x + 2, room.y - 34);
+    nameText.position.set(room.x + 2, room.y - 40);
     container.addChild(nameText);
 
     // ─── Subtitle line: DEPARTMENT · TYPE — below name ────
@@ -86,7 +83,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
 
     const subStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 9,
+        fontSize: 10,
         fontWeight: '600',
         fill: hexColor(color),
         letterSpacing: 1.2,
