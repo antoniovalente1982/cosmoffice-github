@@ -106,10 +106,9 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             token,
             invite_type: 'link',
             max_uses: linkMaxUses,
+            expires_at: expiresAt,
             label: `Link ${inviteRole} - ${new Date().toLocaleDateString('it-IT')}`,
         };
-
-        if (expiresAt) insertData.expires_at = expiresAt;
 
         const { error } = await supabase
             .from('workspace_invitations')
@@ -139,7 +138,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             .select('*')
             .eq('workspace_id', workspaceId)
             .is('revoked_at', null)
-            .gte('expires_at', new Date().toISOString())
+            .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
             .order('invited_at', { ascending: false })
             .limit(20);
         setActiveInvites(data || []);
