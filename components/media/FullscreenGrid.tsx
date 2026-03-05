@@ -22,6 +22,29 @@ interface GridParticipant {
 function GridTile({ participant }: { participant: GridParticipant }) {
     const videoElRef = useRef<HTMLVideoElement | null>(null);
     const { stream, fullName, initials, isMe, audioEnabled, isSpeaking, videoEnabled, avatarUrl } = participant;
+    // Stabilize video visibility: hold "video on" for 2s after losing track
+    // to prevent flickering during reconnection
+    const [stableVideo, setStableVideo] = React.useState(false);
+    const stableTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const rawHasVideo = videoEnabled && stream && stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
+
+    useEffect(() => {
+        if (rawHasVideo) {
+            // Video is live → show immediately, clear any pending hide
+            if (stableTimerRef.current) { clearTimeout(stableTimerRef.current); stableTimerRef.current = null; }
+            setStableVideo(true);
+        } else if (stableVideo) {
+            // Video just went away → delay hiding by 2s to absorb reconnection flicker
+            if (!stableTimerRef.current) {
+                stableTimerRef.current = setTimeout(() => {
+                    setStableVideo(false);
+                    stableTimerRef.current = null;
+                }, 2000);
+            }
+        }
+        return () => { if (stableTimerRef.current) clearTimeout(stableTimerRef.current); };
+    }, [rawHasVideo]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const el = videoElRef.current;
@@ -37,7 +60,7 @@ function GridTile({ participant }: { participant: GridParticipant }) {
         }
     }, [stream]);
 
-    const hasActiveVideo = videoEnabled && stream && stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
+    const hasActiveVideo = stableVideo && stream;
 
     return (
         <div className={`
@@ -191,7 +214,7 @@ export function FullscreenGrid() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="fixed inset-0 z-[100] flex flex-col"
+                    className="fixed inset-0 z-[90] flex flex-col pb-28"
                     style={{
                         background: 'linear-gradient(135deg, #0a0f1e 0%, #050a15 50%, #0f172a 100%)',
                     }}

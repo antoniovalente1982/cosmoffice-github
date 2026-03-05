@@ -309,14 +309,9 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         }
     }, [spaceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // ─── Pre-cache a lobby room URL on mount (FREE — just an API call) ─
-    useEffect(() => {
-        if (!spaceId) return;
-        const roomName = `co-${spaceId.slice(0, 8)}-lobby`;
-        ensureRoom(roomName).then(url => {
-            if (url) console.log('[Daily] Lobby room URL pre-cached (no billing)');
-        });
-    }, [spaceId, ensureRoom]);
+    // NOTE: Lobby room pre-caching REMOVED — it caused unnecessary Daily.co
+    // API calls (and billing) on every office entry even with mic/cam off.
+    // Rooms are created on-demand via joinDailyContext when user enables media.
 
     // ─── Join a Daily.co context (room or proximity group) ─────
     const joinDailyContext = useCallback(async (contextType: 'room' | 'proximity', contextId: string) => {
@@ -657,30 +652,30 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         return () => clearInterval(retryInterval);
     }, [isAudioOn, isVideoOn, joinDailyContext]);
 
-    // ─── Watch proximity group changes while media is ON ─────
-    // If user has mic/cam on and walks away from everyone, disconnect.
-    // If user has mic/cam on and walks near someone new, connect.
+    // ─── Watch proximity group changes ────────────────────────
+    // Keeps Daily in sync with proximity: join when near, leave when far.
+    // Media state (mic/cam) is PRESERVED so reconnection is seamless.
     useEffect(() => {
         const unsubscribe = useAvatarStore.subscribe((state, prevState) => {
-            const anyMediaOn = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
-            if (!anyMediaOn) return; // No media = no Daily needed
-
             const newGroup = state.myProximityGroupId;
             const oldGroup = prevState.myProximityGroupId;
             const dailyStore = useDailyStore.getState();
+            const anyMediaOn = dailyStore.isAudioOn || dailyStore.isVideoOn;
 
             // Skip if in a room (rooms manage their own Daily connection below)
             if (state.myRoomId) return;
 
             if (newGroup && newGroup !== oldGroup) {
-                // New proximity group while media is on → join Daily
-                joinDailyContext('proximity', newGroup);
+                // New proximity group formed → join Daily (only if media is on)
+                if (anyMediaOn) {
+                    joinDailyContext('proximity', newGroup);
+                }
             } else if (!newGroup && oldGroup && dailyStore.activeContext === 'proximity') {
-                // Left proximity while media is on → leave Daily + turn off media buttons
-                // This STOPS BILLING — user must re-press mic/cam when near someone again
+                // Left proximity → leave Daily (STOP BILLING)
+                // But do NOT reset isAudioOn/isVideoOn — preserve user intent.
+                // When proximity reforms, we auto-reconnect with previous media state.
                 leaveDailyContext();
-                useDailyStore.setState({ isAudioOn: false, isVideoOn: false, isScreenSharing: false });
-                console.log('[Daily] Walked away → left proximity, billing stopped, media reset');
+                console.log('[Daily] Walked away → left proximity, billing stopped (media state preserved)');
             }
         });
         return unsubscribe;
@@ -727,9 +722,8 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                         console.log('[Daily] Left room with media → switched to proximity');
                     } else if (joinedRef.current) {
                         leaveDailyContext();
-                        // Turn off media buttons to STOP BILLING
-                        useDailyStore.setState({ isAudioOn: false, isVideoOn: false, isScreenSharing: false });
-                        console.log('[Daily] Left room → no one nearby, billing stopped, media reset');
+                        // Do NOT reset media state — preserve user intent for seamless reconnection
+                        console.log('[Daily] Left room → no one nearby, billing stopped (media state preserved)');
                     }
                 }
             }, 300);

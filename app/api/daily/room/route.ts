@@ -55,7 +55,8 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({
                 name: sanitized,
                 properties: {
-                    exp: Math.floor(Date.now() / 1000) + 86400,
+                    // 7 days expiration — avoids daily room recreation API calls
+                    exp: Math.floor(Date.now() / 1000) + 604800,
                     start_audio_off: true,
                     start_video_off: true,
                 },

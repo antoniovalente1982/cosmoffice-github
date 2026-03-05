@@ -461,13 +461,13 @@ export default class AvatarServer {
                     timestamp: new Date().toISOString(),
                 };
 
-                // Broadcast ONLY to users in the same roomId
-                this.sendToRoomOccupants(targetRoomId, { type: "chat_message", message: chatMsg });
+                // Broadcast to room occupants EXCLUDING the sender (they already have the optimistic message)
+                this.sendToRoomOccupants(targetRoomId, { type: "chat_message", message: chatMsg }, userId);
                 break;
             }
 
             case "office_chat": {
-                // Global office-wide chat → broadcast to ALL connections
+                // Global office-wide chat → broadcast to ALL connections EXCEPT sender
                 const userId = parsed.userId;
                 const user = this.users.get(userId);
 
@@ -482,7 +482,7 @@ export default class AvatarServer {
                 };
 
                 const outMsg: OutgoingMessage = { type: "office_chat_message", message: chatMsg };
-                this.party.broadcast(JSON.stringify(outMsg));
+                this.party.broadcast(JSON.stringify(outMsg), [sender.id]);
                 break;
             }
 
