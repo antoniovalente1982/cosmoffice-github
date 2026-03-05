@@ -588,7 +588,7 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
     const handleUndo = useCallback(() => { storeUndo(); }, [storeUndo]);
     const handleRedo = useCallback(() => { storeRedo(); }, [storeRedo]);
 
-    // ─── Export PNG (with dark background) ────────────────────
+    // ─── Screenshot → opens in new tab as viewable image ──────
     const handleExport = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -627,10 +627,12 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
         ctx.fillText('Cosmoffice Whiteboard', exportCanvas.width / dpr - 12, exportCanvas.height / dpr - 10);
         ctx.restore();
 
-        const link = document.createElement('a');
-        link.download = `cosmoffice-whiteboard-${new Date().toISOString().slice(0, 10)}.png`;
-        link.href = exportCanvas.toDataURL('image/png');
-        link.click();
+        // Open in new tab as a viewable image
+        exportCanvas.toBlob((blob) => {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        }, 'image/png');
     }, []);
 
     // ─── Clear dialog ─────────────────────────────────────────
@@ -727,7 +729,7 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
                         )}
                         <button onClick={handleExport}
                             className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-cyan-300 hover:bg-cyan-500/10 transition-all"
-                            title="Esporta PNG"><Download className="w-3.5 h-3.5" /></button>
+                            title="Screenshot lavagna"><Download className="w-3.5 h-3.5" /></button>
                         <button onClick={toggleFullscreen}
                             className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-cyan-300 hover:bg-cyan-500/10 transition-all"
                             title={isFullscreen ? 'Riduci' : 'Fullscreen'}>
