@@ -94,6 +94,16 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
     } = useWhiteboardStore();
 
     const myRoomId = useAvatarStore(s => s.myRoomId);
+    const prevRoomIdRef2 = useRef(myRoomId);
+
+    // Auto-close whiteboard when leaving a room
+    useEffect(() => {
+        if (prevRoomIdRef2.current && prevRoomIdRef2.current !== myRoomId) {
+            // User left a room — close whiteboard
+            closeWhiteboard();
+        }
+        prevRoomIdRef2.current = myRoomId;
+    }, [myRoomId, closeWhiteboard]);
 
     const { strokes, sendStroke, sendCursor, sendActivity, sendStrokeUpdate, clearAllStrokes, isLoading } = useWhiteboard({
         workspaceId,
