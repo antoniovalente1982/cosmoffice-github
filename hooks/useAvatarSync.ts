@@ -446,7 +446,15 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     if (msg.userId === userId) return;
                     const myRoom = useAvatarStore.getState().myRoomId;
                     if (myRoom && (msg.roomId === myRoom)) {
-                        playKnockSound();
+                        // Cooldown: max 1 knock sound per room per 10 seconds
+                        const knockKey = `${msg.userId}-${msg.roomId}`;
+                        const now = Date.now();
+                        const lastKnock = (window as any).__lastKnockTimes?.get(knockKey) || 0;
+                        if (now - lastKnock > 10000) {
+                            if (!(window as any).__lastKnockTimes) (window as any).__lastKnockTimes = new Map();
+                            (window as any).__lastKnockTimes.set(knockKey, now);
+                            playKnockSound();
+                        }
                     }
                     // Also trigger knock UI notification
                     const handleKnockFn = (window as any).__handleKnockRequest;

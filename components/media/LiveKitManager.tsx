@@ -326,7 +326,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 facingMode: 'user',
             },
             publishDefaults: {
-                videoSimulcastLayers: [],
+                // Simulcast: sends 3 quality layers (high/mid/low) — server picks best for each viewer
                 videoCodec: 'vp8',
                 dtx: true,
                 red: true,
@@ -522,26 +522,53 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
         return () => clearInterval(retryInterval);
     }, [isAudioOn, isVideoOn, joinContext]);
 
-    // ─── Watch proximity group changes ──────────────────────────
+    // ─── Watch proximity group changes (debounced) ───────────────
+    const proxDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     useEffect(() => {
         const unsubscribe = useAvatarStore.subscribe((state, prevState) => {
             const newGroup = state.myProximityGroupId;
             const oldGroup = prevState.myProximityGroupId;
+            if (newGroup === oldGroup) return;
+
             const dailyStore = useDailyStore.getState();
             const anyMediaOn = dailyStore.isAudioOn || dailyStore.isVideoOn;
-
             if (state.myRoomId) return;
 
-            if (newGroup && newGroup !== oldGroup) {
+            if (proxDebounceRef.current) {
+                clearTimeout(proxDebounceRef.current);
+                proxDebounceRef.current = null;
+            }
+
+            if (newGroup) {
                 if (anyMediaOn) {
-                    joinContext('proximity', newGroup);
+                    // Debounce proximity joins to prevent flicker at border
+                    proxDebounceRef.current = setTimeout(() => {
+                        proxDebounceRef.current = null;
+                        const still = useAvatarStore.getState();
+                        const stillMedia = useDailyStore.getState();
+                        if (still.myProximityGroupId === newGroup && !still.myRoomId &&
+                            (stillMedia.isAudioOn || stillMedia.isVideoOn)) {
+                            joinContext('proximity', newGroup);
+                        }
+                    }, 500);
                 }
-            } else if (!newGroup && oldGroup && dailyStore.activeContext === 'proximity') {
-                leaveContext();
-                console.log('[LiveKit] Walked away → disconnected (media state preserved)');
+            } else if (oldGroup && dailyStore.activeContext === 'proximity') {
+                // Left proximity — disconnect after short delay
+                proxDebounceRef.current = setTimeout(() => {
+                    proxDebounceRef.current = null;
+                    const still = useAvatarStore.getState();
+                    if (!still.myProximityGroupId && !still.myRoomId) {
+                        leaveContext();
+                        console.log('[LiveKit] Walked away → disconnected (media state preserved)');
+                    }
+                }, 500);
             }
         });
-        return unsubscribe;
+        return () => {
+            unsubscribe();
+            if (proxDebounceRef.current) clearTimeout(proxDebounceRef.current);
+        };
     }, [joinContext, leaveContext]);
 
     // ─── Watch room changes (debounced) ─────────────────────────
@@ -579,7 +606,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                         console.log('[LiveKit] Left room → no one nearby, disconnected');
                     }
                 }
-            }, 300);
+            }, 800);  // 800ms debounce — prevents fast room switching race conditions
         });
         return () => {
             unsubscribe();

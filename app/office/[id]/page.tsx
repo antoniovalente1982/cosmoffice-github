@@ -143,12 +143,19 @@ export default function OfficePage() {
             showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza per condividere lo schermo');
             return;
         }
-        // Call LiveKit screen share
         const room = (window as any).__livekitRoom;
         if (room?.localParticipant) {
-            try { await room.localParticipant.setScreenShareEnabled(true); } catch (err) { console.error('Screen share failed:', err); }
+            try {
+                const isSharing = useDailyStore.getState().isScreenSharing;
+                await room.localParticipant.setScreenShareEnabled(!isSharing);
+            } catch (err: any) {
+                // User cancelled the screen share picker — not an error
+                if (err?.message?.includes('Permission denied') || err?.message?.includes('cancelled')) return;
+                console.error('Screen share failed:', err);
+                showMediaToast('⚠️ Screen share fallito, riprova');
+            }
         } else {
-            showMediaToast('⚠️ Connessione LiveKit non disponibile');
+            showMediaToast('⚠️ Connessione LiveKit non disponibile — attiva prima il microfono');
         }
     }, [showMediaToast]);
 
