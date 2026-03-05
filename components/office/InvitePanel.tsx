@@ -139,6 +139,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             .select('*')
             .eq('workspace_id', workspaceId)
             .is('revoked_at', null)
+            .gte('expires_at', new Date().toISOString())
             .order('invited_at', { ascending: false })
             .limit(20);
         setActiveInvites(data || []);
@@ -150,11 +151,9 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
     }, [workspaceId, isOpen, loadInvites]);
 
     const revokeInvite = async (inviteId: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
         await supabase
             .from('workspace_invitations')
-            .update({ revoked_at: new Date().toISOString(), revoked_by: user.id })
+            .delete()
             .eq('id', inviteId);
         loadInvites();
     };
