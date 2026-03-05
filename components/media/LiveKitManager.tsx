@@ -322,7 +322,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             adaptiveStream: true,
             dynacast: true,
             videoCaptureDefaults: {
-                resolution: { width: 320, height: 240 },
+                resolution: { width: 640, height: 480 },
                 facingMode: 'user',
             },
             publishDefaults: {
