@@ -474,18 +474,6 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     break;
                 }
 
-                // ─── Emoji reactions ──────────────────────────
-                case 'emoji_reaction': {
-                    window.dispatchEvent(new CustomEvent('emoji-reaction', { detail: msg }));
-                    break;
-                }
-
-                // ─── Announcements ────────────────────────────
-                case 'announcement': {
-                    window.dispatchEvent(new CustomEvent('office-announcement', { detail: msg }));
-                    break;
-                }
-
                 case 'leave_room': {
                     if (msg.userId === userId) return;
                     useAvatarStore.getState().updatePeer(msg.userId, {

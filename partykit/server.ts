@@ -66,9 +66,7 @@ type IncomingMessage =
     | { type: "wb_cursor"; scope: string; roomId: string | null; cursor: any }
     | { type: "wb_clear"; scope: string; roomId: string | null }
     | { type: "wb_activity"; scope: string; roomId: string | null; userId: string; userName: string; color: string; action: string }
-    | { type: "wb_stroke_update"; scope: string; roomId: string | null; strokeId: string; updates: any }
-    | { type: "emoji_reaction"; userId: string; emoji: string; userName: string }
-    | { type: "announcement"; userId: string; userName: string; message: string; level: string };
+    | { type: "wb_stroke_update"; scope: string; roomId: string | null; strokeId: string; updates: any };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
@@ -569,18 +567,6 @@ export default class AvatarServer {
                 } else {
                     this.party.broadcast(updatePayload, [sender.id]);
                 }
-                break;
-            }
-
-            case "emoji_reaction": {
-                // Broadcast emoji reaction to everyone (including sender for visual feedback)
-                this.party.broadcast(JSON.stringify(parsed));
-                break;
-            }
-
-            case "announcement": {
-                // Broadcast announcement to everyone
-                this.party.broadcast(JSON.stringify(parsed));
                 break;
             }
 

@@ -25,8 +25,6 @@ import {
     Grid3X3,
     MessageCircle,
     PenTool,
-    Smile,
-    Megaphone,
 
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
@@ -46,8 +44,6 @@ const InvitePanel = dynamic(() => import('../../../components/office/InvitePanel
 const FullscreenGrid = dynamic(() => import('../../../components/media/FullscreenGrid').then(mod => mod.FullscreenGrid), { ssr: false });
 const RoomChat = dynamic(() => import('../../../components/office/RoomChat').then(mod => mod.RoomChat), { ssr: false });
 const Whiteboard = dynamic(() => import('../../../components/office/Whiteboard').then(mod => mod.Whiteboard), { ssr: false });
-const EmojiReactions = dynamic(() => import('../../../components/office/EmojiReactions').then(mod => mod.EmojiReactions), { ssr: false });
-const AnnouncementSystem = dynamic(() => import('../../../components/office/AnnouncementSystem').then(mod => mod.AnnouncementSystem), { ssr: false });
 const DayNightCycle = dynamic(() => import('../../../components/office/DayNightCycle').then(mod => mod.DayNightCycle), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
@@ -616,30 +612,6 @@ export default function OfficePage() {
                                 </Button>
                             )}
 
-                            {/* Emoji Reaction — everyone */}
-                            <Button
-                                variant="secondary"
-                                size="icon"
-                                className="rounded-full w-12 h-12 bg-slate-700/50 hover:bg-amber-500/30 text-slate-200 hover:text-amber-300 transition-all glow-button"
-                                onClick={() => (window as any).__toggleEmojiPicker?.()}
-                                title="Reagisci con emoji"
-                            >
-                                <Smile className="w-5 h-5" />
-                            </Button>
-
-                            {/* Announcement — admin only */}
-                            {isAdmin && (
-                                <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    className="rounded-full w-12 h-12 bg-slate-700/50 hover:bg-indigo-500/30 text-slate-200 hover:text-indigo-300 transition-all glow-button"
-                                    onClick={() => (window as any).__toggleAnnouncementComposer?.()}
-                                    title="Annuncio Ufficio"
-                                >
-                                    <Megaphone className="w-5 h-5" />
-                                </Button>
-                            )}
-
                             {/* Chat Toggle — hidden for guests */}
                             {role !== 'guest' && (
                                 <Button
@@ -699,23 +671,6 @@ export default function OfficePage() {
                 {user && role !== 'guest' && (
                     <Whiteboard
                         workspaceId={workspaceId}
-                        userId={user.id}
-                        userName={myProfile?.display_name || myProfile?.full_name || 'Anonymous'}
-                        isAdmin={isAdmin}
-                    />
-                )}
-
-                {/* Emoji Reactions overlay */}
-                {user && (
-                    <EmojiReactions
-                        userId={user.id}
-                        userName={myProfile?.display_name || myProfile?.full_name || 'Anonymous'}
-                    />
-                )}
-
-                {/* Announcements overlay */}
-                {user && (
-                    <AnnouncementSystem
                         userId={user.id}
                         userName={myProfile?.display_name || myProfile?.full_name || 'Anonymous'}
                         isAdmin={isAdmin}
