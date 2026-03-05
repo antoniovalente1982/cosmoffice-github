@@ -117,12 +117,17 @@ export default class AvatarServer {
 
     private sendToRoomOccupants(roomId: string, msg: OutgoingMessage, excludeSenderId?: string) {
         const payload = JSON.stringify(msg);
+        const sentToUsers = new Set<string>(); // Dedup: only send once per user
         for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
             if (excludeSenderId && uid === excludeSenderId) continue;
+            if (sentToUsers.has(uid)) continue; // Already sent to this user
             const u = this.users.get(uid);
             if (u && u.roomId === roomId) {
                 const conn = this.party.getConnection(connId);
-                if (conn) conn.send(payload);
+                if (conn) {
+                    conn.send(payload);
+                    sentToUsers.add(uid);
+                }
             }
         }
     }

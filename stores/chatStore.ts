@@ -60,10 +60,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     unreadCount: 0,
     officeUnreadCount: 0,
 
-    addMessage: (msg) => set((state) => ({
-        messages: [...state.messages, msg],
-        unreadCount: (state.isOpen && state.activeChannel === 'room') ? state.unreadCount : state.unreadCount + 1,
-    })),
+    addMessage: (msg) => set((state) => {
+        if (state.messages.some(m => m.id === msg.id)) return state; // Dedup
+        return {
+            messages: [...state.messages, msg],
+            unreadCount: (state.isOpen && state.activeChannel === 'room') ? state.unreadCount : state.unreadCount + 1,
+        };
+    }),
 
     setMessages: (messages) => set({ messages }),
 
@@ -74,10 +77,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })),
 
     // Office messages
-    addOfficeMessage: (msg) => set((state) => ({
-        officeMessages: [...state.officeMessages, msg],
-        officeUnreadCount: (state.isOpen && state.activeChannel === 'office') ? state.officeUnreadCount : state.officeUnreadCount + 1,
-    })),
+    addOfficeMessage: (msg) => set((state) => {
+        if (state.officeMessages.some(m => m.id === msg.id)) return state; // Dedup
+        return {
+            officeMessages: [...state.officeMessages, msg],
+            officeUnreadCount: (state.isOpen && state.activeChannel === 'office') ? state.officeUnreadCount : state.officeUnreadCount + 1,
+        };
+    }),
 
     setOfficeMessages: (officeMessages) => set({ officeMessages }),
 
