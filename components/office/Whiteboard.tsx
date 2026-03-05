@@ -627,18 +627,14 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
         ctx.fillText('Cosmoffice Whiteboard', exportCanvas.width / dpr - 12, exportCanvas.height / dpr - 10);
         ctx.restore();
 
-        // Auto-download as PNG file
-        exportCanvas.toBlob((blob) => {
-            if (!blob) return;
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `cosmoffice-whiteboard-${new Date().toISOString().slice(0, 10)}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 'image/png');
+        // Auto-download as PNG
+        const dataUrl = exportCanvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `cosmoffice-whiteboard-${new Date().toISOString().slice(0, 10)}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }, []);
 
     // ─── Clear dialog ─────────────────────────────────────────
