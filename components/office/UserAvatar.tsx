@@ -42,13 +42,6 @@ const ROLE_RING_COLOR: Record<string, string> = {
     guest: '#a855f7',
 };
 
-const ROLE_LABEL: Record<string, string> = {
-    owner: 'Owner',
-    admin: 'Admin',
-    member: 'Membro',
-    guest: 'Ospite',
-};
-
 function UserAvatarInner({
     fullName,
     avatarUrl,
@@ -131,6 +124,7 @@ function UserAvatarInner({
         : `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px ${roleColor}`;
 
     const showMediaDot = !remoteAudioEnabled || !audioEnabled;
+    const statusCol = STATUS_COLOR[status] ?? STATUS_COLOR.offline;
 
     return (
         <div
@@ -146,7 +140,6 @@ function UserAvatarInner({
                 transition: 'none',
             }}
             onMouseDown={(e) => {
-                // Don't treat clicks inside the popup as avatar drag/click
                 if (popupRef.current?.contains(e.target as Node)) return;
                 if (onClick && !isMe) {
                     e.stopPropagation();
@@ -155,7 +148,6 @@ function UserAvatarInner({
                 onMouseDown?.(e);
             }}
             onMouseUp={(e) => {
-                // Don't treat clicks inside the popup as avatar click
                 if (popupRef.current?.contains(e.target as Node)) return;
                 if (onClick && !isMe && clickStartRef.current) {
                     const dx = Math.abs(e.clientX - clickStartRef.current.x);
@@ -269,161 +261,130 @@ function UserAvatarInner({
                     position: 'absolute', bottom: dotOff, right: dotOff,
                     width: dot, height: dot, borderRadius: '50%',
                     border: `${2 * zoom}px solid #0f172a`,
-                    backgroundColor: STATUS_COLOR[status] ?? STATUS_COLOR.offline,
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                    backgroundColor: statusCol,
+                    boxShadow: `0 2px 6px rgba(0,0,0,0.4)`,
                 }} />
 
-                {/* ─── User Info Popup Card ─── */}
+                {/* ─── Compact Call Popup ─── */}
                 {showPopup && !isMe && onClick && (
                     <div
                         ref={popupRef}
                         className="absolute left-1/2"
                         style={{
-                            bottom: sz + 12 * zoom,
+                            bottom: sz + 10 * zoom,
                             transform: 'translateX(-50%)',
-                            animation: 'fadeIn 0.15s ease-out',
                             pointerEvents: 'auto',
                             zIndex: 100,
+                            animation: 'fadeIn 0.12s ease-out',
                         }}
                     >
                         <div style={{
-                            width: Math.max(180, 200 * zoom),
-                            background: 'rgba(15, 23, 42, 0.92)',
-                            backdropFilter: 'blur(20px)',
-                            borderRadius: 16 * zoom,
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            boxShadow: '0 20px 40px rgba(0,0,0,0.5), 0 0 30px rgba(6,182,212,0.1)',
-                            padding: `${14 * zoom}px`,
-                            display: 'flex', flexDirection: 'column' as const, alignItems: 'center',
-                            gap: 10 * zoom,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '8px 10px 8px 14px',
+                            background: 'rgba(15, 23, 42, 0.95)',
+                            backdropFilter: 'blur(16px)',
+                            borderRadius: 14,
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
+                            whiteSpace: 'nowrap' as const,
                         }}>
-                            {/* Avatar in popup */}
-                            <div style={{
-                                width: 48 * zoom, height: 48 * zoom, borderRadius: '50%',
-                                overflow: 'hidden', border: `2px solid ${roleColor}`,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                background: 'linear-gradient(to bottom right, #334155, #0f172a)',
-                                flexShrink: 0,
-                            }}>
-                                {avatarUrl ? (
-                                    <img src={avatarUrl} alt={fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                    <span style={{ fontSize: 16 * zoom, fontWeight: 700, color: '#fff' }}>{initials}</span>
-                                )}
-                            </div>
-
-                            {/* Name */}
-                            <span style={{
-                                fontSize: Math.max(12, 13 * zoom), fontWeight: 700, color: '#f1f5f9',
-                                textAlign: 'center' as const, fontFamily: "'Inter', system-ui, sans-serif", lineHeight: 1.2,
-                            }}>
-                                {fullName || 'User'}
-                            </span>
-
-                            {/* Status + Role badges */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 * zoom, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', gap: 4 * zoom,
-                                    padding: `${2 * zoom}px ${8 * zoom}px`, borderRadius: 20,
-                                    background: `${STATUS_COLOR[status] ?? STATUS_COLOR.offline}22`,
-                                    border: `1px solid ${STATUS_COLOR[status] ?? STATUS_COLOR.offline}44`,
+                            {/* Name + Status inline */}
+                            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 2, minWidth: 0 }}>
+                                <span style={{
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    color: '#f1f5f9',
+                                    fontFamily: "'Inter', system-ui, sans-serif",
+                                    lineHeight: 1.2,
+                                    maxWidth: 140,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
                                 }}>
+                                    {fullName || 'User'}
+                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                     <div style={{
-                                        width: 7 * zoom, height: 7 * zoom, borderRadius: '50%',
-                                        backgroundColor: STATUS_COLOR[status] ?? STATUS_COLOR.offline,
-                                        boxShadow: `0 0 6px ${STATUS_COLOR[status] ?? STATUS_COLOR.offline}`,
+                                        width: 6, height: 6, borderRadius: '50%',
+                                        backgroundColor: statusCol,
+                                        boxShadow: `0 0 6px ${statusCol}`,
+                                        flexShrink: 0,
                                     }} />
                                     <span style={{
-                                        fontSize: Math.max(9, 10 * zoom), fontWeight: 600,
-                                        color: STATUS_COLOR[status] ?? STATUS_COLOR.offline,
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        color: statusCol,
                                         fontFamily: "'Inter', system-ui, sans-serif",
+                                        letterSpacing: '0.03em',
+                                        textTransform: 'uppercase' as const,
                                     }}>
                                         {STATUS_LABEL[status] ?? 'Offline'}
                                     </span>
-                                </div>
-                                {role && (
-                                    <div style={{
-                                        padding: `${2 * zoom}px ${8 * zoom}px`, borderRadius: 20,
-                                        background: `${roleColor}22`, border: `1px solid ${roleColor}44`,
-                                    }}>
-                                        <span style={{
-                                            fontSize: Math.max(9, 10 * zoom), fontWeight: 600, color: roleColor,
-                                            fontFamily: "'Inter', system-ui, sans-serif",
-                                        }}>
-                                            {ROLE_LABEL[role] ?? role}
-                                        </span>
+
+                                    {/* Mic/Cam/Audio mini icons */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: 4 }}>
+                                        {/* Mic */}
+                                        <svg width={10} height={10} viewBox="0 0 24 24" fill="none"
+                                            stroke={audioEnabled ? '#10b981' : '#ef4444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                            style={{ opacity: audioEnabled ? 0.8 : 0.5 }}>
+                                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                            {!audioEnabled && <line x1="2" y1="2" x2="22" y2="22" />}
+                                        </svg>
+                                        {/* Cam */}
+                                        <svg width={10} height={10} viewBox="0 0 24 24" fill="none"
+                                            stroke={videoEnabled ? '#10b981' : '#ef4444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                            style={{ opacity: videoEnabled ? 0.8 : 0.5 }}>
+                                            <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
+                                            <rect x="2" y="6" width="14" height="12" rx="2" />
+                                            {!videoEnabled && <line x1="2" y1="2" x2="22" y2="22" />}
+                                        </svg>
                                     </div>
-                                )}
-                            </div>
-
-                            {/* Media status icons row */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 * zoom }}>
-                                <div style={{ display: 'flex', alignItems: 'center', opacity: audioEnabled ? 1 : 0.4 }}>
-                                    <svg width={12 * zoom} height={12 * zoom} viewBox="0 0 24 24" fill="none"
-                                        stroke={audioEnabled ? '#10b981' : '#ef4444'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                                        <line x1="12" y1="19" x2="12" y2="22" />
-                                        {!audioEnabled && <line x1="2" y1="2" x2="22" y2="22" />}
-                                    </svg>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', opacity: videoEnabled ? 1 : 0.4 }}>
-                                    <svg width={12 * zoom} height={12 * zoom} viewBox="0 0 24 24" fill="none"
-                                        stroke={videoEnabled ? '#10b981' : '#ef4444'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
-                                        <rect x="2" y="6" width="14" height="12" rx="2" />
-                                        {!videoEnabled && <line x1="2" y1="2" x2="22" y2="22" />}
-                                    </svg>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', opacity: remoteAudioEnabled ? 1 : 0.4 }}>
-                                    <svg width={12 * zoom} height={12 * zoom} viewBox="0 0 24 24" fill="none"
-                                        stroke={remoteAudioEnabled ? '#10b981' : '#ef4444'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-                                        <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
-                                        <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-                                        {!remoteAudioEnabled && <line x1="2" y1="2" x2="22" y2="22" />}
-                                    </svg>
                                 </div>
                             </div>
 
-                            {/* Call button */}
+                            {/* Call button — round, prominent */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleCallClick(); }}
+                                onMouseDown={(e) => e.stopPropagation()}
                                 style={{
-                                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    gap: 6 * zoom, padding: `${8 * zoom}px ${16 * zoom}px`,
-                                    borderRadius: 10 * zoom, border: 'none',
-                                    background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
-                                    color: 'white', fontSize: Math.max(11, 12 * zoom), fontWeight: 700,
-                                    fontFamily: "'Inter', system-ui, sans-serif", cursor: 'pointer',
-                                    transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)',
-                                    letterSpacing: '0.03em',
+                                    width: 38, height: 38,
+                                    borderRadius: '50%',
+                                    border: 'none',
+                                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                                    color: 'white',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                                    flexShrink: 0,
                                 }}
                                 onMouseEnter={(e) => {
-                                    (e.target as HTMLElement).style.background = 'linear-gradient(135deg, #22d3ee, #06b6d4)';
-                                    (e.target as HTMLElement).style.transform = 'scale(1.03)';
+                                    (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)';
+                                    (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.6)';
                                 }}
                                 onMouseLeave={(e) => {
-                                    (e.target as HTMLElement).style.background = 'linear-gradient(135deg, #06b6d4, #0891b2)';
-                                    (e.target as HTMLElement).style.transform = 'scale(1)';
+                                    (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+                                    (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.4)';
                                 }}
+                                title={`Chiama ${fullName || 'User'}`}
                             >
-                                <svg width={14 * zoom} height={14 * zoom} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                                 </svg>
-                                Chiama
                             </button>
-
-                            {/* Arrow pointer */}
-                            <div style={{
-                                position: 'absolute', bottom: -6 * zoom, left: '50%',
-                                transform: 'translateX(-50%) rotate(45deg)',
-                                width: 12 * zoom, height: 12 * zoom,
-                                background: 'rgba(15, 23, 42, 0.92)',
-                                borderRight: '1px solid rgba(255,255,255,0.12)',
-                                borderBottom: '1px solid rgba(255,255,255,0.12)',
-                            }} />
                         </div>
+
+                        {/* Arrow */}
+                        <div style={{
+                            position: 'absolute', bottom: -5, left: '50%',
+                            transform: 'translateX(-50%) rotate(45deg)',
+                            width: 10, height: 10,
+                            background: 'rgba(15, 23, 42, 0.95)',
+                            borderRight: '1px solid rgba(255,255,255,0.1)',
+                            borderBottom: '1px solid rgba(255,255,255,0.1)',
+                        }} />
                     </div>
                 )}
             </div>
