@@ -483,11 +483,25 @@ export default function OfficePage() {
                             <CallRequestModal />
                             <CallResponseToast />
                             {mediaToast && (
-                                <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[999] animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                    <div className="px-5 py-3 rounded-xl border border-amber-500/30 shadow-2xl"
-                                        style={{ background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)' }}>
+                                <div
+                                    className="fixed bottom-28 left-1/2 z-[999]"
+                                    style={{
+                                        transform: 'translateX(-50%)',
+                                        animation: 'mediaToastIn 0.15s ease-out both',
+                                    }}
+                                >
+                                    <div
+                                        className="px-5 py-3 rounded-xl border border-amber-500/30 shadow-2xl"
+                                        style={{ background: 'rgba(15, 23, 42, 0.97)' }}
+                                    >
                                         <span className="text-sm font-medium text-amber-300">{mediaToast}</span>
                                     </div>
+                                    <style>{`
+                                        @keyframes mediaToastIn {
+                                            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+                                            to   { opacity: 1; transform: translateY(0) scale(1); }
+                                        }
+                                    `}</style>
                                 </div>
                             )}
                             <VideoGrid />
