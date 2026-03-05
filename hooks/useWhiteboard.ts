@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useWhiteboardStore, WhiteboardStroke } from '../stores/whiteboardStore';
 import { createClient } from '../utils/supabase/client';
+import { useAvatarStore } from '../stores/avatarStore';
 
 // ============================================
 // useWhiteboard — Collaborative whiteboard hook
@@ -86,6 +87,40 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
         loadStrokes();
         return () => { cancelled = true; };
     }, [roomId, workspaceId, supabase, clearRoomStrokes, setRoomStrokes]);
+
+    // ─── Auto-reset: clear old strokes when room was empty ────
+    // When entering a room, wait for peers to sync, then check if
+    // we're the only occupant. If so, the room was empty → reset.
+    useEffect(() => {
+        if (!roomId || !workspaceId) return;
+
+        const timer = setTimeout(async () => {
+            const peers = useAvatarStore.getState().peers;
+            const roomPeers = Object.values(peers).filter(
+                (p: any) => p.roomId === roomId && p.id !== userId
+            );
+
+            // If no other peers in this room, it was empty → cleanup old strokes
+            if (roomPeers.length === 0) {
+                const currentStrokes = useWhiteboardStore.getState().roomStrokes;
+                if (currentStrokes.length > 0) {
+                    console.log('[Whiteboard] Room was empty, clearing old strokes');
+                    clearRoomStrokes();
+                    try {
+                        await supabase
+                            .from('whiteboard_strokes')
+                            .delete()
+                            .eq('workspace_id', workspaceId)
+                            .eq('room_id', roomId);
+                    } catch (err) {
+                        console.error('[Whiteboard] Failed to cleanup old strokes:', err);
+                    }
+                }
+            }
+        }, 3000); // 3s delay to let peer list populate
+
+        return () => clearTimeout(timer);
+    }, [roomId, workspaceId, userId, supabase, clearRoomStrokes]);
 
     // ─── Load office strokes once ─────────────────────────────
     useEffect(() => {
