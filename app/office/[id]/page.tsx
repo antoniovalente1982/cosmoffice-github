@@ -48,6 +48,7 @@ const RoomChat = dynamic(() => import('../../../components/office/RoomChat').the
 const Whiteboard = dynamic(() => import('../../../components/office/Whiteboard').then(mod => mod.Whiteboard), { ssr: false });
 const EmojiReactions = dynamic(() => import('../../../components/office/EmojiReactions').then(mod => mod.EmojiReactions), { ssr: false });
 const AnnouncementSystem = dynamic(() => import('../../../components/office/AnnouncementSystem').then(mod => mod.AnnouncementSystem), { ssr: false });
+const DayNightCycle = dynamic(() => import('../../../components/office/DayNightCycle').then(mod => mod.DayNightCycle), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
@@ -474,6 +475,7 @@ export default function OfficePage() {
                     {activeTab === 'office' && (
                         <>
                             <PixiOffice />
+                            <DayNightCycle />
                             <MediaManager />
                             <DailyErrorToast />
                             <CallRequestModal />
