@@ -45,6 +45,7 @@ const FullscreenGrid = dynamic(() => import('../../../components/media/Fullscree
 const RoomChat = dynamic(() => import('../../../components/office/RoomChat').then(mod => mod.RoomChat), { ssr: false });
 const Whiteboard = dynamic(() => import('../../../components/office/Whiteboard').then(mod => mod.Whiteboard), { ssr: false });
 const DayNightCycle = dynamic(() => import('../../../components/office/DayNightCycle').then(mod => mod.DayNightCycle), { ssr: false });
+const NotificationBell = dynamic(() => import('../../../components/office/NotificationBell'), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
@@ -458,6 +459,11 @@ export default function OfficePage() {
                                 />
                             </>
                         )}
+                    </div>
+
+                    {/* Right side: notifications */}
+                    <div className="flex items-center gap-2">
+                        <NotificationBell />
                     </div>
                 </motion.header>
 

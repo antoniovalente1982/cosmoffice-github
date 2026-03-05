@@ -1,36 +1,59 @@
 /**
  * Sound effects for Cosmoffice — generated via Web Audio API (no mp3 files needed)
+ * AudioContext is unlocked on first user interaction (click/keydown)
  */
 
 let audioCtx: AudioContext | null = null;
+let audioUnlocked = false;
 
 function getAudioContext(): AudioContext {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
-    // Resume if suspended (browser autoplay policy)
     if (audioCtx.state === 'suspended') {
         audioCtx.resume().catch(() => { });
     }
     return audioCtx;
 }
 
+// Unlock audio on first user gesture (required by browsers)
+function unlockAudio() {
+    if (audioUnlocked) return;
+    try {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') {
+            ctx.resume().then(() => { audioUnlocked = true; });
+        } else {
+            audioUnlocked = true;
+        }
+    } catch { }
+}
+
+// Auto-attach unlock listeners
+if (typeof window !== 'undefined') {
+    const events = ['click', 'touchstart', 'keydown'] as const;
+    const unlock = () => {
+        unlockAudio();
+        events.forEach(e => document.removeEventListener(e, unlock));
+    };
+    events.forEach(e => document.addEventListener(e, unlock, { once: false, passive: true }));
+}
+
 /**
- * Play a gentle knock sound (like knocking on a door)
+ * Play a gentle knock sound (like knocking on a door) — 3 quick taps
  */
 export function playKnockSound() {
     try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
 
-        // Three quick knocks
         for (let i = 0; i < 3; i++) {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
             gain.connect(ctx.destination);
 
-            osc.frequency.value = 400 + i * 30; // Slightly increasing pitch
+            osc.frequency.value = 400 + i * 30;
             osc.type = 'sine';
 
             const t = now + i * 0.15;
@@ -52,14 +75,13 @@ export function playCallRingSound() {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
 
-        // Two-tone bell ring
         for (let i = 0; i < 2; i++) {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
             gain.connect(ctx.destination);
 
-            osc.frequency.value = i === 0 ? 880 : 1100; // A5 → C#6
+            osc.frequency.value = i === 0 ? 880 : 1100;
             osc.type = 'sine';
 
             const t = now + i * 0.3;
@@ -81,8 +103,7 @@ export function playCallAcceptedSound() {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
 
-        // Rising two-note chime (positive feel)
-        const notes = [523.25, 659.25]; // C5 → E5
+        const notes = [523.25, 659.25];
         for (let i = 0; i < notes.length; i++) {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
@@ -129,12 +150,38 @@ export function playCallDeclinedSound() {
 }
 
 /**
- * Play a welcome chime when entering the office (ascending warm arpeggio)
+ * Play a welcome whoosh when entering the office (soft wind + chime)
  */
 export function playWelcomeSound() {
     try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
+
+        // Soft white-noise whoosh (wind effect)
+        const bufferSize = ctx.sampleRate * 0.6;
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            output[i] = (Math.random() * 2 - 1) * 0.5;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        const noiseFilter = ctx.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.value = 800;
+        noiseFilter.Q.value = 0.5;
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0, now);
+        noiseGain.gain.linearRampToValueAtTime(0.06, now + 0.1);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.6);
 
         // Warm ascending arpeggio: C5 → E5 → G5
         const notes = [523.25, 659.25, 783.99];
@@ -147,13 +194,43 @@ export function playWelcomeSound() {
             osc.frequency.value = notes[i];
             osc.type = 'sine';
 
-            const t = now + i * 0.18;
+            const t = now + 0.1 + i * 0.16;
             gain.gain.setValueAtTime(0, t);
-            gain.gain.linearRampToValueAtTime(0.08, t + 0.03);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+            gain.gain.linearRampToValueAtTime(0.07, t + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
 
             osc.start(t);
-            osc.stop(t + 0.45);
+            osc.stop(t + 0.4);
+        }
+    } catch { }
+}
+
+/**
+ * Play a short chat notification ping — subtle "blip" so users know someone wrote
+ */
+export function playChatPingSound() {
+    try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        // Two quick soft notes: E6 → A5 (pleasant, non-intrusive)
+        const notes = [1318.5, 880];
+        for (let i = 0; i < notes.length; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.frequency.value = notes[i];
+            osc.type = 'sine';
+
+            const t = now + i * 0.08;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.06, t + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+            osc.start(t);
+            osc.stop(t + 0.15);
         }
     } catch { }
 }

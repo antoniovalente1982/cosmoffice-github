@@ -7,7 +7,8 @@ import { useDailyStore } from '../stores/dailyStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useChatStore } from '../stores/chatStore';
 import { useCallStore } from '../stores/callStore';
-import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound, playWelcomeSound } from '../utils/sounds';
+import { useNotificationStore } from '../stores/notificationStore';
+import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound, playWelcomeSound, playChatPingSound } from '../utils/sounds';
 
 // ============================================
 // useAvatarSync — PartyKit client for avatar sync + room chat + office chat
@@ -438,12 +439,28 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             timestamp: Date.now(),
                         });
                     }
+                    // Add notification
+                    useNotificationStore.getState().addNotification({
+                        type: 'knock',
+                        title: msg.name || msg.userName || 'Qualcuno',
+                        body: 'È entrato nella stanza',
+                        avatarUrl: msg.avatarUrl,
+                        roomId: msg.roomId,
+                    });
                     break;
                 }
 
                 case 'chat_message': {
                     if (msg.message && msg.message.userId !== userId) {
                         useChatStore.getState().addMessage(msg.message);
+                        playChatPingSound();
+                        useNotificationStore.getState().addNotification({
+                            type: 'chat',
+                            title: msg.message.userName || 'Messaggio',
+                            body: msg.message.content?.substring(0, 80) || 'Nuovo messaggio',
+                            avatarUrl: msg.message.avatarUrl,
+                            roomId: msg.message.roomId,
+                        });
                     }
                     break;
                 }
@@ -451,6 +468,13 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 case 'office_chat_message': {
                     if (msg.message && msg.message.userId !== userId) {
                         useChatStore.getState().addOfficeMessage(msg.message);
+                        playChatPingSound();
+                        useNotificationStore.getState().addNotification({
+                            type: 'office_chat',
+                            title: msg.message.userName || 'Messaggio ufficio',
+                            body: msg.message.content?.substring(0, 80) || 'Nuovo messaggio',
+                            avatarUrl: msg.message.avatarUrl,
+                        });
                     }
                     break;
                 }
