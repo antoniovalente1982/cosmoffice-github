@@ -3,12 +3,11 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useWhiteboardStore, WhiteboardStroke } from '../stores/whiteboardStore';
 import { createClient } from '../utils/supabase/client';
-import { useAvatarStore } from '../stores/avatarStore';
 
 // ============================================
 // useWhiteboard — Collaborative whiteboard hook
 // Loads strokes from Supabase, syncs via PartyKit
-// Same architecture as useRoomChat/useOfficeChat
+// Handles: strokes, shapes, activity notifications
 // ============================================
 
 interface UseWhiteboardOptions {
@@ -29,11 +28,16 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
     const clearRoomStrokes = useWhiteboardStore(s => s.clearRoomStrokes);
     const clearOfficeStrokes = useWhiteboardStore(s => s.clearOfficeStrokes);
     const updateRemoteCursor = useWhiteboardStore(s => s.updateRemoteCursor);
+    const setActiveDrawer = useWhiteboardStore(s => s.setActiveDrawer);
+    const removeActiveDrawer = useWhiteboardStore(s => s.removeActiveDrawer);
+    const updateStroke = useWhiteboardStore(s => s.updateStroke);
+    const updateOfficeStroke = useWhiteboardStore(s => s.updateOfficeStroke);
 
     const [isLoading, setIsLoading] = useState(false);
     const supabase = createClient();
     const prevRoomIdRef = useRef<string | null>(null);
     const officeLoadedRef = useRef(false);
+    const activityTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
     // ─── Load room strokes from Supabase when room changes ────
     useEffect(() => {
@@ -64,6 +68,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
                         userId: row.user_id,
                         userName: row.user_name || 'User',
                         color: row.user_color || '#22d3ee',
+                        fillColor: row.stroke_data?.fillColor || null,
                         width: row.stroke_data?.width || 4,
                         points: row.stroke_data?.points || [],
                         tool: row.stroke_data?.tool || 'pen',
@@ -107,6 +112,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
                         userId: row.user_id,
                         userName: row.user_name || 'User',
                         color: row.user_color || '#22d3ee',
+                        fillColor: row.stroke_data?.fillColor || null,
                         width: row.stroke_data?.width || 4,
                         points: row.stroke_data?.points || [],
                         tool: row.stroke_data?.tool || 'pen',
@@ -123,15 +129,14 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
         return () => { cancelled = true; };
     }, [workspaceId, supabase, setOfficeStrokes]);
 
-    // ─── Register PartyKit listener for incoming whiteboard messages ──
+    // ─── Register PartyKit listener ───────────────────────────
     useEffect(() => {
         const handleWbMessage = (e: CustomEvent) => {
             const data = e.detail;
             if (!data) return;
 
             if (data.type === 'wb_stroke') {
-                // Incoming stroke from another user
-                if (data.stroke?.userId === userId) return; // skip own
+                if (data.stroke?.userId === userId) return;
                 if (data.scope === 'room') {
                     addStroke(data.stroke);
                 } else {
@@ -146,12 +151,41 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
                 } else {
                     clearOfficeStrokes();
                 }
+            } else if (data.type === 'wb_activity') {
+                if (data.userId === userId) return;
+                // Track active drawer
+                setActiveDrawer({
+                    userId: data.userId,
+                    userName: data.userName,
+                    color: data.color,
+                    timestamp: Date.now(),
+                });
+                // Auto-remove after 5s inactivity
+                const existingTimeout = activityTimeoutsRef.current.get(data.userId);
+                if (existingTimeout) clearTimeout(existingTimeout);
+                const timeout = setTimeout(() => {
+                    removeActiveDrawer(data.userId);
+                    activityTimeoutsRef.current.delete(data.userId);
+                }, 5000);
+                activityTimeoutsRef.current.set(data.userId, timeout);
+            } else if (data.type === 'wb_stroke_update') {
+                // Remote shape update (resize)
+                if (data.scope === 'room') {
+                    updateStroke(data.strokeId, data.updates);
+                } else {
+                    updateOfficeStroke(data.strokeId, data.updates);
+                }
             }
         };
 
         window.addEventListener('whiteboard-message' as any, handleWbMessage);
-        return () => window.removeEventListener('whiteboard-message' as any, handleWbMessage);
-    }, [userId, addStroke, addOfficeStroke, updateRemoteCursor, clearRoomStrokes, clearOfficeStrokes]);
+        return () => {
+            window.removeEventListener('whiteboard-message' as any, handleWbMessage);
+            // Clear all activity timeouts
+            activityTimeoutsRef.current.forEach(t => clearTimeout(t));
+            activityTimeoutsRef.current.clear();
+        };
+    }, [userId, addStroke, addOfficeStroke, updateRemoteCursor, clearRoomStrokes, clearOfficeStrokes, setActiveDrawer, removeActiveDrawer, updateStroke, updateOfficeStroke]);
 
     // ─── Send stroke: Optimistic + PartyKit + Supabase ────────
     const sendStroke = useCallback(async (stroke: WhiteboardStroke) => {
@@ -161,11 +195,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
         const targetRoomId = isRoom ? roomId : null;
 
         // 1. Optimistic
-        if (isRoom) {
-            addStroke(stroke);
-        } else {
-            addOfficeStroke(stroke);
-        }
+        if (isRoom) addStroke(stroke); else addOfficeStroke(stroke);
 
         // 2. PartyKit broadcast
         const socket = (window as any).__partykitSocket;
@@ -191,12 +221,73 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
                     points: stroke.points,
                     width: stroke.width,
                     tool: stroke.tool,
+                    fillColor: stroke.fillColor || null,
                 },
             });
         } catch (err) {
             console.error('[Whiteboard] Failed to persist stroke:', err);
         }
     }, [workspaceId, roomId, userId, userName, activeChannel, supabase, addStroke, addOfficeStroke]);
+
+    // ─── Send activity notification (drawing/opened) ──────────
+    const sendActivity = useCallback((action: string, color: string) => {
+        const socket = (window as any).__partykitSocket;
+        if (socket?.readyState === WebSocket.OPEN) {
+            const isRoom = useWhiteboardStore.getState().activeChannel === 'room';
+            socket.send(JSON.stringify({
+                type: 'wb_activity',
+                scope: isRoom ? 'room' : 'office',
+                roomId: isRoom ? roomId : null,
+                userId,
+                userName,
+                color,
+                action,
+            }));
+        }
+    }, [roomId, userId, userName]);
+
+    // ─── Send stroke update (shape resize) ────────────────────
+    const sendStrokeUpdate = useCallback(async (strokeId: string, updates: Partial<WhiteboardStroke>) => {
+        if (!workspaceId) return;
+
+        const isRoom = activeChannel === 'room';
+        const targetRoomId = isRoom ? roomId : null;
+
+        // 1. Local update
+        if (isRoom) updateStroke(strokeId, updates); else updateOfficeStroke(strokeId, updates);
+
+        // 2. PartyKit broadcast
+        const socket = (window as any).__partykitSocket;
+        if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'wb_stroke_update',
+                scope: isRoom ? 'room' : 'office',
+                roomId: targetRoomId,
+                strokeId,
+                updates,
+            }));
+        }
+
+        // 3. Supabase update
+        try {
+            const existingStroke = isRoom
+                ? useWhiteboardStore.getState().roomStrokes.find(s => s.id === strokeId)
+                : useWhiteboardStore.getState().officeStrokes.find(s => s.id === strokeId);
+
+            if (existingStroke) {
+                await supabase.from('whiteboard_strokes').update({
+                    stroke_data: {
+                        points: updates.points || existingStroke.points,
+                        width: updates.width || existingStroke.width,
+                        tool: existingStroke.tool,
+                        fillColor: updates.fillColor !== undefined ? updates.fillColor : existingStroke.fillColor,
+                    },
+                }).eq('id', strokeId);
+            }
+        } catch (err) {
+            console.error('[Whiteboard] Failed to update stroke:', err);
+        }
+    }, [workspaceId, roomId, activeChannel, supabase, updateStroke, updateOfficeStroke]);
 
     // ─── Send cursor position via PartyKit ────────────────────
     const sendCursor = useCallback((x: number, y: number, color: string) => {
@@ -226,10 +317,8 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
         const isRoom = activeChannel === 'room';
         const targetRoomId = isRoom ? roomId : null;
 
-        // 1. Clear local
         if (isRoom) clearRoomStrokes(); else clearOfficeStrokes();
 
-        // 2. PartyKit broadcast
         const socket = (window as any).__partykitSocket;
         if (socket?.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({
@@ -239,7 +328,6 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
             }));
         }
 
-        // 3. Supabase delete
         try {
             let query = supabase
                 .from('whiteboard_strokes')
@@ -264,6 +352,8 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
         strokes: currentStrokes,
         sendStroke,
         sendCursor,
+        sendActivity,
+        sendStrokeUpdate,
         clearAllStrokes,
         isLoading,
     };

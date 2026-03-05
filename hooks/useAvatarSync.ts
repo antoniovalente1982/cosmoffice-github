@@ -467,7 +467,9 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 // ─── Whiteboard messages ─────────────────────
                 case 'wb_stroke':
                 case 'wb_cursor':
-                case 'wb_clear': {
+                case 'wb_clear':
+                case 'wb_activity':
+                case 'wb_stroke_update': {
                     window.dispatchEvent(new CustomEvent('whiteboard-message', { detail: msg }));
                     break;
                 }

@@ -64,7 +64,9 @@ type IncomingMessage =
     | { type: "call_response"; id: string; fromUserId: string; fromName: string; toUserId: string; response: string }
     | { type: "wb_stroke"; scope: string; roomId: string | null; stroke: any }
     | { type: "wb_cursor"; scope: string; roomId: string | null; cursor: any }
-    | { type: "wb_clear"; scope: string; roomId: string | null };
+    | { type: "wb_clear"; scope: string; roomId: string | null }
+    | { type: "wb_activity"; scope: string; roomId: string | null; userId: string; userName: string; color: string; action: string }
+    | { type: "wb_stroke_update"; scope: string; roomId: string | null; strokeId: string; updates: any };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
@@ -531,6 +533,39 @@ export default class AvatarServer {
                     }
                 } else {
                     this.party.broadcast(clearWbPayload, [sender.id]);
+                }
+                break;
+            }
+
+            case "wb_activity": {
+                const actPayload = JSON.stringify(parsed);
+                if (parsed.scope === 'room' && parsed.roomId) {
+                    for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+                        if (uid === parsed.userId) continue;
+                        const u = this.users.get(uid);
+                        if (u && u.roomId === parsed.roomId) {
+                            const conn = this.party.getConnection(connId);
+                            if (conn) conn.send(actPayload);
+                        }
+                    }
+                } else {
+                    this.party.broadcast(actPayload, [sender.id]);
+                }
+                break;
+            }
+
+            case "wb_stroke_update": {
+                const updatePayload = JSON.stringify(parsed);
+                if (parsed.scope === 'room' && parsed.roomId) {
+                    for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+                        const u = this.users.get(uid);
+                        if (u && u.roomId === parsed.roomId) {
+                            const conn = this.party.getConnection(connId);
+                            if (conn) conn.send(updatePayload);
+                        }
+                    }
+                } else {
+                    this.party.broadcast(updatePayload, [sender.id]);
                 }
                 break;
             }

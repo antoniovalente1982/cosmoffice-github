@@ -92,6 +92,8 @@ export default function OfficePage() {
     // Whiteboard store
     const isWhiteboardOpen = useWhiteboardStore(s => s.isOpen);
     const toggleWhiteboard = useWhiteboardStore(s => s.toggleWhiteboard);
+    const whiteboardActiveDrawers = useWhiteboardStore(s => s.activeDrawers);
+    const wbActiveCount = whiteboardActiveDrawers.size;
 
     // Toast for no-proximity feedback
     const [mediaToast, setMediaToast] = useState<string | null>(null);
@@ -600,6 +602,11 @@ export default function OfficePage() {
                                     title={isWhiteboardOpen ? 'Chiudi Lavagna' : 'Apri Lavagna'}
                                 >
                                     <PenTool className="w-5 h-5" />
+                                    {wbActiveCount > 0 && !isWhiteboardOpen && (
+                                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-cyan-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-[0_0_8px_rgba(34,211,238,0.5)] animate-pulse">
+                                            {wbActiveCount}
+                                        </span>
+                                    )}
                                 </Button>
                             )}
 
