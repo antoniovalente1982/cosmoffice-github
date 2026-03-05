@@ -456,7 +456,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         };
     }, [previewStream]);
 
-    // Quando la telecamera viene disattivata, disattiva anche microfono e audio in entrata
+    // Quando la telecamera viene disattivata, disattiva anche microfono
     useEffect(() => {
         if (!isOpen) return;
 
@@ -469,12 +469,8 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                 }
                 toggleMic();
             }
-            // Disattiva audio in entrata se attivo
-            if (isRemoteAudioEnabled) {
-                toggleRemoteAudio();
-            }
         }
-    }, [isVideoEnabled, isOpen, isMicEnabled, isRemoteAudioEnabled, toggleMic, toggleRemoteAudio, previewStream]);
+    }, [isVideoEnabled, isOpen, isMicEnabled, toggleMic, previewStream]);
 
     // Monitoraggio livello audio - OTTIMIZZATO per maggiore reattività
     const startAudioMonitoring = (stream: MediaStream) => {
