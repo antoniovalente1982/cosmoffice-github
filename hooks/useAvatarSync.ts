@@ -7,7 +7,7 @@ import { useDailyStore } from '../stores/dailyStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useChatStore } from '../stores/chatStore';
 import { useCallStore } from '../stores/callStore';
-import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound } from '../utils/sounds';
+import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound, playWelcomeSound } from '../utils/sounds';
 
 // ============================================
 // useAvatarSync — PartyKit client for avatar sync + room chat + office chat
@@ -230,6 +230,8 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
 
         socket.onopen = () => {
             connectedRef.current = true;
+            // Play welcome sound on office entry
+            playWelcomeSound();
             // Identify self
             socket.send(JSON.stringify({
                 type: 'identify',

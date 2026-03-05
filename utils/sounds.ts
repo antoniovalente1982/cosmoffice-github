@@ -127,3 +127,33 @@ export function playCallDeclinedSound() {
         osc.stop(now + 0.45);
     } catch { }
 }
+
+/**
+ * Play a welcome chime when entering the office (ascending warm arpeggio)
+ */
+export function playWelcomeSound() {
+    try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        // Warm ascending arpeggio: C5 → E5 → G5
+        const notes = [523.25, 659.25, 783.99];
+        for (let i = 0; i < notes.length; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.frequency.value = notes[i];
+            osc.type = 'sine';
+
+            const t = now + i * 0.18;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.08, t + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+
+            osc.start(t);
+            osc.stop(t + 0.45);
+        }
+    } catch { }
+}

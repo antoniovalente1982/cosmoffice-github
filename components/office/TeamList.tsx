@@ -263,6 +263,7 @@ export function TeamList({ spaceId }: TeamListProps) {
                                     fromUserId: currentUserId || '',
                                     fromName: myProfile.display_name || myProfile.full_name || 'User',
                                     toUserId: m.user_id,
+                                    toName: getName(m),
                                     timestamp: Date.now(),
                                     status: 'pending',
                                 });

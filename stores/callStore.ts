@@ -8,6 +8,7 @@ export interface CallRequest {
     fromName: string;
     fromAvatarUrl?: string;
     toUserId: string;
+    toName?: string;
     timestamp: number;
     status: 'pending' | 'accepted' | 'declined' | 'timeout';
 }

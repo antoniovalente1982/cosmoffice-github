@@ -42,7 +42,7 @@ export function CallResponseToast() {
                     >
                         <Loader2 className="w-4 h-4 text-primary-400 animate-spin" />
                         <span className="text-sm font-medium text-slate-200">
-                            Chiamata a <span className="text-primary-300 font-bold">{outgoingCall.toUserId.slice(0, 8)}</span>...
+                            Chiamata a <span className="text-primary-300 font-bold">{outgoingCall.toName || 'Utente'}</span>...
                         </span>
                         <button
                             onClick={() => setOutgoingCall(null)}
@@ -64,8 +64,8 @@ export function CallResponseToast() {
                 >
                     <div
                         className={`px-5 py-3.5 rounded-xl border shadow-2xl flex items-center gap-3 ${callResponse.type === 'accepted'
-                                ? 'border-emerald-500/30'
-                                : 'border-amber-500/30'
+                            ? 'border-emerald-500/30'
+                            : 'border-amber-500/30'
                             }`}
                         style={{ background: 'rgba(15, 23, 42, 0.97)', backdropFilter: 'blur(20px)' }}
                     >

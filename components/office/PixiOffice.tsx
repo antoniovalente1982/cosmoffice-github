@@ -483,8 +483,9 @@ export function PixiOffice() {
                         found = room.id;
                     }
                 });
+                const currentRoom = useAvatarStore.getState().myRoomId;
                 setMyRoom(found);
-                if (found) {
+                if (found && found !== currentRoom) {
                     const joinFn = (window as any).__sendJoinRoom;
                     if (joinFn) joinFn(found);
                 }
