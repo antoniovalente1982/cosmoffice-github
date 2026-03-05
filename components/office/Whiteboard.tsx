@@ -588,8 +588,8 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
     const handleUndo = useCallback(() => { storeUndo(); }, [storeUndo]);
     const handleRedo = useCallback(() => { storeRedo(); }, [storeRedo]);
 
-    // ─── Screenshot → opens in new tab as viewable image ──────
-    const handleExport = useCallback(() => {
+    // ─── Screenshot — saves whiteboard as PNG ──────────────────
+    const handleExport = useCallback(async () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -600,11 +600,10 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
         const ctx = exportCanvas.getContext('2d');
         if (!ctx) return;
 
-        // Draw dark background
         ctx.fillStyle = '#0f172a';
         ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-        // Draw subtle grid
+        // Grid
         ctx.strokeStyle = 'rgba(100, 116, 139, 0.08)';
         ctx.lineWidth = 1;
         const dpr = window.devicePixelRatio || 1;
@@ -615,10 +614,9 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(exportCanvas.width, y); ctx.stroke();
         }
 
-        // Draw the whiteboard content on top
         ctx.drawImage(canvas, 0, 0);
 
-        // Add watermark
+        // Watermark
         ctx.save();
         ctx.scale(dpr, dpr);
         ctx.font = '11px Inter, system-ui, sans-serif';
@@ -627,26 +625,41 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
         ctx.fillText('Cosmoffice Whiteboard', exportCanvas.width / dpr - 12, exportCanvas.height / dpr - 10);
         ctx.restore();
 
-        // Convert data URL to Blob synchronously (stays in user gesture for Safari)
-        const dataUrl = exportCanvas.toDataURL('image/png');
-        const byteString = atob(dataUrl.split(',')[1]);
-        const mimeType = 'image/png';
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
+        // Try native "Save As" dialog (Chrome/Edge)
+        if ('showSaveFilePicker' in window) {
+            try {
+                const handle = await (window as any).showSaveFilePicker({
+                    suggestedName: 'cosmoffice-whiteboard.png',
+                    types: [{
+                        description: 'PNG Image',
+                        accept: { 'image/png': ['.png'] },
+                    }],
+                });
+                const writable = await handle.createWritable();
+                const blob = await new Promise<Blob>((resolve) =>
+                    exportCanvas.toBlob((b) => resolve(b!), 'image/png')
+                );
+                await writable.write(blob);
+                await writable.close();
+                return;
+            } catch (err) {
+                // User cancelled the dialog, that's fine
+                if ((err as any)?.name === 'AbortError') return;
+            }
         }
-        const blob = new Blob([ab], { type: mimeType });
 
-        // Create object URL (supports download attribute in all browsers)
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = 'cosmoffice-whiteboard.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 200);
+        // Fallback: open image in new window (Safari/Firefox)
+        const dataUrl = exportCanvas.toDataURL('image/png');
+        const w = window.open('');
+        if (w) {
+            w.document.write(`
+                <html><head><title>Cosmoffice Whiteboard</title></head>
+                <body style="margin:0;background:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh">
+                    <img src="${dataUrl}" style="max-width:100%;max-height:100vh;object-fit:contain"/>
+                </body></html>
+            `);
+            w.document.close();
+        }
     }, []);
 
     // ─── Clear dialog ─────────────────────────────────────────
