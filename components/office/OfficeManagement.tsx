@@ -16,7 +16,7 @@ import {
 import { Button } from '../ui/button';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
-import { motion } from 'framer-motion';
+
 
 const supabase = createClient();
 
@@ -204,13 +204,10 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
 
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-            <motion.div
-                initial={{ scale: 0.92, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.92, opacity: 0, y: 20 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="w-full max-w-2xl bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
+            <div
+                className="w-full max-w-2xl bg-slate-900/98 border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+                style={{ animation: 'fadeIn 0.2s ease-out' }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
@@ -355,7 +352,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                         </Button>
                     </div>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 }

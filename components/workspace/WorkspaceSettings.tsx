@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import {
     X,
     Settings,
@@ -82,23 +82,18 @@ export function WorkspaceSettings({
     };
 
     return (
-        <AnimatePresence>
+        <>
             {/* Backdrop */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            <div
+                className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
                 onClick={onClose}
+                style={{ animation: 'fadeIn 0.15s ease-out' }}
             >
                 {/* Modal */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                <div
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-2xl max-h-[85vh] bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
+                    className="w-full max-w-2xl max-h-[85vh] bg-slate-900/98 border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
+                    style={{ animation: 'fadeIn 0.2s ease-out' }}
                 >
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
@@ -246,8 +241,8 @@ export function WorkspaceSettings({
                             </>
                         )}
                     </div>
-                </motion.div>
-            </motion.div>
-        </AnimatePresence>
+                </div>
+            </div>
+        </>
     );
 }

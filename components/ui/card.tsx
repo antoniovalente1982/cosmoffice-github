@@ -11,7 +11,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = 'default', ...props }, ref) => {
     const variants = {
       default: 'bg-dark-elevated/60 border border-slate-700 rounded-xl',
-      glass: 'bg-dark-surface/40 backdrop-blur-xl border border-white/10 rounded-2xl',
+      glass: 'bg-dark-surface/90 border border-white/10 rounded-2xl',
       hover: 'bg-dark-elevated/60 border border-slate-700 rounded-xl transition-all duration-300 hover:border-slate-600 hover:shadow-card hover:-translate-y-1'
     };
 

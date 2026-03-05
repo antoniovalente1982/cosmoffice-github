@@ -594,8 +594,8 @@ export default function OfficePage() {
                             >
                                 <SlidersHorizontal className="w-5 h-5" />
                             </Button>
-                            {/* Whiteboard Toggle — hidden for guests */}
-                            {role !== 'guest' && (
+                            {/* Whiteboard Toggle */}
+                            {(
                                 <Button
                                     variant={isWhiteboardOpen ? "default" : "secondary"}
                                     size="icon"
@@ -612,8 +612,8 @@ export default function OfficePage() {
                                 </Button>
                             )}
 
-                            {/* Chat Toggle — hidden for guests */}
-                            {role !== 'guest' && (
+                            {/* Chat Toggle */}
+                            {(
                                 <Button
                                     variant={isChatOpen ? "default" : "secondary"}
                                     size="icon"
@@ -656,8 +656,8 @@ export default function OfficePage() {
                     isInitialSetup={true}
                 />
 
-                {/* Room Chat via PartyKit — hidden for guests */}
-                {user && role !== 'guest' && (
+                {/* Room Chat via PartyKit */}
+                {user && (
                     <RoomChat
                         workspaceId={workspaceId}
                         userId={user.id}
@@ -667,8 +667,8 @@ export default function OfficePage() {
                     />
                 )}
 
-                {/* Collaborative Whiteboard — hidden for guests */}
-                {user && role !== 'guest' && (
+                {/* Collaborative Whiteboard */}
+                {user && (
                     <Whiteboard
                         workspaceId={workspaceId}
                         userId={user.id}

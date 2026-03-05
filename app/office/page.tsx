@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import {
     Plus,
     Settings,
@@ -357,7 +356,7 @@ export default function DashboardPage() {
                 </div>
 
                 {isCreatingWorkspace && (
-                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="glass p-6 rounded-2xl border border-primary-500/20 max-w-lg mx-auto">
+                    <div className="glass p-6 rounded-2xl border border-primary-500/20 max-w-lg mx-auto" style={{ animation: 'fadeIn 0.3s ease-out' }}>
                         <h2 className="text-lg font-semibold mb-4">Crea Nuovo Ufficio</h2>
                         <input
                             type="text"
@@ -400,7 +399,7 @@ export default function DashboardPage() {
                             </Button>
                             <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingWorkspace(false)} disabled={isSubmitting}>Annulla</Button>
                         </div>
-                    </motion.div>
+                    </div>
                 )}
 
                 {/* Workspaces & Spaces */}
@@ -412,13 +411,11 @@ export default function DashboardPage() {
                         const isOwnerOfWs = userRoles[space.workspace_id] === 'owner' || isSuperAdmin;
 
                         return (
-                            <motion.div
+                            <div
                                 key={space.id}
-                                whileHover={{ y: -5 }}
-                                whileTap={{ scale: 0.98 }}
-                                transition={{ duration: 0.15, ease: "easeOut" }}
+                                className="transition-transform duration-150 hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <Card className="p-6 h-full flex flex-col justify-between group hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/10 transition-all duration-200 border-white/5 bg-slate-900/40 backdrop-blur-xl relative overflow-hidden">
+                                <Card className="p-6 h-full flex flex-col justify-between group hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/10 transition-all duration-200 border-white/5 bg-slate-900/90 relative overflow-hidden">
                                     {/* Glow effect on hover */}
                                     <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
@@ -561,16 +558,16 @@ export default function DashboardPage() {
                                         </div>
                                     )}
                                 </Card>
-                            </motion.div>
+                            </div>
                         );
                     })}
 
-                    <motion.div whileHover={{ scale: 1.02 }}>
+                    <div className="transition-transform duration-150 hover:scale-[1.02]">
                         <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-white/10 bg-white/5 hover:bg-white/10 transition-all min-h-[220px] group cursor-pointer" onClick={() => setIsCreatingWorkspace(true)}>
                             <PlusCircle className="w-12 h-12 text-slate-500 group-hover:text-primary-400 transition-colors mb-4" />
                             <p className="text-slate-400 font-medium group-hover:text-slate-200">New Space</p>
                         </Card>
-                    </motion.div>
+                    </div>
                 </div>
 
                 {workspaces.length === 0 && !loading && (

@@ -71,7 +71,7 @@ function IncomingKnockCard({
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed top-4 right-4 z-[9999] w-80"
         >
-            <div className="bg-slate-900/95 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-4 shadow-2xl shadow-cyan-500/10">
+            <div className="bg-slate-900/98 border border-cyan-500/30 rounded-2xl p-4 shadow-2xl shadow-cyan-500/10">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
@@ -175,7 +175,7 @@ function OutgoingKnockStatus({
             exit={{ opacity: 0, y: 30 }}
             className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999]"
         >
-            <div className={`backdrop-blur-xl border rounded-2xl px-5 py-3 shadow-2xl flex items-center gap-3 bg-slate-900/95 ${config.color}`}>
+            <div className={`border rounded-2xl px-5 py-3 shadow-2xl flex items-center gap-3 bg-slate-900/98 ${config.color}`}>
                 {config.icon}
                 <div>
                     <p className="text-sm font-semibold text-white">{config.text}</p>

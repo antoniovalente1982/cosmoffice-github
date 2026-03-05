@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { createClient } from '../../../utils/supabase/client';
 import { Loader2, CheckCircle2, XCircle, LogIn, UserPlus, Rocket, Shield, Crown, User, Star } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
@@ -38,7 +37,6 @@ export default function InvitePage() {
         if (!token) return;
 
         const checkInvite = async () => {
-            // Use RPC to get invite info (bypasses RLS)
             const { data: info, error: infoError } = await supabase.rpc('get_invite_info', {
                 p_token: token,
             });
@@ -53,7 +51,6 @@ export default function InvitePage() {
             setInvite(inviteInfo);
             setWorkspace({ name: inviteInfo.workspace_name });
 
-            // Check if expired/revoked/exhausted
             if (inviteInfo.is_expired) {
                 setState('error');
                 setError('Questo invito è scaduto.');
@@ -70,10 +67,8 @@ export default function InvitePage() {
                 return;
             }
 
-            // Check if user is authenticated
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                // Guest invites → show name form instead of login
                 if (inviteInfo.role === 'guest') {
                     setState('guest_name');
                 } else {
@@ -82,9 +77,6 @@ export default function InvitePage() {
                 return;
             }
 
-            // User is authenticated — accept invite
-            // NOTE: If the user was previously kicked (removed_at != null),
-            // the accept_invite_link RPC handles re-activation by clearing removed_at.
             await acceptInvite();
         };
 
@@ -107,13 +99,11 @@ export default function InvitePage() {
         if (res.success) {
             setWorkspaceId(res.workspace_id);
 
-            // Use space_id from RPC response (bypasses RLS, always reliable)
             if (res.space_id) {
                 router.push(`/office/${res.space_id}`);
                 return;
             }
 
-            // Fallback: query spaces directly (may fail for re-entering guests due to RLS timing)
             const wsId = res.workspace_id;
             const { data: space } = await supabase
                 .from('spaces')
@@ -134,25 +124,20 @@ export default function InvitePage() {
         }
     };
 
-    // Guest anonymous entry — signInAnonymously + create profile + accept invite
     const handleGuestEntry = async () => {
         if (!guestName.trim()) return;
         setIsSubmittingGuest(true);
         setError('');
 
         try {
-            // If there's a stale/broken anonymous session, sign out first
             const { data: { user: existingUser } } = await supabase.auth.getUser();
             if (existingUser?.is_anonymous) {
-                // Sign out the old anonymous session so we get a fresh one
                 await supabase.auth.signOut();
             }
 
-            // Sign in anonymously
             let { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
 
             if (anonError) {
-                // Retry once after a brief delay (in case of transient auth issues)
                 await new Promise(resolve => setTimeout(resolve, 500));
                 const retry = await supabase.auth.signInAnonymously();
                 anonData = retry.data;
@@ -160,7 +145,6 @@ export default function InvitePage() {
             }
 
             if (anonError) {
-                // Anonymous sign-in is not enabled or another error
                 console.error('Anonymous sign-in failed:', anonError);
                 setState('error');
                 setError(
@@ -178,7 +162,6 @@ export default function InvitePage() {
                 return;
             }
 
-            // Create/update profile with guest display name
             const { error: profileError } = await supabase
                 .from('profiles')
                 .upsert({
@@ -190,7 +173,6 @@ export default function InvitePage() {
 
             if (profileError) {
                 console.warn('Profile upsert failed (may not have is_anonymous column):', profileError);
-                // Try without is_anonymous
                 await supabase
                     .from('profiles')
                     .upsert({
@@ -200,10 +182,6 @@ export default function InvitePage() {
                     }, { onConflict: 'id' });
             }
 
-            // Now accept the invite
-            // The accept_invite_link RPC handles both:
-            // - New users (INSERT into workspace_members)
-            // - Previously kicked users (UPDATE: clear removed_at)
             await acceptInvite();
         } catch (err: any) {
             console.error('Guest entry error:', err);
@@ -221,7 +199,6 @@ export default function InvitePage() {
             return;
         }
 
-        // Find first space in workspace
         const { data: space } = await supabase
             .from('spaces')
             .select('id')
@@ -239,21 +216,15 @@ export default function InvitePage() {
     const roleInfo = invite ? ROLE_INFO[invite.role] || ROLE_INFO.member : ROLE_INFO.member;
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
-            {/* Background effects */}
-            <div className="absolute inset-0">
-                <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-primary-500/8 to-transparent rounded-full blur-3xl" />
-                <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-purple-500/8 to-transparent rounded-full blur-3xl" />
-                <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-gradient-to-br from-cyan-500/5 to-transparent rounded-full blur-3xl animate-pulse" />
+        <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden" style={{ background: '#020617' }}>
+            {/* Background: lightweight static gradients */}
+            <div className="absolute inset-0" aria-hidden>
+                <div className="absolute -top-1/4 -left-1/4 w-3/4 h-3/4" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.06), transparent 70%)', borderRadius: '50%' }} />
+                <div className="absolute -bottom-1/4 -right-1/4 w-3/4 h-3/4" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.05), transparent 70%)', borderRadius: '50%' }} />
             </div>
 
-            <motion.div
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="relative z-10 w-full max-w-md"
-            >
-                <div className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+            <div className="invite-card relative z-10 w-full max-w-md">
+                <div className="bg-slate-900/95 border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
                     {/* Header with logo */}
                     <div className="p-6 pb-4 text-center border-b border-white/5 bg-gradient-to-b from-slate-800/50 to-transparent">
                         <div className="flex justify-center mb-4">
@@ -290,10 +261,9 @@ export default function InvitePage() {
                             </div>
                         )}
 
-                        {/* Guest Name Entry — no registration required */}
+                        {/* Guest Name Entry */}
                         {state === 'guest_name' && (
                             <div className="space-y-6">
-                                {/* Role badge */}
                                 <div className="flex items-center justify-center">
                                     <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/80 border border-white/10 ${roleInfo.color}`}>
                                         {roleInfo.icon}
@@ -350,10 +320,9 @@ export default function InvitePage() {
                             </div>
                         )}
 
-                        {/* Needs Auth — for non-guest roles */}
+                        {/* Needs Auth */}
                         {state === 'needs_auth' && (
                             <div className="space-y-6">
-                                {/* Role badge */}
                                 <div className="flex items-center justify-center">
                                     <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/80 border border-white/10 ${roleInfo.color}`}>
                                         {roleInfo.icon}
@@ -386,15 +355,9 @@ export default function InvitePage() {
                         {state === 'success' && (
                             <div className="space-y-6">
                                 <div className="flex flex-col items-center gap-4 py-4">
-                                    <motion.div
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        transition={{ type: 'spring', damping: 12, delay: 0.2 }}
-                                    >
-                                        <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 flex items-center justify-center">
-                                            <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-                                        </div>
-                                    </motion.div>
+                                    <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 flex items-center justify-center invite-scale-in">
+                                        <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                                    </div>
                                     <div className="text-center">
                                         <p className="text-slate-200 font-medium">
                                             Sei entrato come <span className={roleInfo.color}>{roleInfo.label}</span>
@@ -457,7 +420,24 @@ export default function InvitePage() {
                         </p>
                     </div>
                 </div>
-            </motion.div>
+            </div>
+
+            <style jsx>{`
+                @keyframes inviteFadeIn {
+                    from { opacity: 0; transform: translateY(16px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes inviteScaleIn {
+                    from { transform: scale(0); }
+                    to   { transform: scale(1); }
+                }
+                .invite-card {
+                    animation: inviteFadeIn 0.4s ease-out;
+                }
+                .invite-scale-in {
+                    animation: inviteScaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+                }
+            `}</style>
         </div>
     );
 }
