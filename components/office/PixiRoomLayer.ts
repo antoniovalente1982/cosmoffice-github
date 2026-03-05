@@ -96,28 +96,26 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     container.addChild(subText);
 
     // ═══════════════════════════════════════════════════════
-    // INSIDE — only the occupant status at bottom
+    // INSIDE — only the occupant status at bottom-left
     // ═══════════════════════════════════════════════════════
-    const centerX = room.x + room.width / 2;
 
     if (occupants > 0) {
         const statusStyle = new TextStyle({
             fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: '700',
             fill: 0x34d399,
             letterSpacing: 0.3,
         });
         const statusText = `${occupants} online`;
         const status = new Text({ text: statusText, style: statusStyle });
-        status.anchor.set(0.5, 0.5);
         const statusY = room.y + room.height - 14;
-        status.position.set(centerX, statusY);
+        status.anchor.set(0, 0.5);
+        status.position.set(room.x + 24, statusY);
 
-        // Green dot to the left of status text
-        const dotX = centerX - status.width / 2 - 8;
+        // Green dot
         const statusDot = new Graphics();
-        statusDot.circle(dotX, statusY, 3);
+        statusDot.circle(room.x + 14, statusY, 3.5);
         statusDot.fill({ color: 0x34d399, alpha: 1 });
         container.addChild(statusDot);
         container.addChild(status);
