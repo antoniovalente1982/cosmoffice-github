@@ -118,7 +118,7 @@ interface RoomChatProps {
 }
 
 function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }: RoomChatProps) {
-    const { isOpen, unreadCount, officeUnreadCount, activeChannel, toggleChat, clearUnread, setActiveChannel } = useChatStore();
+    const { isOpen, unreadCount, officeUnreadCount, activeChannel, toggleChat, closeChat, clearUnread, setActiveChannel } = useChatStore();
     const myRoomId = useAvatarStore(s => s.myRoomId);
     const [inputText, setInputText] = useState('');
     const [showScrollDown, setShowScrollDown] = useState(false);
@@ -241,17 +241,27 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                             {currentLoading && <Loader2 className="w-3 h-3 text-slate-500 animate-spin" />}
                         </div>
 
-                        {/* Clear All Button — admin/owner only */}
-                        {isAdmin && currentMessages.length > 0 && (
+                        <div className="flex items-center gap-1">
+                            {/* Clear All Button — admin/owner only */}
+                            {isAdmin && currentMessages.length > 0 && (
+                                <button
+                                    onClick={() => setConfirmClear(true)}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-red-400/80 hover:text-red-300 hover:bg-red-500/10 transition-all"
+                                    title="Pulisci tutta la chat"
+                                >
+                                    <Trash2 className="w-3 h-3" />
+                                    Pulisci
+                                </button>
+                            )}
+                            {/* Close button */}
                             <button
-                                onClick={() => setConfirmClear(true)}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-red-400/80 hover:text-red-300 hover:bg-red-500/10 transition-all"
-                                title="Pulisci tutta la chat"
+                                onClick={closeChat}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                title="Chiudi chat"
                             >
-                                <Trash2 className="w-3 h-3" />
-                                Pulisci
+                                <X className="w-4 h-4" />
                             </button>
-                        )}
+                        </div>
                     </div>
 
                     {/* Channel Tabs */}
