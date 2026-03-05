@@ -588,13 +588,48 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
     const handleUndo = useCallback(() => { storeUndo(); }, [storeUndo]);
     const handleRedo = useCallback(() => { storeRedo(); }, [storeRedo]);
 
-    // ─── Export PNG ───────────────────────────────────────────
+    // ─── Export PNG (with dark background) ────────────────────
     const handleExport = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
+
+        // Create a temp canvas with solid dark background
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = canvas.width;
+        exportCanvas.height = canvas.height;
+        const ctx = exportCanvas.getContext('2d');
+        if (!ctx) return;
+
+        // Draw dark background
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+        // Draw subtle grid
+        ctx.strokeStyle = 'rgba(100, 116, 139, 0.08)';
+        ctx.lineWidth = 1;
+        const dpr = window.devicePixelRatio || 1;
+        for (let x = 0; x < exportCanvas.width; x += 40 * dpr) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, exportCanvas.height); ctx.stroke();
+        }
+        for (let y = 0; y < exportCanvas.height; y += 40 * dpr) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(exportCanvas.width, y); ctx.stroke();
+        }
+
+        // Draw the whiteboard content on top
+        ctx.drawImage(canvas, 0, 0);
+
+        // Add watermark
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.font = '11px Inter, system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
+        ctx.textAlign = 'right';
+        ctx.fillText('Cosmoffice Whiteboard', exportCanvas.width / dpr - 12, exportCanvas.height / dpr - 10);
+        ctx.restore();
+
         const link = document.createElement('a');
-        link.download = `whiteboard-${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png');
+        link.download = `cosmoffice-whiteboard-${new Date().toISOString().slice(0, 10)}.png`;
+        link.href = exportCanvas.toDataURL('image/png');
         link.click();
     }, []);
 
