@@ -52,7 +52,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
 
     // ─── Border — thick and glowing ─────────────────────────
     body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.stroke({ color: colorNum, width: isHovered ? 2.5 : 1.5, alpha: isHovered ? 0.9 : 0.5 });
+    body.stroke({ color: colorNum, width: isHovered ? 4 : 3, alpha: isHovered ? 0.95 : 0.6 });
 
 
 
@@ -72,7 +72,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         letterSpacing: 0.3,
     });
     const nameText = new Text({ text: room.name, style: nameStyle });
-    nameText.position.set(room.x + 2, room.y - 40);
+    nameText.position.set(room.x + 2, room.y - 58);
     container.addChild(nameText);
 
     // ─── Subtitle line: DEPARTMENT · TYPE — below name ────
@@ -89,7 +89,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         letterSpacing: 1.2,
     });
     const subText = new Text({ text: subtitleStr, style: subStyle });
-    subText.position.set(room.x + 2, room.y - 16);
+    subText.position.set(room.x + 2, room.y - 32);
     container.addChild(subText);
 
     // ═══════════════════════════════════════════════════════
