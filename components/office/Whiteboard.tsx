@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useCallback, useState, memo } from 'react';
 import {
     X, Maximize2, Minimize2, Trash2, AlertTriangle,
-    Undo2, Redo2, Eraser, Pen, Download,
+    Undo2, Redo2, Eraser, Pen, Camera,
     DoorOpen, Globe, Square, Circle as CircleIcon,
     ArrowRight, Minus, MousePointer2,
     Flashlight, Droplets,
@@ -735,7 +735,7 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
                         )}
                         <button onClick={handleExport}
                             className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-cyan-300 hover:bg-cyan-500/10 transition-all"
-                            title="Screenshot lavagna"><Download className="w-3.5 h-3.5" /></button>
+                            title="Screenshot lavagna"><Camera className="w-3.5 h-3.5" /></button>
                         <button onClick={toggleFullscreen}
                             className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-cyan-300 hover:bg-cyan-500/10 transition-all"
                             title={isFullscreen ? 'Riduci' : 'Fullscreen'}>
