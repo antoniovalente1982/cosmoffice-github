@@ -87,29 +87,58 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     nameText.position.set(centerX, room.y + 14);
     container.addChild(nameText);
 
-    // ─── Pill label — centered under name ─────────────────
-    const pillText = department ? department.toUpperCase() : typeLabel;
-    const pillIsDepart = !!department;
+    // ─── Department tab — left-protruding flag ─────────────
+    if (department) {
+        const deptText = department.toUpperCase();
+        const deptStyle = new TextStyle({
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: 9,
+            fontWeight: '800',
+            fill: 0xffffff,
+            letterSpacing: 1.8,
+        });
+        const deptLabel = new Text({ text: deptText, style: deptStyle });
+        const tabPadH = 10;
+        const tabPadV = 5;
+        const tabW = deptLabel.width + tabPadH * 2;
+        const tabH = deptLabel.height + tabPadV * 2;
+        const tabX = room.x - 12; // protrudes 12px to the left
+        const tabY = room.y + 16;
 
+        const tabGfx = new Graphics();
+        // Tab shape: rounded left side, straight right side flush with room edge
+        tabGfx.roundRect(tabX, tabY, tabW + 12, tabH, 4);
+        tabGfx.fill({ color: colorNum, alpha: 0.85 });
+        // Subtle border
+        tabGfx.roundRect(tabX, tabY, tabW + 12, tabH, 4);
+        tabGfx.stroke({ color: 0xffffff, width: 0.5, alpha: 0.2 });
+        container.addChild(tabGfx);
+
+        // White text centered in tab
+        deptLabel.anchor.set(0, 0.5);
+        deptLabel.position.set(tabX + tabPadH, tabY + tabH / 2);
+        container.addChild(deptLabel);
+    }
+
+    // ─── Type pill — centered under name ──────────────────
     const typeStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 10,
         fontWeight: '700',
-        fill: pillIsDepart ? 0xf1f5f9 : hexColor(color),
+        fill: hexColor(color),
         letterSpacing: 1.6,
     });
-    const typeLabelText = new Text({ text: pillText, style: typeStyle });
+    const typeLabelText = new Text({ text: typeLabel, style: typeStyle });
     // Measure text to properly size the pill
-    const textMetrics = typeLabelText.width;
     const pillH = 20;
-    const pillW = textMetrics + 16;
+    const pillW = typeLabelText.width + 16;
     const pillX = centerX - pillW / 2;
     const pillY = room.y + 42;
 
     const typePillBg = new Graphics();
     typePillBg.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
-    typePillBg.fill({ color: pillIsDepart ? 0x1e293b : colorNum, alpha: pillIsDepart ? 0.6 : 0.20 });
-    typePillBg.stroke({ color: pillIsDepart ? 0x475569 : colorNum, width: 1, alpha: pillIsDepart ? 0.5 : 0.35 });
+    typePillBg.fill({ color: colorNum, alpha: 0.18 });
+    typePillBg.stroke({ color: colorNum, width: 1, alpha: 0.30 });
     container.addChild(typePillBg);
 
     // Center text inside pill
