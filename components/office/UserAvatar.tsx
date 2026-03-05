@@ -146,6 +146,8 @@ function UserAvatarInner({
                 transition: 'none',
             }}
             onMouseDown={(e) => {
+                // Don't treat clicks inside the popup as avatar drag/click
+                if (popupRef.current?.contains(e.target as Node)) return;
                 if (onClick && !isMe) {
                     e.stopPropagation();
                     clickStartRef.current = { x: e.clientX, y: e.clientY };
@@ -153,6 +155,8 @@ function UserAvatarInner({
                 onMouseDown?.(e);
             }}
             onMouseUp={(e) => {
+                // Don't treat clicks inside the popup as avatar click
+                if (popupRef.current?.contains(e.target as Node)) return;
                 if (onClick && !isMe && clickStartRef.current) {
                     const dx = Math.abs(e.clientX - clickStartRef.current.x);
                     const dy = Math.abs(e.clientY - clickStartRef.current.y);
