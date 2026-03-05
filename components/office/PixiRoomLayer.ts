@@ -63,16 +63,23 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
 
     container.addChild(body);
 
-    // ─── Room name — large, bold, modern ─────────────────────
+    // ─── Room name — large, bold, very visible ────────────────
     const nameStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 15,
-        fontWeight: '700',
-        fill: 0xf8fafc,
-        letterSpacing: 0.3,
+        fontSize: 22,
+        fontWeight: '800',
+        fill: 0xffffff,
+        letterSpacing: 0.5,
+        dropShadow: {
+            alpha: 0.6,
+            angle: Math.PI / 4,
+            blur: 4,
+            distance: 0,
+            color: colorNum,
+        },
     });
     const nameText = new Text({ text: room.name, style: nameStyle });
-    nameText.position.set(room.x + 16, room.y + 16);
+    nameText.position.set(room.x + 16, room.y + 14);
     container.addChild(nameText);
 
     // ─── Pill label — shows department (white) or type (colored) ─────
@@ -80,21 +87,21 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     const pillIsDepart = !!department;
 
     const typePillBg = new Graphics();
-    const typePillW = pillText.length * 6.5 + 14;
-    typePillBg.roundRect(room.x + 16, room.y + 38, typePillW, 18, 9);
-    typePillBg.fill({ color: pillIsDepart ? 0x1e293b : colorNum, alpha: pillIsDepart ? 0.6 : 0.18 });
-    typePillBg.stroke({ color: pillIsDepart ? 0x475569 : colorNum, width: 0.8, alpha: pillIsDepart ? 0.5 : 0.35 });
+    const typePillW = pillText.length * 8 + 18;
+    typePillBg.roundRect(room.x + 16, room.y + 44, typePillW, 22, 11);
+    typePillBg.fill({ color: pillIsDepart ? 0x1e293b : colorNum, alpha: pillIsDepart ? 0.6 : 0.22 });
+    typePillBg.stroke({ color: pillIsDepart ? 0x475569 : colorNum, width: 1, alpha: pillIsDepart ? 0.5 : 0.4 });
     container.addChild(typePillBg);
 
     const typeStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 9,
+        fontSize: 12,
         fontWeight: '700',
         fill: pillIsDepart ? 0xf1f5f9 : hexColor(color),
-        letterSpacing: 1.2,
+        letterSpacing: 1.4,
     });
     const typeLabelText = new Text({ text: pillText, style: typeStyle });
-    typeLabelText.position.set(room.x + 23, room.y + 42);
+    typeLabelText.position.set(room.x + 25, room.y + 48);
     container.addChild(typeLabelText);
 
     // ─── Bottom status line (bigger) ──────────────────────────
@@ -107,13 +114,13 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
 
         const statusStyle = new TextStyle({
             fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: '700',
             fill: 0x34d399,
             letterSpacing: 0.3,
         });
         const status = new Text({ text: `${occupants} online`, style: statusStyle });
-        status.position.set(room.x + 26, room.y + room.height - 26);
+        status.position.set(room.x + 26, room.y + room.height - 27);
         container.addChild(status);
     }
 }

@@ -269,8 +269,8 @@ export function PixiOffice() {
                     }
                 }
 
-                // Proximity aura at ~7fps (every 4th frame at 30fps)
-                if (frameCount % 4 === 0 && auraRef.current) {
+                // Proximity aura — EVERY frame (cheap: only position/alpha/scale, no redraw)
+                if (auraRef.current) {
                     try {
                         const avatarState = useAvatarStore.getState();
                         const dailyState = useDailyStore.getState();
@@ -282,12 +282,13 @@ export function PixiOffice() {
                         else if (avatarState.myRoomId) auraState = 'none';
                         else if (dailyState.activeContext === 'proximity') auraState = 'active';
 
+                        // Only rebuild room rects when state check runs (cheap object creation)
                         const roomRects = (wsState.rooms || []).map((r: any) => ({
                             x: r.x, y: r.y, width: r.width, height: r.height,
                         }));
 
                         auraRef.current.setState(auraState);
-                        auraRef.current.update(16, myPos.x, myPos.y, roomRects);
+                        auraRef.current.update(app.ticker.deltaMS, myPos.x, myPos.y, roomRects);
                     } catch (e) {
                         console.warn('[Aura] Error in aura update:', e);
                     }
