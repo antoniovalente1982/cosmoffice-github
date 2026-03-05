@@ -56,8 +56,8 @@ import { useOffice } from '../../../hooks/useOffice';
 import { useWorkspaceRole, getWorkspaceIdFromSpace } from '../../../hooks/useWorkspaceRole';
 import { useAvatarSync } from '../../../hooks/useAvatarSync';
 
-// DailyManager singleton — manages Daily.co lifecycle
-const DailyManager = dynamic(() => import('../../../components/DailyManager').then(mod => ({ default: mod.DailyManager })), { ssr: false });
+// LiveKitManager singleton — manages LiveKit WebRTC lifecycle
+const LiveKitManager = dynamic(() => import('../../../components/media/LiveKitManager').then(mod => ({ default: mod.LiveKitManager })), { ssr: false });
 
 export default function OfficePage() {
     const supabase = createClient();
@@ -143,12 +143,12 @@ export default function OfficePage() {
             showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza per condividere lo schermo');
             return;
         }
-        // Call Daily.co screen share directly
-        const daily = (window as any).__dailyCall;
-        if (daily) {
-            try { await daily.startScreenShare(); } catch (err) { console.error('Screen share failed:', err); }
+        // Call LiveKit screen share
+        const room = (window as any).__livekitRoom;
+        if (room?.localParticipant) {
+            try { await room.localParticipant.setScreenShareEnabled(true); } catch (err) { console.error('Screen share failed:', err); }
         } else {
-            showMediaToast('⚠️ Connessione Daily.co non disponibile');
+            showMediaToast('⚠️ Connessione LiveKit non disponibile');
         }
     }, [showMediaToast]);
 
@@ -263,17 +263,14 @@ export default function OfficePage() {
         return () => clearInterval(interval);
     }, [workspaceId, user, supabase, router]);
 
-    // Screen sharing via Daily.co WebRTC — NOT local getDisplayMedia
-    // The useDaily hook exposes startScreenShare/stopScreenShare that go through Daily.co
-    // so remote peers can actually see the shared screen
+    // Screen sharing via LiveKit WebRTC
     const startScreenShare = useCallback(async () => {
         try {
-            // Daily.co handles getDisplayMedia internally and sends the track via WebRTC
-            const daily = (window as any).__dailyCall;
-            if (daily) {
-                await daily.startScreenShare();
+            const room = (window as any).__livekitRoom;
+            if (room?.localParticipant) {
+                await room.localParticipant.setScreenShareEnabled(true);
             } else {
-                console.warn('[ScreenShare] Daily.co call not available, falling back to local share');
+                console.warn('[ScreenShare] LiveKit room not available, falling back to local share');
                 const stream = await navigator.mediaDevices.getDisplayMedia({
                     video: true,
                     audio: false
@@ -286,10 +283,9 @@ export default function OfficePage() {
     }, [addScreenStream]);
 
     const stopAllScreens = useCallback(() => {
-        // Stop via Daily.co first (which will trigger track-stopped events)
-        const daily = (window as any).__dailyCall;
-        if (daily) {
-            try { daily.stopScreenShare(); } catch { }
+        const room = (window as any).__livekitRoom;
+        if (room?.localParticipant) {
+            try { room.localParticipant.setScreenShareEnabled(false); } catch { }
         }
         clearAllScreenStreams();
     }, [clearAllScreenStreams]);
@@ -367,8 +363,8 @@ export default function OfficePage() {
 
     return (
         <div className="flex h-screen bg-transparent overflow-hidden text-slate-100 p-4 gap-4">
-            {/* DailyManager singleton — manages Daily.co call lifecycle */}
-            <DailyManager spaceId={spaceId} />
+            {/* LiveKitManager singleton — manages WebRTC call lifecycle */}
+            <LiveKitManager spaceId={spaceId} />
             {/* Sidebar */}
             <motion.aside
                 initial={{ x: -20, opacity: 0 }}
