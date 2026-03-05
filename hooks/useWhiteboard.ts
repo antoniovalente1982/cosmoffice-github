@@ -172,6 +172,11 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
 
             if (data.type === 'wb_stroke') {
                 if (data.stroke?.userId === userId) return;
+                // Laser strokes should be temporary (fade out), not persisted in store
+                if (data.stroke?.tool === 'laser') {
+                    window.dispatchEvent(new CustomEvent('whiteboard-laser', { detail: data.stroke }));
+                    return;
+                }
                 if (data.scope === 'room') {
                     addStroke(data.stroke);
                 } else {

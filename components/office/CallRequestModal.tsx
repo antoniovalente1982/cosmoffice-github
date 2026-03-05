@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff, X } from 'lucide-react';
 import { useCallStore } from '../../stores/callStore';
 import { useAvatarStore } from '../../stores/avatarStore';
+import { useDailyStore } from '../../stores/dailyStore';
+import { useNotificationStore } from '../../stores/notificationStore';
 import { playCallRingSound, playCallAcceptedSound, playCallDeclinedSound } from '../../utils/sounds';
 
 const CALL_TIMEOUT_MS = 30000; // 30 seconds
@@ -50,9 +52,43 @@ export function CallRequestModal() {
     };
 
     const handleAccept = () => {
+        if (!incomingCall) return;
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         playCallAcceptedSound();
         sendResponse('accepted');
+
+        // ─── Teleport receiver near the caller ────────────────
+        const callerPeer = useAvatarStore.getState().peers[incomingCall.fromUserId];
+        if (callerPeer?.position) {
+            const newX = callerPeer.position.x + 80; // 80px to the right of caller
+            const newY = callerPeer.position.y;
+            useAvatarStore.getState().setMyPosition({ x: newX, y: newY });
+            // Broadcast position update via PartyKit
+            const socket = (window as any).__partykitSocket;
+            const myProfile = useAvatarStore.getState().myProfile;
+            if (socket?.readyState === WebSocket.OPEN && myProfile?.id) {
+                socket.send(JSON.stringify({
+                    type: 'move',
+                    userId: myProfile.id,
+                    x: newX,
+                    y: newY,
+                    roomId: useAvatarStore.getState().myRoomId || null,
+                }));
+            }
+        }
+
+        // ─── Auto-enable mic for receiver ─────────────────────
+        if (!useDailyStore.getState().isAudioOn) {
+            useDailyStore.setState({ isAudioOn: true });
+        }
+
+        // ─── Notify receiver to enable webcam ────────────────
+        useNotificationStore.getState().addNotification({
+            type: 'info',
+            title: 'Chiamata accettata!',
+            body: '🎤📷 Attiva microfono e webcam per parlare',
+        });
+
         setIncomingCall(null);
     };
 

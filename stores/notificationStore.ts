@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export interface AppNotification {
     id: string;
-    type: 'chat' | 'office_chat' | 'knock' | 'call' | 'system';
+    type: 'chat' | 'office_chat' | 'knock' | 'call' | 'system' | 'info';
     title: string;
     body: string;
     avatarUrl?: string | null;

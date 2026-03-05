@@ -353,23 +353,40 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
         return () => observer.disconnect();
     }, [isOpen, renderCanvas]);
 
-    // Laser animation loop
+    // Laser animation loop — throttled to ~15fps (every 66ms)
     useEffect(() => {
         if (!isOpen) return;
+        let lastFrame = 0;
         const animate = () => {
             const now = Date.now();
-            const active = laserStrokesRef.current.filter(l => now - l.addedAt < 2000);
-            if (active.length !== laserStrokesRef.current.length) {
-                laserStrokesRef.current = active;
-                renderCanvas();
-            } else if (active.length > 0) {
-                renderCanvas();
+            if (now - lastFrame >= 66) { // ~15fps
+                lastFrame = now;
+                const active = laserStrokesRef.current.filter(l => now - l.addedAt < 2000);
+                if (active.length !== laserStrokesRef.current.length) {
+                    laserStrokesRef.current = active;
+                    renderCanvas();
+                } else if (active.length > 0) {
+                    renderCanvas();
+                }
             }
             laserAnimRef.current = requestAnimationFrame(animate);
         };
         laserAnimRef.current = requestAnimationFrame(animate);
         return () => { if (laserAnimRef.current) cancelAnimationFrame(laserAnimRef.current); };
     }, [isOpen, renderCanvas]);
+
+    // Listen for remote laser strokes (temporary, fade out in 2s)
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleRemoteLaser = (e: CustomEvent) => {
+            const stroke = e.detail;
+            if (stroke) {
+                laserStrokesRef.current.push({ stroke, addedAt: Date.now() });
+            }
+        };
+        window.addEventListener('whiteboard-laser' as any, handleRemoteLaser);
+        return () => window.removeEventListener('whiteboard-laser' as any, handleRemoteLaser);
+    }, [isOpen]);
 
     // ─── Canvas coordinates ───────────────────────────────────
     const getPos = useCallback((e: React.MouseEvent | MouseEvent) => {
@@ -440,7 +457,7 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
 
         // Cursor broadcast
         const now = Date.now();
-        if (now - cursorThrottleRef.current > 60) {
+        if (now - cursorThrottleRef.current > 100) {
             cursorThrottleRef.current = now;
             sendCursor(pos.x, pos.y, selectedColor);
         }
@@ -708,9 +725,7 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
             <div
                 className={`${fullscreenClasses} rounded-2xl flex flex-col overflow-hidden shadow-2xl`}
                 style={{
-                    background: 'rgba(8, 12, 24, 0.94)',
-                    backdropFilter: 'blur(40px)',
-                    WebkitBackdropFilter: 'blur(40px)',
+                    background: 'rgba(8, 12, 24, 0.97)',
                     border: '1px solid rgba(34, 211, 238, 0.15)',
                     boxShadow: `0 0 30px rgba(34,211,238,0.08), 0 0 60px rgba(99,102,241,0.05), inset 0 1px 0 rgba(255,255,255,0.05)`,
                     animation: 'wbSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',

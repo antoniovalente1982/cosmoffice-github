@@ -471,7 +471,14 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
 
     // ─── Leave current Daily.co context ────────────────────────
     const leaveDailyContext = useCallback(async () => {
-        if (!callRef.current || !joinedRef.current) return;
+        // Reset joiningRef ALWAYS — prevents stuck state if leave is called mid-join
+        joiningRef.current = false;
+
+        if (!callRef.current) return;
+        // Allow leave even if joinedRef is false (handles mid-join cleanup)
+        const state = callRef.current.meetingState?.() || 'new';
+        if (!joinedRef.current && state !== 'joining-meeting' && state !== 'joined-meeting') return;
+
         console.log('[Daily] 🔌 Leaving context (billing stopped)');
         try { await callRef.current.leave(); } catch { }
         joinedRef.current = false;
@@ -574,6 +581,16 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
         const myRoomId = avatarStore.myRoomId;
 
         if (anyMediaOn) {
+            // Safety: reset stuck joiningRef after 15s (prevents permanent lockout)
+            if (joiningRef.current) {
+                setTimeout(() => {
+                    if (joiningRef.current && !joinedRef.current) {
+                        console.warn('[Daily] joiningRef stuck — force resetting');
+                        joiningRef.current = false;
+                    }
+                }, 15000);
+            }
+
             // User wants media ON
             if (joinedRef.current) {
                 // Already connected — just sync media state
@@ -660,10 +677,10 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                 joinDailyContext('proximity', newGroup);
             } else if (!newGroup && oldGroup && dailyStore.activeContext === 'proximity') {
                 // Left proximity while media is on → leave Daily + turn off media buttons
+                // This STOPS BILLING — user must re-press mic/cam when near someone again
                 leaveDailyContext();
-                // Auto-turn off media buttons so toolbar reflects disconnected state
                 useDailyStore.setState({ isAudioOn: false, isVideoOn: false, isScreenSharing: false });
-                console.log('[Daily] Walked away → left proximity, media buttons reset');
+                console.log('[Daily] Walked away → left proximity, billing stopped, media reset');
             }
         });
         return unsubscribe;
@@ -710,9 +727,9 @@ export function DailyManager({ spaceId }: { spaceId: string | null }) {
                         console.log('[Daily] Left room with media → switched to proximity');
                     } else if (joinedRef.current) {
                         leaveDailyContext();
-                        // Auto-turn off media buttons so toolbar reflects disconnected state
+                        // Turn off media buttons to STOP BILLING
                         useDailyStore.setState({ isAudioOn: false, isVideoOn: false, isScreenSharing: false });
-                        console.log('[Daily] Left room → no one nearby, media buttons reset');
+                        console.log('[Daily] Left room → no one nearby, billing stopped, media reset');
                     }
                 }
             }, 300);

@@ -423,6 +423,17 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     });
                     if (msg.response === 'accepted') {
                         playCallAcceptedSound();
+                        // I'm the CALLER — notify me to enable mic/cam
+                        useNotificationStore.getState().addNotification({
+                            type: 'info',
+                            title: `${msg.fromName} ha accettato!`,
+                            body: '🎤 Attiva microfono e webcam per parlare',
+                        });
+                        // Auto-enable mic for caller
+                        const dailyStore = useDailyStore.getState();
+                        if (!dailyStore.isAudioOn) {
+                            useDailyStore.setState({ isAudioOn: true });
+                        }
                     } else {
                         playCallDeclinedSound();
                     }
