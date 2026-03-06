@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2,
     LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square, Link2, Unlink, Map, GitBranch,
-    Copy, CheckSquare, Grid3X3
+    Copy, CheckSquare, Grid3X3, ChevronRight, ChevronLeft, PanelRightClose
 } from 'lucide-react';
 
 
@@ -55,6 +55,7 @@ export function OfficeBuilder() {
     const [confirmTemplate, setConfirmTemplate] = useState<OfficeTemplate | null>(null);
     const [editShape, setEditShape] = useState<'rect' | 'circle'>('rect');
     const [editLevel, setEditLevel] = useState(0);
+    const [panelCollapsed, setPanelCollapsed] = useState(false);
 
     // Connection creation state
     const [showConnections, setShowConnections] = useState(false);
@@ -792,413 +793,428 @@ export function OfficeBuilder() {
                 </div>
             </motion.div>
 
+            {/* ═══ RIGHT PANEL — Collapsible ═══ */}
             <div
-                className="pointer-events-auto absolute top-24 right-0 w-80 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]"
-                style={{
-                    background: 'rgba(10, 15, 30, 0.88)',
-                    backdropFilter: 'blur(40px)',
-                    WebkitBackdropFilter: 'blur(40px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRight: 'none',
-                    animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-                    overflow: 'visible',
-                }}
+                className="pointer-events-auto absolute top-24 right-0 flex items-start"
+                style={{ transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', transform: panelCollapsed ? 'translateX(calc(100% - 36px))' : 'translateX(0)' }}
             >
-                {/* Inner scrollable area */}
-                <div className="flex flex-col overflow-hidden rounded-2xl" style={{ maxHeight: 'inherit' }}>
-                    {/* Red X close button — top-left corner, half in / half out */}
-                    <button
-                        onClick={toggleBuilderMode}
-                        className="absolute z-20 flex items-center justify-center w-7 h-7 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all transform hover:scale-110 active:scale-95 border border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.25)]"
-                        style={{ top: -12, left: -12 }}
-                        title="Chiudi Space Builder"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
-                    {selectedRoom ? (
-                        <>
-                            {/* Glass Header for Properties — with Back button */}
-                            <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2"
-                                style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%)' }}>
-                                <button
-                                    onClick={() => setSelectedRoom(null)}
-                                    className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center transition-colors flex-shrink-0"
-                                    title="Torna alla lista"
-                                >
-                                    <ArrowLeft className="w-3.5 h-3.5 text-slate-300" />
-                                </button>
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: editColor }} />
-                                    <h3 className="text-sm font-bold text-white tracking-wide truncate">{editName || 'Proprietà'}</h3>
-                                </div>
-                            </div>
+                {/* Collapse/Expand toggle tab */}
+                <button
+                    onClick={() => setPanelCollapsed(!panelCollapsed)}
+                    className="flex-shrink-0 flex items-center justify-center w-9 h-14 rounded-l-xl bg-slate-800/90 border border-white/10 border-r-0 text-slate-400 hover:text-white hover:bg-slate-700/90 transition-all mt-8 -mr-px z-10 shadow-lg"
+                    style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
+                    title={panelCollapsed ? 'Espandi pannello' : 'Riduci pannello'}
+                >
+                    {panelCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
 
-                            {/* Content */}
-                            <div className="p-5 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-                                {/* Identifier Group */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Identificativo</label>
-                                        <div className="relative">
-                                            <PenTool className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input
-                                                value={editName} onChange={(e) => setEditName(e.target.value)}
-                                                className="w-full bg-black/20 border border-white/5 rounded-xl block py-2.5 pl-9 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all font-medium"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Reparto</label>
-                                        <div className="relative">
-                                            <Focus className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input
-                                                value={editDepartment} onChange={(e) => setEditDepartment(e.target.value)} placeholder="Marketing, Dev..."
-                                                className="w-full bg-black/20 border border-white/5 rounded-xl block py-2.5 pl-9 pr-3 text-sm text-white placeholder-slate-600 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
-                                            />
-                                        </div>
+                <div
+                    className="w-80 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]"
+                    style={{
+                        background: 'rgba(10, 15, 30, 0.88)',
+                        backdropFilter: 'blur(40px)',
+                        WebkitBackdropFilter: 'blur(40px)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRight: 'none',
+                        overflow: 'visible',
+                    }}
+                >
+                    {/* Inner scrollable area */}
+                    <div className="flex flex-col overflow-hidden rounded-2xl" style={{ maxHeight: 'inherit' }}>
+                        {/* Red X close button — top-left corner, half in / half out */}
+                        <button
+                            onClick={toggleBuilderMode}
+                            className="absolute z-20 flex items-center justify-center w-7 h-7 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all transform hover:scale-110 active:scale-95 border border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.25)]"
+                            style={{ top: -12, left: -12 }}
+                            title="Chiudi Space Builder"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                        {selectedRoom ? (
+                            <>
+                                {/* Glass Header for Properties — with Back button */}
+                                <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2"
+                                    style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%)' }}>
+                                    <button
+                                        onClick={() => setSelectedRoom(null)}
+                                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center transition-colors flex-shrink-0"
+                                        title="Torna alla lista"
+                                    >
+                                        <ArrowLeft className="w-3.5 h-3.5 text-slate-300" />
+                                    </button>
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: editColor }} />
+                                        <h3 className="text-sm font-bold text-white tracking-wide truncate">{editName || 'Proprietà'}</h3>
                                     </div>
                                 </div>
 
-                                {/* Divider */}
-                                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-                                {/* Shape */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                            <Box className="w-3 h-3" /> Forma Stanza
-                                        </label>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => setEditShape('rect')}
-                                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${editShape === 'rect'
-                                                    ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
-                                                    : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-                                            >
-                                                <Square className="w-4 h-4" /> Rettangolo
-                                            </button>
-                                            <button
-                                                onClick={() => setEditShape('circle')}
-                                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${editShape === 'circle'
-                                                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                                                    : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-                                            >
-                                                <CircleIcon className="w-4 h-4" /> Cerchio
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Divider */}
-                                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-                                {/* Hierarchical Level — always visible */}
-                                {(
-                                    <>
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
-                                                <GitBranch className="w-3 h-3" /> Livello Gerarchico
-                                            </label>
-                                            <div className="flex items-center gap-3">
-                                                <button
-                                                    onClick={() => setEditLevel(Math.max(0, editLevel - 1))}
-                                                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center text-sm font-bold"
-                                                >−</button>
-                                                <div className="flex-1 text-center">
-                                                    <span className="text-xl font-bold text-amber-300">{editLevel}</span>
-                                                    <p className="text-[9px] text-slate-500 mt-0.5">
-                                                        {editLevel === 0 ? 'CEO / Top' : editLevel === 1 ? 'Directors' : editLevel === 2 ? 'Managers' : `Livello ${editLevel}`}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    onClick={() => setEditLevel(editLevel + 1)}
-                                                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center text-sm font-bold"
-                                                >+</button>
+                                {/* Content */}
+                                <div className="p-5 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+                                    {/* Identifier Group */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Identificativo</label>
+                                            <div className="relative">
+                                                <PenTool className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                                <input
+                                                    value={editName} onChange={(e) => setEditName(e.target.value)}
+                                                    className="w-full bg-black/20 border border-white/5 rounded-xl block py-2.5 pl-9 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all font-medium"
+                                                />
                                             </div>
                                         </div>
 
-                                        {/* Auto-arrange button inside level selector */}
-                                        <button
-                                            onClick={handleAutoArrangeHierarchy}
-                                            disabled={saving}
-                                            className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-yellow-500/20 hover:border-amber-500/50 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(245,158,11,0.15)] group disabled:opacity-40"
-                                        >
-                                            <GitBranch className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-bold text-amber-50 tracking-wide">
-                                                {saving ? 'Organizzando...' : 'Auto-Organizza Organigramma'}
-                                            </span>
-                                        </button>
-
-                                        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                                    </>
-                                )}
-
-                                {/* Appearance */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                            <PaintBucket className="w-3 h-3" /> Colore Principale
-                                        </label>
-                                        <div className="grid grid-cols-5 gap-2.5">
-                                            {COLOR_PRESETS.map(c => (
-                                                <button
-                                                    key={c}
-                                                    onClick={() => setEditColor(c)}
-                                                    className="relative w-full aspect-square rounded-full transition-all group"
-                                                >
-                                                    {/* Color core */}
-                                                    <div className={`absolute inset-0 rounded-full ${editColor === c ? 'scale-75' : 'scale-100 group-hover:scale-90'} shadow-inner transition-transform`} style={{ backgroundColor: c }} />
-                                                    {/* Selected outer ring */}
-                                                    {editColor === c && (
-                                                        <div className="absolute inset-0 rounded-full border-2 opacity-80" style={{ borderColor: c, boxShadow: `0 0 10px ${c}40` }} />
-                                                    )}
-                                                </button>
-                                            ))}
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Reparto</label>
+                                            <div className="relative">
+                                                <Focus className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                                <input
+                                                    value={editDepartment} onChange={(e) => setEditDepartment(e.target.value)} placeholder="Marketing, Dev..."
+                                                    className="w-full bg-black/20 border border-white/5 rounded-xl block py-2.5 pl-9 pr-3 text-sm text-white placeholder-slate-600 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-
-                            </div>
-
-                            {/* Action Footer */}
-                            <div className="p-4 grid grid-cols-2 gap-2 border-t border-white/5 bg-black/20">
-                                <button
-                                    onClick={handleDeleteRoom}
-                                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-red-200 bg-red-600/30 hover:bg-red-600/50 transition-colors border border-red-500/40 hover:border-red-500/60"
-                                >
-                                    <Trash2 className="w-3.5 h-3.5" /> Rimuovi
-                                </button>
-                                <button
-                                    onClick={handleSaveProperties} disabled={saving}
-                                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(34,211,238,0.4)] disabled:opacity-50"
-                                >
-                                    <Save className="w-3.5 h-3.5" /> {saving ? '...' : 'Applica'}
-                                </button>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="p-4 flex-1 flex flex-col justify-start items-center h-full min-h-[160px] relative overflow-y-auto custom-scrollbar">
-                                {/* Confirmation dialog for template */}
-                                {confirmTemplate && (
-                                    <div className="w-full mb-4 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <AlertTriangle className="w-4 h-4 text-amber-400" />
-                                            <span className="text-sm font-bold text-amber-300">Attenzione</span>
-                                        </div>
-                                        <p className="text-xs text-slate-300 mb-3">Tutte le stanze esistenti verranno sostituite con il template <strong className="text-white">"{confirmTemplate.name}"</strong>. Questa azione non è reversibile.</p>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => setConfirmTemplate(null)}
-                                                className="flex-1 py-2 rounded-xl text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 transition-colors"
-                                            >Annulla</button>
-                                            <button
-                                                onClick={() => handleApplyTemplate(confirmTemplate)}
-                                                disabled={applyingTemplate}
-                                                className="flex-1 py-2 rounded-xl text-xs font-bold text-black bg-amber-400 hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
-                                            >
-                                                {applyingTemplate ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                                                Conferma
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {!showTemplates ? (<>
-                                    {/* Template button — on top */}
-                                    <button
-                                        onClick={() => { setShowTemplates(true); }}
-                                        className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-600/30 to-orange-600/30 border border-amber-500/50 hover:from-amber-600/45 hover:to-orange-600/45 hover:border-amber-400/70 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(245,158,11,0.25)] group"
-                                    >
-                                        <LayoutTemplate className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-bold text-amber-50 tracking-wide">Applica Template Ufficio</span>
-                                    </button>
-
-                                    {/* Nuova Stanza button */}
-                                    <button
-                                        onClick={() => handleAddRoom(roomTemplates[0])}
-                                        className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group"
-                                    >
-                                        <Plus className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-bold text-cyan-50 tracking-wide">Nuova Stanza</span>
-                                    </button>
 
                                     {/* Divider */}
                                     <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-                                    {/* Modifica Stanza — room list always open */}
-                                    <div className="w-full space-y-3 mt-4 mb-2">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Edit2 className="w-3.5 h-3.5 text-cyan-400" />
-                                            <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Modifica Stanza</p>
-                                            <span className="text-[10px] text-slate-500 font-medium ml-auto">{rooms.length}</span>
+                                    {/* Shape */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                                <Box className="w-3 h-3" /> Forma Stanza
+                                            </label>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setEditShape('rect')}
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${editShape === 'rect'
+                                                        ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                                                        : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+                                                >
+                                                    <Square className="w-4 h-4" /> Rettangolo
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditShape('circle')}
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${editShape === 'circle'
+                                                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                                        : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+                                                >
+                                                    <CircleIcon className="w-4 h-4" /> Cerchio
+                                                </button>
+                                            </div>
                                         </div>
-                                        {rooms.map(room => (
-                                            <button
-                                                key={room.id}
-                                                onClick={() => setSelectedRoom(room.id)}
-                                                className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 border border-white/5 hover:border-cyan-500/20 transition-all hover:shadow-[0_0_15px_rgba(34,211,238,0.05)]"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-3.5 h-3.5 rounded-full shadow-[0_0_6px_rgba(255,255,255,0.15)]" style={{ backgroundColor: getRoomColor(room) }} />
-                                                    <span className="text-sm text-slate-200 font-medium">{room.name}</span>
-                                                </div>
-                                                <Edit2 className="w-4 h-4 text-slate-500" />
-                                            </button>
-                                        ))}
-                                        {rooms.length === 0 && (
-                                            <p className="text-sm text-slate-500 text-center py-6">Nessuna stanza. Crea la prima o usa un template!</p>
-                                        )}
                                     </div>
 
-                                    {/* ═══ Rami / Connessioni ═══ */}
-                                    <div className="w-full space-y-3 mt-4 mb-2">
-                                        <div className="h-px w-full bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Link2 className="w-3.5 h-3.5 text-indigo-400" />
-                                            <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Rami</p>
-                                            <span className="text-[10px] text-slate-500 font-medium ml-auto">{roomConnections.length}</span>
-                                        </div>
+                                    {/* Divider */}
+                                    <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-                                        {/* Quick-create connection */}
-                                        {rooms.length >= 2 && (
-                                            <div className="space-y-2.5 p-3 rounded-xl bg-indigo-500/[0.06] border border-indigo-500/20">
-                                                {/* From → To dropdowns */}
-                                                <div className="flex gap-2 items-center">
-                                                    <select
-                                                        value={connectFromId}
-                                                        onChange={e => setConnectFromId(e.target.value)}
-                                                        className="flex-1 px-2.5 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-[11px] font-medium focus:outline-none focus:border-indigo-500/50 transition-colors"
-                                                    >
-                                                        <option value="" className="bg-slate-900">Da...</option>
-                                                        {rooms.map(r => (
-                                                            <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
-                                                        ))}
-                                                    </select>
-                                                    <span className="text-indigo-400 text-xs font-bold">→</span>
-                                                    <select
-                                                        value={connectToId}
-                                                        onChange={e => setConnectToId(e.target.value)}
-                                                        className="flex-1 px-2.5 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-[11px] font-medium focus:outline-none focus:border-indigo-500/50 transition-colors"
-                                                    >
-                                                        <option value="" className="bg-slate-900">A...</option>
-                                                        {rooms.filter(r => r.id !== connectFromId).map(r => (
-                                                            <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-
-                                                {/* Color picker */}
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mr-1">Colore</span>
-                                                    {['#6366f1', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'].map(c => (
-                                                        <button
-                                                            key={c}
-                                                            onClick={() => setConnectColor(c)}
-                                                            className={`w-5 h-5 rounded-full transition-all ${connectColor === c ? 'ring-2 ring-white/60 scale-110' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
-                                                            style={{ backgroundColor: c }}
-                                                        />
-                                                    ))}
-                                                </div>
-
-                                                {/* Label (optional) + Create button */}
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        value={connectLabel}
-                                                        onChange={e => setConnectLabel(e.target.value)}
-                                                        placeholder="Etichetta (opz.)"
-                                                        className="flex-1 px-2.5 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-[11px] placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
-                                                    />
+                                    {/* Hierarchical Level — always visible */}
+                                    {(
+                                        <>
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                    <GitBranch className="w-3 h-3" /> Livello Gerarchico
+                                                </label>
+                                                <div className="flex items-center gap-3">
                                                     <button
-                                                        onClick={() => handleCreateConnection()}
-                                                        disabled={!connectFromId || !connectToId}
-                                                        className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_12px_rgba(99,102,241,0.3)] hover:shadow-[0_0_20px_rgba(99,102,241,0.5)]"
-                                                    >
-                                                        Collega
-                                                    </button>
+                                                        onClick={() => setEditLevel(Math.max(0, editLevel - 1))}
+                                                        className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center text-sm font-bold"
+                                                    >−</button>
+                                                    <div className="flex-1 text-center">
+                                                        <span className="text-xl font-bold text-amber-300">{editLevel}</span>
+                                                        <p className="text-[9px] text-slate-500 mt-0.5">
+                                                            {editLevel === 0 ? 'CEO / Top' : editLevel === 1 ? 'Directors' : editLevel === 2 ? 'Managers' : `Livello ${editLevel}`}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setEditLevel(editLevel + 1)}
+                                                        className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center text-sm font-bold"
+                                                    >+</button>
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* Active connections list */}
-                                        {roomConnections.map((conn: any) => {
-                                            const roomA = rooms.find(r => r.id === conn.room_a_id);
-                                            const roomB = rooms.find(r => r.id === conn.room_b_id);
-                                            return (
-                                                <div key={conn.id} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-slate-800/40 border border-white/5 hover:border-indigo-500/20 transition-all">
-                                                    <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-[0_0_6px_rgba(255,255,255,0.15)]" style={{ backgroundColor: conn.color || '#6366f1' }} />
-                                                    <span className="text-[11px] text-slate-200 flex-1 truncate font-medium">
-                                                        {roomA?.name || '?'} → {roomB?.name || '?'}
-                                                    </span>
-                                                    {conn.label && <span className="text-[9px] text-indigo-400 font-bold bg-indigo-500/10 px-1.5 py-0.5 rounded">{conn.label}</span>}
-                                                    <button onClick={() => handleDeleteConnection(conn.id)} className="p-1 rounded-lg hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors">
-                                                        <Unlink className="w-3.5 h-3.5" />
+                                            {/* Auto-arrange button inside level selector */}
+                                            <button
+                                                onClick={handleAutoArrangeHierarchy}
+                                                disabled={saving}
+                                                className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-yellow-500/20 hover:border-amber-500/50 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(245,158,11,0.15)] group disabled:opacity-40"
+                                            >
+                                                <GitBranch className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                                                <span className="text-[11px] font-bold text-amber-50 tracking-wide">
+                                                    {saving ? 'Organizzando...' : 'Auto-Organizza Organigramma'}
+                                                </span>
+                                            </button>
+
+                                            <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                                        </>
+                                    )}
+
+                                    {/* Appearance */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                                <PaintBucket className="w-3 h-3" /> Colore Principale
+                                            </label>
+                                            <div className="grid grid-cols-5 gap-2.5">
+                                                {COLOR_PRESETS.map(c => (
+                                                    <button
+                                                        key={c}
+                                                        onClick={() => setEditColor(c)}
+                                                        className="relative w-full aspect-square rounded-full transition-all group"
+                                                    >
+                                                        {/* Color core */}
+                                                        <div className={`absolute inset-0 rounded-full ${editColor === c ? 'scale-75' : 'scale-100 group-hover:scale-90'} shadow-inner transition-transform`} style={{ backgroundColor: c }} />
+                                                        {/* Selected outer ring */}
+                                                        {editColor === c && (
+                                                            <div className="absolute inset-0 rounded-full border-2 opacity-80" style={{ borderColor: c, boxShadow: `0 0 10px ${c}40` }} />
+                                                        )}
                                                     </button>
-                                                </div>
-                                            );
-                                        })}
-                                        {roomConnections.length === 0 && rooms.length >= 2 && (
-                                            <p className="text-[11px] text-slate-500 text-center py-2 italic">Nessun ramo. Collega le stanze!</p>
-                                        )}
-                                    </div>
-                                </>) : (
-                                    /* Templates List */
-                                    <div className="w-full">
-                                        <button
-                                            onClick={() => setShowTemplates(false)}
-                                            className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 transition-colors mb-4"
-                                        >
-                                            <ArrowLeft className="w-3.5 h-3.5" />
-                                            <span className="font-medium">Torna indietro</span>
-                                        </button>
-
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Scegli un template</p>
-
-                                        <div className="space-y-3">
-                                            {OFFICE_TEMPLATES.map((template) => (
-                                                <button
-                                                    key={template.id}
-                                                    onClick={() => setConfirmTemplate(template)}
-                                                    disabled={applyingTemplate}
-                                                    className="w-full text-left p-4 rounded-2xl border border-white/5 hover:border-white/15 bg-white/[0.02] hover:bg-white/[0.05] transition-all group disabled:opacity-50"
-                                                >
-                                                    <div className="flex items-start gap-3">
-                                                        <span className="text-2xl flex-shrink-0 mt-0.5">{template.icon}</span>
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="text-sm font-bold text-white group-hover:text-cyan-200 transition-colors">{template.name}</h4>
-                                                            <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{template.description}</p>
-                                                            <div className="flex items-center gap-3 mt-2">
-                                                                <span className="text-[10px] font-medium text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">
-                                                                    {template.rooms.length} stanze
-                                                                </span>
-                                                                <span className="text-[10px] font-medium text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">
-                                                                    {template.officeWidth}×{template.officeHeight}
-                                                                </span>
-                                                            </div>
-
-                                                            {/* Mini room color preview */}
-                                                            <div className="flex gap-1 mt-2">
-                                                                {template.rooms.map((r, i) => (
-                                                                    <div
-                                                                        key={i}
-                                                                        className="w-3 h-3 rounded-sm opacity-70 group-hover:opacity-100 transition-opacity"
-                                                                        style={{ backgroundColor: r.color }}
-                                                                        title={r.name}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
-                                )}
 
-                            </div>
-                        </>
-                    )}
+                                </div>
+
+                                {/* Action Footer */}
+                                <div className="p-4 grid grid-cols-2 gap-2 border-t border-white/5 bg-black/20">
+                                    <button
+                                        onClick={handleDeleteRoom}
+                                        className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-red-200 bg-red-600/30 hover:bg-red-600/50 transition-colors border border-red-500/40 hover:border-red-500/60"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" /> Rimuovi
+                                    </button>
+                                    <button
+                                        onClick={handleSaveProperties} disabled={saving}
+                                        className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(34,211,238,0.4)] disabled:opacity-50"
+                                    >
+                                        <Save className="w-3.5 h-3.5" /> {saving ? '...' : 'Applica'}
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="p-4 flex-1 flex flex-col justify-start items-center h-full min-h-[160px] relative overflow-y-auto custom-scrollbar">
+                                    {/* Confirmation dialog for template */}
+                                    {confirmTemplate && (
+                                        <div className="w-full mb-4 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                                                <span className="text-sm font-bold text-amber-300">Attenzione</span>
+                                            </div>
+                                            <p className="text-xs text-slate-300 mb-3">Tutte le stanze esistenti verranno sostituite con il template <strong className="text-white">"{confirmTemplate.name}"</strong>. Questa azione non è reversibile.</p>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setConfirmTemplate(null)}
+                                                    className="flex-1 py-2 rounded-xl text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 transition-colors"
+                                                >Annulla</button>
+                                                <button
+                                                    onClick={() => handleApplyTemplate(confirmTemplate)}
+                                                    disabled={applyingTemplate}
+                                                    className="flex-1 py-2 rounded-xl text-xs font-bold text-black bg-amber-400 hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                                >
+                                                    {applyingTemplate ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                                    Conferma
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!showTemplates ? (<>
+                                        {/* Template button — on top */}
+                                        <button
+                                            onClick={() => { setShowTemplates(true); }}
+                                            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-600/30 to-orange-600/30 border border-amber-500/50 hover:from-amber-600/45 hover:to-orange-600/45 hover:border-amber-400/70 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(245,158,11,0.25)] group"
+                                        >
+                                            <LayoutTemplate className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                                            <span className="text-xs font-bold text-amber-50 tracking-wide">Applica Template Ufficio</span>
+                                        </button>
+
+                                        {/* Nuova Stanza button */}
+                                        <button
+                                            onClick={() => handleAddRoom(roomTemplates[0])}
+                                            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group"
+                                        >
+                                            <Plus className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                                            <span className="text-xs font-bold text-cyan-50 tracking-wide">Nuova Stanza</span>
+                                        </button>
+
+                                        {/* Divider */}
+                                        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                                        {/* Modifica Stanza — room list always open */}
+                                        <div className="w-full space-y-3 mt-4 mb-2">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Edit2 className="w-3.5 h-3.5 text-cyan-400" />
+                                                <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Modifica Stanza</p>
+                                                <span className="text-[10px] text-slate-500 font-medium ml-auto">{rooms.length}</span>
+                                            </div>
+                                            {rooms.map(room => (
+                                                <button
+                                                    key={room.id}
+                                                    onClick={() => setSelectedRoom(room.id)}
+                                                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 border border-white/5 hover:border-cyan-500/20 transition-all hover:shadow-[0_0_15px_rgba(34,211,238,0.05)]"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-3.5 h-3.5 rounded-full shadow-[0_0_6px_rgba(255,255,255,0.15)]" style={{ backgroundColor: getRoomColor(room) }} />
+                                                        <span className="text-sm text-slate-200 font-medium">{room.name}</span>
+                                                    </div>
+                                                    <Edit2 className="w-4 h-4 text-slate-500" />
+                                                </button>
+                                            ))}
+                                            {rooms.length === 0 && (
+                                                <p className="text-sm text-slate-500 text-center py-6">Nessuna stanza. Crea la prima o usa un template!</p>
+                                            )}
+                                        </div>
+
+                                        {/* ═══ Rami / Connessioni ═══ */}
+                                        <div className="w-full space-y-3 mt-4 mb-2">
+                                            <div className="h-px w-full bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Link2 className="w-3.5 h-3.5 text-indigo-400" />
+                                                <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Rami</p>
+                                                <span className="text-[10px] text-slate-500 font-medium ml-auto">{roomConnections.length}</span>
+                                            </div>
+
+                                            {/* Quick-create connection */}
+                                            {rooms.length >= 2 && (
+                                                <div className="space-y-2.5 p-3 rounded-xl bg-indigo-500/[0.06] border border-indigo-500/20">
+                                                    {/* From → To dropdowns */}
+                                                    <div className="flex gap-2 items-center">
+                                                        <select
+                                                            value={connectFromId}
+                                                            onChange={e => setConnectFromId(e.target.value)}
+                                                            className="flex-1 px-2.5 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-[11px] font-medium focus:outline-none focus:border-indigo-500/50 transition-colors"
+                                                        >
+                                                            <option value="" className="bg-slate-900">Da...</option>
+                                                            {rooms.map(r => (
+                                                                <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        <span className="text-indigo-400 text-xs font-bold">→</span>
+                                                        <select
+                                                            value={connectToId}
+                                                            onChange={e => setConnectToId(e.target.value)}
+                                                            className="flex-1 px-2.5 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-[11px] font-medium focus:outline-none focus:border-indigo-500/50 transition-colors"
+                                                        >
+                                                            <option value="" className="bg-slate-900">A...</option>
+                                                            {rooms.filter(r => r.id !== connectFromId).map(r => (
+                                                                <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+
+                                                    {/* Color picker */}
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mr-1">Colore</span>
+                                                        {['#6366f1', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'].map(c => (
+                                                            <button
+                                                                key={c}
+                                                                onClick={() => setConnectColor(c)}
+                                                                className={`w-5 h-5 rounded-full transition-all ${connectColor === c ? 'ring-2 ring-white/60 scale-110' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
+                                                                style={{ backgroundColor: c }}
+                                                            />
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Label (optional) + Create button */}
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            value={connectLabel}
+                                                            onChange={e => setConnectLabel(e.target.value)}
+                                                            placeholder="Etichetta (opz.)"
+                                                            className="flex-1 px-2.5 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-[11px] placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                                                        />
+                                                        <button
+                                                            onClick={() => handleCreateConnection()}
+                                                            disabled={!connectFromId || !connectToId}
+                                                            className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_12px_rgba(99,102,241,0.3)] hover:shadow-[0_0_20px_rgba(99,102,241,0.5)]"
+                                                        >
+                                                            Collega
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Active connections list */}
+                                            {roomConnections.map((conn: any) => {
+                                                const roomA = rooms.find(r => r.id === conn.room_a_id);
+                                                const roomB = rooms.find(r => r.id === conn.room_b_id);
+                                                return (
+                                                    <div key={conn.id} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-slate-800/40 border border-white/5 hover:border-indigo-500/20 transition-all">
+                                                        <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-[0_0_6px_rgba(255,255,255,0.15)]" style={{ backgroundColor: conn.color || '#6366f1' }} />
+                                                        <span className="text-[11px] text-slate-200 flex-1 truncate font-medium">
+                                                            {roomA?.name || '?'} → {roomB?.name || '?'}
+                                                        </span>
+                                                        {conn.label && <span className="text-[9px] text-indigo-400 font-bold bg-indigo-500/10 px-1.5 py-0.5 rounded">{conn.label}</span>}
+                                                        <button onClick={() => handleDeleteConnection(conn.id)} className="p-1 rounded-lg hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors">
+                                                            <Unlink className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                            {roomConnections.length === 0 && rooms.length >= 2 && (
+                                                <p className="text-[11px] text-slate-500 text-center py-2 italic">Nessun ramo. Collega le stanze!</p>
+                                            )}
+                                        </div>
+                                    </>) : (
+                                        /* Templates List */
+                                        <div className="w-full">
+                                            <button
+                                                onClick={() => setShowTemplates(false)}
+                                                className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 transition-colors mb-4"
+                                            >
+                                                <ArrowLeft className="w-3.5 h-3.5" />
+                                                <span className="font-medium">Torna indietro</span>
+                                            </button>
+
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Scegli un template</p>
+
+                                            <div className="space-y-3">
+                                                {OFFICE_TEMPLATES.map((template) => (
+                                                    <button
+                                                        key={template.id}
+                                                        onClick={() => setConfirmTemplate(template)}
+                                                        disabled={applyingTemplate}
+                                                        className="w-full text-left p-4 rounded-2xl border border-white/5 hover:border-white/15 bg-white/[0.02] hover:bg-white/[0.05] transition-all group disabled:opacity-50"
+                                                    >
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="text-2xl flex-shrink-0 mt-0.5">{template.icon}</span>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className="text-sm font-bold text-white group-hover:text-cyan-200 transition-colors">{template.name}</h4>
+                                                                <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{template.description}</p>
+                                                                <div className="flex items-center gap-3 mt-2">
+                                                                    <span className="text-[10px] font-medium text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">
+                                                                        {template.rooms.length} stanze
+                                                                    </span>
+                                                                    <span className="text-[10px] font-medium text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">
+                                                                        {template.officeWidth}×{template.officeHeight}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Mini room color preview */}
+                                                                <div className="flex gap-1 mt-2">
+                                                                    {template.rooms.map((r, i) => (
+                                                                        <div
+                                                                            key={i}
+                                                                            className="w-3 h-3 rounded-sm opacity-70 group-hover:opacity-100 transition-opacity"
+                                                                            style={{ backgroundColor: r.color }}
+                                                                            title={r.name}
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
 
