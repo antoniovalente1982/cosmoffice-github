@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, X, Grid3X3, Video, VideoOff } from 'lucide-react';
 import { useAvatarStore } from '../../stores/avatarStore';
@@ -22,6 +22,18 @@ interface GridParticipant {
 function GridTile({ participant }: { participant: GridParticipant }) {
     const videoElRef = useRef<HTMLVideoElement | null>(null);
     const { stream, fullName, initials, isMe, audioEnabled, isSpeaking, videoEnabled, avatarUrl } = participant;
+    const [trackAlive, setTrackAlive] = useState(false);
+
+    // Detect live video tracks — poll because MediaStreamTrack 'ended' isn't always reliable
+    useEffect(() => {
+        const check = () => {
+            const alive = !!(stream && stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live'));
+            setTrackAlive(alive);
+        };
+        check();
+        const interval = setInterval(check, 500);
+        return () => clearInterval(interval);
+    }, [stream, videoEnabled]);
 
     useEffect(() => {
         const el = videoElRef.current;
@@ -37,8 +49,8 @@ function GridTile({ participant }: { participant: GridParticipant }) {
         }
     }, [stream]);
 
-    // Simple check: show video if stream has live video tracks
-    const hasActiveVideo = videoEnabled && stream && stream.getVideoTracks().length > 0;
+    // Check real track state, not just stream existence
+    const hasActiveVideo = videoEnabled && trackAlive;
 
     return (
         <div className={`

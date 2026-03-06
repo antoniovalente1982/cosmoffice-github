@@ -281,13 +281,29 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             );
         });
 
-        // ─── Track muted (remote user turned off camera/mic) ──────
+        // ─── Track muted (remote or local user turned off camera/mic) ──────
         room.on(RoomEvent.TrackMuted, (
             publication: TrackPublication,
             participant: Participant
         ) => {
             const id = participant.identity;
+            const isLocal = id === room.localParticipant.identity;
             const supabaseId = gLivekitToSupabase.get(id) || id;
+
+            if (isLocal) {
+                // Rebuild local stream when our own tracks change
+                const localTracks: MediaStreamTrack[] = [];
+                room.localParticipant.trackPublications.forEach(pub => {
+                    if (pub.track && pub.track.source !== Track.Source.ScreenShare &&
+                        pub.track.mediaStreamTrack.readyState === 'live' && pub.track.mediaStreamTrack.enabled) {
+                        localTracks.push(pub.track.mediaStreamTrack);
+                    }
+                });
+                useDailyStore.getState().setLocalStream(
+                    localTracks.length > 0 ? new MediaStream(localTracks) : null
+                );
+                return;
+            }
 
             if (publication.source === Track.Source.Camera) {
                 useDailyStore.getState().setParticipant(id, { videoEnabled: false });
@@ -304,13 +320,29 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             }
         });
 
-        // ─── Track unmuted (remote user re-enabled camera/mic) ────
+        // ─── Track unmuted (remote or local user re-enabled camera/mic) ────
         room.on(RoomEvent.TrackUnmuted, (
             publication: TrackPublication,
             participant: Participant
         ) => {
             const id = participant.identity;
+            const isLocal = id === room.localParticipant.identity;
             const supabaseId = gLivekitToSupabase.get(id) || id;
+
+            if (isLocal) {
+                // Rebuild local stream with the now-live tracks
+                const localTracks: MediaStreamTrack[] = [];
+                room.localParticipant.trackPublications.forEach(pub => {
+                    if (pub.track && pub.track.source !== Track.Source.ScreenShare &&
+                        pub.track.mediaStreamTrack.readyState === 'live') {
+                        localTracks.push(pub.track.mediaStreamTrack);
+                    }
+                });
+                useDailyStore.getState().setLocalStream(
+                    localTracks.length > 0 ? new MediaStream(localTracks) : null
+                );
+                return;
+            }
 
             if (publication.source === Track.Source.Camera && publication.track) {
                 // Rebuild video stream from the now-live track
