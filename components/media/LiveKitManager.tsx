@@ -338,7 +338,19 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
         });
 
         // ─── Local track unpublished ──────────────────
-        room.on(RoomEvent.LocalTrackUnpublished, () => {
+        room.on(RoomEvent.LocalTrackUnpublished, (
+            publication: LocalTrackPublication,
+            _participant: LocalParticipant
+        ) => {
+            // Handle screen share track being unpublished
+            if (publication.source === Track.Source.ScreenShare) {
+                // Clear all screen streams and reset sharing state
+                useDailyStore.getState().clearAllScreenStreams();
+                console.log('[LiveKit] Screen share track unpublished — state cleared');
+                return;
+            }
+
+            // For non-screen-share tracks, rebuild local stream
             const localTracks: MediaStreamTrack[] = [];
             room.localParticipant.trackPublications.forEach(pub => {
                 if (pub.track && pub.track.source !== Track.Source.ScreenShare &&

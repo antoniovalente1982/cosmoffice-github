@@ -180,18 +180,38 @@ export default function OfficePage() {
         const room = (window as any).__livekitRoom;
         if (room?.localParticipant) {
             try {
-                const isSharing = useDailyStore.getState().isScreenSharing;
-                await room.localParticipant.setScreenShareEnabled(!isSharing);
+                // Check LiveKit's actual state (not just our store) to avoid stale flags
+                let actuallySharing = false;
+                room.localParticipant.trackPublications.forEach((pub: any) => {
+                    if (pub.source === 'screen_share' && pub.track) {
+                        actuallySharing = true;
+                    }
+                });
+
+                if (actuallySharing) {
+                    // Stop sharing
+                    await room.localParticipant.setScreenShareEnabled(false);
+                    useDailyStore.getState().clearAllScreenStreams();
+                } else {
+                    // If store thinks we're sharing but LiveKit doesn't, clear stale state first
+                    if (useDailyStore.getState().isScreenSharing) {
+                        useDailyStore.getState().clearAllScreenStreams();
+                    }
+                    // Start sharing
+                    await room.localParticipant.setScreenShareEnabled(true);
+                }
             } catch (err: any) {
                 // User cancelled the screen share picker — not an error
                 if (err?.message?.includes('Permission denied') || err?.message?.includes('cancelled')) return;
                 console.error('Screen share failed:', err);
+                // Reset state on error so next attempt works
+                useDailyStore.getState().clearAllScreenStreams();
                 showMediaToast('⚠️ Screen share fallito, riprova');
             }
         } else {
             showMediaToast('⚠️ Connessione LiveKit non disponibile — attiva prima il microfono');
         }
-    }, [showMediaToast]);
+    }, [showMediaToast, hasPeopleNearby]);
 
     // Workspace store
     const activeTab = useWorkspaceStore(s => s.activeTab);
