@@ -62,6 +62,11 @@ export function OfficeBuilder() {
     const [connectLabel, setConnectLabel] = useState('');
     const [connectColor, setConnectColor] = useState('#6366f1');
 
+    // Canvas click-to-connect mode
+    const [connectingFromRoomId, setConnectingFromRoomId] = useState<string | null>(null);
+    const connectingRef = useRef<string | null>(null);
+    connectingRef.current = connectingFromRoomId;
+
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
     useEffect(() => {
@@ -71,23 +76,73 @@ export function OfficeBuilder() {
     useEffect(() => {
         const handler = (e: Event) => {
             const { roomId } = (e as CustomEvent).detail;
-            loadRoomProperties(roomId);
+            const fromId = connectingRef.current;
+
+            // Not in connect mode → normal select
+            if (!fromId) {
+                loadRoomProperties(roomId);
+                return;
+            }
+
+            // Awaiting first click → set source room
+            if (fromId === '__awaiting__') {
+                setConnectingFromRoomId(roomId);
+                window.dispatchEvent(new CustomEvent('builder-connecting-room', { detail: { roomId } }));
+                const roomName = useWorkspaceStore.getState().rooms.find((r: any) => r.id === roomId)?.name || 'stanza';
+                setToast({ msg: `🔗 Da "${roomName}" → clicca la destinazione`, type: 'ok' });
+                return;
+            }
+
+            // Same room clicked → cancel
+            if (fromId === roomId) {
+                setConnectingFromRoomId(null);
+                window.dispatchEvent(new CustomEvent('builder-connecting-room', { detail: { roomId: null } }));
+                setToast({ msg: '❌ Connessione annullata', type: 'err' });
+                return;
+            }
+
+            // Second click → create connection
+            const alreadyExists = useWorkspaceStore.getState().roomConnections.some((c: any) =>
+                (c.room_a_id === fromId && c.room_b_id === roomId) ||
+                (c.room_a_id === roomId && c.room_b_id === fromId)
+            );
+            if (alreadyExists) {
+                setToast({ msg: '⚠️ Connessione già esistente', type: 'err' });
+            } else {
+                const spaceId = useWorkspaceStore.getState().activeSpaceId;
+                if (spaceId) {
+                    const payload = {
+                        space_id: spaceId,
+                        room_a_id: fromId,
+                        room_b_id: roomId,
+                        type: 'link' as const,
+                        label: null,
+                        color: connectColor,
+                        x_a: 0, y_a: 0, x_b: 0, y_b: 0,
+                        is_locked: false,
+                        settings: {},
+                    };
+                    supabase.from('room_connections').insert(payload).select().single().then(({ data, error }) => {
+                        if (!error && data) {
+                            const state = useWorkspaceStore.getState();
+                            state.setRoomConnections([...state.roomConnections, data]);
+                            setToast({ msg: '✅ Ramo creato! Clicca un\'altra stanza o esci', type: 'ok' });
+                        } else if (error) {
+                            setToast({ msg: `❌ ${error.message}`, type: 'err' });
+                        }
+                    });
+                }
+            }
+            // Stay in connect mode — go back to awaiting for next pair
+            setConnectingFromRoomId('__awaiting__');
+            window.dispatchEvent(new CustomEvent('builder-connecting-room', { detail: { roomId: null } }));
         };
         window.addEventListener('builder-select-room', handler);
-        const connectHandler = (e: Event) => {
-            const { roomId } = (e as CustomEvent).detail;
-            loadRoomProperties(roomId);
-            setSelectedRoom(roomId);
-            setConnectFromId(roomId);
-            setToast({ msg: '🔗 Seleziona la stanza di destinazione nel pannello', type: 'ok' });
-        };
-        window.addEventListener('builder-connect-room', connectHandler);
         return () => {
             window.removeEventListener('builder-select-room', handler);
-            window.removeEventListener('builder-connect-room', connectHandler);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rooms]);
+    }, [rooms, connectColor, supabase]);
 
     // Update edit state perfectly whenever selection changes
     useEffect(() => {
@@ -489,6 +544,29 @@ export function OfficeBuilder() {
                             Space Builder
                         </span>
                     </div>
+
+                    {/* Connect mode toggle */}
+                    <button
+                        onClick={() => {
+                            if (connectingFromRoomId) {
+                                setConnectingFromRoomId(null);
+                                window.dispatchEvent(new CustomEvent('builder-connecting-room', { detail: { roomId: null } }));
+                            } else {
+                                // Enter connect mode — next room click sets source
+                                setConnectingFromRoomId('__awaiting__');
+                                setSelectedRoom(null);
+                                setToast({ msg: '🔗 Clicca la prima stanza da collegare', type: 'ok' });
+                            }
+                        }}
+                        className={`flex items-center justify-center gap-1.5 px-3 h-10 ml-2 rounded-full transition-all transform hover:scale-105 active:scale-95 border ${connectingFromRoomId
+                            ? 'bg-indigo-500/30 border-indigo-400/60 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.4)]'
+                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+                            }`}
+                        title={connectingFromRoomId ? 'Esci dalla modalità connessione' : 'Connetti stanze cliccandole'}
+                    >
+                        <Link2 className="w-4 h-4" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">{connectingFromRoomId ? 'Esci' : 'Connetti'}</span>
+                    </button>
 
                     <button
                         onClick={toggleBuilderMode}

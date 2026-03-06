@@ -32,9 +32,20 @@ function EditableRoom({ room, isSelected, isMultiSelected, onSelect, onBulkDragS
     const { updateRoomPosition, updateRoomSize, officeWidth, officeHeight } = useWorkspaceStore();
     const [isDragging, setIsDragging] = useState(false);
     const [resizing, setResizing] = useState<string | null>(null);
+    const [isConnectSource, setIsConnectSource] = useState(false);
     const dragRef = useRef({ startX: 0, startY: 0, roomX: 0, roomY: 0, roomW: 0, roomH: 0 });
     const roomIdRef = useRef(room.id);
     roomIdRef.current = room.id;
+
+    // Listen for connect-mode source highlight
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const { roomId: connectingId } = (e as CustomEvent).detail;
+            setIsConnectSource(connectingId === room.id);
+        };
+        window.addEventListener('builder-connecting-room', handler);
+        return () => window.removeEventListener('builder-connecting-room', handler);
+    }, [room.id]);
 
     const color = getRoomColor(room);
 
@@ -205,11 +216,13 @@ function EditableRoom({ room, isSelected, isMultiSelected, onSelect, onBulkDragS
                     top: screenY,
                     width: screenW,
                     height: screenH,
-                    border: `2px solid ${isSelected ? '#818cf8' : color}`,
+                    border: `2px solid ${isConnectSource ? '#818cf8' : isSelected ? '#818cf8' : color}`,
                     borderRadius: 16 * zoom,
                     cursor: isDragging ? 'grabbing' : 'grab',
-                    background: isSelected ? 'rgba(99,102,241,0.08)' : 'transparent',
-                    transition: isDragging ? 'none' : 'border-color 0.2s',
+                    background: isConnectSource ? 'rgba(99,102,241,0.15)' : isSelected ? 'rgba(99,102,241,0.08)' : 'transparent',
+                    boxShadow: isConnectSource ? '0 0 20px rgba(99,102,241,0.5), inset 0 0 20px rgba(99,102,241,0.1)' : 'none',
+                    animation: isConnectSource ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                    transition: isDragging ? 'none' : 'border-color 0.2s, background 0.2s, box-shadow 0.2s',
                     zIndex: isSelected ? 10 : 5,
                     pointerEvents: 'auto',
                 }}
