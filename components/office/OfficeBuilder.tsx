@@ -516,7 +516,7 @@ export function OfficeBuilder() {
                     {/* Red X close button — top-left corner, half in / half out */}
                     <button
                         onClick={toggleBuilderMode}
-                        className="absolute z-20 flex items-center justify-center w-7 h-7 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all transform hover:scale-110 active:scale-95 border-2 border-red-400/60 shadow-[0_0_16px_rgba(239,68,68,0.5)]"
+                        className="absolute z-20 flex items-center justify-center w-7 h-7 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all transform hover:scale-110 active:scale-95 border border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.25)]"
                         style={{ top: -12, left: -12 }}
                         title="Chiudi Space Builder"
                     >
