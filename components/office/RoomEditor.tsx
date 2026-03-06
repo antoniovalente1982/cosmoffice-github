@@ -323,13 +323,14 @@ export function RoomEditor({ rooms }: RoomEditorProps) {
         e.preventDefault();
         const state = useWorkspaceStore.getState();
         const positions = new Map<string, { x: number; y: number }>();
-        Array.from(state.selectedRoomIds).forEach(id => {
-            const room = rooms.find(r => r.id === id);
+        // Read positions from store (freshest) — not from rooms prop (could be stale)
+        for (const id of Array.from(state.selectedRoomIds)) {
+            const room = state.rooms.find(r => r.id === id);
             if (room) positions.set(id, { x: room.x, y: room.y });
-        });
+        }
         bulkDragRef.current = { startX: e.clientX, startY: e.clientY, initialPositions: positions };
         setBulkDragging(true);
-    }, [rooms]);
+    }, []);
 
     useEffect(() => {
         if (!bulkDragging || !bulkDragRef.current) return;
@@ -337,28 +338,77 @@ export function RoomEditor({ rooms }: RoomEditorProps) {
         const handleMove = (e: MouseEvent) => {
             if (!bulkDragRef.current) return;
             const state = useWorkspaceStore.getState();
-            const dx = (e.clientX - bulkDragRef.current.startX) / state.zoom;
-            const dy = (e.clientY - bulkDragRef.current.startY) / state.zoom;
-            Array.from(bulkDragRef.current.initialPositions.entries()).forEach(([id, pos]) => {
-                const newX = Math.round(pos.x + dx);
-                const newY = Math.round(pos.y + dy);
-                state.updateRoomPosition(id, Math.max(0, newX), Math.max(0, newY));
+            const z = state.zoom;
+            let dx = (e.clientX - bulkDragRef.current.startX) / z;
+            let dy = (e.clientY - bulkDragRef.current.startY) / z;
+
+            // Clamp delta for the whole group together (not per-room) to keep spacing
+            const entries = Array.from(bulkDragRef.current.initialPositions.entries());
+            let minX = Infinity, minY = Infinity, maxRight = 0, maxBottom = 0;
+            entries.forEach(([id, pos]) => {
+                const room = state.rooms.find(r => r.id === id);
+                const w = room?.width || 200;
+                const h = room?.height || 150;
+                minX = Math.min(minX, pos.x);
+                minY = Math.min(minY, pos.y);
+                maxRight = Math.max(maxRight, pos.x + w);
+                maxBottom = Math.max(maxBottom, pos.y + h);
+            });
+            const oW = state.officeWidth || 4000;
+            const oH = state.officeHeight || 4000;
+            if (minX + dx < 0) dx = -minX;
+            if (minY + dy < 0) dy = -minY;
+            if (maxRight + dx > oW) dx = oW - maxRight;
+            if (maxBottom + dy > oH) dy = oH - maxBottom;
+
+            // Apply same exact delta to all rooms — no rounding during drag
+            entries.forEach(([id, pos]) => {
+                state.updateRoomPosition(id, pos.x + dx, pos.y + dy);
             });
         };
 
         const handleUp = async (e: MouseEvent) => {
             if (!bulkDragRef.current) return;
             const state = useWorkspaceStore.getState();
-            const dx = (e.clientX - bulkDragRef.current.startX) / state.zoom;
-            const dy = (e.clientY - bulkDragRef.current.startY) / state.zoom;
-            for (const [id, pos] of Array.from(bulkDragRef.current.initialPositions.entries())) {
-                const newX = snapToGrid(pos.x + dx);
-                const newY = snapToGrid(pos.y + dy);
-                state.updateRoomPosition(id, Math.max(0, newX), Math.max(0, newY));
+            const z = state.zoom;
+            let dx = (e.clientX - bulkDragRef.current.startX) / z;
+            let dy = (e.clientY - bulkDragRef.current.startY) / z;
+
+            // Same group-level clamping for final position
+            const entries = Array.from(bulkDragRef.current.initialPositions.entries());
+            let minX = Infinity, minY = Infinity, maxRight = 0, maxBottom = 0;
+            entries.forEach(([id, pos]) => {
+                const room = state.rooms.find(r => r.id === id);
+                const w = room?.width || 200;
+                const h = room?.height || 150;
+                minX = Math.min(minX, pos.x);
+                minY = Math.min(minY, pos.y);
+                maxRight = Math.max(maxRight, pos.x + w);
+                maxBottom = Math.max(maxBottom, pos.y + h);
+            });
+            const oW = state.officeWidth || 4000;
+            const oH = state.officeHeight || 4000;
+            if (minX + dx < 0) dx = -minX;
+            if (minY + dy < 0) dy = -minY;
+            if (maxRight + dx > oW) dx = oW - maxRight;
+            if (maxBottom + dy > oH) dy = oH - maxBottom;
+
+            // Snap the delta itself (not individual positions) to preserve relative spacing
+            const snappedDx = snapToGrid(dx);
+            const snappedDy = snapToGrid(dy);
+
+            const dbPromises: Promise<any>[] = [];
+            entries.forEach(([id, pos]) => {
+                const finalX = pos.x + snappedDx;
+                const finalY = pos.y + snappedDy;
+                state.updateRoomPosition(id, finalX, finalY);
                 if (!id.startsWith('temp_')) {
-                    await supabase.from('rooms').update({ x: Math.max(0, newX), y: Math.max(0, newY) }).eq('id', id);
+                    dbPromises.push(
+                        (async () => { await supabase.from('rooms').update({ x: finalX, y: finalY }).eq('id', id); })()
+                    );
                 }
-            }
+            });
+            await Promise.all(dbPromises);
             bulkDragRef.current = null;
             setBulkDragging(false);
         };

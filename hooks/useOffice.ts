@@ -114,6 +114,9 @@ export function useOffice(spaceId?: string) {
             }, (payload) => {
                 const updated = payload.new as any;
                 const store = useWorkspaceStore.getState();
+                // In builder mode, we are the source of truth — ignore echoes from our own updates
+                // This prevents Realtime from overwriting unsaved local edits (name, color, etc.)
+                if (store.isBuilderMode) return;
                 store.setRooms(store.rooms.map((r: any) =>
                     r.id === updated.id ? { ...r, ...updated } : r
                 ));
