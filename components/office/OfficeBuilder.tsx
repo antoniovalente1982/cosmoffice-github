@@ -66,6 +66,10 @@ export function OfficeBuilder() {
     const [connectingFromRoomId, setConnectingFromRoomId] = useState<string | null>(null);
     const connectingRef = useRef<string | null>(null);
     connectingRef.current = connectingFromRoomId;
+    const connectColorRef = useRef(connectColor);
+    connectColorRef.current = connectColor;
+    const connectLabelRef = useRef(connectLabel);
+    connectLabelRef.current = connectLabel;
 
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -116,8 +120,8 @@ export function OfficeBuilder() {
                         room_a_id: fromId,
                         room_b_id: roomId,
                         type: 'link' as const,
-                        label: null,
-                        color: connectColor,
+                        label: connectLabelRef.current || null,
+                        color: connectColorRef.current,
                         x_a: 0, y_a: 0, x_b: 0, y_b: 0,
                         is_locked: false,
                         settings: {},
@@ -527,53 +531,104 @@ export function OfficeBuilder() {
                 animate={{ y: 24, x: '-50%' }}
                 className="pointer-events-auto absolute top-0 left-1/2 -translate-x-1/2"
             >
-                <div className="relative group flex items-center h-12 rounded-full p-1 shadow-[0_0_40px_rgba(0,212,255,0.15)]"
+                <div className="relative group flex flex-col rounded-2xl p-1 shadow-[0_0_40px_rgba(0,212,255,0.15)]"
                     style={{
-                        background: 'rgba(15, 23, 42, 0.7)',
+                        background: 'rgba(15, 23, 42, 0.85)',
                         backdropFilter: 'blur(24px)',
                         WebkitBackdropFilter: 'blur(24px)',
                         border: '1px solid rgba(255, 255, 255, 0.08)'
                     }}>
 
-                    {/* Animated gradient border effect via pseudo element */}
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 opacity-50 block group-hover:opacity-100 transition-opacity -z-10 blur-md pointer-events-none" />
+                    {/* Animated gradient border effect */}
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 opacity-50 block group-hover:opacity-100 transition-opacity -z-10 blur-md pointer-events-none" />
 
-                    <div className="flex items-center gap-3 px-4 h-full">
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-400">
-                            Space Builder
-                        </span>
+                    {/* Main row */}
+                    <div className="flex items-center h-12">
+                        <div className="flex items-center gap-3 px-4 h-full">
+                            <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                            <span className="text-xs font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-400">
+                                Space Builder
+                            </span>
+                        </div>
+
+                        {/* Connect mode toggle */}
+                        <button
+                            onClick={() => {
+                                if (connectingFromRoomId) {
+                                    setConnectingFromRoomId(null);
+                                    window.dispatchEvent(new CustomEvent('builder-connecting-room', { detail: { roomId: null } }));
+                                } else {
+                                    setConnectingFromRoomId('__awaiting__');
+                                    setSelectedRoom(null);
+                                    setToast({ msg: '🔗 Clicca la prima stanza da collegare', type: 'ok' });
+                                }
+                            }}
+                            className={`flex items-center justify-center gap-1.5 px-3 h-10 ml-2 rounded-full transition-all transform hover:scale-105 active:scale-95 border ${connectingFromRoomId
+                                ? 'bg-indigo-500/30 border-indigo-400/60 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.4)]'
+                                : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+                                }`}
+                            title={connectingFromRoomId ? 'Esci dalla modalità connessione' : 'Connetti stanze cliccandole'}
+                        >
+                            <Link2 className="w-4 h-4" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">{connectingFromRoomId ? 'Esci' : 'Connetti'}</span>
+                        </button>
+
+                        <button
+                            onClick={toggleBuilderMode}
+                            className="flex items-center justify-center w-10 h-10 ml-2 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all transform hover:scale-105 active:scale-95 border border-red-500/30"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
 
-                    {/* Connect mode toggle */}
-                    <button
-                        onClick={() => {
-                            if (connectingFromRoomId) {
-                                setConnectingFromRoomId(null);
-                                window.dispatchEvent(new CustomEvent('builder-connecting-room', { detail: { roomId: null } }));
-                            } else {
-                                // Enter connect mode — next room click sets source
-                                setConnectingFromRoomId('__awaiting__');
-                                setSelectedRoom(null);
-                                setToast({ msg: '🔗 Clicca la prima stanza da collegare', type: 'ok' });
-                            }
-                        }}
-                        className={`flex items-center justify-center gap-1.5 px-3 h-10 ml-2 rounded-full transition-all transform hover:scale-105 active:scale-95 border ${connectingFromRoomId
-                            ? 'bg-indigo-500/30 border-indigo-400/60 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.4)]'
-                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
-                            }`}
-                        title={connectingFromRoomId ? 'Esci dalla modalità connessione' : 'Connetti stanze cliccandole'}
-                    >
-                        <Link2 className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">{connectingFromRoomId ? 'Esci' : 'Connetti'}</span>
-                    </button>
+                    {/* Expanded connect toolbar — shown when in connect mode */}
+                    {connectingFromRoomId && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="border-t border-white/5 px-4 py-3 space-y-2.5">
+                                {/* Status line */}
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full ${connectingFromRoomId === '__awaiting__' ? 'bg-amber-400 animate-pulse' : 'bg-indigo-400 animate-pulse'}`} />
+                                    <span className="text-[11px] text-slate-300 font-medium">
+                                        {connectingFromRoomId === '__awaiting__'
+                                            ? 'Clicca la prima stanza...'
+                                            : `Da "${rooms.find(r => r.id === connectingFromRoomId)?.name || '?'}" → clicca la destinazione`
+                                        }
+                                    </span>
+                                </div>
 
-                    <button
-                        onClick={toggleBuilderMode}
-                        className="flex items-center justify-center w-10 h-10 ml-2 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all transform hover:scale-105 active:scale-95 border border-red-500/30"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+                                {/* Color picker row */}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mr-1">Colore</span>
+                                    {['#6366f1', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'].map(c => (
+                                        <button
+                                            key={c}
+                                            onClick={() => setConnectColor(c)}
+                                            className={`w-5 h-5 rounded-full transition-all ${connectColor === c ? 'ring-2 ring-white/70 scale-125' : 'hover:scale-110 opacity-60 hover:opacity-100'}`}
+                                            style={{ backgroundColor: c }}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Label input */}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Label</span>
+                                    <input
+                                        value={connectLabel}
+                                        onChange={e => setConnectLabel(e.target.value)}
+                                        placeholder="Etichetta ramo (opzionale)"
+                                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-black/30 border border-white/10 text-white text-[11px] placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                                        onMouseDown={e => e.stopPropagation()}
+                                    />
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
                 </div>
             </motion.div>
 
