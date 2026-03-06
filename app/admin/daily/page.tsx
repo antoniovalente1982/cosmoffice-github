@@ -308,7 +308,7 @@ export default function LiveKitPage() {
                                         <PlanRow label="Connessioni max" value={formatNum(plan.maxConcurrent)} />
                                         <PlanRow
                                             label="Overage"
-                                            value={plan.overagePerMin === 0 ? 'Hard limit ⛔' : `$${(plan.overagePerMin * 1000).toFixed(2)}/1K min`}
+                                            value={plan.overagePerMin === 0 ? 'Hard limit ⛔' : `$${plan.overagePerMin} per min`}
                                         />
                                         {plan.overagePerMin === 0 && (
                                             <p className="text-[10px] text-red-400/70 italic">
