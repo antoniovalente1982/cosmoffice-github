@@ -13,6 +13,7 @@ export function useOffice(spaceId?: string) {
     const setBgOpacity = useWorkspaceStore(s => s.setBgOpacity);
     const setLandingPad = useWorkspaceStore(s => s.setLandingPad);
     const setLandingPadScale = useWorkspaceStore(s => s.setLandingPadScale);
+    const setLayoutMode = useWorkspaceStore(s => s.setLayoutMode);
 
     // ─── Initial full fetch (once) ───────────────────────────
     const fetchOfficeData = useCallback(async () => {
@@ -38,6 +39,9 @@ export function useOffice(spaceId?: string) {
             }
             if (typeof layout.landingPadScale === 'number') {
                 setLandingPadScale(layout.landingPadScale);
+            }
+            if (layout.layoutMode === 'classic' || layout.layoutMode === 'mindmap') {
+                setLayoutMode(layout.layoutMode);
             }
         }
 
@@ -75,7 +79,7 @@ export function useOffice(spaceId?: string) {
         if (!connError && connections) {
             setRoomConnections(connections);
         }
-    }, [spaceId, supabase, setRooms, setRoomConnections, setFurnitureItems, setOfficeDimensions, setBgOpacity, setLandingPad, setLandingPadScale]);
+    }, [spaceId, supabase, setRooms, setRoomConnections, setFurnitureItems, setOfficeDimensions, setBgOpacity, setLandingPad, setLandingPadScale, setLayoutMode]);
 
     useEffect(() => {
         fetchOfficeData();

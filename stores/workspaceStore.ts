@@ -88,6 +88,9 @@ interface WorkspaceState {
     landingPad: { x: number; y: number };
     landingPadScale: number;
 
+    // Layout mode
+    layoutMode: 'classic' | 'mindmap';
+
     // Admin-locked rooms
     lockedRoomIds: Set<string>;
 
@@ -122,6 +125,7 @@ interface WorkspaceState {
     setOfficeDimensions: (width: number, height: number) => void;
     setLandingPad: (pos: { x: number; y: number }) => void;
     setLandingPadScale: (scale: number) => void;
+    setLayoutMode: (mode: 'classic' | 'mindmap') => void;
 
     // Actions — admin
     setRoomLocked: (roomId: string, locked: boolean) => void;
@@ -145,6 +149,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     selectedRoomId: null,
     landingPad: { x: 500, y: 500 },
     landingPadScale: 1,
+    layoutMode: 'classic' as const,
     furnitureItems: [],
     roomTemplates: [
         { name: 'Open Space', type: 'open', width: 400, height: 300, color: '#3b82f6', icon: '🏢', capacity: 20 },
@@ -176,6 +181,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             bgOpacity: 0.8,
             landingPad: { x: 500, y: 500 },
             landingPadScale: 1,
+            layoutMode: 'classic' as const,
         });
     },
 
@@ -223,6 +229,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     setOfficeDimensions: (officeWidth, officeHeight) => set({ officeWidth, officeHeight }),
     setLandingPad: (landingPad) => set({ landingPad }),
     setLandingPadScale: (landingPadScale) => set({ landingPadScale: Math.max(0.5, Math.min(3, landingPadScale)) }),
+    setLayoutMode: (layoutMode) => set({ layoutMode }),
 
     // ─── Admin ──────────────────────────────────────────────
     setRoomLocked: (roomId, locked) => set((state) => {

@@ -8,7 +8,7 @@ import { OFFICE_TEMPLATES, OfficeTemplate } from '../../lib/officeTemplates';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2,
-    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square, Link2, Unlink
+    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square, Link2, Unlink, Map
 } from 'lucide-react';
 
 
@@ -35,9 +35,9 @@ export function getRoomDepartment(room: any): string | null {
 export function OfficeBuilder() {
     const supabase = createClient();
     const {
-        isBuilderMode, rooms, selectedRoomId, roomTemplates, roomConnections,
+        isBuilderMode, rooms, selectedRoomId, roomTemplates, roomConnections, layoutMode,
         activeSpaceId, stagePos, zoom, addRoom, setSelectedRoom, removeRoom,
-        setRooms, setRoomConnections, toggleBuilderMode,
+        setRooms, setRoomConnections, toggleBuilderMode, setLayoutMode,
     } = useWorkspaceStore();
 
     const [saving, setSaving] = useState(false);
@@ -238,6 +238,7 @@ export function OfficeBuilder() {
             landingPadX: state.landingPad.x,
             landingPadY: state.landingPad.y,
             landingPadScale: state.landingPadScale,
+            layoutMode: state.layoutMode,
         };
         const { error } = await supabase.from('spaces').update({ layout_data }).eq('id', activeSpaceId);
         if (error) { setToast({ msg: `❌ Errore DB: ${error.message}`, type: 'err' }); }
@@ -594,6 +595,26 @@ export function OfficeBuilder() {
 
                             {!showTemplates ? (
                                 <>
+                                    {/* Layout Mode Toggle */}
+                                    <div className="w-full flex gap-2 mb-3">
+                                        <button
+                                            onClick={() => setLayoutMode('classic')}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold transition-all border ${layoutMode === 'classic'
+                                                ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                                                : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+                                        >
+                                            <LayoutTemplate className="w-3.5 h-3.5" /> CLASSICO
+                                        </button>
+                                        <button
+                                            onClick={() => setLayoutMode('mindmap')}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold transition-all border ${layoutMode === 'mindmap'
+                                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                                : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+                                        >
+                                            <Map className="w-3.5 h-3.5" /> MIND MAP
+                                        </button>
+                                    </div>
+
                                     <div className="grid grid-cols-2 gap-3 w-full">
                                         <button
                                             onClick={() => handleAddRoom(roomTemplates[0])}

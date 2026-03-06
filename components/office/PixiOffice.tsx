@@ -49,6 +49,7 @@ export function PixiOffice() {
     const stagePos = useWorkspaceStore(s => s.stagePos);
     const officeWidth = useWorkspaceStore(s => s.officeWidth);
     const officeHeight = useWorkspaceStore(s => s.officeHeight);
+    const layoutMode = useWorkspaceStore(s => s.layoutMode);
     const isPerformanceMode = useWorkspaceStore(s => s.isPerformanceMode);
     const landingPad = useWorkspaceStore(s => s.landingPad);
     const setLandingPad = useWorkspaceStore(s => s.setLandingPad);
@@ -239,15 +240,18 @@ export function PixiOffice() {
             // Initialize particles
             particlesRef.current = createParticles(20, oW, oH);
 
-            // Draw platform ONCE (static)
+            // Draw platform ONCE (static) — only in classic mode
             if (platformGfxRef.current) {
                 const pg = platformGfxRef.current;
-                pg.roundRect(0, 0, oW, oH, 120);
-                pg.fill({ color: 0x06b6d4, alpha: 0.02 });
-                pg.roundRect(40, 40, oW - 80, oH - 80, 80);
-                pg.fill({ color: 0x0a0f1e, alpha: 0.75 });
-                pg.roundRect(40, 40, oW - 80, oH - 80, 80);
-                pg.stroke({ color: 0x06b6d4, width: 1, alpha: 0.15 });
+                const currentMode = useWorkspaceStore.getState().layoutMode;
+                if (currentMode !== 'mindmap') {
+                    pg.roundRect(0, 0, oW, oH, 120);
+                    pg.fill({ color: 0x06b6d4, alpha: 0.02 });
+                    pg.roundRect(40, 40, oW - 80, oH - 80, 80);
+                    pg.fill({ color: 0x0a0f1e, alpha: 0.75 });
+                    pg.roundRect(40, 40, oW - 80, oH - 80, 80);
+                    pg.stroke({ color: 0x06b6d4, width: 1, alpha: 0.15 });
+                }
             }
 
             // ─── Render loop ─────────────────────────────────────
