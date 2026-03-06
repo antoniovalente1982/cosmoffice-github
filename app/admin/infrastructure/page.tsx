@@ -217,7 +217,7 @@ export default function InfrastructurePage() {
 
     // Best combo (cheapest working plan per service)
     const bestCombo = useMemo(() => {
-        const best = (arr: { cost: number; plan: { name: string; cost: number } }[]) =>
+        const best = (arr: { cost: number; note: string; plan: { name: string; cost: number } }[]) =>
             arr.find(p => p.cost >= 0) || arr[arr.length - 1];
         const lk = best(costs.livekit);
         const sb = best(costs.supabase);
