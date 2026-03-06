@@ -569,8 +569,8 @@ export function OfficeBuilder() {
                             {/* Divider */}
                             <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-                            {/* Hierarchical Level — only in hierarchical mode */}
-                            {layoutMode === 'hierarchical' && (
+                            {/* Hierarchical Level — always visible */}
+                            {(
                                 <>
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -634,6 +634,52 @@ export function OfficeBuilder() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Divider */}
+                            <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                            {/* Room Connections Section */}
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <Link2 className="w-3 h-3" /> Connessioni
+                                </label>
+                                {/* This room's connections */}
+                                {roomConnections.filter((c: any) => c.room_a_id === selectedRoom.id || c.room_b_id === selectedRoom.id).map((conn: any) => {
+                                    const other = conn.room_a_id === selectedRoom.id
+                                        ? rooms.find(r => r.id === conn.room_b_id)
+                                        : rooms.find(r => r.id === conn.room_a_id);
+                                    return (
+                                        <div key={conn.id} className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.03] border border-white/5">
+                                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: conn.color || '#6366f1' }} />
+                                            <span className="text-[10px] text-slate-300 flex-1 truncate">→ {other?.name || '?'}</span>
+                                            {conn.label && <span className="text-[9px] text-indigo-400 font-bold">{conn.label}</span>}
+                                            <button onClick={() => handleDeleteConnection(conn.id)} className="p-0.5 rounded hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors">
+                                                <Unlink className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                                {/* Quick-add connection from this room */}
+                                <div className="flex gap-1.5">
+                                    <select
+                                        value={connectToId}
+                                        onChange={e => setConnectToId(e.target.value)}
+                                        className="flex-1 px-2 py-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-white text-[10px] focus:outline-none focus:border-indigo-500/50"
+                                    >
+                                        <option value="" className="bg-slate-900">Collega a...</option>
+                                        {rooms.filter(r => r.id !== selectedRoom.id).map(r => (
+                                            <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={() => { setConnectFromId(selectedRoom.id); handleCreateConnection(); }}
+                                        disabled={!connectToId}
+                                        className="px-3 py-1.5 rounded-lg bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 text-[10px] font-bold hover:bg-indigo-500/40 transition-all disabled:opacity-30"
+                                    >
+                                        <Link2 className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Action Footer */}
@@ -680,169 +726,70 @@ export function OfficeBuilder() {
                                 </div>
                             )}
 
-                            {!showTemplates ? (
-                                <>
-                                    {/* Layout Mode Toggle */}
-                                    <div className="w-full flex gap-1.5 mb-3">
-                                        <button
-                                            onClick={() => setLayoutMode('hierarchical')}
-                                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-[9px] font-bold transition-all border ${layoutMode === 'hierarchical'
-                                                ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                                                : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-                                        >
-                                            <GitBranch className="w-3.5 h-3.5" />
-                                            GERARCHICO
-                                        </button>
-                                        <button
-                                            onClick={() => setLayoutMode('teamsmap')}
-                                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-[9px] font-bold transition-all border ${layoutMode === 'teamsmap'
-                                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                                                : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-                                        >
-                                            <Map className="w-3.5 h-3.5" />
-                                            NEURONALE
-                                        </button>
-                                    </div>
+                            {!showTemplates ? (<>
+                                {/* Nuova Stanza button */}
+                                <button
+                                    onClick={() => handleAddRoom(roomTemplates[0])}
+                                    className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group"
+                                >
+                                    <Plus className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                                    <span className="text-xs font-bold text-cyan-50 tracking-wide">Nuova Stanza</span>
+                                </button>
 
-                                    <div className="grid grid-cols-2 gap-3 w-full">
+                                {/* Template button */}
+                                <button
+                                    onClick={() => { setShowTemplates(true); }}
+                                    className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-orange-500/20 hover:border-amber-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] group"
+                                >
+                                    <LayoutTemplate className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                                    <span className="text-xs font-bold text-amber-50 tracking-wide">Applica Template Ufficio</span>
+                                </button>
+
+                                {/* Divider */}
+                                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                                {/* Room List — always visible */}
+                                <div className="w-full space-y-2">
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Stanze ({rooms.length})</p>
+                                    {rooms.map(room => (
                                         <button
-                                            onClick={() => handleAddRoom(roomTemplates[0])}
-                                            className="w-full flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all transform hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)] group relative overflow-hidden"
+                                            key={room.id}
+                                            onClick={() => setSelectedRoom(room.id)}
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 border border-white/5 hover:border-white/10 transition-colors"
                                         >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 transition-colors">
-                                                <Plus className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getRoomColor(room) }} />
+                                                <span className="text-sm text-slate-200 font-medium">{room.name}</span>
                                             </div>
-                                            <span className="relative text-[11px] font-bold text-cyan-50 tracking-wide text-center">Nuova Stanza</span>
+                                            <Edit2 className="w-4 h-4 text-slate-500" />
                                         </button>
-
-                                        <button
-                                            onClick={() => setShowRoomsList(!showRoomsList)}
-                                            className={`w-full flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border transition-all transform hover:-translate-y-1 group relative overflow-hidden ${showRoomsList ? 'bg-purple-500/20 border-purple-500/50' : 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 hover:border-purple-500/50'}`}
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-purple-500/20 group-hover:bg-purple-500/30 transition-colors">
-                                                <PenTool className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
-                                            </div>
-                                            <span className="relative text-[11px] font-bold text-purple-50 tracking-wide text-center">Modifica Stanza</span>
-                                        </button>
-                                    </div>
-
-                                    {/* Template button — full width below */}
-                                    <button
-                                        onClick={() => { setShowTemplates(true); setShowRoomsList(false); }}
-                                        className="w-full mt-3 flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-orange-500/20 hover:border-amber-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] group relative overflow-hidden"
-                                    >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 to-orange-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <LayoutTemplate className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-bold text-amber-50 tracking-wide">Applica Template Ufficio</span>
-                                    </button>
-
-                                    {/* Connection button */}
-                                    <button
-                                        onClick={() => { setShowConnections(!showConnections); setShowRoomsList(false); }}
-                                        className={`w-full mt-2 flex items-center justify-center gap-3 p-4 rounded-2xl border transition-all transform hover:-translate-y-0.5 group relative overflow-hidden ${showConnections ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/30 hover:from-indigo-500/20 hover:to-purple-500/20 hover:border-indigo-500/50'}`}
-                                    >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-400/5 to-purple-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <Link2 className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-bold text-indigo-50 tracking-wide">Connetti Stanze</span>
-                                    </button>
-
-                                    {/* Connections Panel */}
-                                    {showConnections && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="w-full mt-3 space-y-3 bg-white/[0.03] rounded-2xl border border-indigo-500/20 p-4"
-                                        >
-                                            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Nuova Connessione</p>
-
-                                            {/* From Room */}
-                                            <select
-                                                value={connectFromId}
-                                                onChange={e => setConnectFromId(e.target.value)}
-                                                className="w-full px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500/50"
-                                            >
-                                                <option value="" className="bg-slate-900">Da stanza...</option>
-                                                {rooms.map(r => (
-                                                    <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
-                                                ))}
-                                            </select>
-
-                                            {/* To Room */}
-                                            <select
-                                                value={connectToId}
-                                                onChange={e => setConnectToId(e.target.value)}
-                                                className="w-full px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500/50"
-                                            >
-                                                <option value="" className="bg-slate-900">A stanza...</option>
-                                                {rooms.filter(r => r.id !== connectFromId).map(r => (
-                                                    <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
-                                                ))}
-                                            </select>
-
-                                            {/* Label */}
-                                            <input
-                                                value={connectLabel}
-                                                onChange={e => setConnectLabel(e.target.value)}
-                                                placeholder="Etichetta (es: Marketing)"
-                                                className="w-full px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500/50"
-                                            />
-
-                                            {/* Color */}
-                                            <div className="flex gap-1.5">
-                                                {['#6366f1', '#8b5cf6', '#3b82f6', '#14b8a6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'].map(c => (
-                                                    <button
-                                                        key={c}
-                                                        onClick={() => setConnectColor(c)}
-                                                        className={`w-6 h-6 rounded-full transition-all ${connectColor === c ? 'ring-2 ring-white/60 scale-110' : 'hover:scale-110'}`}
-                                                        style={{ backgroundColor: c }}
-                                                    />
-                                                ))}
-                                            </div>
-
-                                            {/* Create button */}
-                                            <button
-                                                onClick={handleCreateConnection}
-                                                disabled={!connectFromId || !connectToId}
-                                                className="w-full py-2.5 rounded-xl bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 text-xs font-bold hover:bg-indigo-500/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                            >
-                                                <Link2 className="w-3.5 h-3.5" /> Crea Connessione
-                                            </button>
-
-                                            {/* Existing connections */}
-                                            {roomConnections.length > 0 && (
-                                                <div className="space-y-2 mt-3">
-                                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Connessioni Attive</p>
-                                                    {roomConnections.map(conn => {
-                                                        const roomA = rooms.find(r => r.id === conn.room_a_id);
-                                                        const roomB = rooms.find(r => r.id === conn.room_b_id);
-                                                        return (
-                                                            <div key={conn.id} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
-                                                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: conn.color || '#6366f1' }} />
-                                                                <div className="flex-1 min-w-0">
-                                                                    <span className="text-[10px] text-slate-300 truncate block">
-                                                                        {roomA?.name || '?'} → {roomB?.name || '?'}
-                                                                    </span>
-                                                                    {conn.label && (
-                                                                        <span className="text-[9px] text-indigo-400 font-bold uppercase">{conn.label}</span>
-                                                                    )}
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => handleDeleteConnection(conn.id)}
-                                                                    className="flex-shrink-0 p-1 rounded-lg hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors"
-                                                                >
-                                                                    <Unlink className="w-3.5 h-3.5" />
-                                                                </button>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </motion.div>
+                                    ))}
+                                    {rooms.length === 0 && (
+                                        <p className="text-sm text-slate-500 text-center py-4">Nessuna stanza. Crea la prima o usa un template!</p>
                                     )}
-                                </>) : (
+                                </div>
+
+                                {/* Connections summary */}
+                                {roomConnections.length > 0 && (
+                                    <div className="w-full space-y-2">
+                                        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Connessioni ({roomConnections.length})</p>
+                                        {roomConnections.map((conn: any) => {
+                                            const roomA = rooms.find(r => r.id === conn.room_a_id);
+                                            const roomB = rooms.find(r => r.id === conn.room_b_id);
+                                            return (
+                                                <div key={conn.id} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+                                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: conn.color || '#6366f1' }} />
+                                                    <span className="text-[10px] text-slate-300 flex-1 truncate">{roomA?.name || '?'} → {roomB?.name || '?'}</span>
+                                                    <button onClick={() => handleDeleteConnection(conn.id)} className="p-1 rounded-lg hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors">
+                                                        <Unlink className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </>) : (
                                 /* Templates List */
                                 <div className="w-full">
                                     <button
@@ -896,33 +843,12 @@ export function OfficeBuilder() {
                                 </div>
                             )}
 
-                            {showRoomsList && !showTemplates && (
-                                <div className="w-full mt-4 space-y-2">
-                                    <p className="text-xs text-slate-400 font-medium mb-2 uppercase tracking-wider">Seleziona una stanza da modificare</p>
-                                    {rooms.map(room => (
-                                        <button
-                                            key={room.id}
-                                            onClick={() => setSelectedRoom(room.id)}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 border border-white/5 hover:border-white/10 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getRoomColor(room) }} />
-                                                <span className="text-sm text-slate-200 font-medium">{room.name}</span>
-                                            </div>
-                                            <Edit2 className="w-4 h-4 text-slate-500" />
-                                        </button>
-                                    ))}
-                                    {rooms.length === 0 && (
-                                        <p className="text-sm text-slate-500 text-center py-4">Nessuna stanza presente.</p>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </>
                 )}
             </div>
 
-        </div>
+        </div >
     );
 }
 

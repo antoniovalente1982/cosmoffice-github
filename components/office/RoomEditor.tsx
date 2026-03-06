@@ -404,7 +404,7 @@ export function RoomEditor({ rooms }: RoomEditorProps) {
                 y: room.y + 40,
                 width: room.width,
                 height: room.height,
-                color: room.color,
+                color: (room as any).color ?? room.settings?.color,
                 shape: room.shape,
                 settings: room.settings,
             }).select().single();
