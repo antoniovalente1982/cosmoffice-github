@@ -280,52 +280,59 @@ function UserAvatarInner({
                     transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
                 }} />
 
-                {/* ─── Role Badge (below avatar) ─── */}
+                {/* ─── Role Badge (overlapping bottom of avatar circle) ─── */}
                 {roleConfig && (
                     <div
                         className="absolute left-1/2 pointer-events-none"
                         style={{
-                            top: sz + 2 * zoom,
+                            bottom: -4 * zoom,
                             transform: 'translateX(-50%)',
-                            zIndex: 3,
+                            zIndex: 6,
                         }}
                     >
                         <span style={{
-                            fontSize: Math.max(7, 8 * zoom),
+                            fontSize: Math.max(7, 7.5 * zoom),
                             fontWeight: 800,
                             color: roleConfig.color,
                             backgroundColor: roleConfig.bg,
-                            border: `1px solid ${roleConfig.color}40`,
-                            borderRadius: 6 * zoom,
-                            padding: `${1 * zoom}px ${5 * zoom}px`,
-                            letterSpacing: '0.08em',
+                            border: `1.5px solid ${roleConfig.color}50`,
+                            borderRadius: 20 * zoom,
+                            padding: `${1.5 * zoom}px ${6 * zoom}px`,
+                            letterSpacing: '0.1em',
                             fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
                             whiteSpace: 'nowrap' as const,
-                            lineHeight: 1.4,
+                            lineHeight: 1.3,
                             display: 'inline-block',
+                            textTransform: 'uppercase' as const,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
                         }}>
                             {roleConfig.label}
                         </span>
                     </div>
                 )}
 
-                {/* ─── Name Label (below role badge) ─── */}
+                {/* ─── Name Label (dark rounded pill below avatar) ─── */}
                 <div
                     className="absolute left-1/2 whitespace-nowrap pointer-events-none"
                     style={{
-                        top: roleConfig
-                            ? sz + 16 * zoom   // after role badge
-                            : sz + 6 * zoom,   // no role badge
+                        top: sz + 6 * zoom,
                         transform: 'translateX(-50%)',
+                        zIndex: 3,
                     }}
                 >
                     <span style={{
-                        fontSize: Math.max(11, 12 * zoom),
-                        fontWeight: 700,
-                        color: '#f1f5f9',
-                        letterSpacing: '0.02em',
-                        textShadow: '0 1px 6px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)',
+                        fontSize: Math.max(10, 11 * zoom),
+                        fontWeight: 800,
+                        color: '#e2e8f0',
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase' as const,
                         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
+                        backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 20 * zoom,
+                        padding: `${2.5 * zoom}px ${10 * zoom}px`,
+                        display: 'inline-block',
+                        boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
                     }}>
                         {fullName || 'User'}
                     </span>
