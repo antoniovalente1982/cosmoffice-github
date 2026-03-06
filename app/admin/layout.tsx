@@ -51,7 +51,7 @@ const navSections: NavSection[] = [
     {
         label: 'Integrazioni',
         items: [
-            { href: '/admin/daily', label: 'Daily.co', icon: Video },
+            { href: '/admin/daily', label: 'LiveKit', icon: Video },
         ],
     },
 ];
