@@ -94,42 +94,11 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
         return () => { cancelled = true; };
     }, [roomId, workspaceId, supabase, clearMessages, setMessages]);
 
-    // ─── Supabase Realtime: catch messages even if PartyKit misses ──
+    // ─── Supabase Realtime: catch DELETES only (PartyKit handles new messages) ──
     useEffect(() => {
         if (!roomId || !workspaceId) return;
 
         const channel = supabase.channel(`room-chat-${roomId}`)
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'messages',
-                filter: `room_id=eq.${roomId}`,
-            }, async (payload: any) => {
-                const row = payload.new;
-                if (!row || row.user_id === userId) return; // Skip own messages (already optimistic)
-
-                // Check if we already have this message (from PartyKit)
-                const existing = useChatStore.getState().messages;
-                if (existing.some((m: any) => m.id === row.id)) return;
-
-                // Fetch sender profile
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('display_name, full_name, avatar_url')
-                    .eq('id', row.user_id)
-                    .single();
-
-                const msg: ChatMessage = {
-                    id: row.id,
-                    userId: row.user_id,
-                    userName: profile?.display_name || profile?.full_name || 'User',
-                    avatarUrl: profile?.avatar_url || null,
-                    content: row.content,
-                    roomId: row.room_id,
-                    timestamp: row.created_at,
-                };
-                addMessage(msg);
-            })
             .on('postgres_changes', {
                 event: 'DELETE',
                 schema: 'public',
@@ -145,7 +114,7 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [roomId, workspaceId, userId, supabase, addMessage, removeMessage]);
+    }, [roomId, workspaceId, supabase, removeMessage]);
 
     // ─── Send message: Optimistic + PartyKit + Supabase ──────
     const sendMessage = useCallback(async (content: string) => {
