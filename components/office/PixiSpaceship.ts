@@ -1,38 +1,35 @@
 // ============================================
 // PixiSpaceship — Landing pad rendering + drag
-// OPTIMIZED: draw once, only update beam alpha
+// OPTIMIZED: draw once, only rebuild on change
 // ============================================
 
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 
-// Cache to avoid redrawing static parts every frame
-let cachedPadX = 0;
-let cachedPadY = 0;
-let cachedPadScale = 0;
-let shipGraphics: Graphics | null = null;
-let beamGraphics: Graphics | null = null;
-let labelText: Text | null = null;
-
 /**
  * Draw spaceship landing pad — fully static.
- * Ship body, beam, and label are drawn once and cached.
+ * Ship body, beam, and label are drawn once and cached per-container.
  * No per-frame animation = zero ongoing GPU cost.
+ *
+ * We store cache on the container itself (via custom properties)
+ * to avoid stale global state across component remounts.
  */
 export function drawSpaceship(container: Container, x: number, y: number, _frameCount: number = 0, padScale: number = 1) {
     const s = padScale;
-    const posChanged = x !== cachedPadX || y !== cachedPadY || s !== cachedPadScale;
+    const c = container as any;
 
-    // Only rebuild if position/scale changed — otherwise do nothing
-    if (!posChanged && shipGraphics && beamGraphics && labelText) return;
+    // Check if position/scale changed from what we last drew on THIS container
+    if (c._cachedPadX === x && c._cachedPadY === y && c._cachedPadScale === s && container.children.length > 0) {
+        return; // Nothing changed, skip redraw
+    }
 
     container.removeChildren();
-    cachedPadX = x;
-    cachedPadY = y;
-    cachedPadScale = s;
+    c._cachedPadX = x;
+    c._cachedPadY = y;
+    c._cachedPadScale = s;
 
     // Beam (STATIC — fixed alpha, drawn once)
     const beamAlpha = 0.12;
-    beamGraphics = new Graphics();
+    const beamGraphics = new Graphics();
     beamGraphics.moveTo(x - 6 * s, y + 10 * s);
     beamGraphics.lineTo(x + 6 * s, y + 10 * s);
     beamGraphics.lineTo(x + 40 * s, y + 70 * s);
@@ -46,7 +43,7 @@ export function drawSpaceship(container: Container, x: number, y: number, _frame
     container.addChild(beamGraphics);
 
     // Ship body (STATIC)
-    shipGraphics = new Graphics();
+    const shipGraphics = new Graphics();
     shipGraphics.moveTo(x, y - 18 * s);
     shipGraphics.lineTo(x + 16 * s, y + 8 * s);
     shipGraphics.lineTo(x + 8 * s, y + 14 * s);
@@ -67,7 +64,7 @@ export function drawSpaceship(container: Container, x: number, y: number, _frame
         fill: 0x06b6d4,
         letterSpacing: 2,
     });
-    labelText = new Text({ text: 'LANDING ZONE', style: labelStyle });
+    const labelText = new Text({ text: 'LANDING ZONE', style: labelStyle });
     labelText.anchor.set(0.5, 0);
     labelText.position.set(x, y + 78 * s);
     container.addChild(labelText);

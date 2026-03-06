@@ -825,48 +825,91 @@ export function PixiOffice() {
             {/* Draggable spaceship overlay (builder mode only) */}
             {isBuilderMode && (() => {
                 const padScreen = getScreenPos(landingPad);
-                const overlayW = 90;
-                const overlayH = 100;
+                const overlayW = 100;
+                const overlayH = 110;
+                const ow = officeWidth || 4000;
+                const oh = officeHeight || 4000;
+
+                const presetPositions = [
+                    { label: '⊕ Centro', x: ow / 2, y: oh / 2 },
+                    { label: '⬆ Alto Centro', x: ow / 2, y: 150 },
+                ];
+
                 return (
                     <>
-                        {/* Scale toolbar */}
+                        {/* Toolbar above spaceship */}
                         <div
                             data-landing-pad
                             style={{
                                 position: 'absolute',
-                                left: padScreen.x - 50,
-                                top: padScreen.y - 30 * landingPadScale * zoom - 40,
-                                width: 100, height: 32,
+                                left: padScreen.x - 90,
+                                top: padScreen.y - 30 * landingPadScale * zoom - 74,
+                                width: 180,
                                 zIndex: 160, pointerEvents: 'auto',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                                background: 'rgba(10, 15, 30, 0.95)',
-                                borderRadius: 8, border: '1px solid rgba(6, 182, 212, 0.4)',
+                                background: 'rgba(10, 15, 30, 0.97)',
+                                borderRadius: 10, border: '1px solid rgba(6, 182, 212, 0.4)',
+                                padding: '6px 8px',
+                                display: 'flex', flexDirection: 'column', gap: 5,
+                                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
                             }}
                         >
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale - 0.25); setTimeout(saveLandingPadToDb, 100); }}
-                                style={{
-                                    width: 24, height: 24, borderRadius: 6,
-                                    border: '1px solid rgba(6, 182, 212, 0.5)',
-                                    background: 'rgba(6, 182, 212, 0.15)',
-                                    color: '#06b6d4', fontSize: 16, fontWeight: 700,
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-                                }}
-                            >−</button>
-                            <span style={{
-                                fontSize: 11, fontWeight: 700, color: '#22d3ee',
-                                minWidth: 32, textAlign: 'center', userSelect: 'none',
-                            }}>{Math.round(landingPadScale * 100)}%</span>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale + 0.25); setTimeout(saveLandingPadToDb, 100); }}
-                                style={{
-                                    width: 24, height: 24, borderRadius: 6,
-                                    border: '1px solid rgba(6, 182, 212, 0.5)',
-                                    background: 'rgba(6, 182, 212, 0.15)',
-                                    color: '#06b6d4', fontSize: 16, fontWeight: 700,
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-                                }}
-                            >+</button>
+                            {/* Position preset row */}
+                            <div style={{ display: 'flex', gap: 4 }}>
+                                {presetPositions.map((preset) => (
+                                    <button
+                                        key={preset.label}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setLandingPad({ x: preset.x, y: preset.y });
+                                            setTimeout(saveLandingPadToDb, 100);
+                                        }}
+                                        style={{
+                                            flex: 1, height: 22, borderRadius: 5,
+                                            border: '1px solid rgba(6, 182, 212, 0.3)',
+                                            background: 'rgba(6, 182, 212, 0.1)',
+                                            color: '#06b6d4', fontSize: 9, fontWeight: 700,
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            letterSpacing: 0.5,
+                                        }}
+                                    >
+                                        {preset.label}
+                                    </button>
+                                ))}
+                            </div>
+                            {/* Scale controls row */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale - 0.25); setTimeout(saveLandingPadToDb, 100); }}
+                                    style={{
+                                        width: 22, height: 22, borderRadius: 5,
+                                        border: '1px solid rgba(6, 182, 212, 0.5)',
+                                        background: 'rgba(6, 182, 212, 0.15)',
+                                        color: '#06b6d4', fontSize: 14, fontWeight: 700,
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                                    }}
+                                >−</button>
+                                <span style={{
+                                    fontSize: 10, fontWeight: 700, color: '#22d3ee',
+                                    minWidth: 36, textAlign: 'center', userSelect: 'none',
+                                }}>{Math.round(landingPadScale * 100)}%</span>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setLandingPadScale(landingPadScale + 0.25); setTimeout(saveLandingPadToDb, 100); }}
+                                    style={{
+                                        width: 22, height: 22, borderRadius: 5,
+                                        border: '1px solid rgba(6, 182, 212, 0.5)',
+                                        background: 'rgba(6, 182, 212, 0.15)',
+                                        color: '#06b6d4', fontSize: 14, fontWeight: 700,
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                                    }}
+                                >+</button>
+                            </div>
+                            {/* Coordinates info */}
+                            <div style={{
+                                fontSize: 8, color: 'rgba(6, 182, 212, 0.5)', textAlign: 'center',
+                                fontWeight: 600, letterSpacing: 0.5,
+                            }}>
+                                X:{Math.round(landingPad.x)} Y:{Math.round(landingPad.y)}
+                            </div>
                         </div>
                         {/* Drag area */}
                         <div
@@ -893,10 +936,10 @@ export function PixiOffice() {
                             }}
                         >
                             <span style={{
-                                fontSize: 10, fontWeight: 700, color: 'rgba(6, 182, 212, 0.8)',
+                                fontSize: 9, fontWeight: 700, color: 'rgba(6, 182, 212, 0.8)',
                                 letterSpacing: 1, textTransform: 'uppercase', userSelect: 'none',
                             }}>
-                                ✦ Trascina
+                                ✦ Landing Zone
                             </span>
                         </div>
                     </>
