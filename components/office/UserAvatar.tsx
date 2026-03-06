@@ -246,7 +246,7 @@ function UserAvatarInner({
                 {/* ─── Role Badge (just below circle) ─── */}
                 {roleConfig && (
                     <div className="absolute left-1/2 pointer-events-none" style={{
-                        top: SZ + 2,
+                        top: SZ + 4,
                         transform: 'translateX(-50%)',
                         zIndex: 6,
                     }}>
@@ -272,7 +272,7 @@ function UserAvatarInner({
 
                 {/* ─── Name (below role, colored pill) ─── */}
                 <div className="absolute left-1/2 whitespace-nowrap pointer-events-none" style={{
-                    top: roleConfig ? SZ + 18 : SZ + 4,
+                    top: roleConfig ? SZ + 22 : SZ + 6,
                     transform: 'translateX(-50%)',
                 }}>
                     <span style={{
