@@ -83,6 +83,7 @@ interface WorkspaceState {
     officeWidth: number;
     officeHeight: number;
     selectedRoomId: string | null;
+    selectedRoomIds: Set<string>;
     furnitureItems: FurnitureItem[];
     roomTemplates: RoomTemplate[];
 
@@ -119,6 +120,7 @@ interface WorkspaceState {
     // Actions — builder
     toggleBuilderMode: () => void;
     setSelectedRoom: (roomId: string | null) => void;
+    setSelectedRoomIds: (ids: Set<string>) => void;
     setFurnitureItems: (items: FurnitureItem[]) => void;
     addFurniture: (item: FurnitureItem) => void;
     updateFurniture: (id: string, data: Partial<FurnitureItem>) => void;
@@ -149,6 +151,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     officeWidth: 4000,
     officeHeight: 3000,
     selectedRoomId: null,
+    selectedRoomIds: new Set<string>(),
     landingPad: { x: 500, y: 500 },
     landingPadScale: 1,
     layoutMode: 'free' as const,
@@ -178,6 +181,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             zoom: 1,
             isBuilderMode: false,
             selectedRoomId: null,
+            selectedRoomIds: new Set<string>(),
             officeWidth: 4000,
             officeHeight: 3000,
             bgOpacity: 0.8,
@@ -217,8 +221,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }),
 
     // ─── Builder ────────────────────────────────────────────
-    toggleBuilderMode: () => set((state) => ({ isBuilderMode: !state.isBuilderMode, selectedRoomId: null })),
+    toggleBuilderMode: () => set((state) => ({ isBuilderMode: !state.isBuilderMode, selectedRoomId: null, selectedRoomIds: new Set<string>() })),
     setSelectedRoom: (roomId) => set({ selectedRoomId: roomId }),
+    setSelectedRoomIds: (ids) => set({ selectedRoomIds: ids }),
     setFurnitureItems: (items) => set({ furnitureItems: items }),
     addFurniture: (item) => set((state) => ({ furnitureItems: [...state.furnitureItems, item] })),
     updateFurniture: (id, data) => set((state) => ({

@@ -275,25 +275,149 @@ interface RoomEditorProps {
 }
 
 export function RoomEditor({ rooms }: RoomEditorProps) {
-    const { selectedRoomId, setSelectedRoom, zoom, stagePos } = useWorkspaceStore();
+    const { selectedRoomId, selectedRoomIds, setSelectedRoom, setSelectedRoomIds, zoom, stagePos } = useWorkspaceStore();
+
+    // Marquee selection state
+    const [marquee, setMarquee] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+    const marqueeRef = useRef<{ startX: number; startY: number } | null>(null);
 
     const handleSelect = useCallback((id: string) => {
         setSelectedRoom(id);
+        setSelectedRoomIds(new Set<string>());
         window.dispatchEvent(new CustomEvent('builder-select-room', { detail: { roomId: id } }));
-    }, [setSelectedRoom]);
+    }, [setSelectedRoom, setSelectedRoomIds]);
+
+    // Marquee: start on background mousedown
+    const handleBgMouseDown = useCallback((e: React.MouseEvent) => {
+        // Only start marquee if clicking on the background (not on a room element)
+        if ((e.target as HTMLElement).dataset.roomEditor) return;
+        e.preventDefault();
+        marqueeRef.current = { startX: e.clientX, startY: e.clientY };
+        setMarquee({ startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY });
+        setSelectedRoom(null);
+        setSelectedRoomIds(new Set<string>());
+    }, [setSelectedRoom, setSelectedRoomIds]);
+
+    useEffect(() => {
+        if (!marqueeRef.current) return;
+
+        const handleMove = (e: MouseEvent) => {
+            if (!marqueeRef.current) return;
+            setMarquee({
+                startX: marqueeRef.current.startX,
+                startY: marqueeRef.current.startY,
+                endX: e.clientX,
+                endY: e.clientY,
+            });
+        };
+
+        const handleUp = (e: MouseEvent) => {
+            if (!marqueeRef.current) return;
+            const { startX, startY } = marqueeRef.current;
+            const endX = e.clientX;
+            const endY = e.clientY;
+
+            // Convert screen rect to world coords
+            const worldLeft = Math.min(startX, endX);
+            const worldRight = Math.max(startX, endX);
+            const worldTop = Math.min(startY, endY);
+            const worldBottom = Math.max(startY, endY);
+
+            // Only select if marquee is big enough (not a tiny click)
+            if (Math.abs(endX - startX) > 5 || Math.abs(endY - startY) > 5) {
+                const selected = new Set<string>();
+                const state = useWorkspaceStore.getState();
+                for (const room of rooms) {
+                    const roomScreenX = room.x * state.zoom + state.stagePos.x;
+                    const roomScreenY = room.y * state.zoom + state.stagePos.y;
+                    const roomScreenW = room.width * state.zoom;
+                    const roomScreenH = room.height * state.zoom;
+
+                    // Check overlap with marquee
+                    if (
+                        roomScreenX + roomScreenW > worldLeft &&
+                        roomScreenX < worldRight &&
+                        roomScreenY + roomScreenH > worldTop &&
+                        roomScreenY < worldBottom
+                    ) {
+                        selected.add(room.id);
+                    }
+                }
+                setSelectedRoomIds(selected);
+            }
+
+            marqueeRef.current = null;
+            setMarquee(null);
+        };
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+        };
+    }, [marquee, rooms, setSelectedRoomIds]);
+
+    // Compute marquee rect for rendering
+    const marqueeRect = marquee ? {
+        left: Math.min(marquee.startX, marquee.endX),
+        top: Math.min(marquee.startY, marquee.endY),
+        width: Math.abs(marquee.endX - marquee.startX),
+        height: Math.abs(marquee.endY - marquee.startY),
+    } : null;
 
     return (
-        <div className="absolute inset-0 z-[4]" style={{ pointerEvents: 'none' }}>
+        <div
+            className="absolute inset-0 z-[4]"
+            style={{ pointerEvents: 'auto', cursor: 'crosshair' }}
+            onMouseDown={handleBgMouseDown}
+        >
             {rooms.map(room => (
                 <EditableRoom
                     key={room.id}
                     room={room}
-                    isSelected={selectedRoomId === room.id}
+                    isSelected={selectedRoomId === room.id || selectedRoomIds.has(room.id)}
                     onSelect={handleSelect}
                     zoom={zoom}
                     stagePos={stagePos}
                 />
             ))}
+
+            {/* Marquee selection rectangle */}
+            {marqueeRect && marqueeRect.width > 2 && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        left: marqueeRect.left,
+                        top: marqueeRect.top,
+                        width: marqueeRect.width,
+                        height: marqueeRect.height,
+                        border: '2px dashed rgba(34, 211, 238, 0.8)',
+                        background: 'rgba(34, 211, 238, 0.08)',
+                        borderRadius: 4,
+                        pointerEvents: 'none',
+                        zIndex: 100,
+                    }}
+                />
+            )}
+
+            {/* Multi-select count badge */}
+            {selectedRoomIds.size > 0 && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        bottom: 100,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 200,
+                        pointerEvents: 'none',
+                    }}
+                >
+                    <div className="px-4 py-2 rounded-xl bg-indigo-500/90 text-white text-sm font-bold shadow-lg backdrop-blur">
+                        {selectedRoomIds.size} stanze selezionate
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
