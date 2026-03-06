@@ -40,8 +40,12 @@ export function useOffice(spaceId?: string) {
             if (typeof layout.landingPadScale === 'number') {
                 setLandingPadScale(layout.landingPadScale);
             }
-            if (layout.layoutMode === 'classic' || layout.layoutMode === 'mindmap') {
+            if (layout.layoutMode === 'free' || layout.layoutMode === 'hierarchical' || layout.layoutMode === 'teamsmap') {
                 setLayoutMode(layout.layoutMode);
+            } else if (layout.layoutMode === 'classic') {
+                setLayoutMode('free'); // Backward compat
+            } else if (layout.layoutMode === 'mindmap') {
+                setLayoutMode('teamsmap'); // Backward compat
             }
         }
 

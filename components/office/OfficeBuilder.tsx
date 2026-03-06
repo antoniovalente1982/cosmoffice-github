@@ -8,7 +8,7 @@ import { OFFICE_TEMPLATES, OfficeTemplate } from '../../lib/officeTemplates';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2,
-    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square, Link2, Unlink, Map
+    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square, Link2, Unlink, Map, GitBranch
 } from 'lucide-react';
 
 
@@ -596,22 +596,33 @@ export function OfficeBuilder() {
                             {!showTemplates ? (
                                 <>
                                     {/* Layout Mode Toggle */}
-                                    <div className="w-full flex gap-2 mb-3">
+                                    <div className="w-full flex gap-1.5 mb-3">
                                         <button
-                                            onClick={() => setLayoutMode('classic')}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold transition-all border ${layoutMode === 'classic'
+                                            onClick={() => setLayoutMode('free')}
+                                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-[9px] font-bold transition-all border ${layoutMode === 'free'
                                                 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
                                                 : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
                                         >
-                                            <LayoutTemplate className="w-3.5 h-3.5" /> CLASSICO
+                                            <LayoutTemplate className="w-3.5 h-3.5" />
+                                            LIBERO
                                         </button>
                                         <button
-                                            onClick={() => setLayoutMode('mindmap')}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold transition-all border ${layoutMode === 'mindmap'
+                                            onClick={() => setLayoutMode('hierarchical')}
+                                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-[9px] font-bold transition-all border ${layoutMode === 'hierarchical'
+                                                ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                                                : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+                                        >
+                                            <GitBranch className="w-3.5 h-3.5" />
+                                            GERARCHICO
+                                        </button>
+                                        <button
+                                            onClick={() => setLayoutMode('teamsmap')}
+                                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-[9px] font-bold transition-all border ${layoutMode === 'teamsmap'
                                                 ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                                                 : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
                                         >
-                                            <Map className="w-3.5 h-3.5" /> MIND MAP
+                                            <Map className="w-3.5 h-3.5" />
+                                            TEAMS MAP
                                         </button>
                                     </div>
 

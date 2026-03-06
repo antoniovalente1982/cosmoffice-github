@@ -240,11 +240,11 @@ export function PixiOffice() {
             // Initialize particles
             particlesRef.current = createParticles(20, oW, oH);
 
-            // Draw platform ONCE (static) — only in classic mode
+            // Draw platform ONCE (static) — only in free mode
             if (platformGfxRef.current) {
                 const pg = platformGfxRef.current;
                 const currentMode = useWorkspaceStore.getState().layoutMode;
-                if (currentMode !== 'mindmap') {
+                if (currentMode === 'free') {
                     pg.roundRect(0, 0, oW, oH, 120);
                     pg.fill({ color: 0x06b6d4, alpha: 0.02 });
                     pg.roundRect(40, 40, oW - 80, oH - 80, 80);

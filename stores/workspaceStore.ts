@@ -89,7 +89,7 @@ interface WorkspaceState {
     landingPadScale: number;
 
     // Layout mode
-    layoutMode: 'classic' | 'mindmap';
+    layoutMode: 'free' | 'hierarchical' | 'teamsmap';
 
     // Admin-locked rooms
     lockedRoomIds: Set<string>;
@@ -125,7 +125,7 @@ interface WorkspaceState {
     setOfficeDimensions: (width: number, height: number) => void;
     setLandingPad: (pos: { x: number; y: number }) => void;
     setLandingPadScale: (scale: number) => void;
-    setLayoutMode: (mode: 'classic' | 'mindmap') => void;
+    setLayoutMode: (mode: 'free' | 'hierarchical' | 'teamsmap') => void;
 
     // Actions — admin
     setRoomLocked: (roomId: string, locked: boolean) => void;
@@ -149,7 +149,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     selectedRoomId: null,
     landingPad: { x: 500, y: 500 },
     landingPadScale: 1,
-    layoutMode: 'classic' as const,
+    layoutMode: 'free' as const,
     furnitureItems: [],
     roomTemplates: [
         { name: 'Open Space', type: 'open', width: 400, height: 300, color: '#3b82f6', icon: '🏢', capacity: 20 },
@@ -181,7 +181,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             bgOpacity: 0.8,
             landingPad: { x: 500, y: 500 },
             landingPadScale: 1,
-            layoutMode: 'classic' as const,
+            layoutMode: 'free' as const,
         });
     },
 
