@@ -166,7 +166,7 @@ interface OfficeState {
 }
 
 export const useOfficeStore = create<OfficeState>((set, get) => ({
-    myPosition: { x: 500, y: 500 }, // Default center
+    myPosition: { x: -9999, y: -9999 }, // Off-screen until positioned at landing pad
     myStatus: 'online',
     myRoomId: undefined,
     myProfile: null,

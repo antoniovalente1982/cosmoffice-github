@@ -73,7 +73,7 @@ interface AvatarState {
 const AVATAR_RADIUS = 25; // Half of 50px minimum distance between avatar centers
 
 export const useAvatarStore = create<AvatarState>((set, get) => ({
-    myPosition: { x: 500, y: 500 },
+    myPosition: { x: -9999, y: -9999 }, // Off-screen until positioned at landing pad
     myStatus: 'online',
     myRoomId: undefined,
     myProfile: null,

@@ -249,6 +249,8 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             const broadcastPosition = () => {
                 if (socket.readyState !== WebSocket.OPEN) return;
                 const { myPosition, myRoomId } = useAvatarStore.getState();
+                // Don't broadcast until positioned at landing pad
+                if (myPosition.x < -9000 || myPosition.y < -9000) return;
                 socket.send(JSON.stringify({
                     type: 'move',
                     userId,
@@ -260,6 +262,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             broadcastPosition();
             setTimeout(broadcastPosition, 500);
             setTimeout(broadcastPosition, 1500);
+            setTimeout(broadcastPosition, 3000); // Extra retry in case landing pad loaded late
 
             // Broadcast current media state so existing peers get our mic/cam status
             setTimeout(() => {
