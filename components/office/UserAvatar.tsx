@@ -43,11 +43,13 @@ const ROLE_CONFIG: Record<string, { color: string; textColor: string; label: str
 };
 
 // ─── FIXED dimensions (never scale with zoom) ───────────────
-const SZ = 56;             // avatar circle
-const BADGE_SZ = 18;       // audio badge
-const BADGE_OFF = 1;       // badge offset from edge
-const BADGE_ICON = 10;     // icon inside badge
-const STATUS_DOT = 14;     // status dot
+const RENDER_SZ = 128;     // render size (high-res for crisp zoom)
+const WORLD_SZ = 56;       // visual world-unit size
+const SCALE_FACTOR = WORLD_SZ / RENDER_SZ; // 0.4375
+const BADGE_SZ = 40;       // audio badge (proportional to 128)
+const BADGE_OFF = 2;       // badge offset from edge
+const BADGE_ICON = 22;     // icon inside badge
+const STATUS_DOT = 30;     // status dot
 
 // ─── Perimeter color logic ──────────────────────────────────
 function getPerimeterColor(remoteAudioEnabled: boolean, audioEnabled: boolean): string {
@@ -59,9 +61,9 @@ function getPerimeterColor(remoteAudioEnabled: boolean, audioEnabled: boolean): 
 
 function getPerimeterGlow(color: string, isSpeaking: boolean): string {
     if (isSpeaking && color === '#10b981') {
-        return `0 0 0 2.5px #0f172a, 0 0 0 5px ${color}, 0 0 16px ${color}, 0 0 32px rgba(16,185,129,0.3)`;
+        return `0 0 0 5px #0f172a, 0 0 0 10px ${color}, 0 0 36px ${color}, 0 0 60px rgba(16,185,129,0.3)`;
     }
-    return `0 0 0 2.5px #0f172a, 0 0 0 5px ${color}`;
+    return `0 0 0 5px #0f172a, 0 0 0 10px ${color}`;
 }
 
 function UserAvatarInner({
@@ -125,12 +127,12 @@ function UserAvatarInner({
             style={{
                 left: position.x,
                 top: position.y,
-                marginLeft: -(SZ * zoom / 2),
-                marginTop: -(SZ * zoom / 2),
+                marginLeft: -(WORLD_SZ * zoom / 2),
+                marginTop: -(WORLD_SZ * zoom / 2),
                 pointerEvents: (onMouseDown || onClick) ? 'auto' : 'none',
                 cursor: isDragging ? 'grabbing' : onMouseDown ? 'grab' : onClick && !isMe ? 'pointer' : 'default',
                 willChange: 'transform',
-                transform: `scale(${zoom})`,
+                transform: `scale(${zoom * SCALE_FACTOR})`,
                 transformOrigin: 'top left',
             }}
             onMouseDown={(e) => {
@@ -151,14 +153,14 @@ function UserAvatarInner({
                 }
             }}
         >
-            <div style={{ position: 'relative', width: SZ, height: SZ }}>
+            <div style={{ position: 'relative', width: RENDER_SZ, height: RENDER_SZ }}>
 
                 {/* ─── Speaking Pulse Ripple ─── */}
                 {isSpeaking && audioEnabled && (
                     <div style={{
-                        position: 'absolute', inset: -5,
+                        position: 'absolute', inset: -10,
                         borderRadius: '50%',
-                        border: '2px solid #10b981',
+                        border: '4px solid #10b981',
                         opacity: 0.5,
                         animation: 'avatar-speaking-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
                     }} />
@@ -166,7 +168,7 @@ function UserAvatarInner({
 
                 {/* ─── Avatar Circle (PHOTO ONLY) ─── */}
                 <div style={{
-                    width: SZ, height: SZ,
+                    width: RENDER_SZ, height: RENDER_SZ,
                     borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     position: 'relative', overflow: 'hidden',
@@ -184,7 +186,7 @@ function UserAvatarInner({
                         />
                     ) : (
                         <span style={{
-                            fontSize: 20, fontWeight: 700, color: '#fff',
+                            fontSize: 44, fontWeight: 700, color: '#fff',
                             filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))',
                             userSelect: 'none',
                         }}>
@@ -199,7 +201,7 @@ function UserAvatarInner({
                     bottom: BADGE_OFF, left: BADGE_OFF,
                     width: BADGE_SZ, height: BADGE_SZ,
                     borderRadius: '50%',
-                    border: '2px solid #0f172a',
+                    border: '4px solid #0f172a',
                     backgroundColor: !remoteAudioEnabled ? '#374151' : audioEnabled ? '#10b981' : '#ef4444',
                     boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -238,7 +240,7 @@ function UserAvatarInner({
                     bottom: BADGE_OFF, right: BADGE_OFF,
                     width: STATUS_DOT, height: STATUS_DOT,
                     borderRadius: '50%',
-                    border: '2px solid #0f172a',
+                    border: '4px solid #0f172a',
                     backgroundColor: statusCol,
                     boxShadow: `0 0 8px ${statusCol}80, 0 2px 4px rgba(0,0,0,0.4)`,
                     zIndex: 5,
@@ -248,17 +250,17 @@ function UserAvatarInner({
                 {/* ─── Role Badge (just below circle) ─── */}
                 {roleConfig && (
                     <div className="absolute left-1/2 pointer-events-none" style={{
-                        top: SZ + 4,
+                        top: RENDER_SZ + 6,
                         transform: 'translateX(-50%)',
                         zIndex: 6,
                     }}>
                         <span style={{
-                            fontSize: 7,
+                            fontSize: 16,
                             fontWeight: 800,
                             color: roleConfig.textColor,
                             backgroundColor: roleConfig.color,
-                            borderRadius: 20,
-                            padding: '1.5px 7px',
+                            borderRadius: 40,
+                            padding: '3px 16px',
                             letterSpacing: '0.08em',
                             fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
                             whiteSpace: 'nowrap' as const,
@@ -274,19 +276,19 @@ function UserAvatarInner({
 
                 {/* ─── Name (below role, colored pill) ─── */}
                 <div className="absolute left-1/2 whitespace-nowrap pointer-events-none" style={{
-                    top: roleConfig ? SZ + 22 : SZ + 6,
+                    top: roleConfig ? RENDER_SZ + 32 : RENDER_SZ + 10,
                     transform: 'translateX(-50%)',
                 }}>
                     <span style={{
-                        fontSize: 10,
+                        fontSize: 22,
                         fontWeight: 800,
                         color: roleConfig ? roleConfig.textColor : '#fff',
                         letterSpacing: '0.05em',
                         textTransform: 'uppercase' as const,
                         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
                         backgroundColor: roleConfig ? roleConfig.color : 'rgba(15, 23, 42, 0.85)',
-                        borderRadius: 20,
-                        padding: '2px 8px',
+                        borderRadius: 40,
+                        padding: '4px 16px',
                         display: 'inline-block',
                         boxShadow: `0 2px 6px rgba(0,0,0,0.4)${roleConfig ? `, 0 0 8px ${roleConfig.color}40` : ''}`,
                     }}>
@@ -297,7 +299,7 @@ function UserAvatarInner({
                 {/* ─── Compact Call Popup ─── */}
                 {showPopup && !isMe && onClick && (
                     <div ref={popupRef} className="absolute left-1/2" style={{
-                        bottom: SZ + 12,
+                        bottom: RENDER_SZ + 20,
                         transform: 'translateX(-50%)',
                         pointerEvents: 'auto',
                         zIndex: 100,
