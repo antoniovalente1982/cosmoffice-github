@@ -100,7 +100,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     const nameText = new Text({ text: room.name, style: nameStyle });
     if (isCircle) {
         nameText.anchor.set(0.5, 1);
-        nameText.position.set(room.x + room.width / 2, room.y - 18);
+        nameText.position.set(room.x + room.width / 2, room.y - 58);
     } else {
         nameText.position.set(room.x + 2, room.y - 58);
     }
@@ -122,7 +122,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     const subText = new Text({ text: subtitleStr, style: subStyle });
     if (isCircle) {
         subText.anchor.set(0.5, 1);
-        subText.position.set(room.x + room.width / 2, room.y - 2);
+        subText.position.set(room.x + room.width / 2, room.y - 32);
     } else {
         subText.position.set(room.x + 2, room.y - 32);
     }
@@ -146,8 +146,15 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         if (isCircle) {
             const cy = room.y + room.height / 2;
             const r = Math.min(room.width, room.height) / 2;
-            status.anchor.set(0.5, 0);
-            status.position.set(room.x + room.width / 2, cy + r + 8);
+            // Inside circle, near bottom
+            const statusY = cy + r - 22;
+            status.anchor.set(0.5, 0.5);
+            status.position.set(room.x + room.width / 2, statusY);
+            // Green dot
+            const statusDot = new Graphics();
+            statusDot.circle(room.x + room.width / 2 - status.width / 2 - 10, statusY, 3.5);
+            statusDot.fill({ color: 0x34d399, alpha: 1 });
+            container.addChild(statusDot);
             container.addChild(status);
         } else {
             const statusY = room.y + room.height - 14;
