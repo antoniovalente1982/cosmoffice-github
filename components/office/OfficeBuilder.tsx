@@ -662,64 +662,6 @@ export function OfficeBuilder() {
                                     </div>
                                 </div>
 
-                                {/* Divider */}
-                                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-                                {/* Room Connections Section */}
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
-                                        <Link2 className="w-3 h-3" /> Connessioni
-                                    </label>
-                                    {/* This room's connections */}
-                                    {roomConnections.filter((c: any) => c.room_a_id === selectedRoom.id || c.room_b_id === selectedRoom.id).map((conn: any) => {
-                                        const other = conn.room_a_id === selectedRoom.id
-                                            ? rooms.find(r => r.id === conn.room_b_id)
-                                            : rooms.find(r => r.id === conn.room_a_id);
-                                        return (
-                                            <div key={conn.id} className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.03] border border-white/5">
-                                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: conn.color || '#6366f1' }} />
-                                                <span className="text-[10px] text-slate-300 flex-1 truncate">→ {other?.name || '?'}</span>
-                                                {conn.label && <span className="text-[9px] text-indigo-400 font-bold">{conn.label}</span>}
-                                                <button onClick={() => handleDeleteConnection(conn.id)} className="p-0.5 rounded hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors">
-                                                    <Unlink className="w-3 h-3" />
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                    {/* Quick-add connection from this room */}
-                                    <div className="space-y-2">
-                                        <div className="flex gap-1.5">
-                                            <select
-                                                value={connectToId}
-                                                onChange={e => setConnectToId(e.target.value)}
-                                                className="flex-1 px-2.5 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-[11px] font-medium focus:outline-none focus:border-indigo-500/50"
-                                            >
-                                                <option value="" className="bg-slate-900">Collega a...</option>
-                                                {rooms.filter(r => r.id !== selectedRoom.id).map(r => (
-                                                    <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                onClick={() => handleCreateConnection(selectedRoom.id)}
-                                                disabled={!connectToId}
-                                                className="px-3 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-[10px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_10px_rgba(99,102,241,0.25)]"
-                                            >
-                                                <Link2 className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                        {/* Inline color picker */}
-                                        <div className="flex items-center gap-1">
-                                            {['#6366f1', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'].map(c => (
-                                                <button
-                                                    key={c}
-                                                    onClick={() => setConnectColor(c)}
-                                                    className={`w-4 h-4 rounded-full transition-all ${connectColor === c ? 'ring-2 ring-white/60 scale-110' : 'opacity-60 hover:opacity-100 hover:scale-110'}`}
-                                                    style={{ backgroundColor: c }}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
 
                             {/* Action Footer */}
