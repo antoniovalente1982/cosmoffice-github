@@ -5,15 +5,6 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { getRoomColor } from './OfficeBuilder';
 
-// Room type labels (clean, no emoji)
-const ROOM_TYPE_LABELS: Record<string, string> = {
-    reception: 'RECEPTION',
-    open: 'OPEN SPACE',
-    meeting: 'MEETING',
-    focus: 'FOCUS',
-    break: 'BREAK',
-    default: 'ROOM',
-};
 
 function hexColor(hex: string): number {
     return parseInt(hex.replace('#', ''), 16);
@@ -56,7 +47,6 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     const color = getRoomColor(room);
     const colorNum = hexColor(color);
     const department = room.settings?.department || room.department || null;
-    const typeLabel = ROOM_TYPE_LABELS[room.type] || ROOM_TYPE_LABELS.default;
     const isCircle = room.shape === 'circle';
 
     // ─── Background layers ───────────────────────────────────
@@ -133,27 +123,26 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     }
     container.addChild(nameText);
 
-    // ─── Subtitle line: DEPARTMENT · TYPE ──────────────────
-    const subtitleParts: string[] = [];
-    if (department) subtitleParts.push(department.toUpperCase());
-    subtitleParts.push(typeLabel);
-    const subtitleStr = subtitleParts.join('  ·  ');
+    // ─── Subtitle line: DEPARTMENT ──────────────────
+    if (department) {
+        const subtitleStr = department.toUpperCase();
 
-    const subStyle = new TextStyle({
-        fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 10,
-        fontWeight: '600',
-        fill: hexColor(color),
-        letterSpacing: 1.2,
-    });
-    const subText = new Text({ text: subtitleStr, style: subStyle });
-    if (isCircle) {
-        subText.anchor.set(0.5, 1);
-        subText.position.set(room.x + room.width / 2, room.y - 32);
-    } else {
-        subText.position.set(room.x + 2, room.y - 32);
+        const subStyle = new TextStyle({
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: 10,
+            fontWeight: '600',
+            fill: hexColor(color),
+            letterSpacing: 1.2,
+        });
+        const subText = new Text({ text: subtitleStr, style: subStyle });
+        if (isCircle) {
+            subText.anchor.set(0.5, 1);
+            subText.position.set(room.x + room.width / 2, room.y - 32);
+        } else {
+            subText.position.set(room.x + 2, room.y - 32);
+        }
+        container.addChild(subText);
     }
-    container.addChild(subText);
 
     // ═══════════════════════════════════════════════════════
     // INSIDE — occupant status
