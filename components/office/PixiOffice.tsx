@@ -761,16 +761,6 @@ export function PixiOffice() {
                 {Object.values(peers).map((peer: any) => {
                     const screenPos = getScreenPos(peer.position);
                     if (!isInViewport(screenPos)) return null;
-                    const dist = getDistanceFromMe(peer.position);
-                    // Look up video stream from dailyStore participants
-                    const dailyParticipants = useDailyStore.getState().participants;
-                    let peerStream: MediaStream | null = peer.stream || null;
-                    if (!peerStream) {
-                        const dailyEntry = Object.values(dailyParticipants).find(
-                            (dp: any) => dp.supabaseId === peer.id
-                        ) as any;
-                        if (dailyEntry?.videoStream) peerStream = dailyEntry.videoStream;
-                    }
                     return (
                         <UserAvatar
                             key={peer.id}
@@ -784,7 +774,6 @@ export function PixiOffice() {
                             videoEnabled={peer.videoEnabled}
                             remoteAudioEnabled={peer.remoteAudioEnabled}
                             isSpeaking={peer.isSpeaking}
-                            stream={peerStream}
                             zoom={zoom}
                             onClick={() => handlePeerClick(peer.id, peer.full_name || 'User')}
                         />
@@ -804,7 +793,6 @@ export function PixiOffice() {
                     videoEnabled={isVideoEnabled}
                     remoteAudioEnabled={isRemoteAudioEnabled}
                     isSpeaking={isSpeaking}
-                    stream={localStream}
                     zoom={zoom}
                     onMouseDown={handleAvatarMouseDown}
                     isDragging={isDraggingAvatar}

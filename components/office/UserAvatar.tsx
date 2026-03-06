@@ -21,26 +21,45 @@ interface UserAvatarProps {
     isDragging?: boolean;
 }
 
+// ─── Status colors (toolbar-synced) ──────────────────────────
 const STATUS_COLOR: Record<string, string> = {
-    online: '#10b981',
-    away: '#f59e0b',
-    busy: '#ef4444',
-    offline: '#64748b',
+    online: '#10b981',   // green
+    away: '#f59e0b',     // yellow
+    busy: '#ef4444',     // red
 };
 
 const STATUS_LABEL: Record<string, string> = {
     online: 'Online',
     away: 'Assente',
     busy: 'Occupato',
-    offline: 'Offline',
 };
 
-const ROLE_RING_COLOR: Record<string, string> = {
-    owner: '#f59e0b',
-    admin: '#06b6d4',
-    member: '#94a3b8',
-    guest: '#a855f7',
+// ─── Role badge colors ──────────────────────────────────────
+const ROLE_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
+    owner: { color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.2)', label: 'OWNER' },
+    admin: { color: '#22d3ee', bg: 'rgba(34, 211, 238, 0.2)', label: 'ADMIN' },
+    member: { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.15)', label: 'MEMBER' },
+    guest: { color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.2)', label: 'GUEST' },
 };
+
+// ─── Perimeter color logic ──────────────────────────────────
+// 🔴 Red: remoteAudio OFF + mic OFF (deaf + mute)
+// 🟡 Yellow: remoteAudio ON + mic OFF (can hear, can't talk)
+// 🟢 Green: remoteAudio ON + mic ON (full duplex)
+function getPerimeterColor(remoteAudioEnabled: boolean, audioEnabled: boolean): string {
+    if (!remoteAudioEnabled && !audioEnabled) return '#ef4444'; // red
+    if (remoteAudioEnabled && !audioEnabled) return '#f59e0b';  // yellow
+    if (remoteAudioEnabled && audioEnabled) return '#10b981';   // green
+    // Edge case: mic ON but remote audio OFF — treat as red (unusual state)
+    return '#ef4444';
+}
+
+function getPerimeterGlow(color: string, isSpeaking: boolean): string {
+    if (isSpeaking && color === '#10b981') {
+        return `0 0 0 3px #0f172a, 0 0 0 6px ${color}, 0 0 20px ${color}, 0 0 40px rgba(16, 185, 129, 0.3)`;
+    }
+    return `0 0 0 3px #0f172a, 0 0 0 6px ${color}`;
+}
 
 function UserAvatarInner({
     fullName,
@@ -63,16 +82,6 @@ function UserAvatarInner({
     const clickStartRef = useRef<{ x: number; y: number } | null>(null);
     const popupRef = useRef<HTMLDivElement>(null);
     const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
-    const videoRef = useRef<HTMLVideoElement | null>(null);
-
-    const videoTrack = stream?.getVideoTracks()[0];
-    const hasVideo = videoEnabled && stream && videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
-
-    useEffect(() => {
-        if (videoRef.current && stream) {
-            videoRef.current.srcObject = stream;
-        }
-    }, [stream]);
 
     // Close popup on outside click or Escape
     useEffect(() => {
@@ -109,22 +118,20 @@ function UserAvatarInner({
         }
     }, [onClick]);
 
-    // All dimensions derived from zoom
+    // ─── Dimensions (zoom-scaled) ────────────────────────────
     const sz = 64 * zoom;
-    const dot = 16 * zoom;
-    const dotOff = 4 * zoom;
-    const mediaDotIconSz = 9 * zoom;
-    const ringOff = 2 * zoom;
-    const ring = 3 * zoom;
+    const badgeSz = 18 * zoom;
+    const badgeOff = 2 * zoom;
+    const badgeIconSz = 10 * zoom;
+    const statusDotSz = 14 * zoom;
 
-    const roleColor = role ? ROLE_RING_COLOR[role] || '#94a3b8' : '#94a3b8';
+    // ─── Perimeter color logic ───────────────────────────────
+    const perimeterColor = getPerimeterColor(remoteAudioEnabled, audioEnabled);
+    const perimeterShadow = getPerimeterGlow(perimeterColor, isSpeaking);
 
-    const ringBoxShadow = isSpeaking
-        ? `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px #34d399, 0 0 ${20 * zoom}px rgba(52,211,153,0.5)`
-        : `0 0 0 ${ringOff}px #0f172a, 0 0 0 ${ringOff + ring}px ${roleColor}`;
-
-    const showMediaDot = !remoteAudioEnabled || !audioEnabled;
-    const statusCol = STATUS_COLOR[status] ?? STATUS_COLOR.offline;
+    // ─── Status color ────────────────────────────────────────
+    const statusCol = STATUS_COLOR[status] ?? STATUS_COLOR.online;
+    const roleConfig = role ? ROLE_CONFIG[role] : null;
 
     return (
         <div
@@ -163,32 +170,21 @@ function UserAvatarInner({
         >
             <div className="group" style={{ position: 'relative', width: sz, height: sz }}>
 
-                {/* Name Label */}
-                <div
-                    className="absolute left-1/2 whitespace-nowrap pointer-events-none"
-                    style={{ top: sz + 6 * zoom, transform: 'translateX(-50%)' }}
-                >
-                    <span style={{
-                        fontSize: Math.max(11, 12 * zoom),
-                        fontWeight: 700,
-                        color: '#f1f5f9',
-                        letterSpacing: '0.02em',
-                        textShadow: '0 1px 6px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)',
-                        fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
-                    }}>
-                        {fullName || 'User'}
-                    </span>
-                </div>
-
-                {/* Pulse Ripple when Speaking */}
-                {isSpeaking && (
+                {/* ─── Speaking Pulse Ripple ─── */}
+                {isSpeaking && audioEnabled && (
                     <div
-                        className="absolute inset-0 rounded-full animate-ping"
-                        style={{ border: '2px solid #34d399', opacity: 0.4, animationDuration: '1.5s' }}
+                        style={{
+                            position: 'absolute',
+                            inset: -4 * zoom,
+                            borderRadius: '50%',
+                            border: `2px solid #10b981`,
+                            opacity: 0.5,
+                            animation: 'avatar-speaking-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+                        }}
                     />
                 )}
 
-                {/* Avatar Circle */}
+                {/* ─── Avatar Circle (PHOTO ONLY — never video) ─── */}
                 <div
                     style={{
                         width: sz, height: sz,
@@ -196,24 +192,23 @@ function UserAvatarInner({
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         position: 'relative', overflow: 'hidden',
                         background: 'linear-gradient(to bottom right, #334155, #0f172a)',
-                        boxShadow: `${ringBoxShadow}, 0 25px 50px -12px rgba(0,0,0,0.25)`,
-                        transform: isSpeaking ? 'scale(1.05)' : undefined,
-                        transition: 'transform 0.3s, box-shadow 0.3s',
+                        boxShadow: `${perimeterShadow}, 0 8px 25px rgba(0,0,0,0.3)`,
+                        transform: isSpeaking && audioEnabled ? 'scale(1.05)' : undefined,
+                        transition: 'transform 0.3s ease, box-shadow 0.4s ease',
                         zIndex: 2,
                     }}
                 >
-                    {hasVideo ? (
-                        <video
-                            ref={videoRef}
-                            autoPlay playsInline muted
+                    {avatarUrl ? (
+                        <img
+                            src={avatarUrl}
+                            alt={fullName}
                             style={{
-                                position: 'absolute', inset: 0,
-                                width: '100%', height: '100%', objectFit: 'cover',
-                                transform: isMe ? 'scaleX(-1)' : undefined,
+                                width: '100%', height: '100%',
+                                objectFit: 'cover',
+                                borderRadius: '50%',
                             }}
+                            draggable={false}
                         />
-                    ) : avatarUrl ? (
-                        <img src={avatarUrl} alt={fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                         <span style={{
                             fontSize: 20 * zoom, fontWeight: 700, color: '#fff',
@@ -226,46 +221,115 @@ function UserAvatarInner({
                     )}
                 </div>
 
-                {/* Media Indicator Dot (LEFT) */}
-                {showMediaDot && (
-                    <div style={{
-                        position: 'absolute', bottom: dotOff, left: dotOff,
-                        width: dot, height: dot, borderRadius: '50%',
-                        border: `${2 * zoom}px solid #0f172a`,
-                        backgroundColor: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.4), 0 0 8px rgba(255,255,255,0.3)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'background-color 0.3s, box-shadow 0.3s',
-                    }}>
-                        {!remoteAudioEnabled ? (
-                            <svg width={mediaDotIconSz} height={mediaDotIconSz} viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
-                                <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-                                <line x1="2" y1="2" x2="22" y2="22" />
-                            </svg>
-                        ) : (
-                            <svg width={mediaDotIconSz} height={mediaDotIconSz} viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="2" y1="2" x2="22" y2="22" />
-                                <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2" />
-                                <path d="M5 10v2a7 7 0 0 0 12 5" />
-                                <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33" />
-                                <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
-                                <line x1="12" y1="19" x2="12" y2="23" />
-                                <line x1="8" y1="23" x2="16" y2="23" />
-                            </svg>
-                        )}
+                {/* ─── Badge Audio/Mic (BOTTOM-LEFT) ─── */}
+                <div style={{
+                    position: 'absolute',
+                    bottom: badgeOff, left: badgeOff,
+                    width: badgeSz, height: badgeSz,
+                    borderRadius: '50%',
+                    border: `2px solid #0f172a`,
+                    backgroundColor: !remoteAudioEnabled
+                        ? '#374151'           // dark gray - audio OFF
+                        : audioEnabled
+                            ? '#10b981'       // green - mic ON
+                            : '#ef4444',      // red - mic OFF
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background-color 0.3s ease',
+                    zIndex: 5,
+                }}>
+                    {!remoteAudioEnabled ? (
+                        /* Headphone crossed — audio entrata OFF */
+                        <svg width={badgeIconSz} height={badgeIconSz} viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+                            <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+                            <line x1="2" y1="2" x2="22" y2="22" />
+                        </svg>
+                    ) : !audioEnabled ? (
+                        /* Mic crossed — mic OFF */
+                        <svg width={badgeIconSz} height={badgeIconSz} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="2" y1="2" x2="22" y2="22" />
+                            <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2" />
+                            <path d="M5 10v2a7 7 0 0 0 12 5" />
+                            <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33" />
+                            <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
+                            <line x1="12" y1="19" x2="12" y2="23" />
+                        </svg>
+                    ) : (
+                        /* Mic active — mic ON */
+                        <svg width={badgeIconSz} height={badgeIconSz} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                            <line x1="12" y1="19" x2="12" y2="23" />
+                            <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                    )}
+                </div>
+
+                {/* ─── Badge Stato (BOTTOM-RIGHT) — 🟢🟡🔴 ─── */}
+                <div style={{
+                    position: 'absolute',
+                    bottom: badgeOff, right: badgeOff,
+                    width: statusDotSz, height: statusDotSz,
+                    borderRadius: '50%',
+                    border: `2px solid #0f172a`,
+                    backgroundColor: statusCol,
+                    boxShadow: `0 0 8px ${statusCol}80, 0 2px 4px rgba(0,0,0,0.4)`,
+                    zIndex: 5,
+                    transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+                }} />
+
+                {/* ─── Role Badge (below avatar) ─── */}
+                {roleConfig && (
+                    <div
+                        className="absolute left-1/2 pointer-events-none"
+                        style={{
+                            top: sz + 2 * zoom,
+                            transform: 'translateX(-50%)',
+                            zIndex: 3,
+                        }}
+                    >
+                        <span style={{
+                            fontSize: Math.max(7, 8 * zoom),
+                            fontWeight: 800,
+                            color: roleConfig.color,
+                            backgroundColor: roleConfig.bg,
+                            border: `1px solid ${roleConfig.color}40`,
+                            borderRadius: 6 * zoom,
+                            padding: `${1 * zoom}px ${5 * zoom}px`,
+                            letterSpacing: '0.08em',
+                            fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
+                            whiteSpace: 'nowrap' as const,
+                            lineHeight: 1.4,
+                            display: 'inline-block',
+                        }}>
+                            {roleConfig.label}
+                        </span>
                     </div>
                 )}
 
-                {/* Status Dot (RIGHT) */}
-                <div style={{
-                    position: 'absolute', bottom: dotOff, right: dotOff,
-                    width: dot, height: dot, borderRadius: '50%',
-                    border: `${2 * zoom}px solid #0f172a`,
-                    backgroundColor: statusCol,
-                    boxShadow: `0 2px 6px rgba(0,0,0,0.4)`,
-                }} />
+                {/* ─── Name Label (below role badge) ─── */}
+                <div
+                    className="absolute left-1/2 whitespace-nowrap pointer-events-none"
+                    style={{
+                        top: roleConfig
+                            ? sz + 16 * zoom   // after role badge
+                            : sz + 6 * zoom,   // no role badge
+                        transform: 'translateX(-50%)',
+                    }}
+                >
+                    <span style={{
+                        fontSize: Math.max(11, 12 * zoom),
+                        fontWeight: 700,
+                        color: '#f1f5f9',
+                        letterSpacing: '0.02em',
+                        textShadow: '0 1px 6px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)',
+                        fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
+                    }}>
+                        {fullName || 'User'}
+                    </span>
+                </div>
 
                 {/* ─── Compact Call Popup ─── */}
                 {showPopup && !isMe && onClick && (
@@ -320,27 +384,17 @@ function UserAvatarInner({
                                         letterSpacing: '0.03em',
                                         textTransform: 'uppercase' as const,
                                     }}>
-                                        {STATUS_LABEL[status] ?? 'Offline'}
+                                        {STATUS_LABEL[status] ?? 'Online'}
                                     </span>
 
-                                    {/* Mic/Cam/Audio mini icons */}
+                                    {/* Mic/Audio mini indicators */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: 4 }}>
-                                        {/* Mic */}
-                                        <svg width={10} height={10} viewBox="0 0 24 24" fill="none"
-                                            stroke={audioEnabled ? '#10b981' : '#ef4444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                            style={{ opacity: audioEnabled ? 0.8 : 0.5 }}>
-                                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                                            {!audioEnabled && <line x1="2" y1="2" x2="22" y2="22" />}
-                                        </svg>
-                                        {/* Cam */}
-                                        <svg width={10} height={10} viewBox="0 0 24 24" fill="none"
-                                            stroke={videoEnabled ? '#10b981' : '#ef4444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                            style={{ opacity: videoEnabled ? 0.8 : 0.5 }}>
-                                            <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
-                                            <rect x="2" y="6" width="14" height="12" rx="2" />
-                                            {!videoEnabled && <line x1="2" y1="2" x2="22" y2="22" />}
-                                        </svg>
+                                        {/* Perimeter color dot — media state at a glance */}
+                                        <div style={{
+                                            width: 8, height: 8, borderRadius: '50%',
+                                            backgroundColor: perimeterColor,
+                                            boxShadow: `0 0 4px ${perimeterColor}80`,
+                                        }} />
                                     </div>
                                 </div>
                             </div>
