@@ -471,7 +471,7 @@ export function OfficeBuilder() {
                     <div className="flex items-center gap-3 px-4 h-full">
                         <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
                         <span className="text-xs font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-400">
-                            Design Mode
+                            Space Builder
                         </span>
                     </div>
 
@@ -684,15 +684,6 @@ export function OfficeBuilder() {
                                 <>
                                     {/* Layout Mode Toggle */}
                                     <div className="w-full flex gap-1.5 mb-3">
-                                        <button
-                                            onClick={() => setLayoutMode('free')}
-                                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-[9px] font-bold transition-all border ${layoutMode === 'free'
-                                                ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
-                                                : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-                                        >
-                                            <LayoutTemplate className="w-3.5 h-3.5" />
-                                            LIBERO
-                                        </button>
                                         <button
                                             onClick={() => setLayoutMode('hierarchical')}
                                             className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-[9px] font-bold transition-all border ${layoutMode === 'hierarchical'
