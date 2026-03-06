@@ -324,8 +324,14 @@ export function OfficeBuilder() {
     // ─── Duplicate selected room ──────────────────────────
     const handleDuplicateRoom = useCallback(async () => {
         if (!selectedRoomId || !activeSpaceId) return;
-        const room = rooms.find(r => r.id === selectedRoomId);
+        // Read from store (freshest) — not from rooms prop
+        const storeRooms = useWorkspaceStore.getState().rooms;
+        const room = storeRooms.find(r => r.id === selectedRoomId);
         if (!room) return;
+
+        const roomColor = getRoomColor(room);
+        const roomDept = getRoomDepartment(room);
+        const roomShape = room.shape || 'rect';
 
         const tId = tempId();
         const duplicated: any = {
@@ -334,6 +340,9 @@ export function OfficeBuilder() {
             name: `${room.name} (copia)`,
             x: (room.x || 0) + 40,
             y: (room.y || 0) + 40,
+            shape: roomShape,
+            color: roomColor,
+            department: roomDept,
         };
         addRoom(duplicated);
         setSelectedRoom(tId);
@@ -347,20 +356,23 @@ export function OfficeBuilder() {
             width: room.width,
             height: room.height,
             capacity: room.settings?.capacity,
-            settings: room.settings,
-            shape: room.shape || 'rect',
+            settings: { ...room.settings, color: roomColor, department: roomDept },
+            shape: roomShape,
         };
 
         const { data, error } = await supabase.from('rooms').insert(dbPayload).select().single();
         if (!error && data) {
-            const currentRooms = useWorkspaceStore.getState().rooms;
-            setRooms(currentRooms.map(r => r.id === tId ? { ...r, ...data, color: getRoomColor(room), department: getRoomDepartment(room) } : r));
+            // Replace temp room with DB room — filter out temp first, then add the resolved one
+            const latestRooms = useWorkspaceStore.getState().rooms;
+            const withoutTemp = latestRooms.filter(r => r.id !== tId);
+            const resolved = { ...data, color: roomColor, department: roomDept, shape: roomShape };
+            setRooms([...withoutTemp, resolved]);
             setSelectedRoom(data.id);
             setToast({ msg: `✅ Stanza duplicata!`, type: 'ok' });
         } else if (error) {
             setToast({ msg: `❌ ${error.message}`, type: 'err' });
         }
-    }, [selectedRoomId, activeSpaceId, rooms, supabase, addRoom, setSelectedRoom, setRooms]);
+    }, [selectedRoomId, activeSpaceId, supabase, addRoom, setSelectedRoom, setRooms]);
 
     const handleSaveProperties = useCallback(async () => {
         if (!selectedRoomId) return;

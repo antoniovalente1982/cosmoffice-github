@@ -101,6 +101,8 @@ export function useOffice(spaceId?: string) {
             }, (payload) => {
                 const newRoom = payload.new as any;
                 const store = useWorkspaceStore.getState();
+                // In builder mode, we manage rooms directly — ignore echoes
+                if (store.isBuilderMode) return;
                 // Only add if not already present (avoid duplicates from optimistic updates)
                 if (!store.rooms.find((r: any) => r.id === newRoom.id)) {
                     store.addRoom(newRoom);
