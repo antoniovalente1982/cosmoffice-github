@@ -6,7 +6,7 @@ import { create } from 'zustand';
 // Tools: pen, eraser, shapes, laser pointer
 // ============================================
 
-export type WhiteboardTool = 'pen' | 'eraser' | 'select' | 'rect' | 'circle' | 'line' | 'arrow' | 'laser';
+export type WhiteboardTool = 'pen' | 'eraser' | 'select' | 'rect' | 'circle' | 'line' | 'arrow' | 'laser' | 'text';
 
 export interface WhiteboardStroke {
     id: string;
@@ -15,8 +15,9 @@ export interface WhiteboardStroke {
     color: string;
     fillColor?: string | null;
     width: number;
-    points: number[]; // pen/eraser: [x1,y1,...], shapes: [x1,y1,x2,y2]
+    points: number[]; // pen/eraser: [x1,y1,...], shapes: [x1,y1,x2,y2], text: [x,y]
     tool: WhiteboardTool;
+    text?: string;    // text content (tool='text' only)
     timestamp: string;
 }
 

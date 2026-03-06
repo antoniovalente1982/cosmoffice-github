@@ -73,6 +73,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
                         width: row.stroke_data?.width || 4,
                         points: row.stroke_data?.points || [],
                         tool: row.stroke_data?.tool || 'pen',
+                        text: row.stroke_data?.text || undefined,
                         timestamp: row.created_at,
                     }));
                     setRoomStrokes(mapped);
@@ -151,6 +152,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
                         width: row.stroke_data?.width || 4,
                         points: row.stroke_data?.points || [],
                         tool: row.stroke_data?.tool || 'pen',
+                        text: row.stroke_data?.text || undefined,
                         timestamp: row.created_at,
                     }));
                     setOfficeStrokes(mapped);
@@ -259,6 +261,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
                     width: row.stroke_data?.width || 4,
                     points: row.stroke_data?.points || [],
                     tool: row.stroke_data?.tool || 'pen',
+                    text: row.stroke_data?.text || undefined,
                     timestamp: row.created_at,
                 };
 
@@ -310,6 +313,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
                     width: stroke.width,
                     tool: stroke.tool,
                     fillColor: stroke.fillColor || null,
+                    text: stroke.text || null,
                 },
             });
         } catch (err) {
@@ -369,6 +373,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
                         width: updates.width || existingStroke.width,
                         tool: existingStroke.tool,
                         fillColor: updates.fillColor !== undefined ? updates.fillColor : existingStroke.fillColor,
+                        text: updates.text !== undefined ? updates.text : existingStroke.text,
                     },
                 }).eq('id', strokeId);
             }

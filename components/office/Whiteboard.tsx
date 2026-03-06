@@ -6,7 +6,7 @@ import {
     Undo2, Redo2, Eraser, Pen, Camera,
     DoorOpen, Globe, Square, Circle as CircleIcon,
     ArrowRight, Minus, MousePointer2,
-    Flashlight, Droplets,
+    Flashlight, Droplets, Type,
 } from 'lucide-react';
 import {
     useWhiteboardStore, WHITEBOARD_COLORS, WHITEBOARD_WIDTHS,
@@ -71,16 +71,34 @@ function hitHandle(handles: ReturnType<typeof getResizeHandles>, x: number, y: n
 }
 
 // Tool icon mapping
-const TOOL_CONFIG: Record<string, { icon: any; label: string; group: 'draw' | 'shape' }> = {
+const TOOL_CONFIG: Record<string, { icon: any; label: string; group: 'draw' | 'shape' | 'text' }> = {
     pen: { icon: Pen, label: 'Penna', group: 'draw' },
     eraser: { icon: Eraser, label: 'Gomma', group: 'draw' },
     select: { icon: MousePointer2, label: 'Seleziona', group: 'draw' },
     laser: { icon: Flashlight, label: 'Laser', group: 'draw' },
+    text: { icon: Type, label: 'Testo', group: 'text' },
     rect: { icon: Square, label: 'Rettangolo', group: 'shape' },
     circle: { icon: CircleIcon, label: 'Cerchio', group: 'shape' },
     line: { icon: Minus, label: 'Linea', group: 'shape' },
     arrow: { icon: ArrowRight, label: 'Freccia', group: 'shape' },
 };
+
+// Text font size based on stroke width
+function getTextFontSize(width: number): number {
+    return width <= 2 ? 16 : width <= 4 ? 22 : 32;
+}
+
+// Text hit-test
+function hitText(stroke: WhiteboardStroke, x: number, y: number, ctx: CanvasRenderingContext2D): boolean {
+    if (stroke.tool !== 'text' || !stroke.text || stroke.points.length < 2) return false;
+    const [tx, ty] = stroke.points;
+    const fontSize = getTextFontSize(stroke.width);
+    ctx.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
+    const metrics = ctx.measureText(stroke.text);
+    const w = metrics.width;
+    const h = fontSize * 1.2;
+    return x >= tx - 4 && x <= tx + w + 4 && y >= ty - h && y <= ty + 4;
+}
 
 function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardProps) {
     const {
@@ -123,6 +141,8 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
     const laserStrokesRef = useRef<{ stroke: WhiteboardStroke; addedAt: number }[]>([]);
     const laserAnimRef = useRef<number | null>(null);
     const [showFillPicker, setShowFillPicker] = useState(false);
+    const [textInput, setTextInput] = useState<{ x: number; y: number; value: string; editId?: string } | null>(null);
+    const textInputRef = useRef<HTMLInputElement>(null);
 
     const isRoomChannel = activeChannel === 'room';
     const canDraw = isRoomChannel ? !!myRoomId : true;
@@ -244,6 +264,19 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
                     ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
                     ctx.stroke();
                 }
+            }
+
+            // ─── Text stroke ─────────────────────────────────
+            if (stroke.tool === 'text' && stroke.text && stroke.points.length >= 2) {
+                const [tx, ty] = stroke.points;
+                const fontSize = getTextFontSize(stroke.width);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
+                ctx.fillStyle = stroke.color;
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = stroke.color;
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(stroke.text, tx, ty);
             }
 
             ctx.restore();
@@ -417,10 +450,21 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
                 }
             }
 
-            // Try to select a shape (reverse order = top-most first)
+            // Try to select a shape or text (reverse order = top-most first)
             let found = false;
+            const canvas = canvasRef.current;
+            const selCtx = canvas?.getContext('2d');
             for (let i = currentStrokes.length - 1; i >= 0; i--) {
                 const s = currentStrokes[i];
+                // Text hit-test
+                if (s.tool === 'text' && selCtx) {
+                    if (hitText(s, pos.x, pos.y, selCtx)) {
+                        setSelectedStrokeId(s.id);
+                        found = true;
+                        break;
+                    }
+                    continue;
+                }
                 if (!isShapeTool(s.tool) || s.points.length < 4) continue;
                 let hit = false;
                 if (s.tool === 'rect') hit = hitRect(s.points, pos.x, pos.y);
@@ -434,6 +478,13 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
             }
             if (!found) setSelectedStrokeId(null);
             renderCanvas();
+            return;
+        }
+
+        // TEXT tool: open input at click position
+        if (selectedTool === 'text') {
+            setTextInput({ x: pos.x, y: pos.y, value: '' });
+            setTimeout(() => textInputRef.current?.focus(), 50);
             return;
         }
 
@@ -600,6 +651,33 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
     const handleMouseLeave = useCallback(() => {
         if (isDrawingRef.current) handleMouseUp();
     }, [handleMouseUp]);
+    // ─── Commit text from input overlay ─────────────────────────
+    const commitText = useCallback((value: string) => {
+        if (!value.trim()) { setTextInput(null); return; }
+
+        if (textInput?.editId) {
+            // Editing existing text stroke
+            const isRoom = useWhiteboardStore.getState().activeChannel === 'room';
+            if (isRoom) useWhiteboardStore.getState().updateStroke(textInput.editId, { text: value.trim() });
+            else useWhiteboardStore.getState().updateOfficeStroke(textInput.editId, { text: value.trim() });
+            sendStrokeUpdate(textInput.editId, { text: value.trim() });
+        } else if (textInput) {
+            // New text stroke
+            const stroke: WhiteboardStroke = {
+                id: `wb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                userId, userName,
+                color: selectedColor,
+                width: selectedWidth,
+                points: [textInput.x, textInput.y],
+                tool: 'text',
+                text: value.trim(),
+                timestamp: new Date().toISOString(),
+            };
+            sendStroke(stroke);
+            broadcastActivity();
+        }
+        setTextInput(null);
+    }, [textInput, userId, userName, selectedColor, selectedWidth, sendStroke, sendStrokeUpdate, broadcastActivity]);
 
     // ─── Undo/Redo ────────────────────────────────────────────
     const handleUndo = useCallback(() => { storeUndo(); }, [storeUndo]);
@@ -815,14 +893,47 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
                                 cursor: selectedTool === 'eraser' ? 'cell'
                                     : selectedTool === 'select' ? (resizingRef.current ? 'nwse-resize' : 'default')
                                         : selectedTool === 'laser' ? 'crosshair'
-                                            : isShapeTool(selectedTool) ? 'crosshair'
-                                                : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='${Math.max(selectedWidth, 2)}' fill='${encodeURIComponent(selectedColor)}' opacity='0.8'/%3E%3C/svg%3E") 10 10, crosshair`,
+                                            : selectedTool === 'text' ? 'text'
+                                                : isShapeTool(selectedTool) ? 'crosshair'
+                                                    : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='${Math.max(selectedWidth, 2)}' fill='${encodeURIComponent(selectedColor)}' opacity='0.8'/%3E%3C/svg%3E") 10 10, crosshair`,
                             }}
                             onMouseDown={handleMouseDown}
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
                             onMouseLeave={handleMouseLeave}
                         />
+                    )}
+
+                    {/* ─── Text Input Overlay ─── */}
+                    {textInput && (
+                        <div className="absolute z-50" style={{ left: textInput.x, top: textInput.y - 30 }}>
+                            <input
+                                ref={textInputRef}
+                                type="text"
+                                value={textInput.value}
+                                onChange={(e) => setTextInput({ ...textInput, value: e.target.value })}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') commitText(textInput.value);
+                                    if (e.key === 'Escape') setTextInput(null);
+                                    e.stopPropagation();
+                                }}
+                                onBlur={() => commitText(textInput.value)}
+                                placeholder="Scrivi testo..."
+                                className="outline-none border-0 bg-transparent"
+                                style={{
+                                    color: selectedColor,
+                                    fontSize: getTextFontSize(selectedWidth),
+                                    fontWeight: 'bold',
+                                    fontFamily: "'Inter', system-ui, sans-serif",
+                                    minWidth: 120,
+                                    textShadow: `0 0 6px ${selectedColor}`,
+                                    caretColor: selectedColor,
+                                    borderBottom: `2px solid ${selectedColor}40`,
+                                    padding: '2px 0',
+                                }}
+                                autoFocus
+                            />
+                        </div>
                     )}
 
                     {/* Corner decorations */}
@@ -862,6 +973,18 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
                                 );
                             })}
                         </div>
+
+                        <div className="w-px h-6 bg-white/10" />
+
+                        {/* Text tool */}
+                        <button onClick={() => setTool('text')}
+                            className={`w-7 h-7 rounded-md flex items-center justify-center transition-all ${selectedTool === 'text'
+                                ? 'text-emerald-300'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+                            title="Testo"
+                            style={selectedTool === 'text' ? { backgroundColor: 'rgba(52,211,153,0.15)', color: '#6ee7b7' } : {}}>
+                            <Type className="w-3.5 h-3.5" />
+                        </button>
 
                         <div className="w-px h-6 bg-white/10" />
 
