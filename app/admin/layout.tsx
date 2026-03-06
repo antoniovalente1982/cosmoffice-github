@@ -15,6 +15,7 @@ import {
     ArrowLeft,
     Rocket,
     Crown,
+    Server,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 
@@ -52,6 +53,7 @@ const navSections: NavSection[] = [
         label: 'Integrazioni',
         items: [
             { href: '/admin/daily', label: 'LiveKit', icon: Video },
+            { href: '/admin/infrastructure', label: 'Infrastruttura & Costi', icon: Server },
         ],
     },
 ];
