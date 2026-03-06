@@ -439,6 +439,12 @@ function ConnectionEndpointHandles({ rooms, zoom, stagePos }: { rooms: any[]; zo
         setDragging({ connId, side, cursorX: e.clientX, cursorY: e.clientY });
     }, []);
 
+    const handleDeleteConn = useCallback(async (connId: string) => {
+        await supabase.from('room_connections').delete().eq('id', connId);
+        const state = useWorkspaceStore.getState();
+        setRoomConnections(state.roomConnections.filter((c: any) => c.id !== connId));
+    }, [supabase, setRoomConnections]);
+
     useEffect(() => {
         if (!dragging) return;
 
@@ -560,6 +566,34 @@ function ConnectionEndpointHandles({ rooms, zoom, stagePos }: { rooms: any[]; zo
                             }}
                             onMouseDown={(e) => handleEndpointDown(conn.id, 'b', e)}
                         />
+
+                        {/* Delete connection button at midpoint */}
+                        <div
+                            data-room-editor="true"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteConn(conn.id); }}
+                            style={{
+                                position: 'absolute',
+                                left: (screenAx + screenBx) / 2 - 10,
+                                top: (screenAy + screenBy) / 2 - 10,
+                                width: 20,
+                                height: 20,
+                                borderRadius: '50%',
+                                background: 'rgba(239, 68, 68, 0.9)',
+                                border: '2px solid rgba(255,255,255,0.9)',
+                                cursor: 'pointer',
+                                zIndex: 35,
+                                pointerEvents: 'auto',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 0 10px rgba(239,68,68,0.6)',
+                                fontSize: 11,
+                                fontWeight: 'bold',
+                                color: 'white',
+                                lineHeight: 1,
+                            }}
+                            title="Elimina connessione"
+                        >✕</div>
                     </React.Fragment>
                 );
             })}
