@@ -23,7 +23,7 @@ function hexColor(hex: string): number {
  * Get the point on a room's border closest to a target point (edge intersection).
  * Used for edge-to-edge connections instead of center-to-center.
  */
-function getRoomEdge(room: any, targetX: number, targetY: number): { x: number; y: number } {
+export function getRoomEdge(room: any, targetX: number, targetY: number): { x: number; y: number } {
     const cx = room.x + room.width / 2;
     const cy = room.y + room.height / 2;
     const dx = targetX - cx;
@@ -208,8 +208,8 @@ export function drawRoomConnections(
     labelContainer?: Container, // Container for label Text objects
     layoutMode?: string,       // 'free' | 'hierarchical' | 'teamsmap'
     isBuilderMode?: boolean    // Show draggable control point handles
-): { connId: string; x: number; y: number }[] {
-    const handles: { connId: string; x: number; y: number }[] = [];
+): { connId: string; x: number; y: number; side?: 'a' | 'b' }[] {
+    const handles: { connId: string; x: number; y: number; side?: 'a' | 'b' }[] = [];
     gfx.clear();
     if (labelContainer) labelContainer.removeChildren();
     if (isPerformanceMode) return handles;
@@ -285,11 +285,28 @@ export function drawRoomConnections(
                 gfx.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
                 gfx.stroke({ color: connColor, width: 3, alpha: 0.7 });
 
-                // Small dots at edge endpoints
                 gfx.circle(edgeA.x, edgeA.y, 4);
                 gfx.fill({ color: connColor, alpha: 0.9 });
                 gfx.circle(edgeB.x, edgeB.y, 4);
                 gfx.fill({ color: connColor, alpha: 0.9 });
+
+                // Store endpoint handles for drag-and-drop in builder
+                handles.push({ connId: conn.id, x: edgeA.x, y: edgeA.y, side: 'a' });
+                handles.push({ connId: conn.id, x: edgeB.x, y: edgeB.y, side: 'b' });
+
+                // Render large endpoint handles in builder mode
+                if (isBuilderMode && labelContainer) {
+                    for (const ep of [{ ex: edgeA.x, ey: edgeA.y }, { ex: edgeB.x, ey: edgeB.y }]) {
+                        const epHandle = new Graphics();
+                        epHandle.circle(ep.ex, ep.ey, 10);
+                        epHandle.fill({ color: 0xffffff, alpha: 0.15 });
+                        epHandle.circle(ep.ex, ep.ey, 6);
+                        epHandle.fill({ color: connColor, alpha: 1 });
+                        epHandle.circle(ep.ex, ep.ey, 3);
+                        epHandle.fill({ color: 0xffffff, alpha: 0.9 });
+                        labelContainer.addChild(epHandle);
+                    }
+                }
 
                 // Label at control point
                 if (conn.label && labelContainer) {

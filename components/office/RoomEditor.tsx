@@ -15,6 +15,7 @@ function snapToGrid(value: number): number {
 
 // ─── Room Color (consistent with PixiOffice) ─────────
 import { getRoomColor } from './OfficeBuilder';
+import { getRoomEdge } from './PixiRoomLayer';
 
 interface EditableRoomProps {
     room: any;
@@ -418,6 +419,178 @@ export function RoomEditor({ rooms }: RoomEditorProps) {
                     </div>
                 </div>
             )}
+
+            {/* Connection endpoint drag handles */}
+            <ConnectionEndpointHandles rooms={rooms} zoom={zoom} stagePos={stagePos} />
         </div>
+    );
+}
+
+// ─── Draggable connection endpoints ─────────────────────
+function ConnectionEndpointHandles({ rooms, zoom, stagePos }: { rooms: any[]; zoom: number; stagePos: { x: number; y: number } }) {
+    const supabase = createClient();
+    const roomConnections = useWorkspaceStore(s => s.roomConnections);
+    const setRoomConnections = useWorkspaceStore(s => s.setRoomConnections);
+    const [dragging, setDragging] = useState<{ connId: string; side: 'a' | 'b'; cursorX: number; cursorY: number } | null>(null);
+
+    const handleEndpointDown = useCallback((connId: string, side: 'a' | 'b', e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setDragging({ connId, side, cursorX: e.clientX, cursorY: e.clientY });
+    }, []);
+
+    useEffect(() => {
+        if (!dragging) return;
+
+        const handleMove = (e: MouseEvent) => {
+            setDragging(prev => prev ? { ...prev, cursorX: e.clientX, cursorY: e.clientY } : null);
+        };
+
+        const handleUp = async (e: MouseEvent) => {
+            if (!dragging) return;
+            const { connId, side } = dragging;
+
+            // Convert screen coords to world coords
+            const state = useWorkspaceStore.getState();
+            const worldX = (e.clientX - state.stagePos.x) / state.zoom;
+            const worldY = (e.clientY - state.stagePos.y) / state.zoom;
+
+            // Find which room the cursor is over
+            let targetRoom: any = null;
+            for (const room of rooms) {
+                if (
+                    worldX >= room.x && worldX <= room.x + room.width &&
+                    worldY >= room.y && worldY <= room.y + room.height
+                ) {
+                    targetRoom = room;
+                    break;
+                }
+            }
+
+            if (targetRoom) {
+                const conn = state.roomConnections.find((c: any) => c.id === connId);
+                if (conn) {
+                    const currentRoomId = side === 'a' ? conn.room_a_id : conn.room_b_id;
+                    const otherRoomId = side === 'a' ? conn.room_b_id : conn.room_a_id;
+
+                    // Only update if target is different and not the same as other side
+                    if (targetRoom.id !== currentRoomId && targetRoom.id !== otherRoomId) {
+                        const updateField = side === 'a' ? 'room_a_id' : 'room_b_id';
+                        await supabase.from('room_connections').update({ [updateField]: targetRoom.id }).eq('id', connId);
+
+                        // Update local state
+                        const updated = state.roomConnections.map((c: any) =>
+                            c.id === connId ? { ...c, [updateField]: targetRoom.id } : c
+                        );
+                        setRoomConnections(updated);
+                    }
+                }
+            }
+
+            setDragging(null);
+        };
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+        };
+    }, [dragging, rooms, supabase, setRoomConnections]);
+
+    return (
+        <>
+            {roomConnections.map((conn: any) => {
+                const roomA = rooms.find((r: any) => r.id === conn.room_a_id);
+                const roomB = rooms.find((r: any) => r.id === conn.room_b_id);
+                if (!roomA || !roomB) return null;
+
+                const cxA = roomA.x + roomA.width / 2;
+                const cyA = roomA.y + roomA.height / 2;
+                const cxB = roomB.x + roomB.width / 2;
+                const cyB = roomB.y + roomB.height / 2;
+
+                const edgeA = getRoomEdge(roomA, cxB, cyB);
+                const edgeB = getRoomEdge(roomB, cxA, cyA);
+
+                const screenAx = edgeA.x * zoom + stagePos.x;
+                const screenAy = edgeA.y * zoom + stagePos.y;
+                const screenBx = edgeB.x * zoom + stagePos.x;
+                const screenBy = edgeB.y * zoom + stagePos.y;
+
+                const handleSize = 16;
+
+                return (
+                    <React.Fragment key={conn.id}>
+                        {/* Endpoint A handle */}
+                        <div
+                            data-room-editor="true"
+                            style={{
+                                position: 'absolute',
+                                left: screenAx - handleSize / 2,
+                                top: screenAy - handleSize / 2,
+                                width: handleSize,
+                                height: handleSize,
+                                borderRadius: '50%',
+                                background: 'rgba(52, 211, 153, 0.9)',
+                                border: '2px solid rgba(255,255,255,0.9)',
+                                cursor: 'grab',
+                                zIndex: 30,
+                                pointerEvents: 'auto',
+                                boxShadow: '0 0 12px rgba(52,211,153,0.6)',
+                            }}
+                            onMouseDown={(e) => handleEndpointDown(conn.id, 'a', e)}
+                        />
+                        {/* Endpoint B handle */}
+                        <div
+                            data-room-editor="true"
+                            style={{
+                                position: 'absolute',
+                                left: screenBx - handleSize / 2,
+                                top: screenBy - handleSize / 2,
+                                width: handleSize,
+                                height: handleSize,
+                                borderRadius: '50%',
+                                background: 'rgba(52, 211, 153, 0.9)',
+                                border: '2px solid rgba(255,255,255,0.9)',
+                                cursor: 'grab',
+                                zIndex: 30,
+                                pointerEvents: 'auto',
+                                boxShadow: '0 0 12px rgba(52,211,153,0.6)',
+                            }}
+                            onMouseDown={(e) => handleEndpointDown(conn.id, 'b', e)}
+                        />
+                    </React.Fragment>
+                );
+            })}
+
+            {/* Drag preview line */}
+            {dragging && (() => {
+                const conn = roomConnections.find((c: any) => c.id === dragging.connId);
+                if (!conn) return null;
+                const otherRoomId = dragging.side === 'a' ? conn.room_b_id : conn.room_a_id;
+                const otherRoom = rooms.find((r: any) => r.id === otherRoomId);
+                if (!otherRoom) return null;
+
+                const otherCx = otherRoom.x * zoom + stagePos.x + (otherRoom.width * zoom) / 2;
+                const otherCy = otherRoom.y * zoom + stagePos.y + (otherRoom.height * zoom) / 2;
+
+                return (
+                    <svg
+                        style={{ position: 'fixed', inset: 0, zIndex: 50, pointerEvents: 'none' }}
+                        width="100%" height="100%"
+                    >
+                        <line
+                            x1={otherCx} y1={otherCy}
+                            x2={dragging.cursorX} y2={dragging.cursorY}
+                            stroke="rgba(52, 211, 153, 0.8)"
+                            strokeWidth={3}
+                            strokeDasharray="8 4"
+                        />
+                        <circle cx={dragging.cursorX} cy={dragging.cursorY} r={8} fill="rgba(52, 211, 153, 0.9)" stroke="white" strokeWidth={2} />
+                    </svg>
+                );
+            })()}
+        </>
     );
 }
