@@ -593,6 +593,19 @@ export function OfficeBuilder() {
                                             >+</button>
                                         </div>
                                     </div>
+
+                                    {/* Auto-arrange button inside level selector */}
+                                    <button
+                                        onClick={handleAutoArrangeHierarchy}
+                                        disabled={saving}
+                                        className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-yellow-500/20 hover:border-amber-500/50 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(245,158,11,0.15)] group disabled:opacity-40"
+                                    >
+                                        <GitBranch className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                                        <span className="text-[11px] font-bold text-amber-50 tracking-wide">
+                                            {saving ? 'Organizzando...' : 'Auto-Organizza Organigramma'}
+                                        </span>
+                                    </button>
+
                                     <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                                 </>
                             )}
@@ -696,7 +709,7 @@ export function OfficeBuilder() {
                                                 : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
                                         >
                                             <Map className="w-3.5 h-3.5" />
-                                            TEAMS MAP
+                                            NEURONALE
                                         </button>
                                     </div>
 
@@ -741,7 +754,7 @@ export function OfficeBuilder() {
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-r from-indigo-400/5 to-purple-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                         <Link2 className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-bold text-indigo-50 tracking-wide">Connessioni Mind Map</span>
+                                        <span className="text-xs font-bold text-indigo-50 tracking-wide">Connetti Stanze</span>
                                     </button>
 
                                     {/* Connections Panel */}
@@ -837,21 +850,6 @@ export function OfficeBuilder() {
                                                 </div>
                                             )}
                                         </motion.div>
-                                    )}
-
-                                    {/* Auto-arrange button — hierarchical mode only */}
-                                    {layoutMode === 'hierarchical' && (
-                                        <button
-                                            onClick={handleAutoArrangeHierarchy}
-                                            disabled={saving}
-                                            className="w-full mt-3 flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-yellow-500/20 hover:border-amber-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] group relative overflow-hidden disabled:opacity-40"
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 to-yellow-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            <GitBranch className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-                                            <span className="text-xs font-bold text-amber-50 tracking-wide">
-                                                {saving ? 'Organizzando...' : 'Auto-Organizza Organigramma'}
-                                            </span>
-                                        </button>
                                     )}
                                 </>) : (
                                 /* Templates List */
