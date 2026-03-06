@@ -2,14 +2,19 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, PhoneOff, Loader2, Mic, Video } from 'lucide-react';
+import { Phone, PhoneOff, Loader2, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { useCallStore } from '../../stores/callStore';
+import { useDailyStore } from '../../stores/dailyStore';
 
 export function CallResponseToast() {
     const outgoingCall = useCallStore(s => s.outgoingCall);
     const callResponse = useCallStore(s => s.callResponse);
     const setOutgoingCall = useCallStore(s => s.setOutgoingCall);
     const setCallResponse = useCallStore(s => s.setCallResponse);
+
+    // Real-time media state
+    const isAudioOn = useDailyStore(s => s.isAudioOn);
+    const isVideoOn = useDailyStore(s => s.isVideoOn);
 
     // Auto-dismiss response toast after 5s
     useEffect(() => {
@@ -77,12 +82,14 @@ export function CallResponseToast() {
                                         {callResponse.fromName} ha accettato!
                                     </span>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-xs text-slate-400">Attiva:</span>
-                                        <span className="text-xs text-emerald-300 flex items-center gap-1">
-                                            <Mic className="w-3 h-3" /> Mic
+                                        <span className="text-xs text-slate-400">Media:</span>
+                                        <span className={`text-xs flex items-center gap-1 ${isAudioOn ? 'text-emerald-300' : 'text-red-400'}`}>
+                                            {isAudioOn ? <Mic className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}
+                                            Mic
                                         </span>
-                                        <span className="text-xs text-emerald-300 flex items-center gap-1">
-                                            <Video className="w-3 h-3" /> Webcam
+                                        <span className={`text-xs flex items-center gap-1 ${isVideoOn ? 'text-emerald-300' : 'text-red-400'}`}>
+                                            {isVideoOn ? <Video className="w-3 h-3" /> : <VideoOff className="w-3 h-3" />}
+                                            Cam
                                         </span>
                                     </div>
                                 </div>
@@ -103,3 +110,4 @@ export function CallResponseToast() {
 }
 
 export default CallResponseToast;
+
