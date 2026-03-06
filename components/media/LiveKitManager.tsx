@@ -39,13 +39,30 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
     const roomRef = useRef<Room | null>(null);
     const joinedRef = useRef(false);
     const joiningRef = useRef(false);
-    const leavingRef = useRef(false);
     const currentRoomNameRef = useRef<string | null>(null);
 
-    // Read media toggles from daily store (same store, renamed internally)
+    // Track what media the user WANTS, separate from what LiveKit knows
+    // This survives room switches so we can re-enable after reconnecting
+    const wantedMediaRef = useRef({ audio: false, video: false });
+
+    // Atomic lock for join/leave to prevent race conditions
+    const operationLockRef = useRef<Promise<void>>(Promise.resolve());
+    const lockOperation = useCallback(<T,>(fn: () => Promise<T>): Promise<T> => {
+        const prev = operationLockRef.current;
+        const next = prev.then(fn, fn);
+        operationLockRef.current = next.then(() => { }, () => { });
+        return next;
+    }, []);
+
+    // Read media toggles from daily store
     const isAudioOn = useDailyStore(s => s.isAudioOn);
     const isVideoOn = useDailyStore(s => s.isVideoOn);
     const isRemoteAudioEnabled = useDailyStore(s => s.isRemoteAudioEnabled);
+
+    // Always track what user wants
+    useEffect(() => {
+        wantedMediaRef.current = { audio: isAudioOn, video: isVideoOn };
+    }, [isAudioOn, isVideoOn]);
 
     // ─── Room name — generates LiveKit room name for a given context ─
     const getContextRoomName = useCallback((contextType: 'room' | 'proximity', contextId: string) => {
@@ -112,7 +129,6 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
         // ─── Remote participant connected ─────────────
         room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
             const id = participant.identity;
-            // Identity format: supabaseUserId (set in token)
             gLivekitToSupabase.set(id, id);
 
             useDailyStore.getState().setParticipant(id, {
@@ -136,7 +152,6 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             document.getElementById(`daily-audio-${supabaseId}`)?.remove();
             useDailyStore.getState().removeParticipant(id);
 
-            // Clean up video state in avatarStore
             if (useAvatarStore.getState().peers[supabaseId]) {
                 useAvatarStore.getState().updatePeer(supabaseId, {
                     id: supabaseId,
@@ -160,7 +175,6 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             const supabaseId = gLivekitToSupabase.get(id) || id;
 
             if (track.source === Track.Source.ScreenShare) {
-                // Screen share track
                 const screenStream = new MediaStream([track.mediaStreamTrack]);
                 useDailyStore.getState().addScreenStream(screenStream);
                 track.mediaStreamTrack.addEventListener('ended', () =>
@@ -307,6 +321,28 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             useDailyStore.getState().setLocalStream(null);
             useDailyStore.getState().setConnected(false);
             useDailyStore.getState().setActiveContext('none', null);
+
+            // If we were force-disconnected (signal-lost, server restart, etc.)
+            // and user still wants media, attempt auto-reconnect
+            if (reason !== DisconnectReason.CLIENT_INITIATED) {
+                console.warn('[LiveKit] Non-client disconnect — will attempt reconnect');
+                const { myRoomId, myProximityGroupId } = useAvatarStore.getState();
+                const wanted = wantedMediaRef.current;
+                if (wanted.audio || wanted.video) {
+                    setTimeout(() => {
+                        const currentRoom = useAvatarStore.getState().myRoomId;
+                        const currentProx = useAvatarStore.getState().myProximityGroupId;
+                        const stillWants = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
+                        if (stillWants) {
+                            if (currentRoom) {
+                                lockOperation(() => joinContextInner('room', currentRoom));
+                            } else if (currentProx) {
+                                lockOperation(() => joinContextInner('proximity', currentProx));
+                            }
+                        }
+                    }, 2000);
+                }
+            }
         });
 
         // ─── Connection quality ───────────────────────
@@ -326,7 +362,6 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 facingMode: 'user',
             },
             publishDefaults: {
-                // Simulcast: sends 3 quality layers (high/mid/low) — server picks best for each viewer
                 videoCodec: 'vp8',
                 dtx: true,
                 red: true,
@@ -336,45 +371,70 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
         return room;
     }, [setupRoomEvents]);
 
-    // Expose room ref for screen sharing (updated on each join)
+    // Expose room ref for screen sharing
     useEffect(() => {
         return () => { (window as any).__livekitRoom = null; };
     }, []);
 
-    // ─── Join a LiveKit room (room or proximity group) ─────────
-    const joinContext = useCallback(async (contextType: 'room' | 'proximity', contextId: string) => {
+    // ─── Inner join (called inside the lock) ─────────────────────
+    const joinContextInner = useCallback(async (contextType: 'room' | 'proximity', contextId: string) => {
         if (!spaceId) return;
-        if (leavingRef.current) return;
 
         const roomName = getContextRoomName(contextType, contextId);
         if (!roomName) return;
 
         // Same-room guard
         if (joinedRef.current && currentRoomNameRef.current === roomName) {
-            console.log('[LiveKit] Already in room', roomName, '— skipping');
+            console.log('[LiveKit] Already in room', roomName, '— syncing media');
+            // Even if already joined, sync media state (the user likely toggled something)
+            if (roomRef.current) {
+                const wanted = wantedMediaRef.current;
+                try {
+                    await roomRef.current.localParticipant.setMicrophoneEnabled(wanted.audio);
+                    await roomRef.current.localParticipant.setCameraEnabled(wanted.video);
+                } catch (e) {
+                    console.warn('[LiveKit] Media sync error:', e);
+                }
+            }
             return;
         }
 
-        // ─── ALWAYS destroy old Room before creating new one ─────
-        // This guarantees the old server-side session is fully closed
+        // ─── Destroy old Room before creating new one ─────
         if (roomRef.current) {
             console.log('[LiveKit] Destroying old room before new join');
-            try { await roomRef.current.disconnect(true); } catch { }
+            try {
+                // Stop all local tracks first to release hardware
+                roomRef.current.localParticipant.trackPublications.forEach(pub => {
+                    if (pub.track) {
+                        try { pub.track.stop(); } catch { }
+                    }
+                });
+                await roomRef.current.disconnect(true);
+            } catch { }
             roomRef.current = null;
             (window as any).__livekitRoom = null;
             joinedRef.current = false;
             currentRoomNameRef.current = null;
-            // Wait for server-side session cleanup
-            await new Promise(r => setTimeout(r, 500));
+            useDailyStore.getState().clearParticipants();
+            useDailyStore.getState().setLocalStream(null);
+            // Brief pause for server-side session cleanup
+            await new Promise(r => setTimeout(r, 300));
         }
 
-        if (joiningRef.current) return;
-        joiningRef.current = true;
-
         try {
+            // Invalidate token cache for this room to get a fresh token
+            // This prevents stale sessions after quick room switches
+            gTokenCache.delete(roomName);
+
             const token = await getToken(roomName);
-            if (!token) { joiningRef.current = false; return; }
-            if (leavingRef.current) { joiningRef.current = false; return; }
+            if (!token) return;
+
+            // Re-check: has the user navigated away during token fetch?
+            const currentAvatarRoom = useAvatarStore.getState().myRoomId;
+            if (contextType === 'room' && currentAvatarRoom !== contextId) {
+                console.log('[LiveKit] Room changed during token fetch — aborting join');
+                return;
+            }
 
             // Create a FRESH Room object — no stale state from previous connection
             const room = createRoom();
@@ -382,7 +442,6 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             (window as any).__livekitRoom = room;
 
             useDailyStore.getState().clearDailyError();
-            const dailyState = useDailyStore.getState();
 
             await room.connect(LIVEKIT_URL, token);
 
@@ -392,30 +451,49 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             useDailyStore.getState().setActiveContext(contextType, contextId);
             console.log(`[LiveKit] ✅ Joined ${contextType}:`, roomName);
 
-            if (dailyState.isAudioOn) {
-                await room.localParticipant.setMicrophoneEnabled(true);
-            }
-            if (dailyState.isVideoOn) {
-                await room.localParticipant.setCameraEnabled(true);
+            // Re-enable media that the user wanted
+            const wanted = wantedMediaRef.current;
+            try {
+                if (wanted.audio) {
+                    await room.localParticipant.setMicrophoneEnabled(true);
+                }
+                if (wanted.video) {
+                    await room.localParticipant.setCameraEnabled(true);
+                }
+            } catch (mediaErr) {
+                console.warn('[LiveKit] Media enable after join failed:', mediaErr);
+                // Don't throw — connection is fine, just media failed
+                // User can retry with button
             }
 
         } catch (err: any) {
             const msg = err?.message || 'Errore sconosciuto';
             useDailyStore.getState().setDailyError(`Connessione LiveKit fallita: ${msg}`);
             console.error('[LiveKit] Join failed:', msg);
-        } finally {
-            joiningRef.current = false;
+            // Clean up on failure
+            if (roomRef.current) {
+                try { await roomRef.current.disconnect(true); } catch { }
+                roomRef.current = null;
+                (window as any).__livekitRoom = null;
+            }
+            joinedRef.current = false;
+            currentRoomNameRef.current = null;
         }
     }, [spaceId, getContextRoomName, getToken, createRoom]);
 
-    // ─── Leave current room ────────────────────────────────────
-    const leaveContext = useCallback(async () => {
-        leavingRef.current = true;
-        joiningRef.current = false;
-
+    // ─── Inner leave (called inside the lock) ──────────────────
+    const leaveContextInner = useCallback(async () => {
         if (roomRef.current) {
             console.log('[LiveKit] 🔌 Disconnecting + destroying room (billing stopped)');
-            try { await roomRef.current.disconnect(true); } catch { }
+            try {
+                // Stop all local tracks to release hardware
+                roomRef.current.localParticipant.trackPublications.forEach(pub => {
+                    if (pub.track) {
+                        try { pub.track.stop(); } catch { }
+                    }
+                });
+                await roomRef.current.disconnect(true);
+            } catch { }
             roomRef.current = null;
             (window as any).__livekitRoom = null;
         }
@@ -441,9 +519,18 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             }
         });
 
-        await new Promise(r => setTimeout(r, 500));
-        leavingRef.current = false;
+        // Brief pause for cleanup
+        await new Promise(r => setTimeout(r, 200));
     }, []);
+
+    // ─── Public join/leave (serialized via lock) ────────────────
+    const joinContext = useCallback((contextType: 'room' | 'proximity', contextId: string) => {
+        return lockOperation(() => joinContextInner(contextType, contextId));
+    }, [lockOperation, joinContextInner]);
+
+    const leaveContext = useCallback(() => {
+        return lockOperation(() => leaveContextInner());
+    }, [lockOperation, leaveContextInner]);
 
     // ─── Register global functions for proximity/rooms engine ──
     useEffect(() => {
@@ -463,20 +550,25 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
         const myRoomId = avatarStore.myRoomId;
 
         if (anyMediaOn) {
-            // Safety: reset stuck joiningRef after 15s
-            if (joiningRef.current) {
-                setTimeout(() => {
-                    if (joiningRef.current && !joinedRef.current) {
-                        console.warn('[LiveKit] joiningRef stuck — force resetting');
-                        joiningRef.current = false;
-                    }
-                }, 15000);
-            }
-
             if (joinedRef.current && roomRef.current) {
-                // Already connected — sync media state
-                roomRef.current.localParticipant.setMicrophoneEnabled(isAudioOn);
-                roomRef.current.localParticipant.setCameraEnabled(isVideoOn);
+                // Already connected — just sync media state (no need to rejoin)
+                const room = roomRef.current;
+                (async () => {
+                    try {
+                        await room.localParticipant.setMicrophoneEnabled(isAudioOn);
+                        await room.localParticipant.setCameraEnabled(isVideoOn);
+                    } catch (e) {
+                        console.warn('[LiveKit] Media toggle failed:', e);
+                        // If media toggle fails, the room connection may be broken.
+                        // Force reconnect.
+                        console.log('[LiveKit] Attempting reconnect after media failure...');
+                        if (myRoomId) {
+                            joinContext('room', myRoomId);
+                        } else if (proximityGroupId) {
+                            joinContext('proximity', proximityGroupId);
+                        }
+                    }
+                })();
             } else if (myRoomId) {
                 joinContext('room', myRoomId);
             } else if (proximityGroupId) {
@@ -542,7 +634,6 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
             if (newGroup) {
                 if (anyMediaOn) {
-                    // Debounce proximity joins to prevent flicker at border
                     proxDebounceRef.current = setTimeout(() => {
                         proxDebounceRef.current = null;
                         const still = useAvatarStore.getState();
@@ -554,13 +645,11 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     }, 500);
                 }
             } else if (oldGroup && dailyStore.activeContext === 'proximity') {
-                // Left proximity — disconnect and turn off mic/cam
                 proxDebounceRef.current = setTimeout(() => {
                     proxDebounceRef.current = null;
                     const still = useAvatarStore.getState();
                     if (!still.myProximityGroupId && !still.myRoomId) {
                         leaveContext();
-                        // Auto-disable mic/cam when no one is around
                         const ds = useDailyStore.getState();
                         if (ds.isAudioOn || ds.isVideoOn) {
                             useDailyStore.setState({ isAudioOn: false, isVideoOn: false });
@@ -593,6 +682,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 roomDebounceRef.current = null;
             }
 
+            // Use a shorter debounce (400ms instead of 800ms) for snappier room switches
             roomDebounceRef.current = setTimeout(() => {
                 roomDebounceRef.current = null;
                 const stillMediaOn = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
@@ -608,12 +698,11 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                         joinContext('proximity', proxGroup);
                     } else if (joinedRef.current) {
                         leaveContext();
-                        // Auto-disable mic/cam when no one is around
                         useDailyStore.setState({ isAudioOn: false, isVideoOn: false });
                         console.log('[LiveKit] Left room → no one nearby, mic/cam auto-disabled');
                     }
                 }
-            }, 800);  // 800ms debounce — prevents fast room switching race conditions
+            }, 400);
         });
         return () => {
             unsubscribe();
@@ -625,11 +714,15 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
     useEffect(() => {
         const handleUnload = () => {
             if (roomRef.current) {
-                try { roomRef.current.disconnect(true); } catch { }
+                try {
+                    roomRef.current.localParticipant.trackPublications.forEach(pub => {
+                        if (pub.track) { try { pub.track.stop(); } catch { } }
+                    });
+                    roomRef.current.disconnect(true);
+                } catch { }
                 roomRef.current = null;
                 (window as any).__livekitRoom = null;
                 joinedRef.current = false;
-                joiningRef.current = false;
                 gLivekitToSupabase.clear();
             }
         };
