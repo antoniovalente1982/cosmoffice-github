@@ -27,6 +27,8 @@ interface RoomConnection {
     type: 'portal' | 'door' | 'link';
     label?: string;
     color?: string;
+    cp_offset_x?: number;
+    cp_offset_y?: number;
     x_a: number;
     y_a: number;
     x_b: number;

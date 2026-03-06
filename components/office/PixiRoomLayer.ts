@@ -20,6 +20,33 @@ function hexColor(hex: string): number {
 }
 
 /**
+ * Get the point on a room's border closest to a target point (edge intersection).
+ * Used for edge-to-edge connections instead of center-to-center.
+ */
+function getRoomEdge(room: any, targetX: number, targetY: number): { x: number; y: number } {
+    const cx = room.x + room.width / 2;
+    const cy = room.y + room.height / 2;
+    const dx = targetX - cx;
+    const dy = targetY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return { x: cx, y: cy };
+
+    if (room.shape === 'circle') {
+        // Circle: intersection at center + direction * radius
+        const r = Math.min(room.width, room.height) / 2;
+        return { x: cx + (dx / dist) * r, y: cy + (dy / dist) * r };
+    } else {
+        // Rectangle: find where the ray from center exits the rect
+        const hw = room.width / 2;
+        const hh = room.height / 2;
+        const scaleX = Math.abs(dx) > 0 ? hw / Math.abs(dx) : Infinity;
+        const scaleY = Math.abs(dy) > 0 ? hh / Math.abs(dy) : Infinity;
+        const scale = Math.min(scaleX, scaleY);
+        return { x: cx + dx * scale, y: cy + dy * scale };
+    }
+}
+
+/**
  * Draw a single room card onto its container
  * Supports shape: 'rect' (default) and 'circle'
  */
@@ -179,11 +206,13 @@ export function drawRoomConnections(
     isPerformanceMode: boolean,
     connections?: any[],      // DB connections from room_connections table
     labelContainer?: Container, // Container for label Text objects
-    layoutMode?: string        // 'free' | 'hierarchical' | 'teamsmap'
-) {
+    layoutMode?: string,       // 'free' | 'hierarchical' | 'teamsmap'
+    isBuilderMode?: boolean    // Show draggable control point handles
+): { connId: string; x: number; y: number }[] {
+    const handles: { connId: string; x: number; y: number }[] = [];
     gfx.clear();
     if (labelContainer) labelContainer.removeChildren();
-    if (isPerformanceMode) return;
+    if (isPerformanceMode) return handles;
 
     // ─── 1. DB connections (explicit Mind Map links) ─────────
     if (connections && connections.length > 0) {
@@ -241,25 +270,28 @@ export function drawRoomConnections(
                     labelContainer.addChild(labelText);
                 }
             } else {
-                // Curved line (quadratic bezier) — teamsmap / free
-                const midX = (cx1 + cx2) / 2;
-                const midY = (cy1 + cy2) / 2;
-                const dx = cx2 - cx1;
-                const dy = cy2 - cy1;
-                const cpX = midX - dy * 0.1;
-                const cpY = midY + dx * 0.1;
+                // Edge-to-edge connections — teamsmap / free
+                // Find intersection with room border (edge) instead of center
+                const edgeA = getRoomEdge(roomA, cx2, cy2);
+                const edgeB = getRoomEdge(roomB, cx1, cy1);
 
-                gfx.moveTo(cx1, cy1);
-                gfx.quadraticCurveTo(cpX, cpY, cx2, cy2);
+                // Controlpoint: default at mid, offset by cp_offset from connection data
+                const cpOffsetX = conn.cp_offset_x ?? 0;
+                const cpOffsetY = conn.cp_offset_y ?? 0;
+                const midX = (edgeA.x + edgeB.x) / 2 + cpOffsetX;
+                const midY = (edgeA.y + edgeB.y) / 2 + cpOffsetY;
+
+                gfx.moveTo(edgeA.x, edgeA.y);
+                gfx.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
                 gfx.stroke({ color: connColor, width: 3, alpha: 0.7 });
 
-                // Draw dots at endpoints
-                gfx.circle(cx1, cy1, 5);
+                // Small dots at edge endpoints
+                gfx.circle(edgeA.x, edgeA.y, 4);
                 gfx.fill({ color: connColor, alpha: 0.9 });
-                gfx.circle(cx2, cy2, 5);
+                gfx.circle(edgeB.x, edgeB.y, 4);
                 gfx.fill({ color: connColor, alpha: 0.9 });
 
-                // Label at midpoint
+                // Label at control point
                 if (conn.label && labelContainer) {
                     const labelStyle = new TextStyle({
                         fontFamily: 'Inter, system-ui, sans-serif',
@@ -270,17 +302,30 @@ export function drawRoomConnections(
                     });
                     const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle });
                     labelText.anchor.set(0.5, 0.5);
-                    labelText.position.set(cpX, cpY);
+                    labelText.position.set(midX, midY);
 
                     const labelBg = new Graphics();
                     const padding = 8;
                     const lw = labelText.width + padding * 2;
                     const lh = labelText.height + padding;
-                    labelBg.roundRect(cpX - lw / 2, cpY - lh / 2, lw, lh, 10);
+                    labelBg.roundRect(midX - lw / 2, midY - lh / 2, lw, lh, 10);
                     labelBg.fill({ color: connColor, alpha: 0.85 });
 
                     labelContainer.addChild(labelBg);
                     labelContainer.addChild(labelText);
+                }
+
+                // Store handle data for draggable control point
+                handles.push({ connId: conn.id, x: midX, y: midY });
+
+                // Render visual handle in builder mode
+                if (isBuilderMode && labelContainer) {
+                    const handle = new Graphics();
+                    handle.circle(midX, midY, 8);
+                    handle.fill({ color: 0xffffff, alpha: 0.9 });
+                    handle.circle(midX, midY, 5);
+                    handle.fill({ color: connColor, alpha: 1 });
+                    labelContainer.addChild(handle);
                 }
             }
         }
@@ -312,4 +357,5 @@ export function drawRoomConnections(
             gfx.stroke({ color: 0x6366f1, width: 1, alpha });
         }
     }
+    return handles;
 }

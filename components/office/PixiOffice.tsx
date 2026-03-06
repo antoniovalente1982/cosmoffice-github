@@ -390,7 +390,8 @@ export function PixiOffice() {
                 useWorkspaceStore.getState().isPerformanceMode,
                 roomConnections,
                 connectionLabelContainerRef.current || undefined,
-                layoutMode
+                layoutMode,
+                useWorkspaceStore.getState().isBuilderMode
             );
         }
     }, [rooms, roomConnections, hoveredRoomId, appReady, layoutMode]);
