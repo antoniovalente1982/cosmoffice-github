@@ -23,9 +23,9 @@ interface UserAvatarProps {
 
 // ─── Status colors (toolbar-synced) ──────────────────────────
 const STATUS_COLOR: Record<string, string> = {
-    online: '#10b981',   // green
-    away: '#f59e0b',     // yellow
-    busy: '#ef4444',     // red
+    online: '#10b981',
+    away: '#f59e0b',
+    busy: '#ef4444',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -35,30 +35,33 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 // ─── Role badge colors ──────────────────────────────────────
-const ROLE_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
-    owner: { color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.2)', label: 'OWNER' },
-    admin: { color: '#22d3ee', bg: 'rgba(34, 211, 238, 0.2)', label: 'ADMIN' },
-    member: { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.15)', label: 'MEMBER' },
-    guest: { color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.2)', label: 'GUEST' },
+const ROLE_CONFIG: Record<string, { color: string; label: string }> = {
+    owner: { color: '#fbbf24', label: 'OWNER' },
+    admin: { color: '#22d3ee', label: 'ADMIN' },
+    member: { color: '#94a3b8', label: 'MEMBER' },
+    guest: { color: '#a78bfa', label: 'GUEST' },
 };
 
+// ─── FIXED dimensions (never scale with zoom) ───────────────
+const SZ = 56;             // avatar circle
+const BADGE_SZ = 18;       // audio badge
+const BADGE_OFF = 1;       // badge offset from edge
+const BADGE_ICON = 10;     // icon inside badge
+const STATUS_DOT = 14;     // status dot
+
 // ─── Perimeter color logic ──────────────────────────────────
-// 🔴 Red: remoteAudio OFF + mic OFF (deaf + mute)
-// 🟡 Yellow: remoteAudio ON + mic OFF (can hear, can't talk)
-// 🟢 Green: remoteAudio ON + mic ON (full duplex)
 function getPerimeterColor(remoteAudioEnabled: boolean, audioEnabled: boolean): string {
-    if (!remoteAudioEnabled && !audioEnabled) return '#ef4444'; // red
-    if (remoteAudioEnabled && !audioEnabled) return '#f59e0b';  // yellow
-    if (remoteAudioEnabled && audioEnabled) return '#10b981';   // green
-    // Edge case: mic ON but remote audio OFF — treat as red (unusual state)
+    if (!remoteAudioEnabled && !audioEnabled) return '#ef4444';
+    if (remoteAudioEnabled && !audioEnabled) return '#f59e0b';
+    if (remoteAudioEnabled && audioEnabled) return '#10b981';
     return '#ef4444';
 }
 
 function getPerimeterGlow(color: string, isSpeaking: boolean): string {
     if (isSpeaking && color === '#10b981') {
-        return `0 0 0 3px #0f172a, 0 0 0 6px ${color}, 0 0 20px ${color}, 0 0 40px rgba(16, 185, 129, 0.3)`;
+        return `0 0 0 2.5px #0f172a, 0 0 0 5px ${color}, 0 0 16px ${color}, 0 0 32px rgba(16,185,129,0.3)`;
     }
-    return `0 0 0 3px #0f172a, 0 0 0 6px ${color}`;
+    return `0 0 0 2.5px #0f172a, 0 0 0 5px ${color}`;
 }
 
 function UserAvatarInner({
@@ -69,11 +72,8 @@ function UserAvatarInner({
     role,
     isMe,
     audioEnabled = false,
-    videoEnabled = false,
     remoteAudioEnabled = true,
     isSpeaking = false,
-    stream,
-    zoom = 1,
     onMouseDown,
     onClick,
     isDragging = false,
@@ -83,7 +83,6 @@ function UserAvatarInner({
     const popupRef = useRef<HTMLDivElement>(null);
     const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
 
-    // Close popup on outside click or Escape
     useEffect(() => {
         if (!showPopup) return;
         const handleClickOutside = (e: MouseEvent) => {
@@ -106,30 +105,15 @@ function UserAvatarInner({
     }, [showPopup]);
 
     const handleAvatarClick = useCallback(() => {
-        if (!isMe && onClick) {
-            setShowPopup(prev => !prev);
-        }
+        if (!isMe && onClick) setShowPopup(prev => !prev);
     }, [isMe, onClick]);
 
     const handleCallClick = useCallback(() => {
-        if (onClick) {
-            onClick();
-            setShowPopup(false);
-        }
+        if (onClick) { onClick(); setShowPopup(false); }
     }, [onClick]);
 
-    // ─── Dimensions (zoom-scaled) ────────────────────────────
-    const sz = 64 * zoom;
-    const badgeSz = 18 * zoom;
-    const badgeOff = 2 * zoom;
-    const badgeIconSz = 10 * zoom;
-    const statusDotSz = 14 * zoom;
-
-    // ─── Perimeter color logic ───────────────────────────────
     const perimeterColor = getPerimeterColor(remoteAudioEnabled, audioEnabled);
     const perimeterShadow = getPerimeterGlow(perimeterColor, isSpeaking);
-
-    // ─── Status color ────────────────────────────────────────
     const statusCol = STATUS_COLOR[status] ?? STATUS_COLOR.online;
     const roleConfig = role ? ROLE_CONFIG[role] : null;
 
@@ -140,11 +124,10 @@ function UserAvatarInner({
             style={{
                 left: position.x,
                 top: position.y,
-                marginLeft: -(sz / 2),
-                marginTop: -(sz / 2),
+                marginLeft: -(SZ / 2),
+                marginTop: -(SZ / 2),
                 pointerEvents: (onMouseDown || onClick) ? 'auto' : 'none',
                 cursor: isDragging ? 'grabbing' : onMouseDown ? 'grab' : onClick && !isMe ? 'pointer' : 'default',
-                transition: 'none',
                 willChange: 'transform',
                 transform: 'translateZ(0)',
             }}
@@ -161,58 +144,45 @@ function UserAvatarInner({
                 if (onClick && !isMe && clickStartRef.current) {
                     const dx = Math.abs(e.clientX - clickStartRef.current.x);
                     const dy = Math.abs(e.clientY - clickStartRef.current.y);
-                    if (dx < 5 && dy < 5) {
-                        handleAvatarClick();
-                    }
+                    if (dx < 5 && dy < 5) handleAvatarClick();
                     clickStartRef.current = null;
                 }
             }}
         >
-            <div className="group" style={{ position: 'relative', width: sz, height: sz }}>
+            <div style={{ position: 'relative', width: SZ, height: SZ }}>
 
                 {/* ─── Speaking Pulse Ripple ─── */}
                 {isSpeaking && audioEnabled && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            inset: -4 * zoom,
-                            borderRadius: '50%',
-                            border: `2px solid #10b981`,
-                            opacity: 0.5,
-                            animation: 'avatar-speaking-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
-                        }}
-                    />
+                    <div style={{
+                        position: 'absolute', inset: -5,
+                        borderRadius: '50%',
+                        border: '2px solid #10b981',
+                        opacity: 0.5,
+                        animation: 'avatar-speaking-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+                    }} />
                 )}
 
-                {/* ─── Avatar Circle (PHOTO ONLY — never video) ─── */}
-                <div
-                    style={{
-                        width: sz, height: sz,
-                        borderRadius: '50%',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        position: 'relative', overflow: 'hidden',
-                        background: 'linear-gradient(to bottom right, #334155, #0f172a)',
-                        boxShadow: `${perimeterShadow}, 0 8px 25px rgba(0,0,0,0.3)`,
-                        transform: isSpeaking && audioEnabled ? 'scale(1.05)' : undefined,
-                        transition: 'transform 0.3s ease, box-shadow 0.4s ease',
-                        zIndex: 2,
-                    }}
-                >
+                {/* ─── Avatar Circle (PHOTO ONLY) ─── */}
+                <div style={{
+                    width: SZ, height: SZ,
+                    borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    position: 'relative', overflow: 'hidden',
+                    background: 'linear-gradient(to bottom right, #334155, #0f172a)',
+                    boxShadow: `${perimeterShadow}, 0 6px 20px rgba(0,0,0,0.3)`,
+                    transform: isSpeaking && audioEnabled ? 'scale(1.05)' : undefined,
+                    transition: 'transform 0.3s ease, box-shadow 0.4s ease',
+                    zIndex: 2,
+                }}>
                     {avatarUrl ? (
                         <img
-                            src={avatarUrl}
-                            alt={fullName}
-                            style={{
-                                width: '100%', height: '100%',
-                                objectFit: 'cover',
-                                borderRadius: '50%',
-                            }}
+                            src={avatarUrl} alt={fullName}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                             draggable={false}
                         />
                     ) : (
                         <span style={{
-                            fontSize: 20 * zoom, fontWeight: 700, color: '#fff',
-                            position: 'relative', zIndex: 10,
+                            fontSize: 20, fontWeight: 700, color: '#fff',
                             filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))',
                             userSelect: 'none',
                         }}>
@@ -224,31 +194,25 @@ function UserAvatarInner({
                 {/* ─── Badge Audio/Mic (BOTTOM-LEFT) ─── */}
                 <div style={{
                     position: 'absolute',
-                    bottom: badgeOff, left: badgeOff,
-                    width: badgeSz, height: badgeSz,
+                    bottom: BADGE_OFF, left: BADGE_OFF,
+                    width: BADGE_SZ, height: BADGE_SZ,
                     borderRadius: '50%',
-                    border: `2px solid #0f172a`,
-                    backgroundColor: !remoteAudioEnabled
-                        ? '#374151'           // dark gray - audio OFF
-                        : audioEnabled
-                            ? '#10b981'       // green - mic ON
-                            : '#ef4444',      // red - mic OFF
+                    border: '2px solid #0f172a',
+                    backgroundColor: !remoteAudioEnabled ? '#374151' : audioEnabled ? '#10b981' : '#ef4444',
                     boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'background-color 0.3s ease',
                     zIndex: 5,
                 }}>
                     {!remoteAudioEnabled ? (
-                        /* Headphone crossed — audio entrata OFF */
-                        <svg width={badgeIconSz} height={badgeIconSz} viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width={BADGE_ICON} height={BADGE_ICON} viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
                             <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
                             <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
                             <line x1="2" y1="2" x2="22" y2="22" />
                         </svg>
                     ) : !audioEnabled ? (
-                        /* Mic crossed — mic OFF */
-                        <svg width={badgeIconSz} height={badgeIconSz} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width={BADGE_ICON} height={BADGE_ICON} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="2" y1="2" x2="22" y2="22" />
                             <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2" />
                             <path d="M5 10v2a7 7 0 0 0 12 5" />
@@ -257,8 +221,7 @@ function UserAvatarInner({
                             <line x1="12" y1="19" x2="12" y2="23" />
                         </svg>
                     ) : (
-                        /* Mic active — mic ON */
-                        <svg width={badgeIconSz} height={badgeIconSz} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width={BADGE_ICON} height={BADGE_ICON} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
                             <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                             <line x1="12" y1="19" x2="12" y2="23" />
@@ -267,36 +230,33 @@ function UserAvatarInner({
                     )}
                 </div>
 
-                {/* ─── Badge Stato (BOTTOM-RIGHT) — 🟢🟡🔴 ─── */}
+                {/* ─── Badge Stato (BOTTOM-RIGHT) ─── */}
                 <div style={{
                     position: 'absolute',
-                    bottom: badgeOff, right: badgeOff,
-                    width: statusDotSz, height: statusDotSz,
+                    bottom: BADGE_OFF, right: BADGE_OFF,
+                    width: STATUS_DOT, height: STATUS_DOT,
                     borderRadius: '50%',
-                    border: `2px solid #0f172a`,
+                    border: '2px solid #0f172a',
                     backgroundColor: statusCol,
                     boxShadow: `0 0 8px ${statusCol}80, 0 2px 4px rgba(0,0,0,0.4)`,
                     zIndex: 5,
                     transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
                 }} />
 
-                {/* ─── Role Badge (ABOVE avatar) ─── */}
+                {/* ─── Role Badge (overlapping bottom of circle) ─── */}
                 {roleConfig && (
-                    <div
-                        className="absolute left-1/2 pointer-events-none"
-                        style={{
-                            bottom: sz + 4,
-                            transform: 'translateX(-50%)',
-                            zIndex: 6,
-                        }}
-                    >
+                    <div className="absolute left-1/2 pointer-events-none" style={{
+                        bottom: -4,
+                        transform: 'translateX(-50%)',
+                        zIndex: 6,
+                    }}>
                         <span style={{
-                            fontSize: 8,
+                            fontSize: 7,
                             fontWeight: 800,
                             color: '#fff',
                             backgroundColor: roleConfig.color,
                             borderRadius: 20,
-                            padding: '2px 8px',
+                            padding: '1.5px 7px',
                             letterSpacing: '0.08em',
                             fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
                             whiteSpace: 'nowrap' as const,
@@ -310,14 +270,11 @@ function UserAvatarInner({
                     </div>
                 )}
 
-                {/* ─── Name (BELOW avatar, pill style) ─── */}
-                <div
-                    className="absolute left-1/2 whitespace-nowrap pointer-events-none"
-                    style={{
-                        top: sz + 4,
-                        transform: 'translateX(-50%)',
-                    }}
-                >
+                {/* ─── Name (below avatar, dark pill) ─── */}
+                <div className="absolute left-1/2 whitespace-nowrap pointer-events-none" style={{
+                    top: SZ + 6,
+                    transform: 'translateX(-50%)',
+                }}>
                     <span style={{
                         fontSize: 10,
                         fontWeight: 800,
@@ -338,21 +295,15 @@ function UserAvatarInner({
 
                 {/* ─── Compact Call Popup ─── */}
                 {showPopup && !isMe && onClick && (
-                    <div
-                        ref={popupRef}
-                        className="absolute left-1/2"
-                        style={{
-                            bottom: sz + 10 * zoom,
-                            transform: 'translateX(-50%)',
-                            pointerEvents: 'auto',
-                            zIndex: 100,
-                            animation: 'fadeIn 0.12s ease-out',
-                        }}
-                    >
+                    <div ref={popupRef} className="absolute left-1/2" style={{
+                        bottom: SZ + 12,
+                        transform: 'translateX(-50%)',
+                        pointerEvents: 'auto',
+                        zIndex: 100,
+                        animation: 'fadeIn 0.12s ease-out',
+                    }}>
                         <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
+                            display: 'flex', alignItems: 'center', gap: 10,
                             padding: '8px 10px 8px 14px',
                             background: 'rgba(15, 23, 42, 0.97)',
                             borderRadius: 14,
@@ -360,63 +311,45 @@ function UserAvatarInner({
                             boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
                             whiteSpace: 'nowrap' as const,
                         }}>
-                            {/* Name + Status inline */}
                             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 2, minWidth: 0 }}>
                                 <span style={{
-                                    fontSize: 13,
-                                    fontWeight: 700,
-                                    color: '#f1f5f9',
-                                    fontFamily: "'Inter', system-ui, sans-serif",
-                                    lineHeight: 1.2,
-                                    maxWidth: 140,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
+                                    fontSize: 13, fontWeight: 700, color: '#f1f5f9',
+                                    fontFamily: "'Inter', system-ui, sans-serif", lineHeight: 1.2,
+                                    maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis',
                                 }}>
                                     {fullName || 'User'}
                                 </span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                     <div style={{
                                         width: 6, height: 6, borderRadius: '50%',
-                                        backgroundColor: statusCol,
-                                        boxShadow: `0 0 6px ${statusCol}`,
+                                        backgroundColor: statusCol, boxShadow: `0 0 6px ${statusCol}`,
                                         flexShrink: 0,
                                     }} />
                                     <span style={{
-                                        fontSize: 10,
-                                        fontWeight: 600,
-                                        color: statusCol,
+                                        fontSize: 10, fontWeight: 600, color: statusCol,
                                         fontFamily: "'Inter', system-ui, sans-serif",
-                                        letterSpacing: '0.03em',
-                                        textTransform: 'uppercase' as const,
+                                        letterSpacing: '0.03em', textTransform: 'uppercase' as const,
                                     }}>
                                         {STATUS_LABEL[status] ?? 'Online'}
                                     </span>
-
-                                    {/* Mic/Audio mini indicators */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: 4 }}>
-                                        {/* Perimeter color dot — media state at a glance */}
-                                        <div style={{
-                                            width: 8, height: 8, borderRadius: '50%',
-                                            backgroundColor: perimeterColor,
-                                            boxShadow: `0 0 4px ${perimeterColor}80`,
-                                        }} />
-                                    </div>
+                                    <div style={{
+                                        width: 8, height: 8, borderRadius: '50%',
+                                        backgroundColor: perimeterColor,
+                                        boxShadow: `0 0 4px ${perimeterColor}80`,
+                                        marginLeft: 4,
+                                    }} />
                                 </div>
                             </div>
 
-                            {/* Call button — round, prominent */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleCallClick(); }}
                                 onMouseDown={(e) => e.stopPropagation()}
                                 style={{
-                                    width: 38, height: 38,
-                                    borderRadius: '50%',
-                                    border: 'none',
+                                    width: 38, height: 38, borderRadius: '50%', border: 'none',
                                     background: 'linear-gradient(135deg, #10b981, #059669)',
                                     color: 'white',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s',
+                                    cursor: 'pointer', transition: 'all 0.2s',
                                     boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
                                     flexShrink: 0,
                                 }}
@@ -436,7 +369,6 @@ function UserAvatarInner({
                             </button>
                         </div>
 
-                        {/* Arrow */}
                         <div style={{
                             position: 'absolute', bottom: -5, left: '50%',
                             transform: 'translateX(-50%) rotate(45deg)',
