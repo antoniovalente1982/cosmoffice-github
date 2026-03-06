@@ -280,12 +280,12 @@ function UserAvatarInner({
                     transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
                 }} />
 
-                {/* ─── Role Badge (overlapping bottom of avatar circle) ─── */}
+                {/* ─── Role Badge (ABOVE avatar) ─── */}
                 {roleConfig && (
                     <div
                         className="absolute left-1/2 pointer-events-none"
                         style={{
-                            bottom: -3,
+                            bottom: sz + 4,
                             transform: 'translateX(-50%)',
                             zIndex: 6,
                         }}
@@ -310,7 +310,7 @@ function UserAvatarInner({
                     </div>
                 )}
 
-                {/* ─── Name (plain text below avatar) ─── */}
+                {/* ─── Name (BELOW avatar, pill style) ─── */}
                 <div
                     className="absolute left-1/2 whitespace-nowrap pointer-events-none"
                     style={{
@@ -319,13 +319,18 @@ function UserAvatarInner({
                     }}
                 >
                     <span style={{
-                        fontSize: 13,
+                        fontSize: 10,
                         fontWeight: 800,
-                        color: '#f1f5f9',
+                        color: '#e2e8f0',
                         letterSpacing: '0.05em',
                         textTransform: 'uppercase' as const,
                         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
-                        textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.5)',
+                        backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                        borderRadius: 20,
+                        padding: '2px 8px',
+                        display: 'inline-block',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                        border: '1px solid rgba(255,255,255,0.08)',
                     }}>
                         {fullName || 'User'}
                     </span>
