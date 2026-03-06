@@ -21,7 +21,7 @@ interface EditableRoomProps {
     room: any;
     isSelected: boolean;
     isMultiSelected: boolean;
-    onSelect: (id: string) => void;
+    onSelect: (id: string, shiftKey?: boolean) => void;
     onBulkDragStart: (e: React.MouseEvent, roomId: string) => void;
     zoom: number;
     stagePos: { x: number; y: number };
@@ -64,7 +64,7 @@ function EditableRoom({ room, isSelected, isMultiSelected, onSelect, onBulkDragS
             onBulkDragStart(e, room.id);
             return;
         }
-        onSelect(room.id);
+        onSelect(room.id, e.shiftKey);
         setIsDragging(true);
         dragRef.current = {
             startX: e.clientX,
@@ -306,10 +306,12 @@ export function RoomEditor({ rooms }: RoomEditorProps) {
     const [marquee, setMarquee] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
     const marqueeRef = useRef<{ startX: number; startY: number; containerLeft: number; containerTop: number } | null>(null);
 
-    const handleSelect = useCallback((id: string) => {
-        setSelectedRoom(id);
-        setSelectedRoomIds(new Set<string>());
-        window.dispatchEvent(new CustomEvent('builder-select-room', { detail: { roomId: id } }));
+    const handleSelect = useCallback((id: string, shiftKey?: boolean) => {
+        if (!shiftKey) {
+            setSelectedRoom(id);
+            setSelectedRoomIds(new Set<string>());
+        }
+        window.dispatchEvent(new CustomEvent('builder-select-room', { detail: { roomId: id, shiftKey: !!shiftKey } }));
     }, [setSelectedRoom, setSelectedRoomIds]);
 
     // ─── Bulk drag state ─────────────────────────────────

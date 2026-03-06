@@ -8,7 +8,8 @@ import { OFFICE_TEMPLATES, OfficeTemplate } from '../../lib/officeTemplates';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2,
-    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square, Link2, Unlink, Map, GitBranch
+    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square, Link2, Unlink, Map, GitBranch,
+    Copy, CheckSquare, Grid3X3
 } from 'lucide-react';
 
 
@@ -35,8 +36,8 @@ export function getRoomDepartment(room: any): string | null {
 export function OfficeBuilder() {
     const supabase = createClient();
     const {
-        isBuilderMode, rooms, selectedRoomId, roomTemplates, roomConnections, layoutMode,
-        activeSpaceId, stagePos, zoom, addRoom, setSelectedRoom, removeRoom,
+        isBuilderMode, rooms, selectedRoomId, selectedRoomIds, roomTemplates, roomConnections, layoutMode,
+        activeSpaceId, stagePos, zoom, addRoom, setSelectedRoom, setSelectedRoomIds, removeRoom,
         setRooms, setRoomConnections, toggleBuilderMode, setLayoutMode,
     } = useWorkspaceStore();
 
@@ -79,12 +80,26 @@ export function OfficeBuilder() {
 
     useEffect(() => {
         const handler = (e: Event) => {
-            const { roomId } = (e as CustomEvent).detail;
+            const { roomId, shiftKey } = (e as CustomEvent).detail;
             const fromId = connectingRef.current;
 
-            // Not in connect mode → normal select
+            // Not in connect mode → normal select (supports Shift+Click multi-select)
             if (!fromId) {
-                loadRoomProperties(roomId);
+                if (shiftKey) {
+                    // Shift+Click → toggle multi-selection
+                    const current = new Set(useWorkspaceStore.getState().selectedRoomIds);
+                    if (current.has(roomId)) {
+                        current.delete(roomId);
+                    } else {
+                        current.add(roomId);
+                    }
+                    setSelectedRoomIds(current);
+                    setSelectedRoom(null); // Clear single selection when multi-selecting
+                } else {
+                    // Normal click → single select
+                    setSelectedRoomIds(new Set());
+                    loadRoomProperties(roomId);
+                }
                 return;
             }
 
@@ -266,10 +281,9 @@ export function OfficeBuilder() {
 
         // Optimistic delete
         removeRoom(selectedRoomId);
-        setSelectedRoom(null); // Clear selection as well to avoid zombie references
+        setSelectedRoom(null);
         setToast({ msg: '🗑️ Stanza eliminata', type: 'ok' });
 
-        // Clean up all related data before deleting the room
         await Promise.all([
             supabase.from('room_connections').delete().or(`room_a_id.eq.${selectedRoomId},room_b_id.eq.${selectedRoomId}`),
             supabase.from('furniture').delete().eq('room_id', selectedRoomId),
@@ -282,6 +296,71 @@ export function OfficeBuilder() {
             setToast({ msg: `❌ Errore DB: ${error.message}`, type: 'err' });
         }
     }, [selectedRoomId, supabase, removeRoom, setSelectedRoom]);
+
+    // ─── Bulk delete selected rooms ────────────────────────
+    const handleBulkDelete = useCallback(async () => {
+        const ids = Array.from(selectedRoomIds);
+        if (ids.length === 0) return;
+        if (!confirm(`Eliminare ${ids.length} stanze selezionate e tutti i loro arredi?`)) return;
+
+        // Optimistic delete all
+        const state = useWorkspaceStore.getState();
+        setRooms(state.rooms.filter(r => !selectedRoomIds.has(r.id)));
+        setSelectedRoomIds(new Set());
+        setSelectedRoom(null);
+        setToast({ msg: `🗑️ ${ids.length} stanze eliminate`, type: 'ok' });
+
+        // DB cleanup
+        for (const id of ids) {
+            await Promise.all([
+                supabase.from('room_connections').delete().or(`room_a_id.eq.${id},room_b_id.eq.${id}`),
+                supabase.from('furniture').delete().eq('room_id', id),
+                supabase.from('room_participants').delete().eq('room_id', id),
+            ]);
+            await supabase.from('rooms').delete().eq('id', id);
+        }
+    }, [selectedRoomIds, supabase, setRooms, setSelectedRoomIds, setSelectedRoom]);
+
+    // ─── Duplicate selected room ──────────────────────────
+    const handleDuplicateRoom = useCallback(async () => {
+        if (!selectedRoomId || !activeSpaceId) return;
+        const room = rooms.find(r => r.id === selectedRoomId);
+        if (!room) return;
+
+        const tId = tempId();
+        const duplicated: any = {
+            ...room,
+            id: tId,
+            name: `${room.name} (copia)`,
+            x: (room.x || 0) + 40,
+            y: (room.y || 0) + 40,
+        };
+        addRoom(duplicated);
+        setSelectedRoom(tId);
+
+        const dbPayload: any = {
+            space_id: activeSpaceId,
+            name: duplicated.name,
+            type: room.type,
+            x: duplicated.x,
+            y: duplicated.y,
+            width: room.width,
+            height: room.height,
+            capacity: room.settings?.capacity,
+            settings: room.settings,
+            shape: room.shape || 'rect',
+        };
+
+        const { data, error } = await supabase.from('rooms').insert(dbPayload).select().single();
+        if (!error && data) {
+            const currentRooms = useWorkspaceStore.getState().rooms;
+            setRooms(currentRooms.map(r => r.id === tId ? { ...r, ...data, color: getRoomColor(room), department: getRoomDepartment(room) } : r));
+            setSelectedRoom(data.id);
+            setToast({ msg: `✅ Stanza duplicata!`, type: 'ok' });
+        } else if (error) {
+            setToast({ msg: `❌ ${error.message}`, type: 'err' });
+        }
+    }, [selectedRoomId, activeSpaceId, rooms, supabase, addRoom, setSelectedRoom, setRooms]);
 
     const handleSaveProperties = useCallback(async () => {
         if (!selectedRoomId) return;
@@ -525,31 +604,62 @@ export function OfficeBuilder() {
                 )}
             </AnimatePresence>
 
-            {/* TOP FLOATING PILL - BUILDER MODE ACTIVE */}
+            {/* ═══ TOP FLOATING PILL — Clean branding only ═══ */}
             <motion.div
                 initial={{ y: -100, x: '-50%' }}
                 animate={{ y: 24, x: '-50%' }}
                 className="pointer-events-auto absolute top-0 left-1/2 -translate-x-1/2"
             >
-                <div className="relative group flex flex-col rounded-2xl p-1 shadow-[0_0_40px_rgba(0,212,255,0.15)]"
+                <div className="relative group flex items-center rounded-2xl p-1 shadow-[0_0_40px_rgba(0,212,255,0.15)]"
                     style={{
                         background: 'rgba(15, 23, 42, 0.85)',
                         backdropFilter: 'blur(24px)',
                         WebkitBackdropFilter: 'blur(24px)',
                         border: '1px solid rgba(255, 255, 255, 0.08)'
                     }}>
-
-                    {/* Animated gradient border effect */}
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 opacity-50 block group-hover:opacity-100 transition-opacity -z-10 blur-md pointer-events-none" />
-
-                    {/* Main row */}
-                    <div className="flex items-center h-12">
+                    <div className="flex items-center h-10">
                         <div className="flex items-center gap-3 px-4 h-full">
                             <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
                             <span className="text-xs font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-400">
                                 Space Builder
                             </span>
                         </div>
+                        <button
+                            onClick={toggleBuilderMode}
+                            className="flex items-center justify-center w-9 h-9 ml-2 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all transform hover:scale-105 active:scale-95 border border-red-500/30"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
+
+            {/* ═══ SECONDARY CONTEXTUAL TOOLBAR ═══ */}
+            <motion.div
+                initial={{ y: -60, x: '-50%', opacity: 0 }}
+                animate={{ y: 76, x: '-50%', opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="pointer-events-auto absolute top-0 left-1/2 -translate-x-1/2 z-[110]"
+            >
+                <div className="flex flex-col rounded-2xl shadow-[0_4px_30px_rgba(0,0,0,0.4)]"
+                    style={{
+                        background: 'rgba(10, 15, 30, 0.92)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)'
+                    }}>
+
+                    {/* Contextual toolbar row */}
+                    <div className="flex items-center gap-1 px-2 py-1.5">
+
+                        {/* Multi-selection info badge */}
+                        {selectedRoomIds.size > 0 && (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 mr-1">
+                                <CheckSquare className="w-3.5 h-3.5 text-cyan-400" />
+                                <span className="text-[10px] font-bold text-cyan-300">{selectedRoomIds.size} sel.</span>
+                            </div>
+                        )}
 
                         {/* Connect mode toggle */}
                         <button
@@ -560,25 +670,65 @@ export function OfficeBuilder() {
                                 } else {
                                     setConnectingFromRoomId('__awaiting__');
                                     setSelectedRoom(null);
+                                    setSelectedRoomIds(new Set());
                                     setToast({ msg: '🔗 Clicca la prima stanza da collegare', type: 'ok' });
                                 }
                             }}
-                            className={`flex items-center justify-center gap-1.5 px-3 h-10 ml-2 rounded-full transition-all transform hover:scale-105 active:scale-95 border ${connectingFromRoomId
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${connectingFromRoomId
                                 ? 'bg-indigo-500/30 border-indigo-400/60 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.4)]'
                                 : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
                                 }`}
-                            title={connectingFromRoomId ? 'Esci dalla modalità connessione' : 'Connetti stanze cliccandole'}
+                            title={connectingFromRoomId ? 'Esci dalla modalità connessione' : 'Connetti stanze'}
                         >
-                            <Link2 className="w-4 h-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">{connectingFromRoomId ? 'Esci' : 'Connetti'}</span>
+                            <Link2 className="w-3.5 h-3.5" />
+                            {connectingFromRoomId ? 'Esci' : 'Connetti'}
                         </button>
 
-                        <button
-                            onClick={toggleBuilderMode}
-                            className="flex items-center justify-center w-10 h-10 ml-2 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all transform hover:scale-105 active:scale-95 border border-red-500/30"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+                        {/* Duplicate (single selection) */}
+                        {selectedRoomId && !connectingFromRoomId && (
+                            <button
+                                onClick={handleDuplicateRoom}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-white transition-all"
+                                title="Duplica stanza"
+                            >
+                                <Copy className="w-3.5 h-3.5" />
+                                Duplica
+                            </button>
+                        )}
+
+                        {/* Bulk delete (multi-selection) */}
+                        {selectedRoomIds.size > 0 && (
+                            <button
+                                onClick={handleBulkDelete}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all"
+                                title={`Elimina ${selectedRoomIds.size} stanze`}
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Elimina ({selectedRoomIds.size})
+                            </button>
+                        )}
+
+                        {/* Select all */}
+                        {!connectingFromRoomId && rooms.length > 0 && (
+                            <button
+                                onClick={() => {
+                                    if (selectedRoomIds.size === rooms.length) {
+                                        setSelectedRoomIds(new Set());
+                                    } else {
+                                        setSelectedRoomIds(new Set(rooms.map(r => r.id)));
+                                        setSelectedRoom(null);
+                                    }
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${selectedRoomIds.size === rooms.length && rooms.length > 0
+                                    ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                                    : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                title={selectedRoomIds.size === rooms.length ? 'Deseleziona tutto' : 'Seleziona tutto'}
+                            >
+                                <CheckSquare className="w-3.5 h-3.5" />
+                                {selectedRoomIds.size === rooms.length && rooms.length > 0 ? 'Desel.' : 'Tutti'}
+                            </button>
+                        )}
                     </div>
 
                     {/* Expanded connect toolbar — shown when in connect mode */}
@@ -590,18 +740,17 @@ export function OfficeBuilder() {
                             transition={{ duration: 0.2 }}
                             className="overflow-hidden"
                         >
-                            <div className="border-t border-white/5 px-4 py-3 space-y-2.5">
+                            <div className="border-t border-white/5 px-3 py-2.5 space-y-2">
                                 {/* Status line */}
                                 <div className="flex items-center gap-2">
                                     <div className={`w-2 h-2 rounded-full ${connectingFromRoomId === '__awaiting__' ? 'bg-amber-400 animate-pulse' : 'bg-indigo-400 animate-pulse'}`} />
-                                    <span className="text-[11px] text-slate-300 font-medium">
+                                    <span className="text-[10px] text-slate-300 font-medium">
                                         {connectingFromRoomId === '__awaiting__'
                                             ? 'Clicca la prima stanza...'
                                             : `Da "${rooms.find(r => r.id === connectingFromRoomId)?.name || '?'}" → clicca la destinazione`
                                         }
                                     </span>
                                 </div>
-
                                 {/* Color picker row */}
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mr-1">Colore</span>
@@ -609,12 +758,11 @@ export function OfficeBuilder() {
                                         <button
                                             key={c}
                                             onClick={() => setConnectColor(c)}
-                                            className={`w-5 h-5 rounded-full transition-all ${connectColor === c ? 'ring-2 ring-white/70 scale-125' : 'hover:scale-110 opacity-60 hover:opacity-100'}`}
-                                            style={{ backgroundColor: c }}
+                                            className={`w-4.5 h-4.5 rounded-full transition-all ${connectColor === c ? 'ring-2 ring-white/70 scale-125' : 'hover:scale-110 opacity-60 hover:opacity-100'}`}
+                                            style={{ backgroundColor: c, width: 18, height: 18 }}
                                         />
                                     ))}
                                 </div>
-
                                 {/* Label input */}
                                 <div className="flex items-center gap-2">
                                     <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Label</span>
@@ -622,7 +770,7 @@ export function OfficeBuilder() {
                                         value={connectLabel}
                                         onChange={e => setConnectLabel(e.target.value)}
                                         placeholder="Etichetta ramo (opzionale)"
-                                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-black/30 border border-white/10 text-white text-[11px] placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                                        className="flex-1 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-white text-[10px] placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
                                         onMouseDown={e => e.stopPropagation()}
                                     />
                                 </div>
@@ -657,16 +805,20 @@ export function OfficeBuilder() {
                     </button>
                     {selectedRoom ? (
                         <>
-                            {/* Glass Header for Properties */}
-                            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between"
+                            {/* Glass Header for Properties — with Back button */}
+                            <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2"
                                 style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%)' }}>
-                                <div className="flex items-center gap-2">
-                                    <Box className="w-4 h-4 text-cyan-400" />
-                                    <h3 className="text-sm font-bold text-white tracking-wide">Proprietà Stanza</h3>
-                                </div>
-                                <button onClick={() => setSelectedRoom(null)} className="w-6 h-6 rounded-full bg-white/5 hover:bg-white/20 flex items-center justify-center transition-colors">
-                                    <X className="w-3 h-3 text-slate-300" />
+                                <button
+                                    onClick={() => setSelectedRoom(null)}
+                                    className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center transition-colors flex-shrink-0"
+                                    title="Torna alla lista"
+                                >
+                                    <ArrowLeft className="w-3.5 h-3.5 text-slate-300" />
                                 </button>
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: editColor }} />
+                                    <h3 className="text-sm font-bold text-white tracking-wide truncate">{editName || 'Proprietà'}</h3>
+                                </div>
                             </div>
 
                             {/* Content */}
