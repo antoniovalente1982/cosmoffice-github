@@ -285,18 +285,18 @@ function UserAvatarInner({
                     <div
                         className="absolute left-1/2 pointer-events-none"
                         style={{
-                            bottom: -3 * zoom,
+                            bottom: -3,
                             transform: 'translateX(-50%)',
                             zIndex: 6,
                         }}
                     >
                         <span style={{
-                            fontSize: Math.max(6, 7 * zoom),
+                            fontSize: 8,
                             fontWeight: 800,
                             color: '#fff',
                             backgroundColor: roleConfig.color,
-                            borderRadius: 20 * zoom,
-                            padding: `${1.5 * zoom}px ${7 * zoom}px`,
+                            borderRadius: 20,
+                            padding: '2px 8px',
                             letterSpacing: '0.08em',
                             fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
                             whiteSpace: 'nowrap' as const,
@@ -314,12 +314,12 @@ function UserAvatarInner({
                 <div
                     className="absolute left-1/2 whitespace-nowrap pointer-events-none"
                     style={{
-                        top: sz + 8 * zoom,
+                        top: sz + 4,
                         transform: 'translateX(-50%)',
                     }}
                 >
                     <span style={{
-                        fontSize: Math.max(11, 13 * zoom),
+                        fontSize: 13,
                         fontWeight: 800,
                         color: '#f1f5f9',
                         letterSpacing: '0.05em',
