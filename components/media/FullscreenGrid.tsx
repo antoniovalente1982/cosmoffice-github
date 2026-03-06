@@ -243,7 +243,12 @@ export function FullscreenGrid() {
                                         </p>
                                     </div>
                                     <button
-                                        onClick={async () => await toggleVideo()}
+                                        onClick={async () => {
+                                            const { myProximityGroupId, myRoomId, peers } = useAvatarStore.getState();
+                                            const hasNearby = myProximityGroupId || (myRoomId && Object.values(peers).some((p: any) => p.roomId === myRoomId));
+                                            if (!hasNearby) return;
+                                            await toggleVideo();
+                                        }}
                                         className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary-500 hover:bg-primary-400 text-white font-semibold transition-all text-sm shadow-[0_0_20px_rgba(99,102,241,0.4)]"
                                     >
                                         <Video className="w-4 h-4" />

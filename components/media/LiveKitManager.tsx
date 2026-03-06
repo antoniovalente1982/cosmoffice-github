@@ -554,13 +554,18 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     }, 500);
                 }
             } else if (oldGroup && dailyStore.activeContext === 'proximity') {
-                // Left proximity — disconnect after short delay
+                // Left proximity — disconnect and turn off mic/cam
                 proxDebounceRef.current = setTimeout(() => {
                     proxDebounceRef.current = null;
                     const still = useAvatarStore.getState();
                     if (!still.myProximityGroupId && !still.myRoomId) {
                         leaveContext();
-                        console.log('[LiveKit] Walked away → disconnected (media state preserved)');
+                        // Auto-disable mic/cam when no one is around
+                        const ds = useDailyStore.getState();
+                        if (ds.isAudioOn || ds.isVideoOn) {
+                            useDailyStore.setState({ isAudioOn: false, isVideoOn: false });
+                            console.log('[LiveKit] Walked away → mic/cam auto-disabled');
+                        }
                     }
                 }, 500);
             }
@@ -603,7 +608,9 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                         joinContext('proximity', proxGroup);
                     } else if (joinedRef.current) {
                         leaveContext();
-                        console.log('[LiveKit] Left room → no one nearby, disconnected');
+                        // Auto-disable mic/cam when no one is around
+                        useDailyStore.setState({ isAudioOn: false, isVideoOn: false });
+                        console.log('[LiveKit] Left room → no one nearby, mic/cam auto-disabled');
                     }
                 }
             }, 800);  // 800ms debounce — prevents fast room switching race conditions

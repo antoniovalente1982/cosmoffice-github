@@ -61,8 +61,27 @@ export function drawSpaceship(container: Container, x: number, y: number, frameC
         container.addChild(labelText);
     }
 
-    // ANIMATED: only beam (redraw minimal Graphics)
-    const beamAlpha = 0.12 + Math.sin(frameCount * 0.05) * 0.06;
+    // ANIMATED: Heartbeat-style beam pulse (lub-dub + rest)
+    // Total cycle ~90 frames (~1.5s at 60fps) — natural resting heart rate
+    const cycle = frameCount % 90;
+    let beatIntensity: number;
+    if (cycle < 8) {
+        // First beat (lub) — quick sharp rise and fall
+        const t = cycle / 8;
+        beatIntensity = Math.sin(t * Math.PI) * 1.0;
+    } else if (cycle < 14) {
+        // Brief gap between beats
+        beatIntensity = 0;
+    } else if (cycle < 22) {
+        // Second beat (dub) — slightly softer
+        const t = (cycle - 14) / 8;
+        beatIntensity = Math.sin(t * Math.PI) * 0.7;
+    } else {
+        // Rest period — gentle ambient glow
+        beatIntensity = 0;
+    }
+    const beamAlpha = 0.08 + beatIntensity * 0.14;
+
     beamGraphics!.clear();
     beamGraphics!.moveTo(x - 6 * s, y + 10 * s);
     beamGraphics!.lineTo(x + 6 * s, y + 10 * s);

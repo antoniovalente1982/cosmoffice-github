@@ -108,39 +108,49 @@ export default function OfficePage() {
     }, []);
 
     // Smart toggle with proximity check
+    // Check if there are other people in my room or in proximity
+    const hasPeopleNearby = useCallback(() => {
+        const { myProximityGroupId, myRoomId, peers } = useAvatarStore.getState();
+        // Proximity aura detected someone
+        if (myProximityGroupId) return true;
+        // In a room with other people
+        if (myRoomId) {
+            const peersInRoom = Object.values(peers).filter((p: any) => p.roomId === myRoomId);
+            return peersInRoom.length > 0;
+        }
+        return false;
+    }, []);
+
     const smartToggleMic = useCallback(async () => {
-        const { myProximityGroupId, myRoomId } = useAvatarStore.getState();
         const ds = useDailyStore.getState();
         if (ds.isAudioOn) {
             // Always allow turning OFF
             await toggleMic();
             return;
         }
-        if (!myProximityGroupId && !myRoomId) {
-            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza per usare il microfono');
+        if (!hasPeopleNearby()) {
+            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per usare il microfono');
             return;
         }
         await toggleMic();
-    }, [toggleMic, showMediaToast]);
+    }, [toggleMic, showMediaToast, hasPeopleNearby]);
 
     const smartToggleVideo = useCallback(async () => {
-        const { myProximityGroupId, myRoomId } = useAvatarStore.getState();
         const ds = useDailyStore.getState();
         if (ds.isVideoOn) {
             await toggleVideo();
             return;
         }
-        if (!myProximityGroupId && !myRoomId) {
-            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza per usare la webcam');
+        if (!hasPeopleNearby()) {
+            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per usare la webcam');
             return;
         }
         await toggleVideo();
-    }, [toggleVideo, showMediaToast]);
+    }, [toggleVideo, showMediaToast, hasPeopleNearby]);
 
     const smartStartScreenShare = useCallback(async () => {
-        const { myProximityGroupId, myRoomId } = useAvatarStore.getState();
-        if (!myProximityGroupId && !myRoomId) {
-            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza per condividere lo schermo');
+        if (!hasPeopleNearby()) {
+            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per condividere lo schermo');
             return;
         }
         const room = (window as any).__livekitRoom;
