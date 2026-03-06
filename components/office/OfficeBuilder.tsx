@@ -384,19 +384,20 @@ export function OfficeBuilder() {
     }, [activeSpaceId, supabase, setRooms]);
 
     // ─── Connection CRUD ────────────────────────────────────
-    const handleCreateConnection = useCallback(async () => {
-        if (!connectFromId || !connectToId || connectFromId === connectToId || !activeSpaceId) return;
+    const handleCreateConnection = useCallback(async (fromIdOverride?: string) => {
+        const fromId = fromIdOverride || connectFromId;
+        if (!fromId || !connectToId || fromId === connectToId || !activeSpaceId) return;
 
         // Check not already connected
         const exists = roomConnections.some(c =>
-            (c.room_a_id === connectFromId && c.room_b_id === connectToId) ||
-            (c.room_a_id === connectToId && c.room_b_id === connectFromId)
+            (c.room_a_id === fromId && c.room_b_id === connectToId) ||
+            (c.room_a_id === connectToId && c.room_b_id === fromId)
         );
         if (exists) { setToast({ msg: '⚠️ Connessione già esistente', type: 'err' }); return; }
 
         const payload = {
             space_id: activeSpaceId,
-            room_a_id: connectFromId,
+            room_a_id: fromId,
             room_b_id: connectToId,
             type: 'link' as const,
             label: connectLabel || null,
@@ -672,7 +673,7 @@ export function OfficeBuilder() {
                                         ))}
                                     </select>
                                     <button
-                                        onClick={() => { setConnectFromId(selectedRoom.id); handleCreateConnection(); }}
+                                        onClick={() => handleCreateConnection(selectedRoom.id)}
                                         disabled={!connectToId}
                                         className="px-3 py-1.5 rounded-lg bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 text-[10px] font-bold hover:bg-indigo-500/40 transition-all disabled:opacity-30"
                                     >
@@ -727,6 +728,15 @@ export function OfficeBuilder() {
                             )}
 
                             {!showTemplates ? (<>
+                                {/* Template button — on top */}
+                                <button
+                                    onClick={() => { setShowTemplates(true); }}
+                                    className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-orange-500/20 hover:border-amber-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] group"
+                                >
+                                    <LayoutTemplate className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                                    <span className="text-xs font-bold text-amber-50 tracking-wide">Applica Template Ufficio</span>
+                                </button>
+
                                 {/* Nuova Stanza button */}
                                 <button
                                     onClick={() => handleAddRoom(roomTemplates[0])}
@@ -736,21 +746,12 @@ export function OfficeBuilder() {
                                     <span className="text-xs font-bold text-cyan-50 tracking-wide">Nuova Stanza</span>
                                 </button>
 
-                                {/* Template button */}
-                                <button
-                                    onClick={() => { setShowTemplates(true); }}
-                                    className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-orange-500/20 hover:border-amber-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] group"
-                                >
-                                    <LayoutTemplate className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-                                    <span className="text-xs font-bold text-amber-50 tracking-wide">Applica Template Ufficio</span>
-                                </button>
-
                                 {/* Divider */}
                                 <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-                                {/* Room List — always visible */}
+                                {/* Modifica Stanza — room list always open */}
                                 <div className="w-full space-y-2">
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Stanze ({rooms.length})</p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Modifica Stanza</p>
                                     {rooms.map(room => (
                                         <button
                                             key={room.id}
