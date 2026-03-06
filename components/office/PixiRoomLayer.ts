@@ -114,7 +114,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         fill: 0xffffff,
         letterSpacing: 0.3,
     });
-    const nameText = new Text({ text: room.name, style: nameStyle });
+    const nameText = new Text({ text: room.name, style: nameStyle, resolution: 2 });
     if (isCircle) {
         nameText.anchor.set(0.5, 1);
         nameText.position.set(room.x + room.width / 2, room.y - 58);
@@ -134,7 +134,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
             fill: hexColor(color),
             letterSpacing: 1.2,
         });
-        const subText = new Text({ text: subtitleStr, style: subStyle });
+        const subText = new Text({ text: subtitleStr, style: subStyle, resolution: 2 });
         if (isCircle) {
             subText.anchor.set(0.5, 1);
             subText.position.set(room.x + room.width / 2, room.y - 32);
@@ -157,7 +157,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
             letterSpacing: 0.3,
         });
         const statusText = `${occupants} online`;
-        const status = new Text({ text: statusText, style: statusStyle });
+        const status = new Text({ text: statusText, style: statusStyle, resolution: 2 });
 
         if (isCircle) {
             const cy = room.y + room.height / 2;
@@ -244,7 +244,7 @@ export function drawRoomConnections(
                         fill: 0xffffff,
                         letterSpacing: 0.5,
                     });
-                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle });
+                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle, resolution: 2 });
                     labelText.anchor.set(0.5, 0.5);
                     labelText.position.set((cx1 + cx2) / 2, midY);
 
@@ -306,7 +306,7 @@ export function drawRoomConnections(
                         fill: 0xffffff,
                         letterSpacing: 0.5,
                     });
-                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle });
+                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle, resolution: 2 });
                     labelText.anchor.set(0.5, 0.5);
                     labelText.position.set(midX, midY);
 

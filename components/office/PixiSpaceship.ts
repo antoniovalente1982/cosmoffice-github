@@ -64,7 +64,7 @@ export function drawSpaceship(container: Container, x: number, y: number, _frame
         fill: 0x06b6d4,
         letterSpacing: 2,
     });
-    const labelText = new Text({ text: 'LANDING ZONE', style: labelStyle });
+    const labelText = new Text({ text: 'LANDING ZONE', style: labelStyle, resolution: 2 });
     labelText.anchor.set(0.5, 0);
     labelText.position.set(x, y + 78 * s);
     container.addChild(labelText);

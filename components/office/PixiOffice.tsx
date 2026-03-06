@@ -181,8 +181,8 @@ export function PixiOffice() {
             await app.init({
                 canvas: canvasRef.current!,
                 background: 0x050a15,
-                antialias: false,
-                resolution: 1,
+                antialias: true,
+                resolution: window.devicePixelRatio || 2,
                 autoDensity: true,
                 resizeTo: containerRef.current!,
             });
