@@ -38,43 +38,55 @@ async function verifySuperAdmin(req: NextRequest) {
     return profile?.is_super_admin === true;
 }
 
-// ─── LiveKit Cloud Pricing (as of 2025) ──────────────────────
-// LiveKit charges per WebRTC CONNECTION MINUTE (not separate audio/video).
-// Each participant connected = 1 connection minute per minute.
+// ═══════════════════════════════════════════════════════════════
+// LiveKit Cloud Pricing — verified from livekit.io/pricing
+// Last verified: 2026-03-06
 //
-// Plans:
-//   Build (free):  5,000 WebRTC min/month   — hard limit
-//   Ship  ($50):   150,000 WebRTC min/month  — overage $0.0005/min ($0.50/1K)
-//   Scale ($500):  1,500,000 WebRTC min/month— overage $0.0004/min ($0.40/1K)
+// LiveKit charges per WebRTC CONNECTION MINUTE.
+// 1 participant connected = 1 connection-minute per minute.
+// A 10-second connection is billed as 1 minute (rounded up).
 //
-// Bandwidth: $0.12/GB (downstream), upstream free
-// Egress (recording): $0.024/min (composited), $0.006/min (track-level)
-// Ingress: $0.012/min
+// Quotas reset on the 1st of each calendar month.
+// Unused quota does NOT roll over.
+// Build plan: hard limit (service stops when exceeded).
+// Ship/Scale plans: overage is billed incrementally.
+// ═══════════════════════════════════════════════════════════════
 
 interface PlanInfo {
     name: string;
     baseCostMonth: number;
     includedMinutes: number;
-    overagePerMin: number;
+    overagePerMin: number;      // 0 = hard limit (Build)
+    maxConcurrent: number;      // max simultaneous connections
 }
 
 const PLANS: Record<string, PlanInfo> = {
-    build: { name: 'Build (Free)', baseCostMonth: 0, includedMinutes: 5_000, overagePerMin: 0 },          // hard limit, no overage
-    ship: { name: 'Ship', baseCostMonth: 50, includedMinutes: 150_000, overagePerMin: 0.0005 },   // $0.50 per 1K extra min
-    scale: { name: 'Scale', baseCostMonth: 500, includedMinutes: 1_500_000, overagePerMin: 0.0004 }, // $0.40 per 1K extra min
+    build: {
+        name: 'Build (Free)',
+        baseCostMonth: 0,
+        includedMinutes: 5_000,
+        overagePerMin: 0,          // hard limit — service stops
+        maxConcurrent: 100,
+    },
+    ship: {
+        name: 'Ship',
+        baseCostMonth: 50,
+        includedMinutes: 150_000,
+        overagePerMin: 0.0005,     // $0.50 per 1K extra min
+        maxConcurrent: 1_000,
+    },
+    scale: {
+        name: 'Scale',
+        baseCostMonth: 500,
+        includedMinutes: 1_500_000,
+        overagePerMin: 0.0004,     // $0.40 per 1K extra min
+        maxConcurrent: 5_000,
+    },
 };
 
-// Default — change this to match your actual plan
-const CURRENT_PLAN = process.env.LIVEKIT_PLAN || 'build';
-
-const PRICING = {
-    plan: PLANS[CURRENT_PLAN] || PLANS.build,
-    connectionPerMin: PLANS[CURRENT_PLAN]?.overagePerMin || 0.0005,  // per WebRTC connection-minute (overage)
-    egressCompositePerMin: 0.024,   // composited recording
-    egressTrackPerMin: 0.006,       // track-level export
-    ingressPerMin: 0.012,
-    bandwidthPerGB: 0.12,           // downstream
-};
+// Set your plan here or via env variable LIVEKIT_PLAN=build|ship|scale
+const CURRENT_PLAN_KEY = process.env.LIVEKIT_PLAN || 'build';
+const CURRENT_PLAN = PLANS[CURRENT_PLAN_KEY] || PLANS.build;
 
 export async function GET(req: NextRequest) {
     const isAdmin = await verifySuperAdmin(req);
@@ -94,10 +106,10 @@ export async function GET(req: NextRequest) {
 
         switch (section) {
             case 'overview': {
-                // List all active rooms
+                // ─── REAL-TIME: list active rooms ─────────────────
                 const rooms = await roomService.listRooms();
 
-                // For each room, get participants
+                // ─── REAL-TIME: list participants per room ────────
                 const roomDetails = await Promise.all(
                     rooms.map(async (room) => {
                         try {
@@ -117,9 +129,9 @@ export async function GET(req: NextRequest) {
                                     joinedAt: Number(p.joinedAt) * 1000,
                                     isPublishing: p.tracks.some((t: any) => !t.muted),
                                     trackCount: p.tracks.length,
-                                    hasVideo: p.tracks.some((t: any) => t.type === 1 && !t.muted), // VIDEO = 1
-                                    hasAudio: p.tracks.some((t: any) => t.type === 0 && !t.muted), // AUDIO = 0
-                                    hasScreen: p.tracks.some((t: any) => t.source === 2), // SCREEN_SHARE = 2
+                                    hasVideo: p.tracks.some((t: any) => t.type === 1 && !t.muted),
+                                    hasAudio: p.tracks.some((t: any) => t.type === 0 && !t.muted),
+                                    hasScreen: p.tracks.some((t: any) => t.source === 2),
                                 })),
                             };
                         } catch {
@@ -138,7 +150,7 @@ export async function GET(req: NextRequest) {
                     })
                 );
 
-                // Calculate live stats
+                // ─── REAL-TIME: calculate live stats ──────────────
                 const totalParticipants = roomDetails.reduce((sum, r) => sum + r.participants.length, 0);
                 const totalVideoTracks = roomDetails.reduce(
                     (sum, r) => sum + r.participants.filter(p => p.hasVideo).length, 0
@@ -150,32 +162,51 @@ export async function GET(req: NextRequest) {
                     (sum, r) => sum + r.participants.filter(p => p.hasScreen).length, 0
                 );
 
-                // LiveKit charges per CONNECTION MINUTE (each connected participant = 1 connection-min/min)
-                const currentCostPerMin = totalParticipants * PRICING.connectionPerMin;
-                const currentCostPerHour = currentCostPerMin * 60;
+                // ─── ESTIMATED: burn rate based on connected participants ──
+                // Each connected participant = 1 connection-minute/minute
+                const burnRatePerMin = totalParticipants * (CURRENT_PLAN.overagePerMin || 0.0005);
+                const burnRatePerHour = burnRatePerMin * 60;
 
-                // Estimate session costs so far (based on each participant's connection duration)
-                let totalSessionMinutes = 0;
-                let totalSessionCost = 0;
+                // ─── ESTIMATED: session cost (current sessions only) ──
+                // This is NOT the monthly total — we can't get that without Analytics API (Scale+ only)
+                let currentSessionMinutes = 0;
                 for (const room of roomDetails) {
                     for (const p of room.participants) {
-                        const participantDurMin = (Date.now() - p.joinedAt) / 60000;
-                        totalSessionMinutes += participantDurMin;
-                        totalSessionCost += participantDurMin * PRICING.connectionPerMin;
+                        currentSessionMinutes += Math.max(1, (Date.now() - p.joinedAt) / 60000);
                     }
                 }
 
                 return NextResponse.json({
+                    // ─── Server info ──
                     livekit: {
                         url: LIVEKIT_URL,
-                        region: LIVEKIT_URL.includes('.livekit.cloud') ? LIVEKIT_URL.split('.')[0].replace('wss://', '') : 'self-hosted',
+                        region: LIVEKIT_URL.includes('.livekit.cloud')
+                            ? LIVEKIT_URL.split('.')[0].replace('wss://', '')
+                            : 'self-hosted',
                     },
+
+                    // ─── Plan info (from env/config, NOT from LiveKit API) ──
                     plan: {
-                        name: PRICING.plan.name,
-                        baseCostMonth: PRICING.plan.baseCostMonth,
-                        includedMinutes: PRICING.plan.includedMinutes,
-                        overagePerMin: PRICING.plan.overagePerMin,
+                        key: CURRENT_PLAN_KEY,
+                        name: CURRENT_PLAN.name,
+                        baseCostMonth: CURRENT_PLAN.baseCostMonth,
+                        includedMinutes: CURRENT_PLAN.includedMinutes,
+                        overagePerMin: CURRENT_PLAN.overagePerMin,
+                        maxConcurrent: CURRENT_PLAN.maxConcurrent,
                     },
+
+                    // ─── All plans for comparison ──
+                    allPlans: Object.entries(PLANS).map(([key, p]) => ({
+                        key,
+                        name: p.name,
+                        baseCostMonth: p.baseCostMonth,
+                        includedMinutes: p.includedMinutes,
+                        overagePerMin: p.overagePerMin,
+                        maxConcurrent: p.maxConcurrent,
+                        isCurrent: key === CURRENT_PLAN_KEY,
+                    })),
+
+                    // ─── REAL-TIME data from LiveKit Server SDK ──
                     live: {
                         rooms: rooms.length,
                         participants: totalParticipants,
@@ -183,14 +214,36 @@ export async function GET(req: NextRequest) {
                         audioTracks: totalAudioTracks,
                         screenShares: totalScreenShares,
                     },
+
+                    // ─── ESTIMATED costs (clearly labeled) ──
                     costs: {
-                        currentPerMinute: currentCostPerMin,
-                        currentPerHour: currentCostPerHour,
-                        sessionMinutes: totalSessionMinutes,
-                        sessionAccumulated: totalSessionCost,
-                        connectionPerMin: PRICING.connectionPerMin,
-                        bandwidthPerGB: PRICING.bandwidthPerGB,
+                        burnRatePerMin,
+                        burnRatePerHour,
+                        currentSessionMinutes: Math.round(currentSessionMinutes),
                     },
+
+                    // ─── Data source transparency ──
+                    dataSources: {
+                        realtime: [
+                            'live.rooms', 'live.participants', 'live.videoTracks',
+                            'live.audioTracks', 'live.screenShares', 'rooms[]',
+                        ],
+                        estimated: [
+                            'costs.burnRatePerMin (calcolato: partecipanti × tariffa)',
+                            'costs.burnRatePerHour (calcolato: burnRate × 60)',
+                            'costs.currentSessionMinutes (calcolato: somma durate partecipanti)',
+                        ],
+                        configured: [
+                            'plan.* (da variabile env LIVEKIT_PLAN, default: build)',
+                            'allPlans (tariffe hardcoded, verificate su livekit.io/pricing il 2026-03-06)',
+                        ],
+                        notAvailable: [
+                            'Minuti totali consumati nel mese — richiede piano Scale ($500/mo) + Analytics API',
+                            'Piano effettivo dal tuo account — verificare su cloud.livekit.io',
+                            'Fattura/billing — solo da cloud.livekit.io',
+                        ],
+                    },
+
                     rooms: roomDetails,
                 });
             }
