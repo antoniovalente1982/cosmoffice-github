@@ -276,21 +276,21 @@ function UserAvatarInner({
 
                 {/* ─── Name (below role, colored pill) ─── */}
                 <div className="absolute left-1/2 whitespace-nowrap pointer-events-none" style={{
-                    top: roleConfig ? RENDER_SZ + 32 : RENDER_SZ + 10,
+                    top: roleConfig ? RENDER_SZ + 38 : RENDER_SZ + 10,
                     transform: 'translateX(-50%)',
                 }}>
                     <span style={{
                         fontSize: 22,
                         fontWeight: 800,
-                        color: roleConfig ? roleConfig.textColor : '#fff',
+                        color: '#0f172a',
                         letterSpacing: '0.05em',
                         textTransform: 'uppercase' as const,
                         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
-                        backgroundColor: roleConfig ? roleConfig.color : 'rgba(15, 23, 42, 0.85)',
+                        backgroundColor: '#ffffff',
                         borderRadius: 40,
                         padding: '4px 16px',
                         display: 'inline-block',
-                        boxShadow: `0 2px 6px rgba(0,0,0,0.4)${roleConfig ? `, 0 0 8px ${roleConfig.color}40` : ''}`,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                     }}>
                         {fullName || 'User'}
                     </span>
