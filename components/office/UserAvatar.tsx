@@ -35,11 +35,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 // ─── Role badge colors ──────────────────────────────────────
-const ROLE_CONFIG: Record<string, { color: string; label: string }> = {
-    owner: { color: '#fbbf24', label: 'OWNER' },
-    admin: { color: '#22d3ee', label: 'ADMIN' },
-    member: { color: '#94a3b8', label: 'MEMBER' },
-    guest: { color: '#a78bfa', label: 'GUEST' },
+const ROLE_CONFIG: Record<string, { color: string; textColor: string; label: string }> = {
+    owner: { color: '#fbbf24', textColor: '#1e293b', label: 'OWNER' },   // gold bg → dark text
+    admin: { color: '#22d3ee', textColor: '#0f172a', label: 'ADMIN' },   // cyan bg → dark text
+    member: { color: '#94a3b8', textColor: '#fff', label: 'MEMBER' },    // gray bg → white text
+    guest: { color: '#a78bfa', textColor: '#fff', label: 'GUEST' },      // purple bg → white text
 };
 
 // ─── FIXED dimensions (never scale with zoom) ───────────────
@@ -243,17 +243,17 @@ function UserAvatarInner({
                     transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
                 }} />
 
-                {/* ─── Role Badge (overlapping bottom of circle) ─── */}
+                {/* ─── Role Badge (just below circle) ─── */}
                 {roleConfig && (
                     <div className="absolute left-1/2 pointer-events-none" style={{
-                        bottom: -4,
+                        top: SZ + 2,
                         transform: 'translateX(-50%)',
                         zIndex: 6,
                     }}>
                         <span style={{
                             fontSize: 7,
                             fontWeight: 800,
-                            color: '#fff',
+                            color: roleConfig.textColor,
                             backgroundColor: roleConfig.color,
                             borderRadius: 20,
                             padding: '1.5px 7px',
@@ -270,24 +270,23 @@ function UserAvatarInner({
                     </div>
                 )}
 
-                {/* ─── Name (below avatar, dark pill) ─── */}
+                {/* ─── Name (below role, colored pill) ─── */}
                 <div className="absolute left-1/2 whitespace-nowrap pointer-events-none" style={{
-                    top: SZ + 6,
+                    top: roleConfig ? SZ + 18 : SZ + 4,
                     transform: 'translateX(-50%)',
                 }}>
                     <span style={{
                         fontSize: 10,
                         fontWeight: 800,
-                        color: '#e2e8f0',
+                        color: roleConfig ? roleConfig.textColor : '#fff',
                         letterSpacing: '0.05em',
                         textTransform: 'uppercase' as const,
                         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
-                        backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                        backgroundColor: roleConfig ? roleConfig.color : 'rgba(15, 23, 42, 0.85)',
                         borderRadius: 20,
                         padding: '2px 8px',
                         display: 'inline-block',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        boxShadow: `0 2px 6px rgba(0,0,0,0.4)${roleConfig ? `, 0 0 8px ${roleConfig.color}40` : ''}`,
                     }}>
                         {fullName || 'User'}
                     </span>
