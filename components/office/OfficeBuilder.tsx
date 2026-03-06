@@ -492,7 +492,7 @@ export function OfficeBuilder() {
 
                     <button
                         onClick={toggleBuilderMode}
-                        className="flex items-center justify-center w-10 h-10 ml-2 rounded-full bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-all transform hover:scale-105 active:scale-95"
+                        className="flex items-center justify-center w-10 h-10 ml-2 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all transform hover:scale-105 active:scale-95 border border-red-500/30"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -510,6 +510,14 @@ export function OfficeBuilder() {
                     animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                 }}
             >
+                {/* Red X close button — top-left corner */}
+                <button
+                    onClick={toggleBuilderMode}
+                    className="absolute top-3 left-3 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all transform hover:scale-110 active:scale-95 border border-red-500/30"
+                    title="Chiudi Space Builder"
+                >
+                    <X className="w-3.5 h-3.5" />
+                </button>
                 {selectedRoom ? (
                     <>
                         {/* Glass Header for Properties */}
