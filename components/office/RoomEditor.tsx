@@ -20,12 +20,14 @@ import { getRoomEdge } from './PixiRoomLayer';
 interface EditableRoomProps {
     room: any;
     isSelected: boolean;
+    isMultiSelected: boolean;
     onSelect: (id: string) => void;
+    onBulkDragStart: (e: React.MouseEvent, roomId: string) => void;
     zoom: number;
     stagePos: { x: number; y: number };
 }
 
-function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRoomProps) {
+function EditableRoom({ room, isSelected, isMultiSelected, onSelect, onBulkDragStart, zoom, stagePos }: EditableRoomProps) {
     const supabase = createClient();
     const { updateRoomPosition, updateRoomSize, officeWidth, officeHeight } = useWorkspaceStore();
     const [isDragging, setIsDragging] = useState(false);
@@ -46,6 +48,11 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
+        // If multi-selected, delegate to parent for bulk drag
+        if (isMultiSelected) {
+            onBulkDragStart(e, room.id);
+            return;
+        }
         onSelect(room.id);
         setIsDragging(true);
         dragRef.current = {
@@ -56,7 +63,7 @@ function EditableRoom({ room, isSelected, onSelect, zoom, stagePos }: EditableRo
             roomW: room.width,
             roomH: room.height,
         };
-    }, [room.id, room.x, room.y, room.width, room.height, onSelect]);
+    }, [room.id, room.x, room.y, room.width, room.height, onSelect, isMultiSelected, onBulkDragStart]);
 
     useEffect(() => {
         if (!isDragging) return;
@@ -290,6 +297,63 @@ export function RoomEditor({ rooms }: RoomEditorProps) {
         window.dispatchEvent(new CustomEvent('builder-select-room', { detail: { roomId: id } }));
     }, [setSelectedRoom, setSelectedRoomIds]);
 
+    // ─── Bulk drag state ─────────────────────────────────
+    const [bulkDragging, setBulkDragging] = useState(false);
+    const bulkDragRef = useRef<{ startX: number; startY: number; initialPositions: Map<string, { x: number; y: number }> } | null>(null);
+
+    const handleBulkDragStart = useCallback((e: React.MouseEvent, _roomId: string) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const state = useWorkspaceStore.getState();
+        const positions = new Map<string, { x: number; y: number }>();
+        Array.from(state.selectedRoomIds).forEach(id => {
+            const room = rooms.find(r => r.id === id);
+            if (room) positions.set(id, { x: room.x, y: room.y });
+        });
+        bulkDragRef.current = { startX: e.clientX, startY: e.clientY, initialPositions: positions };
+        setBulkDragging(true);
+    }, [rooms]);
+
+    useEffect(() => {
+        if (!bulkDragging || !bulkDragRef.current) return;
+
+        const handleMove = (e: MouseEvent) => {
+            if (!bulkDragRef.current) return;
+            const state = useWorkspaceStore.getState();
+            const dx = (e.clientX - bulkDragRef.current.startX) / state.zoom;
+            const dy = (e.clientY - bulkDragRef.current.startY) / state.zoom;
+            Array.from(bulkDragRef.current.initialPositions.entries()).forEach(([id, pos]) => {
+                const newX = Math.round(pos.x + dx);
+                const newY = Math.round(pos.y + dy);
+                state.updateRoomPosition(id, Math.max(0, newX), Math.max(0, newY));
+            });
+        };
+
+        const handleUp = async (e: MouseEvent) => {
+            if (!bulkDragRef.current) return;
+            const state = useWorkspaceStore.getState();
+            const dx = (e.clientX - bulkDragRef.current.startX) / state.zoom;
+            const dy = (e.clientY - bulkDragRef.current.startY) / state.zoom;
+            for (const [id, pos] of Array.from(bulkDragRef.current.initialPositions.entries())) {
+                const newX = snapToGrid(pos.x + dx);
+                const newY = snapToGrid(pos.y + dy);
+                state.updateRoomPosition(id, Math.max(0, newX), Math.max(0, newY));
+                if (!id.startsWith('temp_')) {
+                    await supabase.from('rooms').update({ x: Math.max(0, newX), y: Math.max(0, newY) }).eq('id', id);
+                }
+            }
+            bulkDragRef.current = null;
+            setBulkDragging(false);
+        };
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+        };
+    }, [bulkDragging, supabase]);
+
     // Marquee: start on background mousedown
     const handleBgMouseDown = useCallback((e: React.MouseEvent) => {
         if ((e.target as HTMLElement).dataset.roomEditor) return;
@@ -483,7 +547,9 @@ export function RoomEditor({ rooms }: RoomEditorProps) {
                     key={room.id}
                     room={room}
                     isSelected={selectedRoomId === room.id || selectedRoomIds.has(room.id)}
+                    isMultiSelected={selectedRoomIds.has(room.id) && selectedRoomIds.size > 1}
                     onSelect={handleSelect}
+                    onBulkDragStart={handleBulkDragStart}
                     zoom={zoom}
                     stagePos={stagePos}
                 />
