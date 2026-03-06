@@ -21,6 +21,7 @@ function hexColor(hex: string): number {
 
 /**
  * Draw a single room card onto its container
+ * Supports shape: 'rect' (default) and 'circle'
  */
 export function drawRoom(container: Container, room: any, isHovered: boolean, occupants: number = 0) {
     container.removeChildren();
@@ -29,41 +30,66 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     const colorNum = hexColor(color);
     const department = room.settings?.department || room.department || null;
     const typeLabel = ROOM_TYPE_LABELS[room.type] || ROOM_TYPE_LABELS.default;
+    const isCircle = room.shape === 'circle';
 
     // ─── Background layers ───────────────────────────────────
     const body = new Graphics();
 
-    // Outer soft glow
-    body.roundRect(room.x - 8, room.y - 8, room.width + 16, room.height + 16, 24);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.20 : 0.10 });
+    if (isCircle) {
+        // Circle room: center + radius from bounding box
+        const cx = room.x + room.width / 2;
+        const cy = room.y + room.height / 2;
+        const r = Math.min(room.width, room.height) / 2;
 
-    // Mid glow
-    body.roundRect(room.x - 3, room.y - 3, room.width + 6, room.height + 6, 19);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.14 : 0.07 });
+        // Outer soft glow
+        body.circle(cx, cy, r + 8);
+        body.fill({ color: colorNum, alpha: isHovered ? 0.20 : 0.10 });
 
-    // ─── Main card background — dark glass ──────────────────
-    body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.fill({ color: 0x070c18, alpha: 0.85 });
+        // Mid glow
+        body.circle(cx, cy, r + 3);
+        body.fill({ color: colorNum, alpha: isHovered ? 0.14 : 0.07 });
 
-    // ─── Color tint overlay ─────────────────────────────────
-    body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.fill({ color: colorNum, alpha: isHovered ? 0.12 : 0.05 });
+        // Main background — dark glass
+        body.circle(cx, cy, r);
+        body.fill({ color: 0x070c18, alpha: 0.85 });
 
+        // Color tint overlay
+        body.circle(cx, cy, r);
+        body.fill({ color: colorNum, alpha: isHovered ? 0.12 : 0.05 });
 
-    // ─── Border — thick and glowing ─────────────────────────
-    body.roundRect(room.x, room.y, room.width, room.height, 16);
-    body.stroke({ color: colorNum, width: isHovered ? 4 : 3, alpha: isHovered ? 0.95 : 0.6 });
+        // Border — thick and glowing
+        body.circle(cx, cy, r);
+        body.stroke({ color: colorNum, width: isHovered ? 4 : 3, alpha: isHovered ? 0.95 : 0.6 });
+    } else {
+        // Rect room (original)
+        // Outer soft glow
+        body.roundRect(room.x - 8, room.y - 8, room.width + 16, room.height + 16, 24);
+        body.fill({ color: colorNum, alpha: isHovered ? 0.20 : 0.10 });
 
+        // Mid glow
+        body.roundRect(room.x - 3, room.y - 3, room.width + 6, room.height + 6, 19);
+        body.fill({ color: colorNum, alpha: isHovered ? 0.14 : 0.07 });
 
+        // Main card background — dark glass
+        body.roundRect(room.x, room.y, room.width, room.height, 16);
+        body.fill({ color: 0x070c18, alpha: 0.85 });
+
+        // Color tint overlay
+        body.roundRect(room.x, room.y, room.width, room.height, 16);
+        body.fill({ color: colorNum, alpha: isHovered ? 0.12 : 0.05 });
+
+        // Border — thick and glowing
+        body.roundRect(room.x, room.y, room.width, room.height, 16);
+        body.stroke({ color: colorNum, width: isHovered ? 4 : 3, alpha: isHovered ? 0.95 : 0.6 });
+    }
 
     container.addChild(body);
 
     // ═══════════════════════════════════════════════════════
-    // LABELS — OUTSIDE the room, above top-left
-    // Keeps the interior clean for avatars
+    // LABELS — OUTSIDE the room, above
     // ═══════════════════════════════════════════════════════
 
-    // ─── Room name — above the room, left-aligned ─────────
+    // ─── Room name ────────────────────────────────────────
     const nameStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 18,
@@ -72,10 +98,15 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         letterSpacing: 0.3,
     });
     const nameText = new Text({ text: room.name, style: nameStyle });
-    nameText.position.set(room.x + 2, room.y - 58);
+    if (isCircle) {
+        nameText.anchor.set(0.5, 1);
+        nameText.position.set(room.x + room.width / 2, room.y - 18);
+    } else {
+        nameText.position.set(room.x + 2, room.y - 58);
+    }
     container.addChild(nameText);
 
-    // ─── Subtitle line: DEPARTMENT · TYPE — below name ────
+    // ─── Subtitle line: DEPARTMENT · TYPE ──────────────────
     const subtitleParts: string[] = [];
     if (department) subtitleParts.push(department.toUpperCase());
     subtitleParts.push(typeLabel);
@@ -89,11 +120,16 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         letterSpacing: 1.2,
     });
     const subText = new Text({ text: subtitleStr, style: subStyle });
-    subText.position.set(room.x + 2, room.y - 32);
+    if (isCircle) {
+        subText.anchor.set(0.5, 1);
+        subText.position.set(room.x + room.width / 2, room.y - 2);
+    } else {
+        subText.position.set(room.x + 2, room.y - 32);
+    }
     container.addChild(subText);
 
     // ═══════════════════════════════════════════════════════
-    // INSIDE — only the occupant status at bottom-left
+    // INSIDE — occupant status
     // ═══════════════════════════════════════════════════════
 
     if (occupants > 0) {
@@ -106,16 +142,24 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         });
         const statusText = `${occupants} online`;
         const status = new Text({ text: statusText, style: statusStyle });
-        const statusY = room.y + room.height - 14;
-        status.anchor.set(0, 0.5);
-        status.position.set(room.x + 24, statusY);
 
-        // Green dot
-        const statusDot = new Graphics();
-        statusDot.circle(room.x + 14, statusY, 3.5);
-        statusDot.fill({ color: 0x34d399, alpha: 1 });
-        container.addChild(statusDot);
-        container.addChild(status);
+        if (isCircle) {
+            const cy = room.y + room.height / 2;
+            const r = Math.min(room.width, room.height) / 2;
+            status.anchor.set(0.5, 0);
+            status.position.set(room.x + room.width / 2, cy + r + 8);
+            container.addChild(status);
+        } else {
+            const statusY = room.y + room.height - 14;
+            status.anchor.set(0, 0.5);
+            status.position.set(room.x + 24, statusY);
+            // Green dot
+            const statusDot = new Graphics();
+            statusDot.circle(room.x + 14, statusY, 3.5);
+            statusDot.fill({ color: 0x34d399, alpha: 1 });
+            container.addChild(statusDot);
+            container.addChild(status);
+        }
     }
 }
 

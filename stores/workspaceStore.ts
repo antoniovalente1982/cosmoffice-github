@@ -16,6 +16,7 @@ interface Room {
     height: number;
     is_secret: boolean;
     settings: any;
+    shape?: 'rect' | 'circle';
 }
 
 interface RoomConnection {

@@ -8,7 +8,7 @@ import { OFFICE_TEMPLATES, OfficeTemplate } from '../../lib/officeTemplates';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2,
-    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle
+    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square
 } from 'lucide-react';
 
 
@@ -52,6 +52,7 @@ export function OfficeBuilder() {
     const [showTemplates, setShowTemplates] = useState(false);
     const [applyingTemplate, setApplyingTemplate] = useState(false);
     const [confirmTemplate, setConfirmTemplate] = useState<OfficeTemplate | null>(null);
+    const [editShape, setEditShape] = useState<'rect' | 'circle'>('rect');
 
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -88,19 +89,20 @@ export function OfficeBuilder() {
         // Only update if something actually changed
         const currentColor = getRoomColor(room);
         const currentDept = getRoomDepartment(room) || '';
-        if (room.name === editName && currentColor === editColor && currentDept === editDepartment) return;
+        if (room.name === editName && currentColor === editColor && currentDept === editDepartment && (room.shape || 'rect') === editShape) return;
 
         setRooms(currentRooms.map(r => r.id === selectedRoomId
             ? {
                 ...r,
                 name: editName,
+                shape: editShape,
                 settings: { ...r.settings, color: editColor, department: editDepartment || null },
                 color: editColor,
                 department: editDepartment || null
             }
             : r
         ));
-    }, [editName, editColor, editDepartment, selectedRoomId, setRooms]);
+    }, [editName, editColor, editDepartment, editShape, selectedRoomId, setRooms]);
 
     function loadRoomProperties(roomId: string) {
         isLoadingPropsRef.current = true;
@@ -109,6 +111,7 @@ export function OfficeBuilder() {
             setEditName(room.name || '');
             setEditDepartment(getRoomDepartment(room) || '');
             setEditColor(getRoomColor(room));
+            setEditShape(room.shape || 'rect');
         }
         // Defer flag reset to avoid live-preview triggering on load
         requestAnimationFrame(() => { isLoadingPropsRef.current = false; });
@@ -162,6 +165,7 @@ export function OfficeBuilder() {
             height: template.height,
             capacity: template.capacity,
             settings: roomSettings,
+            shape: 'rect',
         };
 
         const { data, error } = await supabase.from('rooms').insert(dbPayload).select().single();
@@ -209,7 +213,7 @@ export function OfficeBuilder() {
             department: editDepartment || null,
         };
 
-        const dbUpdates: any = { name: editName, settings: newSettings };
+        const dbUpdates: any = { name: editName, settings: newSettings, shape: editShape };
         const { error } = await supabase.from('rooms').update(dbUpdates).eq('id', selectedRoomId);
         if (error) { setToast({ msg: `❌ ${error.message}`, type: 'err' }); }
         else { setToast({ msg: '✅ Salvato!', type: 'ok' }); }
@@ -433,6 +437,36 @@ export function OfficeBuilder() {
                                             value={editDepartment} onChange={(e) => setEditDepartment(e.target.value)} placeholder="Marketing, Dev..."
                                             className="w-full bg-black/20 border border-white/5 rounded-xl block py-2.5 pl-9 pr-3 text-sm text-white placeholder-slate-600 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
                                         />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                            {/* Shape */}
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                        <Box className="w-3 h-3" /> Forma Stanza
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setEditShape('rect')}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${editShape === 'rect'
+                                                ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                                                : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+                                        >
+                                            <Square className="w-4 h-4" /> Rettangolo
+                                        </button>
+                                        <button
+                                            onClick={() => setEditShape('circle')}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${editShape === 'circle'
+                                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                                : 'bg-white/[0.03] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+                                        >
+                                            <CircleIcon className="w-4 h-4" /> Cerchio
+                                        </button>
                                     </div>
                                 </div>
                             </div>

@@ -208,6 +208,7 @@ export interface Room {
   who_can_moderate: WorkspaceRole;
   department: string | null;
   settings: Json;
+  shape: 'rect' | 'circle';
   deleted_at: string | null;
   deleted_by: string | null;
   created_at: string;
