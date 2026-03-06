@@ -513,14 +513,14 @@ export function OfficeBuilder() {
             >
                 {/* Inner scrollable area */}
                 <div className="flex flex-col overflow-hidden rounded-2xl" style={{ maxHeight: 'inherit' }}>
-                    {/* Red X close button — left edge, half in / half out */}
+                    {/* Red X close button — top-left corner, half in / half out */}
                     <button
                         onClick={toggleBuilderMode}
-                        className="absolute top-4 z-20 flex items-center justify-center w-8 h-8 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all transform hover:scale-110 active:scale-95 border-2 border-red-400/60 shadow-[0_0_16px_rgba(239,68,68,0.5)]"
-                        style={{ left: -16 }}
+                        className="absolute z-20 flex items-center justify-center w-7 h-7 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all transform hover:scale-110 active:scale-95 border-2 border-red-400/60 shadow-[0_0_16px_rgba(239,68,68,0.5)]"
+                        style={{ top: -12, left: -12 }}
                         title="Chiudi Space Builder"
                     >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5" />
                     </button>
                     {selectedRoom ? (
                         <>
