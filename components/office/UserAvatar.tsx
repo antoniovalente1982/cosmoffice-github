@@ -285,54 +285,47 @@ function UserAvatarInner({
                     <div
                         className="absolute left-1/2 pointer-events-none"
                         style={{
-                            bottom: -4 * zoom,
+                            bottom: -3 * zoom,
                             transform: 'translateX(-50%)',
                             zIndex: 6,
                         }}
                     >
                         <span style={{
-                            fontSize: Math.max(7, 7.5 * zoom),
+                            fontSize: Math.max(6, 7 * zoom),
                             fontWeight: 800,
-                            color: roleConfig.color,
-                            backgroundColor: roleConfig.bg,
-                            border: `1.5px solid ${roleConfig.color}50`,
+                            color: '#fff',
+                            backgroundColor: roleConfig.color,
                             borderRadius: 20 * zoom,
-                            padding: `${1.5 * zoom}px ${6 * zoom}px`,
-                            letterSpacing: '0.1em',
+                            padding: `${1.5 * zoom}px ${7 * zoom}px`,
+                            letterSpacing: '0.08em',
                             fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
                             whiteSpace: 'nowrap' as const,
                             lineHeight: 1.3,
                             display: 'inline-block',
                             textTransform: 'uppercase' as const,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                            boxShadow: `0 2px 6px rgba(0,0,0,0.4), 0 0 8px ${roleConfig.color}40`,
                         }}>
                             {roleConfig.label}
                         </span>
                     </div>
                 )}
 
-                {/* ─── Name Label (dark rounded pill below avatar) ─── */}
+                {/* ─── Name (plain text below avatar) ─── */}
                 <div
                     className="absolute left-1/2 whitespace-nowrap pointer-events-none"
                     style={{
-                        top: sz + 6 * zoom,
+                        top: sz + 8 * zoom,
                         transform: 'translateX(-50%)',
-                        zIndex: 3,
                     }}
                 >
                     <span style={{
-                        fontSize: Math.max(10, 11 * zoom),
+                        fontSize: Math.max(11, 13 * zoom),
                         fontWeight: 800,
-                        color: '#e2e8f0',
-                        letterSpacing: '0.06em',
+                        color: '#f1f5f9',
+                        letterSpacing: '0.05em',
                         textTransform: 'uppercase' as const,
                         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
-                        backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: 20 * zoom,
-                        padding: `${2.5 * zoom}px ${10 * zoom}px`,
-                        display: 'inline-block',
-                        boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+                        textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.5)',
                     }}>
                         {fullName || 'User'}
                     </span>
