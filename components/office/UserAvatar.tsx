@@ -74,6 +74,7 @@ function UserAvatarInner({
     audioEnabled = false,
     remoteAudioEnabled = true,
     isSpeaking = false,
+    zoom = 1,
     onMouseDown,
     onClick,
     isDragging = false,
@@ -124,12 +125,13 @@ function UserAvatarInner({
             style={{
                 left: position.x,
                 top: position.y,
-                marginLeft: -(SZ / 2),
-                marginTop: -(SZ / 2),
+                marginLeft: -(SZ * zoom / 2),
+                marginTop: -(SZ * zoom / 2),
                 pointerEvents: (onMouseDown || onClick) ? 'auto' : 'none',
                 cursor: isDragging ? 'grabbing' : onMouseDown ? 'grab' : onClick && !isMe ? 'pointer' : 'default',
                 willChange: 'transform',
-                transform: 'translateZ(0)',
+                transform: `scale(${zoom})`,
+                transformOrigin: 'top left',
             }}
             onMouseDown={(e) => {
                 if (popupRef.current?.contains(e.target as Node)) return;
