@@ -58,18 +58,18 @@ export function MediaManager() {
         let container = screenContainersMap.get(streamId);
 
         if (!container) {
-            // Calcola posizione in base all'indice (a cascata)
-            const baseLeft = 280 + (index * 40);
-            const baseTop = 100 + (index * 40);
+            // Cascade position from center-bottom, above the toolbar
+            const baseLeft = window.innerWidth / 2 - 180 + (index * 30);
+            const baseBottom = 100 + (index * 30);
 
             container = document.createElement('div');
             container.id = `screen-share-container-${streamId}`;
             container.style.cssText = `
                 position: fixed;
-                bottom: ${baseTop}px;
+                bottom: ${baseBottom}px;
                 left: ${baseLeft}px;
-                width: 360px;
-                height: 220px;
+                width: 400px;
+                height: 250px;
                 z-index: ${9999 + index};
                 pointer-events: auto;
                 user-select: none;
@@ -80,70 +80,78 @@ export function MediaManager() {
             let isResizing = false;
             let startX = 0, startY = 0, startWidth = 0, startHeight = 0, startLeft = 0, startTop = 0;
 
-            // Wrapper with border
+            // Wrapper — glass design matching app
             const wrapper = document.createElement('div');
             wrapper.style.cssText = `
                 width: 100%;
                 height: 100%;
-                background: #0f172a;
-                border-radius: 12px;
+                background: rgba(10, 15, 30, 0.92);
+                backdrop-filter: blur(24px);
+                -webkit-backdrop-filter: blur(24px);
+                border-radius: 16px;
                 overflow: hidden;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px ${isSpeaking ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.5)'};
-                border: 3px solid ${isSpeaking ? '#10b981' : '#6366f1'};
-                transition: border-color 0.3s, box-shadow 0.3s;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08);
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 display: flex;
                 flex-direction: column;
+                transition: box-shadow 0.3s;
             `;
 
-            // Toolbar
+            // Toolbar — glass style
             const toolbar = document.createElement('div');
             toolbar.style.cssText = `
-                height: 36px;
-                background: linear-gradient(90deg, #1e1b4b 0%, #312e81 100%);
+                height: 38px;
+                background: rgba(15, 23, 42, 0.95);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 0 12px;
+                padding: 0 14px;
                 cursor: grab;
                 flex-shrink: 0;
             `;
 
-            // Label con numero schermo
+            // Label
             const label = document.createElement('div');
             label.id = `screen-share-label-${streamId}`;
-            label.innerHTML = `🔴 Schermo ${index + 1}`;
+            label.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444;display:inline-block"></span><span>Schermo ${index + 1}</span></span>`;
             label.style.cssText = `
-                color: white;
+                color: rgba(226, 232, 240, 0.9);
                 font-size: 12px;
                 font-weight: 600;
+                font-family: 'Inter', system-ui, sans-serif;
+                letter-spacing: 0.02em;
                 pointer-events: none;
             `;
 
-            // Close button
+            // Close button — matching app style
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '✕';
             closeBtn.title = 'Chiudi questo schermo';
             closeBtn.style.cssText = `
-                width: 26px;
-                height: 26px;
-                border-radius: 6px;
-                background: rgba(239, 68, 68, 0.8);
-                color: white;
-                border: none;
+                width: 24px;
+                height: 24px;
+                border-radius: 8px;
+                background: rgba(239, 68, 68, 0.15);
+                color: #f87171;
+                border: 1px solid rgba(239, 68, 68, 0.2);
                 cursor: pointer;
-                font-size: 14px;
+                font-size: 12px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 transition: all 0.2s;
+                font-weight: 600;
             `;
             closeBtn.onmouseenter = () => {
-                closeBtn.style.background = 'rgba(239, 68, 68, 1)';
-                closeBtn.style.transform = 'scale(1.05)';
+                closeBtn.style.background = 'rgba(239, 68, 68, 0.3)';
+                closeBtn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                closeBtn.style.color = '#fca5a5';
             };
             closeBtn.onmouseleave = () => {
-                closeBtn.style.background = 'rgba(239, 68, 68, 0.8)';
-                closeBtn.style.transform = 'scale(1)';
+                closeBtn.style.background = 'rgba(239, 68, 68, 0.15)';
+                closeBtn.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                closeBtn.style.color = '#f87171';
             };
             closeBtn.onclick = () => {
                 stream.getTracks().forEach(track => track.stop());
@@ -202,37 +210,31 @@ export function MediaManager() {
 
             videoContainer.appendChild(video);
 
-            // Resize handle
+            // Resize handle — subtle, matching glass style
             const resizeHandle = document.createElement('div');
-            resizeHandle.innerHTML = '◢';
             resizeHandle.title = 'Trascina per ridimensionare';
             resizeHandle.style.cssText = `
                 position: absolute;
-                bottom: 4px;
-                right: 4px;
-                width: 32px;
-                height: 32px;
+                bottom: 0;
+                right: 0;
+                width: 20px;
+                height: 20px;
                 cursor: se-resize;
                 z-index: 10010;
-                background: linear-gradient(135deg, transparent 40%, rgba(99, 102, 241, 0.9) 40%);
-                border-radius: 8px 0 8px 0;
-                color: white;
-                font-size: 12px;
-                display: flex;
-                align-items: flex-end;
-                justify-content: flex-end;
-                padding: 4px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-                transition: all 0.2s;
+                background: transparent;
+                border-right: 3px solid rgba(148, 163, 184, 0.3);
+                border-bottom: 3px solid rgba(148, 163, 184, 0.3);
+                border-radius: 0 0 16px 0;
+                transition: border-color 0.2s;
                 pointer-events: auto;
             `;
             resizeHandle.onmouseenter = () => {
-                resizeHandle.style.background = 'linear-gradient(135deg, transparent 40%, rgba(129, 140, 248, 1) 40%)';
-                resizeHandle.style.transform = 'scale(1.1)';
+                resizeHandle.style.borderRightColor = 'rgba(148, 163, 184, 0.7)';
+                resizeHandle.style.borderBottomColor = 'rgba(148, 163, 184, 0.7)';
             };
             resizeHandle.onmouseleave = () => {
-                resizeHandle.style.background = 'linear-gradient(135deg, transparent 40%, rgba(99, 102, 241, 0.9) 40%)';
-                resizeHandle.style.transform = 'scale(1)';
+                resizeHandle.style.borderRightColor = 'rgba(148, 163, 184, 0.3)';
+                resizeHandle.style.borderBottomColor = 'rgba(148, 163, 184, 0.3)';
             };
 
             resizeHandle.addEventListener('mousedown', (e) => {
@@ -299,7 +301,7 @@ export function MediaManager() {
             // Container esistente - aggiorna label se necessario
             const label = document.getElementById(`screen-share-label-${streamId}`);
             if (label) {
-                label.innerHTML = `🔴 Schermo ${index + 1}`;
+                label.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444;display:inline-block"></span><span>Schermo ${index + 1}</span></span>`;
             }
 
             // Assicurati che il video abbia lo stream corretto
@@ -308,7 +310,7 @@ export function MediaManager() {
                 video.srcObject = stream;
             }
         }
-    }, [isSpeaking, removeScreenContainer]);
+    }, [removeScreenContainer]);
 
     // Effect per gestire gli schermi condivisi
     useEffect(() => {
