@@ -121,6 +121,20 @@ export default function OfficePage() {
         return false;
     }, []);
 
+    // ─── Auto-disable mic/cam when going "busy" ─────────────
+    useEffect(() => {
+        if (myStatus === 'busy') {
+            const ds = useDailyStore.getState();
+            if (ds.isAudioOn) {
+                toggleMic();
+            }
+            if (ds.isVideoOn) {
+                toggleVideo();
+            }
+            showMediaToast('🔴 Sei in modalità Occupato — microfono e webcam disattivati');
+        }
+    }, [myStatus, toggleMic, toggleVideo, showMediaToast]);
+
     const smartToggleMic = useCallback(async () => {
         const ds = useDailyStore.getState();
         if (ds.isAudioOn) {
@@ -128,12 +142,17 @@ export default function OfficePage() {
             await toggleMic();
             return;
         }
+        // Block if busy
+        if (myStatus === 'busy') {
+            showMediaToast('🔴 Cambia stato da "Occupato" per riattivare il microfono');
+            return;
+        }
         if (!hasPeopleNearby()) {
             showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per usare il microfono');
             return;
         }
         await toggleMic();
-    }, [toggleMic, showMediaToast, hasPeopleNearby]);
+    }, [toggleMic, showMediaToast, hasPeopleNearby, myStatus]);
 
     const smartToggleVideo = useCallback(async () => {
         const ds = useDailyStore.getState();
@@ -141,12 +160,17 @@ export default function OfficePage() {
             await toggleVideo();
             return;
         }
+        // Block if busy
+        if (myStatus === 'busy') {
+            showMediaToast('🔴 Cambia stato da "Occupato" per riattivare la webcam');
+            return;
+        }
         if (!hasPeopleNearby()) {
             showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per usare la webcam');
             return;
         }
         await toggleVideo();
-    }, [toggleVideo, showMediaToast, hasPeopleNearby]);
+    }, [toggleVideo, showMediaToast, hasPeopleNearby, myStatus]);
 
     const smartStartScreenShare = useCallback(async () => {
         if (!hasPeopleNearby()) {

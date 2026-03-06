@@ -12,6 +12,8 @@ import {
     LocalTrackPublication,
     ConnectionState,
     DisconnectReason,
+    Participant,
+    TrackPublication,
 } from 'livekit-client';
 import { useDailyStore } from '../../stores/dailyStore';
 import { useAvatarStore } from '../../stores/avatarStore';
@@ -277,6 +279,62 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             useDailyStore.getState().setLocalStream(
                 localTracks.length > 0 ? new MediaStream(localTracks) : null
             );
+        });
+
+        // ─── Track muted (remote user turned off camera/mic) ──────
+        room.on(RoomEvent.TrackMuted, (
+            publication: TrackPublication,
+            participant: Participant
+        ) => {
+            const id = participant.identity;
+            const supabaseId = gLivekitToSupabase.get(id) || id;
+
+            if (publication.source === Track.Source.Camera) {
+                useDailyStore.getState().setParticipant(id, { videoEnabled: false });
+                if (useAvatarStore.getState().peers[supabaseId]) {
+                    useAvatarStore.getState().updatePeer(supabaseId, {
+                        id: supabaseId,
+                        videoEnabled: false,
+                    });
+                }
+                console.log('[LiveKit] Remote camera muted:', supabaseId.slice(0, 8));
+            }
+            if (publication.source === Track.Source.Microphone) {
+                useDailyStore.getState().setParticipant(id, { audioEnabled: false });
+            }
+        });
+
+        // ─── Track unmuted (remote user re-enabled camera/mic) ────
+        room.on(RoomEvent.TrackUnmuted, (
+            publication: TrackPublication,
+            participant: Participant
+        ) => {
+            const id = participant.identity;
+            const supabaseId = gLivekitToSupabase.get(id) || id;
+
+            if (publication.source === Track.Source.Camera && publication.track) {
+                // Rebuild video stream from the now-live track
+                const videoStream = new MediaStream([publication.track.mediaStreamTrack]);
+                useDailyStore.getState().setParticipant(id, {
+                    videoTrack: publication.track.mediaStreamTrack,
+                    videoEnabled: true,
+                    videoStream,
+                });
+                if (useAvatarStore.getState().peers[supabaseId]) {
+                    useAvatarStore.getState().updatePeer(supabaseId, {
+                        id: supabaseId,
+                        videoEnabled: true,
+                        stream: videoStream,
+                    });
+                }
+                console.log('[LiveKit] Remote camera unmuted:', supabaseId.slice(0, 8));
+            }
+            if (publication.source === Track.Source.Microphone && publication.track) {
+                useDailyStore.getState().setParticipant(id, {
+                    audioTrack: publication.track.mediaStreamTrack,
+                    audioEnabled: true,
+                });
+            }
         });
 
         // ─── Local track unpublished ──────────────────
