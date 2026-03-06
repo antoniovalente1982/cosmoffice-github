@@ -772,23 +772,27 @@ export function OfficeBuilder() {
                                 <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
                                 {/* Modifica Stanza — room list always open */}
-                                <div className="w-full space-y-2">
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Modifica Stanza</p>
+                                <div className="w-full space-y-3 mt-4 mb-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Edit2 className="w-3.5 h-3.5 text-cyan-400" />
+                                        <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Modifica Stanza</p>
+                                        <span className="text-[10px] text-slate-500 font-medium ml-auto">{rooms.length}</span>
+                                    </div>
                                     {rooms.map(room => (
                                         <button
                                             key={room.id}
                                             onClick={() => setSelectedRoom(room.id)}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 border border-white/5 hover:border-white/10 transition-colors"
+                                            className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 border border-white/5 hover:border-cyan-500/20 transition-all hover:shadow-[0_0_15px_rgba(34,211,238,0.05)]"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getRoomColor(room) }} />
+                                                <div className="w-3.5 h-3.5 rounded-full shadow-[0_0_6px_rgba(255,255,255,0.15)]" style={{ backgroundColor: getRoomColor(room) }} />
                                                 <span className="text-sm text-slate-200 font-medium">{room.name}</span>
                                             </div>
                                             <Edit2 className="w-4 h-4 text-slate-500" />
                                         </button>
                                     ))}
                                     {rooms.length === 0 && (
-                                        <p className="text-sm text-slate-500 text-center py-4">Nessuna stanza. Crea la prima o usa un template!</p>
+                                        <p className="text-sm text-slate-500 text-center py-6">Nessuna stanza. Crea la prima o usa un template!</p>
                                     )}
                                 </div>
 
