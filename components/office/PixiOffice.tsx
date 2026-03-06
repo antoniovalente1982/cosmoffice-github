@@ -389,10 +389,11 @@ export function PixiOffice() {
                 rooms,
                 useWorkspaceStore.getState().isPerformanceMode,
                 roomConnections,
-                connectionLabelContainerRef.current || undefined
+                connectionLabelContainerRef.current || undefined,
+                layoutMode
             );
         }
-    }, [rooms, roomConnections, hoveredRoomId, appReady]);
+    }, [rooms, roomConnections, hoveredRoomId, appReady, layoutMode]);
 
     // ─── Resize observer ─────────────────────────────────────
     useEffect(() => {

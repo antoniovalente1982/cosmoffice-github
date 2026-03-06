@@ -178,7 +178,8 @@ export function drawRoomConnections(
     rooms: any[],
     isPerformanceMode: boolean,
     connections?: any[],      // DB connections from room_connections table
-    labelContainer?: Container // Container for label Text objects
+    labelContainer?: Container, // Container for label Text objects
+    layoutMode?: string        // 'free' | 'hierarchical' | 'teamsmap'
 ) {
     gfx.clear();
     if (labelContainer) labelContainer.removeChildren();
@@ -198,47 +199,89 @@ export function drawRoomConnections(
 
             const connColor = conn.color ? hexColor(conn.color) : 0x6366f1;
 
-            // Draw curved line (quadratic bezier)
-            const midX = (cx1 + cx2) / 2;
-            const midY = (cy1 + cy2) / 2;
-            const dx = cx2 - cx1;
-            const dy = cy2 - cy1;
-            const cpX = midX - dy * 0.1;
-            const cpY = midY + dx * 0.1;
+            if (layoutMode === 'hierarchical') {
+                // Straight elbow connector (org chart style: vertical down, horizontal, vertical down)
+                const bottomA = roomA.y + roomA.height;
+                const topB = roomB.y;
+                const midY = (bottomA + topB) / 2;
 
-            gfx.moveTo(cx1, cy1);
-            gfx.quadraticCurveTo(cpX, cpY, cx2, cy2);
-            gfx.stroke({ color: connColor, width: 3, alpha: 0.7 });
+                gfx.moveTo(cx1, bottomA);
+                gfx.lineTo(cx1, midY);
+                gfx.lineTo(cx2, midY);
+                gfx.lineTo(cx2, topB);
+                gfx.stroke({ color: connColor, width: 2.5, alpha: 0.6 });
 
-            // Draw dots at endpoints
-            gfx.circle(cx1, cy1, 5);
-            gfx.fill({ color: connColor, alpha: 0.9 });
-            gfx.circle(cx2, cy2, 5);
-            gfx.fill({ color: connColor, alpha: 0.9 });
+                // Small dots at connection points
+                gfx.circle(cx1, bottomA, 4);
+                gfx.fill({ color: connColor, alpha: 0.8 });
+                gfx.circle(cx2, topB, 4);
+                gfx.fill({ color: connColor, alpha: 0.8 });
 
-            // Label at midpoint
-            if (conn.label && labelContainer) {
-                const labelStyle = new TextStyle({
-                    fontFamily: 'Inter, system-ui, sans-serif',
-                    fontSize: 12,
-                    fontWeight: '700',
-                    fill: 0xffffff,
-                    letterSpacing: 0.5,
-                });
-                const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle });
-                labelText.anchor.set(0.5, 0.5);
-                labelText.position.set(cpX, cpY);
+                // Label at midpoint
+                if (conn.label && labelContainer) {
+                    const labelStyle = new TextStyle({
+                        fontFamily: 'Inter, system-ui, sans-serif',
+                        fontSize: 10,
+                        fontWeight: '600',
+                        fill: 0xffffff,
+                        letterSpacing: 0.5,
+                    });
+                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle });
+                    labelText.anchor.set(0.5, 0.5);
+                    labelText.position.set((cx1 + cx2) / 2, midY);
 
-                // Label background pill
-                const labelBg = new Graphics();
-                const padding = 8;
-                const lw = labelText.width + padding * 2;
-                const lh = labelText.height + padding;
-                labelBg.roundRect(cpX - lw / 2, cpY - lh / 2, lw, lh, 10);
-                labelBg.fill({ color: connColor, alpha: 0.85 });
+                    const labelBg = new Graphics();
+                    const padding = 6;
+                    const lw = labelText.width + padding * 2;
+                    const lh = labelText.height + padding;
+                    labelBg.roundRect((cx1 + cx2) / 2 - lw / 2, midY - lh / 2, lw, lh, 8);
+                    labelBg.fill({ color: connColor, alpha: 0.85 });
 
-                labelContainer.addChild(labelBg);
-                labelContainer.addChild(labelText);
+                    labelContainer.addChild(labelBg);
+                    labelContainer.addChild(labelText);
+                }
+            } else {
+                // Curved line (quadratic bezier) — teamsmap / free
+                const midX = (cx1 + cx2) / 2;
+                const midY = (cy1 + cy2) / 2;
+                const dx = cx2 - cx1;
+                const dy = cy2 - cy1;
+                const cpX = midX - dy * 0.1;
+                const cpY = midY + dx * 0.1;
+
+                gfx.moveTo(cx1, cy1);
+                gfx.quadraticCurveTo(cpX, cpY, cx2, cy2);
+                gfx.stroke({ color: connColor, width: 3, alpha: 0.7 });
+
+                // Draw dots at endpoints
+                gfx.circle(cx1, cy1, 5);
+                gfx.fill({ color: connColor, alpha: 0.9 });
+                gfx.circle(cx2, cy2, 5);
+                gfx.fill({ color: connColor, alpha: 0.9 });
+
+                // Label at midpoint
+                if (conn.label && labelContainer) {
+                    const labelStyle = new TextStyle({
+                        fontFamily: 'Inter, system-ui, sans-serif',
+                        fontSize: 12,
+                        fontWeight: '700',
+                        fill: 0xffffff,
+                        letterSpacing: 0.5,
+                    });
+                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle });
+                    labelText.anchor.set(0.5, 0.5);
+                    labelText.position.set(cpX, cpY);
+
+                    const labelBg = new Graphics();
+                    const padding = 8;
+                    const lw = labelText.width + padding * 2;
+                    const lh = labelText.height + padding;
+                    labelBg.roundRect(cpX - lw / 2, cpY - lh / 2, lw, lh, 10);
+                    labelBg.fill({ color: connColor, alpha: 0.85 });
+
+                    labelContainer.addChild(labelBg);
+                    labelContainer.addChild(labelText);
+                }
             }
         }
     }

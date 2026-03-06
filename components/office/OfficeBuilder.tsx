@@ -53,6 +53,7 @@ export function OfficeBuilder() {
     const [applyingTemplate, setApplyingTemplate] = useState(false);
     const [confirmTemplate, setConfirmTemplate] = useState<OfficeTemplate | null>(null);
     const [editShape, setEditShape] = useState<'rect' | 'circle'>('rect');
+    const [editLevel, setEditLevel] = useState(0);
 
     // Connection creation state
     const [showConnections, setShowConnections] = useState(false);
@@ -96,20 +97,20 @@ export function OfficeBuilder() {
         // Only update if something actually changed
         const currentColor = getRoomColor(room);
         const currentDept = getRoomDepartment(room) || '';
-        if (room.name === editName && currentColor === editColor && currentDept === editDepartment && (room.shape || 'rect') === editShape) return;
+        if (room.name === editName && currentColor === editColor && currentDept === editDepartment && (room.shape || 'rect') === editShape && (room.settings?.level ?? 0) === editLevel) return;
 
         setRooms(currentRooms.map(r => r.id === selectedRoomId
             ? {
                 ...r,
                 name: editName,
                 shape: editShape,
-                settings: { ...r.settings, color: editColor, department: editDepartment || null },
+                settings: { ...r.settings, color: editColor, department: editDepartment || null, level: editLevel },
                 color: editColor,
                 department: editDepartment || null
             }
             : r
         ));
-    }, [editName, editColor, editDepartment, editShape, selectedRoomId, setRooms]);
+    }, [editName, editColor, editDepartment, editShape, editLevel, selectedRoomId, setRooms]);
 
     function loadRoomProperties(roomId: string) {
         isLoadingPropsRef.current = true;
@@ -119,6 +120,7 @@ export function OfficeBuilder() {
             setEditDepartment(getRoomDepartment(room) || '');
             setEditColor(getRoomColor(room));
             setEditShape(room.shape || 'rect');
+            setEditLevel(room.settings?.level ?? 0);
         }
         // Defer flag reset to avoid live-preview triggering on load
         requestAnimationFrame(() => { isLoadingPropsRef.current = false; });
@@ -218,6 +220,7 @@ export function OfficeBuilder() {
             ...useWorkspaceStore.getState().rooms.find(r => r.id === selectedRoomId)?.settings,
             color: editColor,
             department: editDepartment || null,
+            level: editLevel,
         };
 
         const dbUpdates: any = { name: editName, settings: newSettings, shape: editShape };
@@ -245,6 +248,49 @@ export function OfficeBuilder() {
         else { setToast({ msg: '✅ Ambiente salvato!', type: 'ok' }); }
         setSaving(false);
     }, [activeSpaceId, supabase]);
+
+    // ─── Hierarchical auto-arrange ────────────────────────
+    const handleAutoArrangeHierarchy = useCallback(async () => {
+        if (!activeSpaceId || rooms.length === 0) return;
+        setSaving(true);
+
+        const state = useWorkspaceStore.getState();
+        const oW = state.officeWidth || 4000;
+
+        // Group rooms by level
+        const byLevel: Record<number, any[]> = {};
+        for (const r of rooms) {
+            const lvl = r.settings?.level ?? 0;
+            if (!byLevel[lvl]) byLevel[lvl] = [];
+            byLevel[lvl].push(r);
+        }
+
+        const sortedLevels = Object.keys(byLevel).map(Number).sort((a: number, b: number) => a - b);
+        const rowHeight = 400; // vertical spacing between levels
+        const colGap = 50;     // horizontal gap between rooms
+        const startY = 200;    // top margin
+
+        const updatedRooms: any[] = [];
+        sortedLevels.forEach((level: number, rowIdx: number) => {
+            const roomsInLevel = byLevel[level];
+            const totalWidth = roomsInLevel.reduce((s: number, r: any) => s + r.width + colGap, -colGap);
+            let startX = (oW - totalWidth) / 2; // center horizontally
+
+            roomsInLevel.forEach((room: any) => {
+                const newY = startY + rowIdx * rowHeight;
+                updatedRooms.push({ ...room, x: Math.round(startX), y: Math.round(newY) });
+                startX += room.width + colGap;
+            });
+        });
+
+        // Update in DB
+        for (const r of updatedRooms) {
+            await supabase.from('rooms').update({ x: r.x, y: r.y }).eq('id', r.id);
+        }
+        setRooms(updatedRooms);
+        setToast({ msg: `✅ Organizzate ${updatedRooms.length} stanze in ${sortedLevels.length} livelli`, type: 'ok' });
+        setSaving(false);
+    }, [activeSpaceId, rooms, supabase, setRooms]);
 
     const handleResizeOfficeWidth = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newWidth = parseInt(e.target.value);
@@ -523,6 +569,34 @@ export function OfficeBuilder() {
                             {/* Divider */}
                             <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
+                            {/* Hierarchical Level — only in hierarchical mode */}
+                            {layoutMode === 'hierarchical' && (
+                                <>
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                                            <GitBranch className="w-3 h-3" /> Livello Gerarchico
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => setEditLevel(Math.max(0, editLevel - 1))}
+                                                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center text-sm font-bold"
+                                            >−</button>
+                                            <div className="flex-1 text-center">
+                                                <span className="text-xl font-bold text-amber-300">{editLevel}</span>
+                                                <p className="text-[9px] text-slate-500 mt-0.5">
+                                                    {editLevel === 0 ? 'CEO / Top' : editLevel === 1 ? 'Directors' : editLevel === 2 ? 'Managers' : `Livello ${editLevel}`}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => setEditLevel(editLevel + 1)}
+                                                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center text-sm font-bold"
+                                            >+</button>
+                                        </div>
+                                    </div>
+                                    <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                                </>
+                            )}
+
                             {/* Appearance */}
                             <div className="space-y-4">
                                 <div>
@@ -764,8 +838,22 @@ export function OfficeBuilder() {
                                             )}
                                         </motion.div>
                                     )}
-                                </>
-                            ) : (
+
+                                    {/* Auto-arrange button — hierarchical mode only */}
+                                    {layoutMode === 'hierarchical' && (
+                                        <button
+                                            onClick={handleAutoArrangeHierarchy}
+                                            disabled={saving}
+                                            className="w-full mt-3 flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/30 hover:from-amber-500/20 hover:to-yellow-500/20 hover:border-amber-500/50 transition-all transform hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] group relative overflow-hidden disabled:opacity-40"
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 to-yellow-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <GitBranch className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                                            <span className="text-xs font-bold text-amber-50 tracking-wide">
+                                                {saving ? 'Organizzando...' : 'Auto-Organizza Organigramma'}
+                                            </span>
+                                        </button>
+                                    )}
+                                </>) : (
                                 /* Templates List */
                                 <div className="w-full">
                                     <button
