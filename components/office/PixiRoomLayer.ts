@@ -164,16 +164,92 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
 }
 
 /**
- * Draw room connections (lines between close rooms)
+ * Draw room connections — DB-driven with labels, plus proximity fallback
  */
-export function drawRoomConnections(gfx: Graphics, rooms: any[], isPerformanceMode: boolean) {
+export function drawRoomConnections(
+    gfx: Graphics,
+    rooms: any[],
+    isPerformanceMode: boolean,
+    connections?: any[],      // DB connections from room_connections table
+    labelContainer?: Container // Container for label Text objects
+) {
     gfx.clear();
+    if (labelContainer) labelContainer.removeChildren();
     if (isPerformanceMode) return;
+
+    // ─── 1. DB connections (explicit Mind Map links) ─────────
+    if (connections && connections.length > 0) {
+        for (const conn of connections) {
+            const roomA = rooms.find(r => r.id === conn.room_a_id);
+            const roomB = rooms.find(r => r.id === conn.room_b_id);
+            if (!roomA || !roomB) continue;
+
+            const cx1 = roomA.x + roomA.width / 2;
+            const cy1 = roomA.y + roomA.height / 2;
+            const cx2 = roomB.x + roomB.width / 2;
+            const cy2 = roomB.y + roomB.height / 2;
+
+            const connColor = conn.color ? hexColor(conn.color) : 0x6366f1;
+
+            // Draw curved line (quadratic bezier)
+            const midX = (cx1 + cx2) / 2;
+            const midY = (cy1 + cy2) / 2;
+            const dx = cx2 - cx1;
+            const dy = cy2 - cy1;
+            const cpX = midX - dy * 0.1;
+            const cpY = midY + dx * 0.1;
+
+            gfx.moveTo(cx1, cy1);
+            gfx.quadraticCurveTo(cpX, cpY, cx2, cy2);
+            gfx.stroke({ color: connColor, width: 3, alpha: 0.7 });
+
+            // Draw dots at endpoints
+            gfx.circle(cx1, cy1, 5);
+            gfx.fill({ color: connColor, alpha: 0.9 });
+            gfx.circle(cx2, cy2, 5);
+            gfx.fill({ color: connColor, alpha: 0.9 });
+
+            // Label at midpoint
+            if (conn.label && labelContainer) {
+                const labelStyle = new TextStyle({
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    fontSize: 12,
+                    fontWeight: '700',
+                    fill: 0xffffff,
+                    letterSpacing: 0.5,
+                });
+                const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle });
+                labelText.anchor.set(0.5, 0.5);
+                labelText.position.set(cpX, cpY);
+
+                // Label background pill
+                const labelBg = new Graphics();
+                const padding = 8;
+                const lw = labelText.width + padding * 2;
+                const lh = labelText.height + padding;
+                labelBg.roundRect(cpX - lw / 2, cpY - lh / 2, lw, lh, 10);
+                labelBg.fill({ color: connColor, alpha: 0.85 });
+
+                labelContainer.addChild(labelBg);
+                labelContainer.addChild(labelText);
+            }
+        }
+    }
+
+    // ─── 2. Proximity fallback (faint lines for close rooms without explicit connections) ─
+    const connectedPairs = new Set<string>();
+    if (connections) {
+        for (const c of connections) {
+            connectedPairs.add(`${c.room_a_id}_${c.room_b_id}`);
+            connectedPairs.add(`${c.room_b_id}_${c.room_a_id}`);
+        }
+    }
 
     for (let i = 0; i < rooms.length; i++) {
         for (let j = i + 1; j < rooms.length; j++) {
             const r1 = rooms[i];
             const r2 = rooms[j];
+            if (connectedPairs.has(`${r1.id}_${r2.id}`)) continue;
             const cx1 = r1.x + r1.width / 2;
             const cy1 = r1.y + r1.height / 2;
             const cx2 = r2.x + r2.width / 2;

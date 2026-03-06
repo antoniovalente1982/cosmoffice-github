@@ -8,7 +8,7 @@ import { OFFICE_TEMPLATES, OfficeTemplate } from '../../lib/officeTemplates';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Trash2, X, Box, Users, Save, Palette, PenTool, Focus, PaintBucket, Edit2,
-    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square
+    LayoutTemplate, ArrowLeft, Loader2, AlertTriangle, Circle as CircleIcon, Square, Link2, Unlink
 } from 'lucide-react';
 
 
@@ -35,9 +35,9 @@ export function getRoomDepartment(room: any): string | null {
 export function OfficeBuilder() {
     const supabase = createClient();
     const {
-        isBuilderMode, rooms, selectedRoomId, roomTemplates,
+        isBuilderMode, rooms, selectedRoomId, roomTemplates, roomConnections,
         activeSpaceId, stagePos, zoom, addRoom, setSelectedRoom, removeRoom,
-        setRooms, toggleBuilderMode,
+        setRooms, setRoomConnections, toggleBuilderMode,
     } = useWorkspaceStore();
 
     const [saving, setSaving] = useState(false);
@@ -53,6 +53,13 @@ export function OfficeBuilder() {
     const [applyingTemplate, setApplyingTemplate] = useState(false);
     const [confirmTemplate, setConfirmTemplate] = useState<OfficeTemplate | null>(null);
     const [editShape, setEditShape] = useState<'rect' | 'circle'>('rect');
+
+    // Connection creation state
+    const [showConnections, setShowConnections] = useState(false);
+    const [connectFromId, setConnectFromId] = useState<string>('');
+    const [connectToId, setConnectToId] = useState<string>('');
+    const [connectLabel, setConnectLabel] = useState('');
+    const [connectColor, setConnectColor] = useState('#6366f1');
 
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -329,6 +336,47 @@ export function OfficeBuilder() {
         }
     }, [activeSpaceId, supabase, setRooms]);
 
+    // ─── Connection CRUD ────────────────────────────────────
+    const handleCreateConnection = useCallback(async () => {
+        if (!connectFromId || !connectToId || connectFromId === connectToId || !activeSpaceId) return;
+
+        // Check not already connected
+        const exists = roomConnections.some(c =>
+            (c.room_a_id === connectFromId && c.room_b_id === connectToId) ||
+            (c.room_a_id === connectToId && c.room_b_id === connectFromId)
+        );
+        if (exists) { setToast({ msg: '⚠️ Connessione già esistente', type: 'err' }); return; }
+
+        const payload = {
+            space_id: activeSpaceId,
+            room_a_id: connectFromId,
+            room_b_id: connectToId,
+            type: 'link' as const,
+            label: connectLabel || null,
+            color: connectColor,
+            x_a: 0, y_a: 0, x_b: 0, y_b: 0,
+            is_locked: false,
+            settings: {},
+        };
+
+        const { data, error } = await supabase.from('room_connections').insert(payload).select().single();
+        if (error) { setToast({ msg: `❌ ${error.message}`, type: 'err' }); return; }
+        if (data) {
+            setRoomConnections([...roomConnections, data]);
+            setConnectFromId('');
+            setConnectToId('');
+            setConnectLabel('');
+            setToast({ msg: '✅ Connessione creata!', type: 'ok' });
+        }
+    }, [connectFromId, connectToId, connectLabel, connectColor, activeSpaceId, roomConnections, supabase, setRoomConnections]);
+
+    const handleDeleteConnection = useCallback(async (connId: string) => {
+        const { error } = await supabase.from('room_connections').delete().eq('id', connId);
+        if (error) { setToast({ msg: `❌ ${error.message}`, type: 'err' }); return; }
+        setRoomConnections(roomConnections.filter(c => c.id !== connId));
+        setToast({ msg: '🗑️ Connessione eliminata', type: 'ok' });
+    }, [roomConnections, supabase, setRoomConnections]);
+
     if (!isBuilderMode) return null;
 
     return (
@@ -579,6 +627,111 @@ export function OfficeBuilder() {
                                         <LayoutTemplate className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
                                         <span className="text-xs font-bold text-amber-50 tracking-wide">Applica Template Ufficio</span>
                                     </button>
+
+                                    {/* Connection button */}
+                                    <button
+                                        onClick={() => { setShowConnections(!showConnections); setShowRoomsList(false); }}
+                                        className={`w-full mt-2 flex items-center justify-center gap-3 p-4 rounded-2xl border transition-all transform hover:-translate-y-0.5 group relative overflow-hidden ${showConnections ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/30 hover:from-indigo-500/20 hover:to-purple-500/20 hover:border-indigo-500/50'}`}
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-400/5 to-purple-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <Link2 className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                        <span className="text-xs font-bold text-indigo-50 tracking-wide">Connessioni Mind Map</span>
+                                    </button>
+
+                                    {/* Connections Panel */}
+                                    {showConnections && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="w-full mt-3 space-y-3 bg-white/[0.03] rounded-2xl border border-indigo-500/20 p-4"
+                                        >
+                                            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Nuova Connessione</p>
+
+                                            {/* From Room */}
+                                            <select
+                                                value={connectFromId}
+                                                onChange={e => setConnectFromId(e.target.value)}
+                                                className="w-full px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500/50"
+                                            >
+                                                <option value="" className="bg-slate-900">Da stanza...</option>
+                                                {rooms.map(r => (
+                                                    <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
+                                                ))}
+                                            </select>
+
+                                            {/* To Room */}
+                                            <select
+                                                value={connectToId}
+                                                onChange={e => setConnectToId(e.target.value)}
+                                                className="w-full px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500/50"
+                                            >
+                                                <option value="" className="bg-slate-900">A stanza...</option>
+                                                {rooms.filter(r => r.id !== connectFromId).map(r => (
+                                                    <option key={r.id} value={r.id} className="bg-slate-900">{r.name}</option>
+                                                ))}
+                                            </select>
+
+                                            {/* Label */}
+                                            <input
+                                                value={connectLabel}
+                                                onChange={e => setConnectLabel(e.target.value)}
+                                                placeholder="Etichetta (es: Marketing)"
+                                                className="w-full px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500/50"
+                                            />
+
+                                            {/* Color */}
+                                            <div className="flex gap-1.5">
+                                                {['#6366f1', '#8b5cf6', '#3b82f6', '#14b8a6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'].map(c => (
+                                                    <button
+                                                        key={c}
+                                                        onClick={() => setConnectColor(c)}
+                                                        className={`w-6 h-6 rounded-full transition-all ${connectColor === c ? 'ring-2 ring-white/60 scale-110' : 'hover:scale-110'}`}
+                                                        style={{ backgroundColor: c }}
+                                                    />
+                                                ))}
+                                            </div>
+
+                                            {/* Create button */}
+                                            <button
+                                                onClick={handleCreateConnection}
+                                                disabled={!connectFromId || !connectToId}
+                                                className="w-full py-2.5 rounded-xl bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 text-xs font-bold hover:bg-indigo-500/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
+                                                <Link2 className="w-3.5 h-3.5" /> Crea Connessione
+                                            </button>
+
+                                            {/* Existing connections */}
+                                            {roomConnections.length > 0 && (
+                                                <div className="space-y-2 mt-3">
+                                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Connessioni Attive</p>
+                                                    {roomConnections.map(conn => {
+                                                        const roomA = rooms.find(r => r.id === conn.room_a_id);
+                                                        const roomB = rooms.find(r => r.id === conn.room_b_id);
+                                                        return (
+                                                            <div key={conn.id} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+                                                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: conn.color || '#6366f1' }} />
+                                                                <div className="flex-1 min-w-0">
+                                                                    <span className="text-[10px] text-slate-300 truncate block">
+                                                                        {roomA?.name || '?'} → {roomB?.name || '?'}
+                                                                    </span>
+                                                                    {conn.label && (
+                                                                        <span className="text-[9px] text-indigo-400 font-bold uppercase">{conn.label}</span>
+                                                                    )}
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => handleDeleteConnection(conn.id)}
+                                                                    className="flex-shrink-0 p-1 rounded-lg hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors"
+                                                                >
+                                                                    <Unlink className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    )}
                                 </>
                             ) : (
                                 /* Templates List */

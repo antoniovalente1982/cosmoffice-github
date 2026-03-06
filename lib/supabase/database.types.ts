@@ -221,7 +221,9 @@ export interface RoomConnection {
   space_id: string;
   room_a_id: string;
   room_b_id: string;
-  type: 'door' | 'portal' | 'stairs' | 'elevator';
+  type: 'door' | 'portal' | 'stairs' | 'elevator' | 'link';
+  label: string | null;
+  color: string;
   x_a: number;
   y_a: number;
   x_b: number;

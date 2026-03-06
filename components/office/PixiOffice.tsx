@@ -40,6 +40,7 @@ export function PixiOffice() {
 
     // Workspace store (rooms, view, builder)
     const rooms = useWorkspaceStore(s => s.rooms);
+    const roomConnections = useWorkspaceStore(s => s.roomConnections);
     const zoom = useWorkspaceStore(s => s.zoom);
     const setZoom = useWorkspaceStore(s => s.setZoom);
     const setStagePos = useWorkspaceStore(s => s.setStagePos);
@@ -140,6 +141,7 @@ export function PixiOffice() {
     const particleGfxRef = useRef<Graphics | null>(null);
     const roomContainersRef = useRef<Map<string, Container>>(new Map());
     const connectionGfxRef = useRef<Graphics | null>(null);
+    const connectionLabelContainerRef = useRef<Container | null>(null);
     const platformGfxRef = useRef<Graphics | null>(null);
     const particlesRef = useRef<Particle[]>([]);
     const roomLayerRef = useRef<Container | null>(null);
@@ -206,6 +208,12 @@ export function PixiOffice() {
             const connectionGfx = new Graphics();
             world.addChild(connectionGfx);
             connectionGfxRef.current = connectionGfx;
+
+            // Connection labels layer (above connection lines)
+            const connectionLabels = new Container();
+            connectionLabels.label = 'connection-labels';
+            world.addChild(connectionLabels);
+            connectionLabelContainerRef.current = connectionLabels;
 
             // Room layer
             const roomLayer = new Container();
@@ -372,9 +380,15 @@ export function PixiOffice() {
 
         // Draw room connections
         if (connectionGfxRef.current) {
-            drawRoomConnections(connectionGfxRef.current, rooms, useWorkspaceStore.getState().isPerformanceMode);
+            drawRoomConnections(
+                connectionGfxRef.current,
+                rooms,
+                useWorkspaceStore.getState().isPerformanceMode,
+                roomConnections,
+                connectionLabelContainerRef.current || undefined
+            );
         }
-    }, [rooms, hoveredRoomId, appReady]);
+    }, [rooms, roomConnections, hoveredRoomId, appReady]);
 
     // ─── Resize observer ─────────────────────────────────────
     useEffect(() => {
