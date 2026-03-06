@@ -301,29 +301,38 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                         {/* Performance Mode Toggle */}
                         <div className="space-y-1.5">
                             <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                <Shield className="w-3 h-3" /> Prestazioni e Risparmio Energetico
+                                <Shield className="w-3 h-3" /> Qualità Grafica
                             </label>
                             <button
-                                onClick={togglePerformanceMode}
+                                onClick={() => {
+                                    togglePerformanceMode();
+                                    // Sync class on body so CSS rules work globally
+                                    document.body.classList.toggle('low-power-mode');
+                                }}
                                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${isPerformanceMode
-                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-                                    : 'bg-slate-800/60 border-white/10 hover:bg-slate-800/80 text-slate-300'
+                                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                                        : 'bg-slate-800/60 border-white/10 hover:bg-slate-800/80 text-slate-300'
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${isPerformanceMode ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-slate-400'}`}>
+                                    <div className={`p-2 rounded-lg ${isPerformanceMode ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                                         <Star className="w-4 h-4" />
                                     </div>
                                     <div className="text-left">
-                                        <div className="text-sm font-medium">{isPerformanceMode ? 'Low-power Mode Attivata' : 'Alta Qualità Grafica'}</div>
+                                        <div className="text-sm font-medium flex items-center gap-2">
+                                            {isPerformanceMode ? 'Risparmio Energetico' : 'Alta Qualità'}
+                                            <span className={`w-2 h-2 rounded-full ${isPerformanceMode ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                                        </div>
                                         <div className="text-[10px] sm:text-xs opacity-70 mt-0.5">
-                                            {isPerformanceMode ? 'Prestazioni massime su vecchi PC. Effetti ridotti.' : 'Grafica avanzata attiva. Sconsigliato su vecchi PC.'}
+                                            {isPerformanceMode
+                                                ? 'Particelle, ombre e glow disabilitati. Ideale per PC datati.'
+                                                : 'Effetti grafici completi attivi. Clicca per ridurre.'}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Simple Toggle relative to state */}
-                                <div className={`w-10 h-5.5 rounded-full p-0.5 flex items-center transition-colors ${isPerformanceMode ? 'bg-amber-500' : 'bg-slate-700'}`}>
+                                {/* Toggle switch */}
+                                <div className={`w-10 h-5.5 rounded-full p-0.5 flex items-center transition-colors ${isPerformanceMode ? 'bg-amber-500' : 'bg-emerald-500'}`}>
                                     <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isPerformanceMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
                                 </div>
                             </button>

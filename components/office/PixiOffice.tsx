@@ -56,6 +56,16 @@ export function PixiOffice() {
     const landingPadScale = useWorkspaceStore(s => s.landingPadScale);
     const setLandingPadScale = useWorkspaceStore(s => s.setLandingPadScale);
 
+    // ─── Sync low-power-mode class on body for global CSS rules ──
+    useEffect(() => {
+        if (isPerformanceMode) {
+            document.body.classList.add('low-power-mode');
+        } else {
+            document.body.classList.remove('low-power-mode');
+        }
+        return () => document.body.classList.remove('low-power-mode');
+    }, [isPerformanceMode]);
+
     // ─── Auto-save landing pad to Supabase ───────────────────
     const saveLandingPadToDb = useCallback(async () => {
         const state = useWorkspaceStore.getState();
