@@ -74,7 +74,18 @@ export function OfficeBuilder() {
             loadRoomProperties(roomId);
         };
         window.addEventListener('builder-select-room', handler);
-        return () => window.removeEventListener('builder-select-room', handler);
+        const connectHandler = (e: Event) => {
+            const { roomId } = (e as CustomEvent).detail;
+            loadRoomProperties(roomId);
+            setSelectedRoom(roomId);
+            setConnectFromId(roomId);
+            setToast({ msg: '🔗 Seleziona la stanza di destinazione nel pannello', type: 'ok' });
+        };
+        window.addEventListener('builder-connect-room', connectHandler);
+        return () => {
+            window.removeEventListener('builder-select-room', handler);
+            window.removeEventListener('builder-connect-room', connectHandler);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [rooms]);
 
@@ -386,7 +397,10 @@ export function OfficeBuilder() {
     // ─── Connection CRUD ────────────────────────────────────
     const handleCreateConnection = useCallback(async (fromIdOverride?: string) => {
         const fromId = fromIdOverride || connectFromId;
-        if (!fromId || !connectToId || fromId === connectToId || !activeSpaceId) return;
+        if (!activeSpaceId) { setToast({ msg: '❌ Nessuno spazio attivo', type: 'err' }); return; }
+        if (!fromId) { setToast({ msg: '❌ Seleziona una stanza di partenza', type: 'err' }); return; }
+        if (!connectToId) { setToast({ msg: '❌ Seleziona una stanza di destinazione', type: 'err' }); return; }
+        if (fromId === connectToId) { setToast({ msg: '❌ Non puoi collegare una stanza a se stessa', type: 'err' }); return; }
 
         // Check not already connected
         const exists = roomConnections.some(c =>

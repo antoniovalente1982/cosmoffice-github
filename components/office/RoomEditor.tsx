@@ -274,6 +274,51 @@ function EditableRoom({ room, isSelected, isMultiSelected, onSelect, onBulkDragS
                     data-room-editor="true"
                 />
             ))}
+
+            {/* Red "+" connect button on selected room */}
+            {isSelected && !isMultiSelected && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        left: screenX + screenW + 6,
+                        top: screenY + screenH / 2 - 14,
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                        border: '2px solid #fca5a5',
+                        boxShadow: '0 0 12px rgba(239,68,68,0.6), 0 2px 8px rgba(0,0,0,0.3)',
+                        cursor: 'pointer',
+                        zIndex: 25,
+                        pointerEvents: 'auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 16,
+                        fontWeight: 'bold',
+                        color: 'white',
+                        lineHeight: 1,
+                        transition: 'transform 0.15s, box-shadow 0.15s',
+                    }}
+                    onMouseDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        window.dispatchEvent(new CustomEvent('builder-connect-room', { detail: { roomId: room.id } }));
+                    }}
+                    onMouseEnter={(e) => {
+                        (e.target as HTMLElement).style.transform = 'scale(1.2)';
+                        (e.target as HTMLElement).style.boxShadow = '0 0 20px rgba(239,68,68,0.8), 0 4px 12px rgba(0,0,0,0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                        (e.target as HTMLElement).style.transform = 'scale(1)';
+                        (e.target as HTMLElement).style.boxShadow = '0 0 12px rgba(239,68,68,0.6), 0 2px 8px rgba(0,0,0,0.3)';
+                    }}
+                    title="Collega a un'altra stanza"
+                    data-room-editor="true"
+                >
+                    +
+                </div>
+            )}
         </>
     );
 }
