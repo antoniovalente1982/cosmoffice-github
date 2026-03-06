@@ -4,19 +4,23 @@ import { useEffect, useState, useCallback } from 'react';
 import {
     Video, Users, Clock, DollarSign, RefreshCw, AlertTriangle,
     Radio, Mic, Monitor, Zap, Server, Activity,
-    TrendingUp, Eye,
+    TrendingUp, Eye, Gauge, Package,
 } from 'lucide-react';
 
 interface LiveKitOverview {
     livekit: { url: string; region: string };
+    plan: {
+        name: string; baseCostMonth: number;
+        includedMinutes: number; overagePerMin: number;
+    };
     live: {
         rooms: number; participants: number;
         videoTracks: number; audioTracks: number; screenShares: number;
     };
     costs: {
         currentPerMinute: number; currentPerHour: number;
-        sessionAccumulated: number;
-        pricing: { audioPerMin: number; videoPerMin: number; egressPerMin: number; bandwidthPerGB: number; freeBandwidthGB: number };
+        sessionMinutes: number; sessionAccumulated: number;
+        connectionPerMin: number; bandwidthPerGB: number;
     };
     rooms: Array<{
         name: string; sid: string; numParticipants: number; numPublishers: number;
@@ -43,6 +47,19 @@ function formatCost(dollars: number): string {
     return `$${dollars.toFixed(2)}`;
 }
 
+function formatMinutes(min: number): string {
+    if (min < 1) return `${Math.round(min * 60)}s`;
+    if (min >= 1000) return `${(min / 1000).toFixed(1)}K`;
+    return `${Math.round(min)}`;
+}
+
+// LiveKit plans data for simulator
+const LK_PLANS = {
+    build: { name: 'Build (Free)', cost: 0, included: 5_000, overage: 0 },
+    ship: { name: 'Ship', cost: 50, included: 150_000, overage: 0.0005 },
+    scale: { name: 'Scale', cost: 500, included: 1_500_000, overage: 0.0004 },
+};
+
 export default function LiveKitPage() {
     const [data, setData] = useState<LiveKitOverview | null>(null);
     const [loading, setLoading] = useState(true);
@@ -65,7 +82,6 @@ export default function LiveKitPage() {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // Auto-refresh every 10 seconds
     useEffect(() => {
         if (!autoRefresh) return;
         const interval = setInterval(fetchData, 10000);
@@ -94,6 +110,11 @@ export default function LiveKitPage() {
                         {data?.livekit && (
                             <span className="ml-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                                 {data.livekit.region}
+                            </span>
+                        )}
+                        {data?.plan && (
+                            <span className="ml-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                Piano: {data.plan.name}
                             </span>
                         )}
                     </p>
@@ -133,37 +154,72 @@ export default function LiveKitPage() {
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-4 pt-0">
-                            {/* Rooms */}
                             <div className="rounded-xl border border-white/5 p-4 bg-black/20 text-center">
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Stanze Attive</p>
                                 <p className="text-3xl font-bold text-white">{data.live.rooms}</p>
                             </div>
-                            {/* Participants */}
                             <div className="rounded-xl border border-white/5 p-4 bg-black/20 text-center">
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Partecipanti</p>
                                 <p className="text-3xl font-bold text-white">{data.live.participants}</p>
                             </div>
-                            {/* Video Tracks */}
                             <div className="rounded-xl border border-white/5 p-4 bg-black/20 text-center">
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1 justify-center">
                                     <Video className="w-3 h-3 text-purple-400" /> Video
                                 </p>
                                 <p className="text-3xl font-bold text-purple-300">{data.live.videoTracks}</p>
                             </div>
-                            {/* Audio Tracks */}
                             <div className="rounded-xl border border-white/5 p-4 bg-black/20 text-center">
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1 justify-center">
                                     <Mic className="w-3 h-3 text-emerald-400" /> Audio
                                 </p>
                                 <p className="text-3xl font-bold text-emerald-300">{data.live.audioTracks}</p>
                             </div>
-                            {/* Screen Shares */}
                             <div className="rounded-xl border border-white/5 p-4 bg-black/20 text-center">
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1 justify-center">
                                     <Monitor className="w-3 h-3 text-amber-400" /> Screen
                                 </p>
                                 <p className="text-3xl font-bold text-amber-300">{data.live.screenShares}</p>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* ═══ PLAN & USAGE ═══ */}
+                    <div className="rounded-2xl border border-white/5 p-5" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <Package className="w-4 h-4 text-indigo-400" />
+                                <span className="text-sm font-semibold text-white">
+                                    Piano {data.plan.name} — Minuti WebRTC Inclusi
+                                </span>
+                            </div>
+                            <span className="text-xs text-slate-400">
+                                {formatMinutes(data.costs.sessionMinutes)} usati / {(data.plan.includedMinutes / 1000).toFixed(0)}K inclusi
+                            </span>
+                        </div>
+                        <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full rounded-full transition-all duration-700 ${data.costs.sessionMinutes / data.plan.includedMinutes > 0.9
+                                        ? 'bg-gradient-to-r from-red-400 to-red-500'
+                                        : data.costs.sessionMinutes / data.plan.includedMinutes > 0.7
+                                            ? 'bg-gradient-to-r from-amber-400 to-orange-400'
+                                            : 'bg-gradient-to-r from-cyan-400 to-indigo-400'
+                                    }`}
+                                style={{ width: `${Math.min(100, (data.costs.sessionMinutes / data.plan.includedMinutes) * 100)}%` }}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                            <p className="text-[10px] text-slate-500">
+                                {((data.costs.sessionMinutes / data.plan.includedMinutes) * 100).toFixed(2)}% utilizzato
+                            </p>
+                            {data.plan.overagePerMin > 0 ? (
+                                <p className="text-[10px] text-slate-500">
+                                    Overage: ${(data.plan.overagePerMin * 1000).toFixed(2)} / 1K min extra
+                                </p>
+                            ) : (
+                                <p className="text-[10px] text-red-400/70">
+                                    Hard limit — servizio si ferma al superamento
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -177,7 +233,7 @@ export default function LiveKitPage() {
                                         <Activity className="w-3 h-3 text-amber-400" /> Burn Rate (ora)
                                     </p>
                                     <p className="text-3xl font-bold text-white">{formatCost(data.costs.currentPerHour)}</p>
-                                    <p className="text-[10px] text-slate-500 mt-1">{formatCost(data.costs.currentPerMinute)}/min</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">{formatCost(data.costs.currentPerMinute)}/min • {data.live.participants} connessioni</p>
                                 </div>
                                 <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center text-amber-400">
                                     <TrendingUp className="w-5 h-5" />
@@ -193,7 +249,7 @@ export default function LiveKitPage() {
                                         <DollarSign className="w-3 h-3 text-purple-400" /> Sessioni Attive
                                     </p>
                                     <p className="text-3xl font-bold text-white">{formatCost(data.costs.sessionAccumulated)}</p>
-                                    <p className="text-[10px] text-slate-500 mt-1">costo accumulato finora</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">{formatMinutes(data.costs.sessionMinutes)} connection-min consumati</p>
                                 </div>
                                 <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center text-purple-400">
                                     <DollarSign className="w-5 h-5" />
@@ -206,21 +262,18 @@ export default function LiveKitPage() {
                             <div className="flex items-start justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-                                        <Server className="w-3 h-3 text-cyan-400" /> Tariffe LiveKit Cloud
+                                        <Gauge className="w-3 h-3 text-cyan-400" /> Tariffe / Piano
                                     </p>
-                                    <div className="space-y-1 mt-2">
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-slate-400 flex items-center gap-1"><Mic className="w-3 h-3" /> Audio</span>
-                                            <span className="text-white font-mono">$0.30 / 1K min</span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> Video</span>
-                                            <span className="text-white font-mono">$2.40 / 1K min</span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-slate-400 flex items-center gap-1"><Monitor className="w-3 h-3" /> Egress</span>
-                                            <span className="text-white font-mono">$6.00 / 1K min</span>
-                                        </div>
+                                    <div className="space-y-1.5 mt-2">
+                                        {Object.entries(LK_PLANS).map(([key, plan]) => (
+                                            <div key={key} className={`flex items-center justify-between text-xs px-2 py-1 rounded-lg ${data.plan.name.toLowerCase().includes(key) ? 'bg-cyan-500/10 border border-cyan-500/20' : ''
+                                                }`}>
+                                                <span className="text-slate-400">{plan.name}</span>
+                                                <span className="text-white font-mono text-[10px]">
+                                                    ${plan.cost}/mo • {(plan.included / 1000).toFixed(0)}K min
+                                                </span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                                 <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center text-cyan-400">
@@ -236,24 +289,41 @@ export default function LiveKitPage() {
                             <Eye className="w-4 h-4 text-amber-400" />
                             Simulazione Costi Mensili
                         </h3>
+                        <p className="text-[10px] text-slate-500 mb-4">
+                            Costo = base piano + overage sui minuti eccedenti. LiveKit addebita per &quot;connection-minute&quot; (1 partecipante connesso = 1 min).
+                        </p>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             {[
-                                { label: '10 utenti, 4h/giorno', users: 10, hours: 4, days: 22, videoPct: 0.3 },
-                                { label: '25 utenti, 6h/giorno', users: 25, hours: 6, days: 22, videoPct: 0.3 },
-                                { label: '50 utenti, 8h/giorno', users: 50, hours: 8, days: 22, videoPct: 0.25 },
-                                { label: '100 utenti, 8h/giorno', users: 100, hours: 8, days: 22, videoPct: 0.2 },
+                                { label: '10 utenti × 4h/giorno', users: 10, hours: 4, days: 22 },
+                                { label: '25 utenti × 6h/giorno', users: 25, hours: 6, days: 22 },
+                                { label: '50 utenti × 8h/giorno', users: 50, hours: 8, days: 22 },
+                                { label: '100 utenti × 8h/giorno', users: 100, hours: 8, days: 22 },
                             ].map((sim) => {
                                 const totalMin = sim.users * sim.hours * 60 * sim.days;
-                                const videoMin = totalMin * sim.videoPct;
-                                const audioMin = totalMin * (1 - sim.videoPct);
-                                const cost = (videoMin * PRICING_DISPLAY.videoPerMin) + (audioMin * PRICING_DISPLAY.audioPerMin);
+                                // Calculate for each plan
+                                const planKey = Object.keys(LK_PLANS).find(k => data.plan.name.toLowerCase().includes(k)) || 'build';
+                                const plan = LK_PLANS[planKey as keyof typeof LK_PLANS];
+                                const overageMin = Math.max(0, totalMin - plan.included);
+                                const overageCost = overageMin * plan.overage;
+                                const totalCost = plan.cost + overageCost;
+                                const isFree = totalMin <= plan.included;
+
                                 return (
                                     <div key={sim.label} className="rounded-xl border border-white/5 p-4 bg-black/20">
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{sim.label}</p>
-                                        <p className="text-xl font-bold text-white">{formatCost(cost)}<span className="text-xs text-slate-500">/mese</span></p>
-                                        <p className="text-[10px] text-slate-600 mt-1">
-                                            {Math.round(totalMin / 1000)}K min totali • {Math.round(sim.videoPct * 100)}% video
+                                        <p className="text-xl font-bold text-white">
+                                            {formatCost(totalCost)}<span className="text-xs text-slate-500">/mese</span>
                                         </p>
+                                        <p className="text-[10px] text-slate-600 mt-1">
+                                            {(totalMin / 1000).toFixed(0)}K min totali
+                                        </p>
+                                        {isFree ? (
+                                            <p className="text-[10px] text-emerald-400 mt-0.5">✓ Entro i minuti inclusi</p>
+                                        ) : (
+                                            <p className="text-[10px] text-amber-400 mt-0.5">
+                                                + {(overageMin / 1000).toFixed(0)}K min overage
+                                            </p>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -267,16 +337,12 @@ export default function LiveKitPage() {
                                 <Server className="w-4 h-4 text-cyan-400" />
                                 Stanze Attive ({data.rooms.length})
                             </h2>
-                            {data.rooms.length === 0 && (
-                                <span className="text-xs text-slate-500 italic">Nessuna stanza attiva al momento</span>
-                            )}
                         </div>
 
-                        {data.rooms.length > 0 && (
+                        {data.rooms.length > 0 ? (
                             <div className="divide-y divide-white/5">
                                 {data.rooms.map(room => (
                                     <div key={room.sid}>
-                                        {/* Room row */}
                                         <button
                                             onClick={() => setExpandedRoom(expandedRoom === room.sid ? null : room.sid)}
                                             className="w-full flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors text-left"
@@ -314,7 +380,6 @@ export default function LiveKitPage() {
                                             </div>
                                         </button>
 
-                                        {/* Expanded participants */}
                                         {expandedRoom === room.sid && room.participants.length > 0 && (
                                             <div className="px-4 pb-4">
                                                 <div className="rounded-xl border border-white/5 bg-black/20 divide-y divide-white/5">
@@ -333,17 +398,17 @@ export default function LiveKitPage() {
                                                             </div>
                                                             <div className="flex items-center gap-2">
                                                                 {p.hasAudio && (
-                                                                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                                                                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center" title="Audio">
                                                                         <Mic className="w-3 h-3 text-emerald-400" />
                                                                     </div>
                                                                 )}
                                                                 {p.hasVideo && (
-                                                                    <div className="w-5 h-5 rounded-full bg-purple-500/20 flex items-center justify-center">
+                                                                    <div className="w-5 h-5 rounded-full bg-purple-500/20 flex items-center justify-center" title="Video">
                                                                         <Video className="w-3 h-3 text-purple-400" />
                                                                     </div>
                                                                 )}
                                                                 {p.hasScreen && (
-                                                                    <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center">
+                                                                    <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center" title="Screen Share">
                                                                         <Monitor className="w-3 h-3 text-amber-400" />
                                                                     </div>
                                                                 )}
@@ -359,13 +424,13 @@ export default function LiveKitPage() {
                                     </div>
                                 ))}
                             </div>
-                        )}
-
-                        {data.rooms.length === 0 && (
+                        ) : (
                             <div className="p-12 text-center">
                                 <Server className="w-10 h-10 text-slate-700 mx-auto mb-3" />
                                 <p className="text-sm text-slate-500">Nessuna stanza attiva</p>
-                                <p className="text-[10px] text-slate-600 mt-1">Le stanze vengono create automaticamente quando gli utenti iniziano una chiamata</p>
+                                <p className="text-[10px] text-slate-600 mt-1">
+                                    Le stanze vengono create automaticamente quando gli utenti iniziano una chiamata
+                                </p>
                             </div>
                         )}
                     </div>
@@ -374,9 +439,3 @@ export default function LiveKitPage() {
         </div>
     );
 }
-
-// Pricing constants used by the simulator
-const PRICING_DISPLAY = {
-    audioPerMin: 0.0003,
-    videoPerMin: 0.0024,
-};
