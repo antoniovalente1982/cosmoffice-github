@@ -304,16 +304,17 @@ export default function LiveKitPage() {
                                         {plan.baseCostMonth > 0 && <span className="text-sm text-slate-500">/mese</span>}
                                     </p>
                                     <div className="space-y-2 mt-4">
-                                        <PlanRow label="WebRTC min inclusi" value={formatNum(plan.includedMinutes)} />
+                                        <PlanRow label="Franchigia" value={`${plan.includedMinutes.toLocaleString('en-US')} minutes included`} />
                                         <PlanRow label="Connessioni max" value={formatNum(plan.maxConcurrent)} />
-                                        <PlanRow
-                                            label="Overage"
-                                            value={plan.overagePerMin === 0 ? 'Hard limit ⛔' : `$${plan.overagePerMin} per min`}
-                                        />
-                                        {plan.overagePerMin === 0 && (
-                                            <p className="text-[10px] text-red-400/70 italic">
-                                                Il servizio si ferma al superamento della quota
-                                            </p>
+                                        {plan.overagePerMin > 0 ? (
+                                            <PlanRow label="Overage" value={`then $${plan.overagePerMin} per min`} />
+                                        ) : (
+                                            <div>
+                                                <PlanRow label="Overage" value="Hard limit ⛔" />
+                                                <p className="text-[10px] text-red-400/70 italic mt-0.5">
+                                                    Il servizio si ferma al superamento della quota
+                                                </p>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
