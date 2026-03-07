@@ -68,7 +68,12 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     const [authorized, setAuthorized] = useState(false);
     const [adminEmail, setAdminEmail] = useState('');
 
+    // Login page: skip auth checks, render directly without sidebar
+    const isLoginPage = pathname === '/superadmin/login';
+
     useEffect(() => {
+        if (isLoginPage) { setLoading(false); return; }
+
         const checkAuth = async () => {
             const supabase = createClient();
             const { data: { user } } = await supabase.auth.getUser();
@@ -90,13 +95,16 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
             setLoading(false);
         };
         checkAuth();
-    }, [router]);
+    }, [router, isLoginPage]);
 
     const handleSignOut = async () => {
         const supabase = createClient();
         await supabase.auth.signOut();
         router.push('/superadmin/login');
     };
+
+    // Login page — render without sidebar
+    if (isLoginPage) return <>{children}</>;
 
     if (loading) {
         return (
