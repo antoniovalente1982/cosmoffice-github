@@ -37,6 +37,7 @@ const PLAN_OPTIONS = [
     { value: 'team_10', label: 'Team 10', maxPeople: 10, maxSpaces: 3, maxRooms: 15 },
     { value: 'team_25', label: 'Team 25', maxPeople: 25, maxSpaces: 5, maxRooms: 25 },
     { value: 'team_50', label: 'Team 50', maxPeople: 50, maxSpaces: 10, maxRooms: 50 },
+    { value: 'team_100', label: 'Team 100', maxPeople: 100, maxSpaces: 20, maxRooms: 100 },
     { value: 'enterprise', label: 'Enterprise', maxPeople: 999, maxSpaces: 999, maxRooms: 999 },
 ];
 
@@ -45,6 +46,7 @@ const PLAN_COLORS: Record<string, string> = {
     team_10: '#06b6d4',
     team_25: '#8b5cf6',
     team_50: '#f59e0b',
+    team_100: '#f97316',
     enterprise: '#ef4444',
 };
 

@@ -6,7 +6,8 @@ import {
     Search, Building2, Users, ChevronLeft, ChevronRight, AlertTriangle,
     Pause, Play, Trash2, RotateCcw, MoreVertical, X, Check, Loader2,
     UserX, UserCheck, Mail, ChevronDown, Crown, Square, CheckSquare,
-    ClipboardList, Save, Calendar,
+    ClipboardList, Save, Calendar, DollarSign, Receipt, Link2, Copy,
+    History, CreditCard,
 } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
 
@@ -49,15 +50,27 @@ interface OwnerGroup {
     bestPlan: string;
 }
 
-const planRank: Record<string, number> = { free: 0, team_10: 1, team_25: 2, team_50: 3, enterprise: 4 };
-const PLAN_LABELS: Record<string, string> = { free: 'Free', team_10: 'Team 10', team_25: 'Team 25', team_50: 'Team 50', enterprise: 'Enterprise' };
+const planRank: Record<string, number> = { free: 0, team_10: 1, team_25: 2, team_50: 3, team_100: 4, enterprise: 5 };
+const PLAN_LABELS: Record<string, string> = { free: 'Free', team_10: 'Team 10', team_25: 'Team 25', team_50: 'Team 50', team_100: 'Team 100', enterprise: 'Enterprise' };
 const PLAN_OPTIONS = [
     { value: 'free', label: 'Free', maxPeople: 3, maxSpaces: 1, maxRooms: 5 },
     { value: 'team_10', label: 'Team 10', maxPeople: 10, maxSpaces: 3, maxRooms: 15 },
     { value: 'team_25', label: 'Team 25', maxPeople: 25, maxSpaces: 5, maxRooms: 25 },
     { value: 'team_50', label: 'Team 50', maxPeople: 50, maxSpaces: 10, maxRooms: 50 },
+    { value: 'team_100', label: 'Team 100', maxPeople: 100, maxSpaces: 20, maxRooms: 100 },
     { value: 'enterprise', label: 'Enterprise', maxPeople: 999, maxSpaces: 999, maxRooms: 999 },
 ];
+const PAYMENT_STATUS_COLORS: Record<string, { bg: string, text: string, border: string, label: string }> = {
+    none: { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20', label: '—' },
+    pending: { bg: 'bg-amber-500/10', text: 'text-amber-300', border: 'border-amber-500/20', label: 'In attesa' },
+    paid: { bg: 'bg-emerald-500/10', text: 'text-emerald-300', border: 'border-emerald-500/20', label: 'Pagato' },
+    overdue: { bg: 'bg-red-500/10', text: 'text-red-300', border: 'border-red-500/20', label: 'Scaduto' },
+};
+function PaymentBadge({ status }: { status: string }) {
+    const s = PAYMENT_STATUS_COLORS[status] || PAYMENT_STATUS_COLORS.none;
+    if (status === 'none') return null;
+    return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.text} ${s.border}`}>{s.label}</span>;
+}
 
 function PlanBadge({ plan }: { plan: string }) {
     const c: Record<string, string> = {
@@ -65,6 +78,7 @@ function PlanBadge({ plan }: { plan: string }) {
         team_10: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
         team_25: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
         team_50: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+        team_100: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
         enterprise: 'bg-red-500/20 text-red-300 border-red-500/30',
     };
     return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${c[plan] || c.free}`}>{PLAN_LABELS[plan] || plan}</span>;
@@ -128,7 +142,31 @@ export default function CustomersPage() {
     const [editPlanValue, setEditPlanValue] = useState('free');
     const [editPlanExpiry, setEditPlanExpiry] = useState('');
     const [editPlanNotes, setEditPlanNotes] = useState('');
+    const [editPlanAmount, setEditPlanAmount] = useState('');
     const [savingPlan, setSavingPlan] = useState(false);
+
+    // Payment registration
+    const [paymentWs, setPaymentWs] = useState<Workspace | null>(null);
+    const [payAmount, setPayAmount] = useState('');
+    const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
+    const [payRef, setPayRef] = useState('');
+    const [payInvoice, setPayInvoice] = useState('');
+    const [payPeriodStart, setPayPeriodStart] = useState('');
+    const [payPeriodEnd, setPayPeriodEnd] = useState('');
+    const [payNotes, setPayNotes] = useState('');
+    const [payType, setPayType] = useState<'payment' | 'refund'>('payment');
+    const [savingPayment, setSavingPayment] = useState(false);
+
+    // Payment history
+    const [historyWsId, setHistoryWsId] = useState<string | null>(null);
+    const [payments, setPayments] = useState<any[]>([]);
+    const [loadingPayments, setLoadingPayments] = useState(false);
+
+    // Invite link
+    const [inviteLinkWs, setInviteLinkWs] = useState<Workspace | null>(null);
+    const [generatedLink, setGeneratedLink] = useState('');
+    const [copiedLink, setCopiedLink] = useState(false);
+    const [generatingLink, setGeneratingLink] = useState(false);
 
     const startPlanEdit = (ws: Workspace) => {
         setEditPlanWsId(ws.id);
@@ -144,6 +182,7 @@ export default function CustomersPage() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         const planDef = PLAN_OPTIONS.find(p => p.value === editPlanValue);
+        const amt = editPlanAmount ? Math.round(parseFloat(editPlanAmount) * 100) : 0;
         const { error } = await supabase.from('workspaces').update({
             plan: editPlanValue,
             max_members: planDef?.maxPeople || 3,
@@ -154,10 +193,113 @@ export default function CustomersPage() {
             plan_notes: editPlanNotes || null,
             plan_activated_by: user?.id,
             plan_activated_at: new Date().toISOString(),
+            monthly_amount_cents: amt,
+            payment_status: editPlanValue === 'free' ? 'none' : 'pending',
         }).eq('id', editPlanWsId);
         if (error) { showFeedback('error', error.message); }
         else { showFeedback('success', 'Piano aggiornato ✅'); setEditPlanWsId(null); fetchData(); }
         setSavingPlan(false);
+    };
+
+    // --- Payment registration ---
+    const openPaymentModal = (ws: Workspace) => {
+        setPaymentWs(ws);
+        setPayAmount('');
+        setPayDate(new Date().toISOString().split('T')[0]);
+        setPayRef(''); setPayInvoice(''); setPayPeriodStart(''); setPayPeriodEnd('');
+        setPayNotes(''); setPayType('payment');
+        setActionMenuId(null);
+    };
+
+    const savePayment = async () => {
+        if (!paymentWs || !payAmount) return;
+        setSavingPayment(true);
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const amtCents = Math.round(parseFloat(payAmount) * 100);
+        const ownerWs = workspaces.find(w => w.id === paymentWs.id);
+        const ownerGroup = ownerGroups.find(g => g.workspaces.some(w => w.id === paymentWs.id));
+
+        const { error } = await supabase.from('payments').insert({
+            workspace_id: paymentWs.id,
+            workspace_name: paymentWs.name,
+            owner_email: ownerGroup?.owner.email || '',
+            owner_name: ownerGroup?.owner.name || '',
+            type: payType,
+            amount_cents: payType === 'refund' ? -amtCents : amtCents,
+            plan_at_time: paymentWs.plan,
+            description: `${payType === 'refund' ? 'Rimborso' : 'Pagamento'} ${paymentWs.name}`,
+            payment_method: 'bank_transfer',
+            reference: payRef || null,
+            invoice_number: payInvoice || null,
+            recorded_by: user?.id,
+            payment_date: payDate,
+            period_start: payPeriodStart || null,
+            period_end: payPeriodEnd || null,
+            notes: payNotes || null,
+        });
+
+        if (!error) {
+            // Update workspace payment status
+            await supabase.from('workspaces').update({
+                payment_status: payType === 'refund' ? 'pending' : 'paid',
+                last_payment_at: payType === 'refund' ? undefined : new Date().toISOString(),
+            }).eq('id', paymentWs.id);
+            showFeedback('success', payType === 'refund' ? 'Rimborso registrato ✅' : 'Pagamento registrato ✅');
+            setPaymentWs(null);
+            fetchData();
+        } else {
+            showFeedback('error', error.message);
+        }
+        setSavingPayment(false);
+    };
+
+    // --- Payment history ---
+    const loadPaymentHistory = async (wsId: string) => {
+        if (historyWsId === wsId) { setHistoryWsId(null); return; }
+        setHistoryWsId(wsId);
+        setLoadingPayments(true);
+        const supabase = createClient();
+        const { data } = await supabase.from('payments')
+            .select('*').eq('workspace_id', wsId)
+            .order('payment_date', { ascending: false }).limit(20);
+        setPayments(data || []);
+        setLoadingPayments(false);
+    };
+
+    // --- Generate invite link ---
+    const generateInviteLink = async (ws: Workspace) => {
+        setGeneratingLink(true);
+        setInviteLinkWs(ws);
+        setGeneratedLink('');
+        setActionMenuId(null);
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const token = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const spaceResult = await supabase.from('spaces')
+            .select('workspace_id').eq('workspace_id', ws.id).is('deleted_at', null).limit(1).single();
+
+        const { error } = await supabase.from('workspace_invitations').insert({
+            workspace_id: ws.id,
+            role: 'member',
+            invited_by: user?.id,
+            token,
+            invite_type: 'link',
+            max_uses: 10,
+            expires_at: expiresAt,
+            label: `Link SuperAdmin - ${new Date().toLocaleDateString('it-IT')}`,
+        });
+        if (!error) {
+            const link = `${window.location.origin}/invite/${token}`;
+            setGeneratedLink(link);
+            navigator.clipboard.writeText(link);
+            setCopiedLink(true);
+            setTimeout(() => setCopiedLink(false), 3000);
+        } else {
+            showFeedback('error', error.message);
+        }
+        setGeneratingLink(false);
     };
 
     const fetchData = async () => {
@@ -440,7 +582,7 @@ export default function CustomersPage() {
                 </form>
 
                 <div className="flex items-center gap-2">
-                    {['', 'free', 'team_10', 'team_25', 'team_50', 'enterprise'].map(p => (
+                    {['', 'free', 'team_10', 'team_25', 'team_50', 'team_100', 'enterprise'].map(p => (
                         <button key={p} onClick={() => { setPlanFilter(p); setPage(1); }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${planFilter === p
                                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
@@ -766,9 +908,20 @@ export default function CustomersPage() {
                                                         {actionMenuId === ws.id && (
                                                             <div className="absolute right-0 top-full mt-1 w-52 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left"
                                                                 onClick={e => e.stopPropagation()}>
-                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Piano</p>
+                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Piano & Pagamenti</p>
                                                                 <button onClick={() => startPlanEdit(ws)} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
                                                                     <ClipboardList className="w-3.5 h-3.5" /> Cambia Piano
+                                                                </button>
+                                                                <button onClick={() => openPaymentModal(ws)} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
+                                                                    <DollarSign className="w-3.5 h-3.5" /> Registra Pagamento
+                                                                </button>
+                                                                <button onClick={() => loadPaymentHistory(ws.id)} className="w-full px-3 py-2 text-left text-xs text-purple-400 hover:bg-white/5 flex items-center gap-2">
+                                                                    <History className="w-3.5 h-3.5" /> Storico Pagamenti
+                                                                </button>
+                                                                <div className="border-t border-white/5 my-1" />
+                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Accesso</p>
+                                                                <button onClick={() => generateInviteLink(ws)} className="w-full px-3 py-2 text-left text-xs text-sky-400 hover:bg-white/5 flex items-center gap-2">
+                                                                    <Link2 className="w-3.5 h-3.5" /> Genera Link Invito
                                                                 </button>
                                                                 <div className="border-t border-white/5 my-1" />
                                                                 <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Workspace</p>
@@ -824,10 +977,16 @@ export default function CustomersPage() {
                                                                     className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none">
                                                                     {PLAN_OPTIONS.map(p => <option key={p.value} value={p.value} style={{ background: '#0f172a' }}>{p.label} (max {p.maxPeople})</option>)}
                                                                 </select>
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="text-xs text-slate-500">€</span>
+                                                                    <input type="number" value={editPlanAmount} onChange={e => setEditPlanAmount(e.target.value)}
+                                                                        placeholder="0" className="w-20 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" />
+                                                                    <span className="text-xs text-slate-500">/mese</span>
+                                                                </div>
                                                                 <input type="date" value={editPlanExpiry} onChange={e => setEditPlanExpiry(e.target.value)}
                                                                     placeholder="Scadenza" className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
                                                                 <input type="text" value={editPlanNotes} onChange={e => setEditPlanNotes(e.target.value)}
-                                                                    placeholder="Note (es: Bonifico ricevuto...)" className="flex-1 min-w-[200px] px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none placeholder:text-slate-600" />
+                                                                    placeholder="Note" className="flex-1 min-w-[150px] px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none placeholder:text-slate-600" />
                                                                 <button onClick={savePlanEdit} disabled={savingPlan}
                                                                     className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5">
                                                                     <Save className="w-3.5 h-3.5" />{savingPlan ? 'Salvo...' : 'Salva'}
@@ -836,6 +995,42 @@ export default function CustomersPage() {
                                                                     Annulla
                                                                 </button>
                                                             </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Payment History Inline */}
+                                                    {historyWsId === ws.id && (
+                                                        <div className="col-span-full mt-2 p-3 rounded-xl bg-purple-500/5 border border-purple-500/10" onClick={e => e.stopPropagation()}>
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <h4 className="text-xs font-bold text-purple-300 flex items-center gap-1.5"><Receipt className="w-3.5 h-3.5" /> Storico Pagamenti</h4>
+                                                                <button onClick={() => setHistoryWsId(null)} className="text-slate-500 hover:text-white"><X className="w-3.5 h-3.5" /></button>
+                                                            </div>
+                                                            {loadingPayments ? (
+                                                                <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-purple-400" /></div>
+                                                            ) : payments.length === 0 ? (
+                                                                <p className="text-xs text-slate-500 italic">Nessun pagamento registrato</p>
+                                                            ) : (
+                                                                <div className="space-y-1 max-h-40 overflow-y-auto">
+                                                                    {payments.map(p => (
+                                                                        <div key={p.id} className="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-black/20">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className={p.type === 'refund' ? 'text-red-400' : 'text-emerald-400'}>
+                                                                                    {p.type === 'refund' ? '−' : '+'}€{(Math.abs(p.amount_cents) / 100).toFixed(2)}
+                                                                                </span>
+                                                                                <span className="text-slate-500">{new Date(p.payment_date).toLocaleDateString('it-IT')}</span>
+                                                                                {p.reference && <span className="text-slate-600">CRO: {p.reference}</span>}
+                                                                            </div>
+                                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${p.type === 'refund' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                                                                                {p.type === 'refund' ? 'Rimborso' : 'Pagamento'}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                    <div className="pt-1 border-t border-white/5 flex justify-between text-xs">
+                                                                        <span className="text-slate-400 font-semibold">Totale netto:</span>
+                                                                        <span className="text-white font-bold">€{(payments.reduce((s: number, p: any) => s + p.amount_cents, 0) / 100).toFixed(2)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -1013,6 +1208,130 @@ export default function CustomersPage() {
                                     {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Conferma</>}
                                 </button>
                             </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Payment Registration Modal */}
+            <AnimatePresence>
+                {paymentWs && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                        onClick={() => setPaymentWs(null)}>
+                        <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full max-w-lg rounded-2xl border border-emerald-500/20 p-6 space-y-4"
+                            style={{ background: 'rgba(15, 23, 42, 0.97)', backdropFilter: 'blur(30px)' }}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                                        <DollarSign className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-bold text-white">Registra Pagamento</h3>
+                                        <p className="text-[11px] text-slate-500">{paymentWs.name}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setPaymentWs(null)} className="text-slate-500 hover:text-white"><X className="w-4 h-4" /></button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="col-span-2 flex gap-2">
+                                    <button onClick={() => setPayType('payment')} className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payType === 'payment' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-black/20 text-slate-400 border-white/5'}`}>Pagamento</button>
+                                    <button onClick={() => setPayType('refund')} className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payType === 'refund' ? 'bg-red-500/20 text-red-300 border-red-500/30' : 'bg-black/20 text-slate-400 border-white/5'}`}>Rimborso</button>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 uppercase">Importo (€)</label>
+                                    <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="29.00" autoFocus
+                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 uppercase">Data Pagamento</label>
+                                    <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
+                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 uppercase">Riferimento / CRO</label>
+                                    <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder="CRO..."
+                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none placeholder:text-slate-600" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 uppercase">N. Fattura</label>
+                                    <input type="text" value={payInvoice} onChange={e => setPayInvoice(e.target.value)} placeholder="FT-001"
+                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none placeholder:text-slate-600" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 uppercase">Periodo Da</label>
+                                    <input type="date" value={payPeriodStart} onChange={e => setPayPeriodStart(e.target.value)}
+                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 uppercase">Periodo A</label>
+                                    <input type="date" value={payPeriodEnd} onChange={e => setPayPeriodEnd(e.target.value)}
+                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="text-[10px] text-slate-500 uppercase">Note</label>
+                                    <input type="text" value={payNotes} onChange={e => setPayNotes(e.target.value)} placeholder="Note aggiuntive..."
+                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none placeholder:text-slate-600" />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-1">
+                                <button onClick={() => setPaymentWs(null)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5">
+                                    Annulla
+                                </button>
+                                <button onClick={savePayment} disabled={savingPayment || !payAmount}
+                                    className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-30 flex items-center justify-center gap-2 ${payType === 'refund' ? 'bg-red-500 hover:bg-red-400' : 'bg-emerald-500 hover:bg-emerald-400'}`}>
+                                    {savingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CreditCard className="w-4 h-4" /> {payType === 'refund' ? 'Registra Rimborso' : 'Registra Pagamento'}</>}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Invite Link Overlay */}
+            <AnimatePresence>
+                {inviteLinkWs && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                        onClick={() => { setInviteLinkWs(null); setGeneratedLink(''); }}>
+                        <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full max-w-md rounded-2xl border border-sky-500/20 p-6 space-y-4"
+                            style={{ background: 'rgba(15, 23, 42, 0.97)', backdropFilter: 'blur(30px)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center">
+                                    <Link2 className="w-5 h-5 text-sky-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-white">Link Invito</h3>
+                                    <p className="text-[11px] text-slate-500">{inviteLinkWs.name} • Valido 7 giorni • Max 10 usi</p>
+                                </div>
+                            </div>
+                            {generatingLink ? (
+                                <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-sky-400" /></div>
+                            ) : generatedLink ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2 p-3 rounded-xl bg-black/30 border border-white/10">
+                                        <input type="text" value={generatedLink} readOnly
+                                            className="flex-1 bg-transparent text-sm text-white outline-none font-mono text-[11px]" />
+                                        <button onClick={() => { navigator.clipboard.writeText(generatedLink); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 3000); }}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-sky-500 hover:bg-sky-400 flex items-center gap-1">
+                                            {copiedLink ? <><Check className="w-3 h-3" /> Copiato!</> : <><Copy className="w-3 h-3" /> Copia</>}
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500">Condividi questo link con il cliente per dargli accesso al workspace.</p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-red-400">Errore nella generazione del link.</p>
+                            )}
+                            <button onClick={() => { setInviteLinkWs(null); setGeneratedLink(''); }}
+                                className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5">
+                                Chiudi
+                            </button>
                         </motion.div>
                     </motion.div>
                 )}

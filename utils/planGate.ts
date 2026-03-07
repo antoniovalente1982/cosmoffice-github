@@ -5,14 +5,15 @@
  * Guest count is INCLUDED in total people count (max_members + max_guests)
  */
 
-export type PlanType = 'free' | 'team_10' | 'team_25' | 'team_50' | 'enterprise';
+export type PlanType = 'free' | 'team_10' | 'team_25' | 'team_50' | 'team_100' | 'enterprise';
 
 export const PLAN_DISPLAY: Record<PlanType, { name: string; maxPeople: number | null }> = {
     free: { name: 'Free', maxPeople: 3 },
     team_10: { name: 'Team 10', maxPeople: 10 },
     team_25: { name: 'Team 25', maxPeople: 25 },
     team_50: { name: 'Team 50', maxPeople: 50 },
-    enterprise: { name: 'Enterprise', maxPeople: null }, // unlimited
+    team_100: { name: 'Team 100', maxPeople: 100 },
+    enterprise: { name: 'Enterprise', maxPeople: null },
 };
 
 // Feature access — Free = chat only
