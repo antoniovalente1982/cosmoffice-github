@@ -6,7 +6,9 @@ import {
     Search, Building2, Users, ChevronLeft, ChevronRight, AlertTriangle,
     Pause, Play, Trash2, RotateCcw, MoreVertical, X, Check, Loader2,
     UserX, UserCheck, Mail, ChevronDown, Crown, Square, CheckSquare,
+    ClipboardList, Save, Calendar,
 } from 'lucide-react';
+import { createClient } from '../../../utils/supabase/client';
 
 interface Owner {
     id: string;
@@ -47,16 +49,25 @@ interface OwnerGroup {
     bestPlan: string;
 }
 
-const planRank: Record<string, number> = { free: 0, starter: 1, pro: 2, enterprise: 3 };
+const planRank: Record<string, number> = { free: 0, team_10: 1, team_25: 2, team_50: 3, enterprise: 4 };
+const PLAN_LABELS: Record<string, string> = { free: 'Free', team_10: 'Team 10', team_25: 'Team 25', team_50: 'Team 50', enterprise: 'Enterprise' };
+const PLAN_OPTIONS = [
+    { value: 'free', label: 'Free', maxPeople: 3, maxSpaces: 1, maxRooms: 5 },
+    { value: 'team_10', label: 'Team 10', maxPeople: 10, maxSpaces: 3, maxRooms: 15 },
+    { value: 'team_25', label: 'Team 25', maxPeople: 25, maxSpaces: 5, maxRooms: 25 },
+    { value: 'team_50', label: 'Team 50', maxPeople: 50, maxSpaces: 10, maxRooms: 50 },
+    { value: 'enterprise', label: 'Enterprise', maxPeople: 999, maxSpaces: 999, maxRooms: 999 },
+];
 
 function PlanBadge({ plan }: { plan: string }) {
     const c: Record<string, string> = {
         free: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-        starter: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-        pro: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-        enterprise: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+        team_10: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+        team_25: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+        team_50: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+        enterprise: 'bg-red-500/20 text-red-300 border-red-500/30',
     };
-    return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${c[plan] || c.free}`}>{plan}</span>;
+    return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${c[plan] || c.free}`}>{PLAN_LABELS[plan] || plan}</span>;
 }
 
 function StatusBadge({ status }: { status: 'active' | 'suspended' | 'deleted' }) {
@@ -111,6 +122,43 @@ export default function CustomersPage() {
     } | null>(null);
     const [confirmText, setConfirmText] = useState('');
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+    // Plan editing inline
+    const [editPlanWsId, setEditPlanWsId] = useState<string | null>(null);
+    const [editPlanValue, setEditPlanValue] = useState('free');
+    const [editPlanExpiry, setEditPlanExpiry] = useState('');
+    const [editPlanNotes, setEditPlanNotes] = useState('');
+    const [savingPlan, setSavingPlan] = useState(false);
+
+    const startPlanEdit = (ws: Workspace) => {
+        setEditPlanWsId(ws.id);
+        setEditPlanValue(ws.plan);
+        setEditPlanExpiry('');
+        setEditPlanNotes('');
+        setActionMenuId(null);
+    };
+
+    const savePlanEdit = async () => {
+        if (!editPlanWsId) return;
+        setSavingPlan(true);
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const planDef = PLAN_OPTIONS.find(p => p.value === editPlanValue);
+        const { error } = await supabase.from('workspaces').update({
+            plan: editPlanValue,
+            max_members: planDef?.maxPeople || 3,
+            max_spaces: planDef?.maxSpaces || 1,
+            max_rooms_per_space: planDef?.maxRooms || 5,
+            max_guests: planDef?.maxPeople || 0,
+            plan_expires_at: editPlanExpiry || null,
+            plan_notes: editPlanNotes || null,
+            plan_activated_by: user?.id,
+            plan_activated_at: new Date().toISOString(),
+        }).eq('id', editPlanWsId);
+        if (error) { showFeedback('error', error.message); }
+        else { showFeedback('success', 'Piano aggiornato ✅'); setEditPlanWsId(null); fetchData(); }
+        setSavingPlan(false);
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -392,13 +440,13 @@ export default function CustomersPage() {
                 </form>
 
                 <div className="flex items-center gap-2">
-                    {['', 'free', 'starter', 'pro', 'enterprise'].map(p => (
+                    {['', 'free', 'team_10', 'team_25', 'team_50', 'enterprise'].map(p => (
                         <button key={p} onClick={() => { setPlanFilter(p); setPage(1); }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${planFilter === p
                                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
                                 : 'bg-black/20 text-slate-400 border-white/5 hover:bg-white/5'
                                 }`}>
-                            {p || 'Tutti'}
+                            {PLAN_LABELS[p] || 'Tutti'}
                         </button>
                     ))}
                 </div>
@@ -671,12 +719,25 @@ export default function CustomersPage() {
                                                         <p className="text-[10px] text-slate-500 truncate">/{ws.slug}</p>
                                                     </div>
 
-                                                    {/* Members */}
-                                                    <div className="hidden sm:flex items-center gap-1 text-xs shrink-0">
-                                                        <Users className="w-3.5 h-3.5 text-slate-500" />
-                                                        <span className="text-white font-medium">{ws.totalMembers}</span>
-                                                        <span className="text-slate-600">/ {ws.maxMembers}</span>
+                                                    {/* Usage bar */}
+                                                    <div className="hidden sm:flex items-center gap-2 shrink-0" style={{ minWidth: 120 }}>
+                                                        <Users className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                                        <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                                                            <div style={{
+                                                                width: `${Math.min(100, (ws.totalMembers / Math.max(ws.maxMembers, 1)) * 100)}%`,
+                                                                height: '100%', borderRadius: 3,
+                                                                background: ws.totalMembers >= ws.maxMembers ? '#ef4444' : ws.totalMembers >= ws.maxMembers * 0.8 ? '#f59e0b' : '#22c55e',
+                                                            }} />
+                                                        </div>
+                                                        <span className="text-[11px] text-slate-400 font-mono shrink-0">{ws.totalMembers}/{ws.maxMembers}</span>
                                                     </div>
+
+                                                    {/* Spaces count */}
+                                                    {ws.activeSpaces > 0 && (
+                                                        <span className="text-[10px] text-slate-500 shrink-0">
+                                                            {ws.activeSpaces} uffici
+                                                        </span>
+                                                    )}
 
                                                     {/* Created */}
                                                     <span className="hidden lg:block text-xs text-slate-500 shrink-0 w-20">
@@ -692,11 +753,6 @@ export default function CustomersPage() {
                                                             Vuoto
                                                         </span>
                                                     )}
-                                                    {ws.activeSpaces > 0 && (
-                                                        <span className="text-[10px] text-slate-500">
-                                                            {ws.activeSpaces} uffici
-                                                        </span>
-                                                    )}
 
                                                     {/* Actions */}
                                                     <div className="relative shrink-0">
@@ -710,6 +766,11 @@ export default function CustomersPage() {
                                                         {actionMenuId === ws.id && (
                                                             <div className="absolute right-0 top-full mt-1 w-52 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left"
                                                                 onClick={e => e.stopPropagation()}>
+                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Piano</p>
+                                                                <button onClick={() => startPlanEdit(ws)} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
+                                                                    <ClipboardList className="w-3.5 h-3.5" /> Cambia Piano
+                                                                </button>
+                                                                <div className="border-t border-white/5 my-1" />
                                                                 <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Workspace</p>
                                                                 {ws.status === 'active' && (
                                                                     <>
@@ -754,6 +815,29 @@ export default function CustomersPage() {
                                                             </div>
                                                         )}
                                                     </div>
+
+                                                    {/* Inline Plan Editor */}
+                                                    {editPlanWsId === ws.id && (
+                                                        <div className="col-span-full mt-2 p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/10" onClick={e => e.stopPropagation()}>
+                                                            <div className="flex items-center gap-3 flex-wrap">
+                                                                <select value={editPlanValue} onChange={e => setEditPlanValue(e.target.value)}
+                                                                    className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none">
+                                                                    {PLAN_OPTIONS.map(p => <option key={p.value} value={p.value} style={{ background: '#0f172a' }}>{p.label} (max {p.maxPeople})</option>)}
+                                                                </select>
+                                                                <input type="date" value={editPlanExpiry} onChange={e => setEditPlanExpiry(e.target.value)}
+                                                                    placeholder="Scadenza" className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
+                                                                <input type="text" value={editPlanNotes} onChange={e => setEditPlanNotes(e.target.value)}
+                                                                    placeholder="Note (es: Bonifico ricevuto...)" className="flex-1 min-w-[200px] px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none placeholder:text-slate-600" />
+                                                                <button onClick={savePlanEdit} disabled={savingPlan}
+                                                                    className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5">
+                                                                    <Save className="w-3.5 h-3.5" />{savingPlan ? 'Salvo...' : 'Salva'}
+                                                                </button>
+                                                                <button onClick={() => setEditPlanWsId(null)} className="px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-white border border-white/10">
+                                                                    Annulla
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
