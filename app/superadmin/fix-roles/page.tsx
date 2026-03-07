@@ -13,7 +13,7 @@ export default function FixRolesPage() {
         })
             .then(r => r.json())
             .then(data => {
-                setResult(`✅ Completato! Ruoli corretti: ${data.fixed ?? 'N/A'}\n\nRisposta completa: ${JSON.stringify(data, null, 2)}`);
+                setResult(JSON.stringify(data, null, 2));
             })
             .catch(err => {
                 setResult(`❌ Errore: ${err.message}`);
@@ -22,15 +22,11 @@ export default function FixRolesPage() {
 
     return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-8">
-            <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-lg w-full">
-                <h1 className="text-xl font-bold text-white mb-4">Fix Member Roles</h1>
-                <pre className="text-sm text-emerald-300 whitespace-pre-wrap bg-black/30 p-4 rounded-xl border border-white/5">
+            <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-2xl w-full">
+                <h1 className="text-xl font-bold text-white mb-4">Fix Member Roles — Debug</h1>
+                <pre className="text-xs text-emerald-300 whitespace-pre-wrap bg-black/30 p-4 rounded-xl border border-white/5 max-h-[70vh] overflow-auto">
                     {result}
                 </pre>
-                <p className="text-xs text-slate-500 mt-4">
-                    Questa pagina corregge i ruoli: solo il creatore del workspace rimane Owner.
-                    Puoi eliminarla dopo l&apos;uso.
-                </p>
             </div>
         </div>
     );

@@ -768,23 +768,35 @@ export async function POST(req: NextRequest) {
             case 'fix_member_roles': {
                 // Fix all member roles: only workspace creator (created_by) should be 'owner'
                 // Everyone else who is incorrectly 'owner' gets reset to 'member'
-                const { data: allWs } = await supabase.from('workspaces').select('id, created_by');
+                const { data: allWs, error: wsErr } = await supabase.from('workspaces').select('id, name, created_by');
+                if (wsErr) return NextResponse.json({ success: false, error: wsErr.message });
+
                 let fixed = 0;
+                const debug: any[] = [];
                 for (const w of (allWs || [])) {
-                    if (!w.created_by) continue;
-                    const { data: wrongOwners } = await supabase
+                    const { data: allOwners } = await supabase
                         .from('workspace_members')
-                        .select('id, user_id')
+                        .select('id, user_id, role')
                         .eq('workspace_id', w.id)
                         .eq('role', 'owner')
-                        .neq('user_id', w.created_by)
                         .is('removed_at', null);
-                    for (const m of (wrongOwners || [])) {
-                        await supabase.from('workspace_members').update({ role: 'member' }).eq('id', m.id);
-                        fixed++;
+
+                    const wrongOwners = (allOwners || []).filter(m => m.user_id !== w.created_by);
+
+                    debug.push({
+                        ws: w.name,
+                        created_by: w.created_by,
+                        totalOwnerRole: (allOwners || []).length,
+                        wrongOwners: wrongOwners.length,
+                        wrongIds: wrongOwners.map(m => m.user_id),
+                    });
+
+                    for (const m of wrongOwners) {
+                        const { error: upErr } = await supabase.from('workspace_members').update({ role: 'member' }).eq('id', m.id);
+                        if (!upErr) fixed++;
                     }
                 }
-                return NextResponse.json({ success: true, fixed });
+                return NextResponse.json({ success: true, fixed, totalWorkspaces: (allWs || []).length, debug });
             }
 
             default:
