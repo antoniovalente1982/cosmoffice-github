@@ -6,7 +6,7 @@ import {
     X, Users, Building2, DollarSign, ClipboardList, ChevronDown,
     CreditCard, Calendar, Save, Loader2, History, Receipt, Crown,
     UserMinus, ShieldCheck, Shield, User, Check, AlertTriangle,
-    Mail, Link2, Copy, TrendingUp,
+    Mail, Link2, Copy, TrendingUp, Edit3,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 
@@ -69,6 +69,10 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
 
     // Role change
     const [changingRole, setChangingRole] = useState<string | null>(null);
+
+    // Quick price edit
+    const [editPriceWsId, setEditPriceWsId] = useState<string | null>(null);
+    const [editPriceValue, setEditPriceValue] = useState('');
 
     const showFb = (type: 'success' | 'error', msg: string) => {
         setFeedback({ type, msg });
@@ -180,6 +184,17 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
             showFb('success', 'Membro rimosso ✅');
             loadDetail(); onRefresh();
         } catch { showFb('error', 'Errore nella rimozione'); }
+    };
+
+    const saveQuickPrice = async (wsId: string) => {
+        const amtCents = editPriceValue ? Math.round(parseFloat(editPriceValue) * 100) : 0;
+        const supabase = createClient();
+        const { error } = await supabase.from('workspaces').update({
+            monthly_amount_cents: amtCents,
+            payment_status: amtCents > 0 ? 'pending' : 'none',
+        }).eq('id', wsId);
+        if (error) showFb('error', error.message);
+        else { showFb('success', 'Prezzo aggiornato ✅'); setEditPriceWsId(null); loadDetail(); onRefresh(); }
     };
 
     const owner = data?.owner;
@@ -332,7 +347,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 <span className="text-xs text-slate-400"><Users className="w-3 h-3 inline mr-1" />{ws.totalMembers}/{ws.max_members}</span>
                                                 <span className="text-xs text-slate-500">{ws.activeSpaces} uffici</span>
                                             </div>
-                                            {ws.monthly_amount_cents > 0 && (
+                                            {ws.monthly_amount_cents > 0 && editPriceWsId !== ws.id && (
                                                 <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
                                                     <DollarSign className="w-3 h-3" /> {formatCents(ws.monthly_amount_cents)}/mese
                                                     {ws.payment_status && ws.payment_status !== 'none' && (
@@ -340,6 +355,35 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                             {ws.payment_status === 'paid' ? 'Pagato' : ws.payment_status === 'overdue' ? 'Scaduto' : 'In attesa'}
                                                         </span>
                                                     )}
+                                                    <button onClick={() => { setEditPriceWsId(ws.id); setEditPriceValue((ws.monthly_amount_cents / 100).toString()); }}
+                                                        className="ml-auto p-1 rounded text-slate-600 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors">
+                                                        <Edit3 className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {ws.monthly_amount_cents === 0 && editPriceWsId !== ws.id && ws.plan !== 'free' && (
+                                                <button onClick={() => { setEditPriceWsId(ws.id); setEditPriceValue(''); }}
+                                                    className="mt-2 text-[10px] text-cyan-400/60 hover:text-cyan-300 flex items-center gap-1 transition-colors">
+                                                    <DollarSign className="w-3 h-3" /> Imposta prezzo
+                                                </button>
+                                            )}
+                                            {editPriceWsId === ws.id && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <span className="text-xs text-slate-500">€</span>
+                                                    <input type="number" value={editPriceValue} onChange={e => setEditPriceValue(e.target.value)}
+                                                        placeholder="0.00" autoFocus
+                                                        className="w-24 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none focus:border-cyan-500/50"
+                                                        onKeyDown={e => { if (e.key === 'Enter') saveQuickPrice(ws.id); if (e.key === 'Escape') setEditPriceWsId(null); }}
+                                                    />
+                                                    <span className="text-[10px] text-slate-500">/mese</span>
+                                                    <button onClick={() => saveQuickPrice(ws.id)}
+                                                        className="px-2 py-1 rounded-lg text-[10px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all">
+                                                        <Check className="w-3 h-3" />
+                                                    </button>
+                                                    <button onClick={() => setEditPriceWsId(null)}
+                                                        className="px-2 py-1 rounded-lg text-[10px] text-slate-400 hover:bg-white/5 transition-all">
+                                                        <X className="w-3 h-3" />
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
