@@ -19,10 +19,14 @@ import {
     Mail,
     LogOut,
     ClipboardList,
+    Database,
+    Globe,
+    Wifi,
+    ExternalLink,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 
-interface NavItem { href: string; label: string; icon: any; }
+interface NavItem { href: string; label: string; icon: any; external?: boolean; }
 interface NavSection { label?: string; items: NavItem[]; }
 
 const navSections: NavSection[] = [
@@ -58,6 +62,9 @@ const navSections: NavSection[] = [
         label: 'Integrazioni',
         items: [
             { href: '/superadmin/daily', label: 'LiveKit', icon: Video },
+            { href: 'https://supabase.com/dashboard', label: 'Supabase', icon: Database, external: true },
+            { href: 'https://vercel.com/dashboard', label: 'Vercel', icon: Globe, external: true },
+            { href: 'https://partykit.io/dashboard', label: 'PartyKit', icon: Wifi, external: true },
             { href: '/superadmin/email', label: 'Email (Resend)', icon: Mail },
         ],
     },
@@ -147,7 +154,22 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                                 </>
                             )}
                             {section.items.map((item) => {
-                                const isActive = pathname === item.href || (item.href !== '/superadmin' && pathname.startsWith(item.href));
+                                const isActive = !item.external && (pathname === item.href || (item.href !== '/superadmin' && pathname.startsWith(item.href)));
+                                if (item.external) {
+                                    return (
+                                        <a
+                                            key={item.href}
+                                            href={item.href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent"
+                                        >
+                                            <item.icon className="w-4 h-4" />
+                                            <span className="flex-1">{item.label}</span>
+                                            <ExternalLink className="w-3 h-3 text-slate-600" />
+                                        </a>
+                                    );
+                                }
                                 return (
                                     <Link
                                         key={item.href}
