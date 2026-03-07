@@ -592,7 +592,7 @@ export async function POST(req: NextRequest) {
                 if (uniqueWsIds.length > 0) {
                     const { data: wsData } = await supabase
                         .from('workspaces')
-                        .select('id, name, slug, plan, max_members, max_spaces, max_rooms_per_space, max_guests, plan_expires_at, plan_notes, monthly_amount_cents, payment_status, last_payment_at, created_at, deleted_at, suspended_at')
+                        .select('id, name, slug, plan, max_members, max_spaces, max_rooms_per_space, max_guests, price_per_seat, plan_expires_at, plan_notes, monthly_amount_cents, payment_status, last_payment_at, created_at, deleted_at, suspended_at')
                         .in('id', uniqueWsIds)
                         .order('created_at', { ascending: false });
                     ownedWs = wsData || [];
@@ -807,6 +807,23 @@ export async function POST(req: NextRequest) {
                     }
                 }
                 return NextResponse.json({ success: true, fixed, totalWorkspaces: (allWs || []).length, debug });
+            }
+
+
+            case 'update_seats': {
+                const { max_members, price_per_seat, monthly_amount_cents } = actionData;
+                const updateData: any = {};
+                if (max_members !== undefined) updateData.max_members = max_members;
+                if (price_per_seat !== undefined) updateData.price_per_seat = price_per_seat;
+                if (monthly_amount_cents !== undefined) updateData.monthly_amount_cents = monthly_amount_cents;
+
+                const { error: seatsError } = await supabase
+                    .from('workspaces')
+                    .update(updateData)
+                    .eq('id', workspaceId);
+
+                if (seatsError) return NextResponse.json({ error: seatsError.message }, { status: 500 });
+                return NextResponse.json({ success: true });
             }
 
             default:

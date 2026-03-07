@@ -20,6 +20,7 @@ import {
     Check,
     DoorOpen,
     AlertTriangle,
+    ArrowUpCircle,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -27,7 +28,7 @@ import { Logo } from '../../components/ui/logo';
 import { WorkspaceSettings } from '../../components/workspace/WorkspaceSettings';
 import { OFFICE_PRESETS, getPresetForSize } from '../../lib/officePresets';
 
-const MAX_OWNED_WORKSPACES = 3;
+const MAX_OWNED_WORKSPACES = 1;
 
 export default function DashboardPage() {
     const supabase = createClient();
@@ -47,6 +48,8 @@ export default function DashboardPage() {
     const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
     const [userRoles, setUserRoles] = useState<Record<string, string>>({});
     const [ownedWorkspaceCount, setOwnedWorkspaceCount] = useState(0);
+    const [upgradeSending, setUpgradeSending] = useState(false);
+    const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null);
     // SuperAdmin access is now separate at /superadmin/login
 
     useEffect(() => {
@@ -541,9 +544,79 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
 
+                                    {/* Seat Bar — only for owned workspaces */}
+                                    {isOwnerOfWs && workspace && (
+                                        <div className="mt-4 pt-3 border-t border-white/5">
+                                            {(() => {
+                                                const used = memberCounts[workspace.id] || 0;
+                                                const max = workspace.max_members || 3;
+                                                const pct = Math.min((used / max) * 100, 100);
+                                                const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
+                                                const textColor = pct >= 90 ? 'text-red-400' : pct >= 70 ? 'text-amber-400' : 'text-emerald-400';
+                                                const atLimit = used >= max;
+                                                return (
+                                                    <>
+                                                        <div className="flex items-center justify-between mb-1.5">
+                                                            <span className={`text-xs font-bold ${textColor} flex items-center gap-1.5`}>
+                                                                <Users className="w-3.5 h-3.5" />
+                                                                {used}/{max} accessi
+                                                            </span>
+                                                            {atLimit && (
+                                                                <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                                                                    LIMITE
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full rounded-full transition-all duration-500"
+                                                                style={{ width: `${pct}%`, background: barColor }}
+                                                            />
+                                                        </div>
+                                                        {atLimit && (
+                                                            <button
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation();
+                                                                    setUpgradeSending(true);
+                                                                    try {
+                                                                        const res = await fetch('/api/upgrade-request', {
+                                                                            method: 'POST',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({
+                                                                                workspace_id: workspace.id,
+                                                                                request_type: 'seats',
+                                                                                message: `Richiesta più accessi per "${workspace.name}" (attuale: ${max})`,
+                                                                            }),
+                                                                        });
+                                                                        const data = await res.json();
+                                                                        if (data.alreadyPending) {
+                                                                            setUpgradeSuccess('📨 Richiesta già inviata, in attesa di risposta');
+                                                                        } else if (data.success) {
+                                                                            setUpgradeSuccess('✅ Richiesta inviata! Ti contatteremo a breve');
+                                                                        }
+                                                                    } catch { /* ignore */ }
+                                                                    setUpgradeSending(false);
+                                                                    setTimeout(() => setUpgradeSuccess(null), 5000);
+                                                                }}
+                                                                disabled={upgradeSending}
+                                                                className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                                                            >
+                                                                <ArrowUpCircle className="w-3.5 h-3.5" />
+                                                                {upgradeSending ? 'Invio...' : 'Richiedi più accessi'}
+                                                            </button>
+                                                        )}
+                                                        {upgradeSuccess && (
+                                                            <p className="text-[11px] text-emerald-400 mt-2 text-center">{upgradeSuccess}</p>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
+
                                     {/* Pulsante Entra - PIU EVIDENTE */}
                                     {!isEditing && (
-                                        <div className="mt-6 pt-4 border-t border-white/5">
+                                        <div className="mt-4 pt-3 border-t border-white/5">
                                             <Button
                                                 className="w-full gap-2 font-semibold shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 active:scale-95 transition-all duration-150 bg-gradient-to-r from-primary-500 to-purple-500 hover:from-primary-400 hover:to-purple-400 border-0"
                                                 onClick={() => router.push(`/office/${space.id}`)}
@@ -567,12 +640,34 @@ export default function DashboardPage() {
                                 </div>
                                 <p className="text-sm font-semibold text-amber-300 text-center mb-2">Limite raggiunto</p>
                                 <p className="text-xs text-slate-400 text-center mb-4">Hai raggiunto il massimo di {MAX_OWNED_WORKSPACES} workspace</p>
-                                <a
-                                    href="mailto:info@cosmoffice.io?subject=Richiesta%20più%20workspaces"
-                                    className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 transition-opacity"
+                                <button
+                                    onClick={async () => {
+                                        setUpgradeSending(true);
+                                        try {
+                                            const res = await fetch('/api/upgrade-request', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ request_type: 'workspace', message: 'Richiesta nuovo workspace aggiuntivo' }),
+                                            });
+                                            const data = await res.json();
+                                            if (data.alreadyPending) {
+                                                setUpgradeSuccess('📨 Richiesta già inviata, in attesa');
+                                            } else if (data.success) {
+                                                setUpgradeSuccess('✅ Richiesta inviata!');
+                                            }
+                                        } catch { /* ignore */ }
+                                        setUpgradeSending(false);
+                                        setTimeout(() => setUpgradeSuccess(null), 5000);
+                                    }}
+                                    disabled={upgradeSending}
+                                    className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
                                 >
-                                    Richiedi a cosmoffice.io
-                                </a>
+                                    <ArrowUpCircle className="w-4 h-4" />
+                                    {upgradeSending ? 'Invio...' : 'Richiedi upgrade'}
+                                </button>
+                                {upgradeSuccess && (
+                                    <p className="text-[11px] text-emerald-400 mt-3 text-center">{upgradeSuccess}</p>
+                                )}
                             </Card>
                         </div>
                     ) : (

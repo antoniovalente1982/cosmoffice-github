@@ -23,6 +23,7 @@ import {
     Globe,
     Wifi,
     ExternalLink,
+    ArrowUpCircle,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 
@@ -39,6 +40,7 @@ const navSections: NavSection[] = [
         label: 'Gestione',
         items: [
             { href: '/superadmin/customers', label: 'Gestionale Clienti', icon: BookUser },
+            { href: '/superadmin/upgrade-requests', label: 'Richieste Upgrade', icon: ArrowUpCircle },
         ],
     },
     {
