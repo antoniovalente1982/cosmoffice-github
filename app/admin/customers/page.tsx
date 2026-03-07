@@ -7,9 +7,10 @@ import {
     Pause, Play, Trash2, RotateCcw, MoreVertical, X, Check, Loader2,
     UserX, UserCheck, Mail, ChevronDown, Crown, Square, CheckSquare,
     ClipboardList, Save, Calendar, DollarSign, Receipt, Link2, Copy,
-    History, CreditCard,
+    History, CreditCard, BookUser,
 } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
+import ClientDetailDrawer from '../../../components/superadmin/ClientDetailDrawer';
 
 interface Owner {
     id: string;
@@ -104,6 +105,9 @@ export default function CustomersPage() {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Client detail drawer
+    const [detailOwnerId, setDetailOwnerId] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [planFilter, setPlanFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
@@ -551,8 +555,11 @@ export default function CustomersPage() {
     return (
         <div className="p-8 space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-white">Clienti</h1>
-                <p className="text-sm text-slate-400 mt-1">Gestisci proprietari, workspace e stati del SaaS</p>
+                <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                    <BookUser className="w-6 h-6 text-amber-400" />
+                    Gestionale Clienti
+                </h1>
+                <p className="text-sm text-slate-400 mt-1">Gestisci proprietari, workspace, piani, pagamenti e membri da un unico punto</p>
             </div>
 
             {/* Feedback */}
@@ -728,6 +735,16 @@ export default function CustomersPage() {
                                         </span>
                                     )}
                                 </div>
+
+                                {/* Gestionale button */}
+                                {!isNoOwner && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setDetailOwnerId(group.owner.id); }}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all flex items-center gap-1.5 shrink-0"
+                                    >
+                                        <BookUser className="w-3.5 h-3.5" /> Gestionale
+                                    </button>
+                                )}
 
                                 {/* Owner actions — hidden for Super Admins (managed in Gestione Super Admin) */}
                                 {!isNoOwner && !group.owner.isSuperAdmin && (
@@ -1334,6 +1351,17 @@ export default function CustomersPage() {
                             </button>
                         </motion.div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Client Detail Drawer */}
+            <AnimatePresence>
+                {detailOwnerId && (
+                    <ClientDetailDrawer
+                        ownerId={detailOwnerId}
+                        onClose={() => setDetailOwnerId(null)}
+                        onRefresh={fetchData}
+                    />
                 )}
             </AnimatePresence>
         </div>

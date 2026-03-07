@@ -18,7 +18,7 @@ import {
     Server,
     Mail,
     LogOut,
-    ClipboardList,
+    BookUser,
     Database,
     Globe,
     Wifi,
@@ -38,8 +38,7 @@ const navSections: NavSection[] = [
     {
         label: 'Gestione',
         items: [
-            { href: '/superadmin/customers', label: 'Clienti', icon: Users },
-            { href: '/superadmin/plans', label: 'Gestione Piani', icon: ClipboardList },
+            { href: '/superadmin/customers', label: 'Gestionale Clienti', icon: BookUser },
         ],
     },
     {
@@ -47,6 +46,7 @@ const navSections: NavSection[] = [
         items: [
             { href: '/superadmin/revenue', label: 'Revenue', icon: DollarSign },
             { href: '/superadmin/infrastructure', label: 'Infrastruttura & Costi', icon: Server },
+            { href: '/superadmin/payments', label: 'Setup Pagamenti', icon: CreditCard },
         ],
     },
     {
@@ -60,7 +60,6 @@ const navSections: NavSection[] = [
     {
         label: 'Integrazioni',
         items: [
-            { href: '/superadmin/payments', label: 'Pagamenti (Stripe/PayPal)', icon: CreditCard },
             { href: '/superadmin/daily', label: 'LiveKit', icon: Video },
             { href: 'https://supabase.com/dashboard', label: 'Supabase', icon: Database, external: true },
             { href: 'https://vercel.com/dashboard', label: 'Vercel', icon: Globe, external: true },

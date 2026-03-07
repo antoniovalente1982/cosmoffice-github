@@ -543,6 +543,192 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ success: true, reactivated: ids.length });
             }
 
+            case 'get_owner_detail': {
+                const { ownerId } = actionData;
+                if (!ownerId) return NextResponse.json({ error: 'ownerId required' }, { status: 400 });
+
+                // Fetch owner profile
+                const { data: ownerProfile, error: profErr } = await supabase
+                    .from('profiles')
+                    .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, deleted_at, created_at')
+                    .eq('id', ownerId)
+                    .single();
+                if (profErr) throw profErr;
+
+                // Fetch all workspaces owned by this user (created_by or owner role)
+                const { data: ownedWs } = await supabase
+                    .from('workspaces')
+                    .select('id, name, slug, plan, max_members, max_spaces, max_rooms_per_space, max_guests, plan_expires_at, plan_notes, monthly_amount_cents, payment_status, last_payment_at, created_at, deleted_at, suspended_at')
+                    .eq('created_by', ownerId)
+                    .order('created_at', { ascending: false });
+
+                const wsIds = (ownedWs || []).map((w: any) => w.id);
+
+                // Fetch ALL members for these workspaces with profiles
+                let membersByWs: Record<string, any[]> = {};
+                if (wsIds.length > 0) {
+                    const { data: allMembers } = await supabase
+                        .from('workspace_members')
+                        .select('id, workspace_id, user_id, role, joined_at, last_active_at, is_suspended, removed_at')
+                        .in('workspace_id', wsIds)
+                        .is('removed_at', null)
+                        .order('joined_at', { ascending: true });
+
+                    // Batch fetch member profiles
+                    const memberUserIds = Array.from(new Set((allMembers || []).map((m: any) => m.user_id)));
+                    let memberProfiles: Record<string, any> = {};
+                    if (memberUserIds.length > 0) {
+                        const { data: mProfiles } = await supabase
+                            .from('profiles')
+                            .select('id, email, full_name, display_name, avatar_url')
+                            .in('id', memberUserIds);
+                        (mProfiles || []).forEach((p: any) => { memberProfiles[p.id] = p; });
+                    }
+
+                    (allMembers || []).forEach((m: any) => {
+                        if (!membersByWs[m.workspace_id]) membersByWs[m.workspace_id] = [];
+                        const prof = memberProfiles[m.user_id];
+                        membersByWs[m.workspace_id].push({
+                            id: m.id,
+                            userId: m.user_id,
+                            role: m.role,
+                            joinedAt: m.joined_at,
+                            lastActiveAt: m.last_active_at,
+                            isSuspended: m.is_suspended,
+                            email: prof?.email || '',
+                            name: prof?.display_name || prof?.full_name || prof?.email || '—',
+                            avatarUrl: prof?.avatar_url || null,
+                        });
+                    });
+                }
+
+                // Fetch spaces count per workspace
+                let spacesByWs: Record<string, number> = {};
+                if (wsIds.length > 0) {
+                    const { data: spaces } = await supabase
+                        .from('spaces')
+                        .select('workspace_id')
+                        .in('workspace_id', wsIds)
+                        .is('deleted_at', null);
+                    (spaces || []).forEach((s: any) => {
+                        spacesByWs[s.workspace_id] = (spacesByWs[s.workspace_id] || 0) + 1;
+                    });
+                }
+
+                // Fetch all payments for these workspaces
+                let allPayments: any[] = [];
+                if (wsIds.length > 0) {
+                    const { data: pays } = await supabase
+                        .from('payments')
+                        .select('*')
+                        .in('workspace_id', wsIds)
+                        .order('payment_date', { ascending: false });
+                    allPayments = pays || [];
+                }
+
+                // Compute revenue KPIs
+                const totalRevenueCents = allPayments.reduce((s: number, p: any) => s + (p.amount_cents || 0), 0);
+                const mrrCents = (ownedWs || [])
+                    .filter((w: any) => !w.deleted_at && !w.suspended_at && w.plan !== 'free')
+                    .reduce((s: number, w: any) => s + (w.monthly_amount_cents || 0), 0);
+
+                const workspacesEnriched = (ownedWs || []).map((w: any) => ({
+                    ...w,
+                    members: membersByWs[w.id] || [],
+                    totalMembers: (membersByWs[w.id] || []).length,
+                    activeSpaces: spacesByWs[w.id] || 0,
+                    status: w.deleted_at ? 'deleted' : w.suspended_at ? 'suspended' : 'active',
+                }));
+
+                return NextResponse.json({
+                    owner: {
+                        id: ownerProfile.id,
+                        email: ownerProfile.email,
+                        name: ownerProfile.display_name || ownerProfile.full_name || ownerProfile.email,
+                        avatarUrl: ownerProfile.avatar_url,
+                        isSuperAdmin: !!ownerProfile.is_super_admin,
+                        suspended: !!ownerProfile.suspended_at,
+                        deleted: !!ownerProfile.deleted_at,
+                        createdAt: ownerProfile.created_at,
+                    },
+                    workspaces: workspacesEnriched,
+                    payments: allPayments,
+                    kpi: {
+                        totalRevenueCents,
+                        mrrCents,
+                        totalWorkspaces: (ownedWs || []).length,
+                        activeWorkspaces: (ownedWs || []).filter((w: any) => !w.deleted_at && !w.suspended_at).length,
+                        totalMembers: Object.values(membersByWs).reduce((s: number, arr: any[]) => s + arr.length, 0),
+                        lastPaymentAt: allPayments.length > 0 ? allPayments[0].payment_date : null,
+                    },
+                });
+            }
+
+            case 'change_member_role': {
+                const { memberId, newRole } = actionData;
+                if (!memberId || !newRole) return NextResponse.json({ error: 'memberId and newRole required' }, { status: 400 });
+                if (!['owner', 'admin', 'member'].includes(newRole)) return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+
+                const { error } = await supabase
+                    .from('workspace_members')
+                    .update({ role: newRole })
+                    .eq('id', memberId);
+                if (error) throw error;
+
+                // Get member info for notification
+                const { data: memberInfo } = await supabase
+                    .from('workspace_members')
+                    .select('user_id, workspace_id')
+                    .eq('id', memberId)
+                    .single();
+                if (memberInfo) {
+                    const { data: ws } = await supabase.from('workspaces').select('name').eq('id', memberInfo.workspace_id).single();
+                    const roleLabels: Record<string, string> = { owner: 'Owner', admin: 'Admin', member: 'Membro' };
+                    await sendNotification(
+                        memberInfo.user_id,
+                        '🔄 Ruolo Aggiornato',
+                        `Il tuo ruolo nel workspace "${ws?.name || ''}" è stato modificato a ${roleLabels[newRole] || newRole}.`,
+                        'workspace', memberInfo.workspace_id
+                    );
+                }
+
+                return NextResponse.json({ success: true });
+            }
+
+            case 'remove_member': {
+                const { memberId } = actionData;
+                if (!memberId) return NextResponse.json({ error: 'memberId required' }, { status: 400 });
+
+                // Get member info before removing
+                const { data: memberInfo } = await supabase
+                    .from('workspace_members')
+                    .select('user_id, workspace_id, role')
+                    .eq('id', memberId)
+                    .single();
+
+                if (memberInfo?.role === 'owner') {
+                    return NextResponse.json({ error: 'Cannot remove workspace owner' }, { status: 400 });
+                }
+
+                const { error } = await supabase
+                    .from('workspace_members')
+                    .update({ removed_at: new Date().toISOString() })
+                    .eq('id', memberId);
+                if (error) throw error;
+
+                if (memberInfo) {
+                    const { data: ws } = await supabase.from('workspaces').select('name').eq('id', memberInfo.workspace_id).single();
+                    await sendNotification(
+                        memberInfo.user_id,
+                        '🔴 Rimosso dal Workspace',
+                        `Sei stato rimosso dal workspace "${ws?.name || ''}" dall'amministratore della piattaforma.`,
+                        'workspace', memberInfo.workspace_id
+                    );
+                }
+
+                return NextResponse.json({ success: true });
+            }
+
             default:
                 return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
         }
