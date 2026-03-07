@@ -765,6 +765,28 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ success: true });
             }
 
+            case 'fix_member_roles': {
+                // Fix all member roles: only workspace creator (created_by) should be 'owner'
+                // Everyone else who is incorrectly 'owner' gets reset to 'member'
+                const { data: allWs } = await supabase.from('workspaces').select('id, created_by');
+                let fixed = 0;
+                for (const w of (allWs || [])) {
+                    if (!w.created_by) continue;
+                    const { data: wrongOwners } = await supabase
+                        .from('workspace_members')
+                        .select('id, user_id')
+                        .eq('workspace_id', w.id)
+                        .eq('role', 'owner')
+                        .neq('user_id', w.created_by)
+                        .is('removed_at', null);
+                    for (const m of (wrongOwners || [])) {
+                        await supabase.from('workspace_members').update({ role: 'member' }).eq('id', m.id);
+                        fixed++;
+                    }
+                }
+                return NextResponse.json({ success: true, fixed });
+            }
+
             default:
                 return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
         }

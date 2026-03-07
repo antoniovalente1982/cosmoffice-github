@@ -19,12 +19,15 @@ import {
     X,
     Check,
     DoorOpen,
+    AlertTriangle,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Logo } from '../../components/ui/logo';
 import { WorkspaceSettings } from '../../components/workspace/WorkspaceSettings';
 import { OFFICE_PRESETS, getPresetForSize } from '../../lib/officePresets';
+
+const MAX_OWNED_WORKSPACES = 3;
 
 export default function DashboardPage() {
     const supabase = createClient();
@@ -43,6 +46,7 @@ export default function DashboardPage() {
     const [settingsWorkspace, setSettingsWorkspace] = useState<{ id: string; name: string } | null>(null);
     const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
     const [userRoles, setUserRoles] = useState<Record<string, string>>({});
+    const [ownedWorkspaceCount, setOwnedWorkspaceCount] = useState(0);
     // SuperAdmin access is now separate at /superadmin/login
 
     useEffect(() => {
@@ -103,7 +107,11 @@ export default function DashboardPage() {
             [...memberWorkspaces, ...createdWorkspaces].forEach(w => allWorkspacesMap.set(w.id, w));
             const wsList = Array.from(allWorkspacesMap.values());
 
+            // Count workspaces OWNED by user (created_by)
+            const ownedCount = createdRes.data?.filter((w: any) => !w.deleted_at).length || 0;
+
             setWorkspaces(wsList);
+            setOwnedWorkspaceCount(ownedCount);
 
             // Fetch spaces for these workspaces
             if (wsList.length > 0) {
@@ -321,7 +329,13 @@ export default function DashboardPage() {
                         <h1 className="text-2xl font-bold text-gradient">My Workspaces</h1>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Button variant="outline" className="gap-2" onClick={() => setIsCreatingWorkspace(true)}>
+                        <Button variant="outline" className="gap-2" onClick={() => {
+                            if (ownedWorkspaceCount >= MAX_OWNED_WORKSPACES) {
+                                setError(`Hai raggiunto il limite massimo di ${MAX_OWNED_WORKSPACES} workspace. Contatta cosmoffice.io per richiederne di più.`);
+                                return;
+                            }
+                            setIsCreatingWorkspace(true);
+                        }}>
                             <Plus className="w-4 h-4" /> New Workspace
                         </Button>
                         {/* SuperAdmin access is now at /superadmin/login */}
@@ -545,12 +559,30 @@ export default function DashboardPage() {
                         );
                     })}
 
-                    <div className="transition-transform duration-150 hover:scale-[1.02]">
-                        <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-white/10 bg-white/5 hover:bg-white/10 transition-all min-h-[220px] group cursor-pointer" onClick={() => setIsCreatingWorkspace(true)}>
-                            <PlusCircle className="w-12 h-12 text-slate-500 group-hover:text-primary-400 transition-colors mb-4" />
-                            <p className="text-slate-400 font-medium group-hover:text-slate-200">New Space</p>
-                        </Card>
-                    </div>
+                    {ownedWorkspaceCount >= MAX_OWNED_WORKSPACES ? (
+                        <div className="transition-transform duration-150 hover:scale-[1.02]">
+                            <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-amber-500/20 bg-amber-500/5 transition-all min-h-[220px] group">
+                                <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
+                                    <AlertTriangle className="w-6 h-6 text-amber-400" />
+                                </div>
+                                <p className="text-sm font-semibold text-amber-300 text-center mb-2">Limite raggiunto</p>
+                                <p className="text-xs text-slate-400 text-center mb-4">Hai raggiunto il massimo di {MAX_OWNED_WORKSPACES} workspace</p>
+                                <a
+                                    href="mailto:info@cosmoffice.io?subject=Richiesta%20più%20workspaces"
+                                    className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 transition-opacity"
+                                >
+                                    Richiedi a cosmoffice.io
+                                </a>
+                            </Card>
+                        </div>
+                    ) : (
+                        <div className="transition-transform duration-150 hover:scale-[1.02]">
+                            <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-white/10 bg-white/5 hover:bg-white/10 transition-all min-h-[220px] group cursor-pointer" onClick={() => setIsCreatingWorkspace(true)}>
+                                <PlusCircle className="w-12 h-12 text-slate-500 group-hover:text-primary-400 transition-colors mb-4" />
+                                <p className="text-slate-400 font-medium group-hover:text-slate-200">New Space</p>
+                            </Card>
+                        </div>
+                    )}
                 </div>
 
                 {workspaces.length === 0 && !loading && (

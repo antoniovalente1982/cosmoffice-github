@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import {
     Server, Database, Video, Globe, Zap, ExternalLink, AlertTriangle,
     Check, Users, Wifi, Cpu, ChevronDown, ChevronUp, TrendingUp,
-    Sliders, Calculator,
+    Sliders, Calculator, Mail,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════
@@ -122,6 +122,34 @@ const PARTYKIT_PLANS = [
     },
 ];
 
+// ─── RESEND ──────────────────────────────────────────────────
+const RESEND_PLANS = [
+    {
+        key: 'free', name: 'Free', cost: 0,
+        emailsPerMonth: 3_000,
+        dailyLimit: 100,
+        domains: 1,
+        dataRetention: '1 giorno',
+        overagePerK: 0, // hard limit
+    },
+    {
+        key: 'pro', name: 'Pro', cost: 20,
+        emailsPerMonth: 50_000,
+        dailyLimit: Infinity,
+        domains: 10,
+        dataRetention: '3 giorni',
+        overagePerK: 0.90,
+    },
+    {
+        key: 'scale', name: 'Scale', cost: 90,
+        emailsPerMonth: 100_000,
+        dailyLimit: Infinity,
+        domains: 1_000,
+        dataRetention: '7 giorni',
+        overagePerK: 0.90,
+    },
+];
+
 // ─── HELPER ──────────────────────────────────────────────────
 function formatCost(n: number): string {
     if (n === 0) return '$0';
@@ -203,15 +231,29 @@ export default function InfrastructurePage() {
             return { cost: plan.cost, note: 'Incluso' };
         }
 
+        // Resend: ~5 transactional emails per user per month (invites, notifications, password resets)
+        const resendEmails = users * 5;
+
+        function calcResend(plan: typeof RESEND_PLANS[0]) {
+            if (plan.overagePerK === 0 && resendEmails > plan.emailsPerMonth) {
+                return { cost: -1, note: `Max ${plan.emailsPerMonth.toLocaleString()} email/mese` };
+            }
+            const overage = Math.max(0, resendEmails - plan.emailsPerMonth);
+            const overageCost = overage > 0 ? (overage / 1000) * plan.overagePerK : 0;
+            return { cost: plan.cost + overageCost, note: overage > 0 ? `+${overage.toLocaleString()} email overage` : 'Incluso' };
+        }
+
         return {
             livekitMinutes,
             supabaseMAUs,
             vercelBandwidthGB: Math.round(vercelBandwidthGB * 10) / 10,
             partykitConcurrent,
+            resendEmails,
             livekit: LIVEKIT_PLANS.map(p => ({ plan: p, ...calcLiveKit(p) })),
             supabase: SUPABASE_PLANS.map(p => ({ plan: p, ...calcSupabase(p) })),
             vercel: VERCEL_PLANS.map(p => ({ plan: p, ...calcVercel(p) })),
             partykit: PARTYKIT_PLANS.map(p => ({ plan: p, ...calcPartyKit(p) })),
+            resend: RESEND_PLANS.map(p => ({ plan: p, ...calcResend(p) })),
         };
     }, [users, hoursPerDay, workDays, videoPct]);
 
@@ -223,8 +265,9 @@ export default function InfrastructurePage() {
         const sb = best(costs.supabase);
         const vc = best(costs.vercel);
         const pk = best(costs.partykit);
-        const total = [lk, sb, vc, pk].reduce((s, p) => s + Math.max(0, p.cost), 0);
-        return { livekit: lk, supabase: sb, vercel: vc, partykit: pk, total };
+        const rs = best(costs.resend);
+        const total = [lk, sb, vc, pk, rs].reduce((s, p) => s + Math.max(0, p.cost), 0);
+        return { livekit: lk, supabase: sb, vercel: vc, partykit: pk, resend: rs, total };
     }, [costs]);
 
     const perUserCost = users > 0 ? bestCombo.total / users : 0;
@@ -300,7 +343,7 @@ export default function InfrastructurePage() {
                 </div>
 
                 {/* Per-service breakdown */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 pt-0">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-4 pt-0">
                     <ServiceCostCard
                         name="LiveKit" color="cyan" icon={<Video className="w-4 h-4" />}
                         planName={bestCombo.livekit.plan.name}
@@ -328,6 +371,13 @@ export default function InfrastructurePage() {
                         cost={bestCombo.partykit.cost}
                         note={bestCombo.partykit.note}
                         url="https://partykit.io/dashboard"
+                    />
+                    <ServiceCostCard
+                        name="Resend" color="purple" icon={<Mail className="w-4 h-4" />}
+                        planName={bestCombo.resend.plan.name}
+                        cost={bestCombo.resend.cost}
+                        note={bestCombo.resend.note}
+                        url="https://resend.com/overview"
                     />
                 </div>
             </div>
@@ -472,6 +522,38 @@ export default function InfrastructurePage() {
                             <PlanRow label="Storage persistente" value={p.persistentStorage ? '✓ Sì (Durable Objects)' : '✗ Cancellato ogni giorno'} />
                             <PlanRow label="Deploy" value="Edge globale" />
                             <SimResult result={result} simMinutes={costs.partykitConcurrent} label="connessioni simultanee" />
+                        </div>
+                    );
+                }}
+            />
+
+            {/* ─── 5. RESEND ──────────────────────────────────── */}
+            <ServiceSection
+                name="Resend" color="purple" icon={<Mail className="w-5 h-5" />}
+                description="Email transazionali — Inviti, notifiche, reset password"
+                role="Invia email transazionali: inviti workspace, notifiche di sistema, reset password, conferme. Dominio top-level con DKIM/SPF verificato."
+                dashboardUrl="https://resend.com/overview"
+                lastVerified="07/03/2026"
+                expanded={expandedService === 'resend'}
+                onToggle={() => setExpandedService(expandedService === 'resend' ? null : 'resend')}
+                simResults={costs.resend}
+                notes={[
+                    'Free: limite giornaliero 100 email/giorno — NON adatto a produzione',
+                    'Pro ($20): nessun limite giornaliero, 50K email/mese incluse',
+                    'Overage: $0.90 per 1.000 email aggiuntive (uguale su Pro e Scale)',
+                    'Supporta dominio verificato con DKIM + SPF (setup in DNS)',
+                    'IP dedicato disponibile da $30/mese (consigliato oltre 500 email/giorno)',
+                ]}
+                renderPlan={(plan, result) => {
+                    const p = plan as typeof RESEND_PLANS[0];
+                    return (
+                        <div className="space-y-1.5">
+                            <PlanRow label="Email/mese" value={p.emailsPerMonth.toLocaleString()} />
+                            <PlanRow label="Limite giornaliero" value={p.dailyLimit === Infinity ? 'Nessuno ✓' : `${p.dailyLimit} email/giorno`} />
+                            <PlanRow label="Domini" value={String(p.domains)} />
+                            <PlanRow label="Data retention" value={p.dataRetention} />
+                            <PlanRow label="Overage" value={p.overagePerK === 0 ? 'Hard limit ⛔' : `$${p.overagePerK}/1K email`} />
+                            <SimResult result={result} simMinutes={costs.resendEmails} label="email/mese stimate" />
                         </div>
                     );
                 }}
