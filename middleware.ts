@@ -44,6 +44,8 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/signup') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/invite') ||
+    pathname.startsWith('/pricing') ||
+    pathname.startsWith('/superadmin/login') ||
     pathname === '/';
 
   // API routes
@@ -67,9 +69,22 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // Authenticated
-  if (isPublicRoute && pathname !== '/' && !pathname.startsWith('/invite')) {
+  // Authenticated — redirect away from auth pages
+  if (isPublicRoute && pathname !== '/' && !pathname.startsWith('/invite') && !pathname.startsWith('/superadmin/login')) {
     return NextResponse.redirect(new URL('/office', req.url));
+  }
+
+  // Authenticated superadmin visiting /superadmin/login — redirect to panel
+  if (pathname.startsWith('/superadmin/login')) {
+    const { data: saProfile } = await supabase
+      .from('profiles')
+      .select('is_super_admin')
+      .eq('id', session.user.id)
+      .single();
+    if (saProfile?.is_super_admin) {
+      return NextResponse.redirect(new URL('/superadmin', req.url));
+    }
+    return res;
   }
 
   // ── ANONYMOUS USER RESTRICTIONS ──
@@ -88,8 +103,8 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // ── ADMIN ROUTES: Super Admin only ──
-  if (pathname.startsWith('/admin')) {
+  // ── ADMIN / SUPERADMIN ROUTES: Super Admin only ──
+  if (pathname.startsWith('/admin') || pathname.startsWith('/superadmin')) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('is_super_admin')
@@ -98,6 +113,9 @@ export async function middleware(req: NextRequest) {
 
     if (!profile?.is_super_admin) {
       // Non-admin users get silently redirected — no hint the page exists
+      if (pathname.startsWith('/superadmin')) {
+        return NextResponse.redirect(new URL('/superadmin/login', req.url));
+      }
       return NextResponse.redirect(new URL('/office', req.url));
     }
   }

@@ -19,7 +19,6 @@ import {
     X,
     Check,
     DoorOpen,
-    Crown
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -44,7 +43,7 @@ export default function DashboardPage() {
     const [settingsWorkspace, setSettingsWorkspace] = useState<{ id: string; name: string } | null>(null);
     const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
     const [userRoles, setUserRoles] = useState<Record<string, string>>({});
-    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    // SuperAdmin access is now separate at /superadmin/login
 
     useEffect(() => {
         const initDashboard = async () => {
@@ -72,18 +71,11 @@ export default function DashboardPage() {
             });
             setUserRoles(roles);
 
-            // Check super admin
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('is_super_admin')
-                .eq('id', user.id)
-                .single();
-            const userIsSuperAdmin = !!profile?.is_super_admin;
-            if (userIsSuperAdmin) setIsSuperAdmin(true);
+            // SuperAdmin access is now at /superadmin/login — no longer checked here
 
-            // ACCESS CONTROL: Only owners and super admins can see My Workspaces
+            // ACCESS CONTROL: Only owners can see My Workspaces
             const isOwnerOfAny = Object.values(roles).includes('owner');
-            if (!isOwnerOfAny && !userIsSuperAdmin) {
+            if (!isOwnerOfAny) {
                 // Redirect non-owners to their first available space
                 const allWsIds = Object.keys(roles);
                 if (allWsIds.length > 0) {
@@ -332,16 +324,7 @@ export default function DashboardPage() {
                         <Button variant="outline" className="gap-2" onClick={() => setIsCreatingWorkspace(true)}>
                             <Plus className="w-4 h-4" /> New Workspace
                         </Button>
-                        {isSuperAdmin && (
-                            <Button
-                                variant="outline"
-                                className="gap-2 border-amber-400/40 hover:border-amber-300 text-amber-300 hover:text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_25px_rgba(245,158,11,0.3)] transition-all"
-                                style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(217,119,6,0.15))' }}
-                                onClick={() => router.push('/admin')}
-                            >
-                                <Crown className="w-4 h-4" /> Admin Dashboard
-                            </Button>
-                        )}
+                        {/* SuperAdmin access is now at /superadmin/login */}
                         <div className="w-px h-6 bg-white/10 mx-2"></div>
                         <div className="flex items-center gap-3">
                             <div className="text-right">
@@ -408,7 +391,7 @@ export default function DashboardPage() {
                         const workspace = workspaces.find(w => w.id === space.workspace_id);
                         const isEditing = editingSpace === space.id;
                         const isMenuOpen = spaceMenuOpen === space.id;
-                        const isOwnerOfWs = userRoles[space.workspace_id] === 'owner' || isSuperAdmin;
+                        const isOwnerOfWs = userRoles[space.workspace_id] === 'owner';
 
                         return (
                             <div
