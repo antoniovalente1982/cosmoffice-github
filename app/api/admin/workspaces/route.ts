@@ -375,34 +375,7 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ success: true });
             }
 
-            case 'restore_workspace': {
-                // Restore from soft-delete
-                const { error } = await supabase
-                    .from('workspaces')
-                    .update({ deleted_at: null, deleted_by: null, suspended_at: null, suspended_by: null })
-                    .eq('id', workspaceId);
-                if (error) throw error;
-
-                // Un-suspend members
-                await supabase
-                    .from('workspace_members')
-                    .update({ is_suspended: false })
-                    .eq('workspace_id', workspaceId);
-
-                // Notify owner
-                const ownerId = await getOwnerUserId(workspaceId);
-                if (ownerId) {
-                    const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single();
-                    await sendNotification(
-                        ownerId,
-                        '🔄 Workspace Ripristinato',
-                        `Il workspace "${ws?.name || ''}" è stato ripristinato. Tutto torna alla normalità.`,
-                        'workspace', workspaceId
-                    );
-                }
-
-                return NextResponse.json({ success: true });
-            }
+            // restore_workspace removed — hard deletes are permanent
 
             case 'suspend_owner': {
                 const { ownerId } = actionData;
