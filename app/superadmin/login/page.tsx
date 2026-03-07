@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Mail, Lock, ArrowLeft, AlertCircle, ShieldAlert, Crown } from 'lucide-react';
 import { superadminLogin } from './actions';
@@ -117,14 +117,9 @@ export default function SuperAdminLoginPage() {
             </div>
 
             <div className="auth-container fade-up">
-                <Suspense fallback={
-                    <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div className="auth-spinner" />
-                    </div>
-                }>
-                    <SuperAdminLoginForm />
-                </Suspense>
+                <SuperAdminLoginForm />
             </div>
         </div>
     );
 }
+
