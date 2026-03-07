@@ -171,6 +171,7 @@
     font-weight: 700;
     background: linear-gradient(to right, #fff, #94a3b8);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -321,6 +322,7 @@
 .landing-text-white {
     background: linear-gradient(to right, #fff, #94a3b8);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -328,6 +330,7 @@
     background: linear-gradient(135deg, #a78bfa, #22d3ee, #f472b6);
     background-size: 200% auto;
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     animation: landingGradientShift 6s ease-in-out infinite;
 }
@@ -563,6 +566,7 @@
     font-weight: 800;
     background: linear-gradient(to right, #fff, #94a3b8);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 

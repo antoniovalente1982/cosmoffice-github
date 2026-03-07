@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, joinRoom, leaveRoom, updateParticipantPosition, subscribeToRoomParticipants } from '@/lib/supabase/client';
-import type { Room, RoomParticipant, Profile } from '@/lib/supabase/database.types';
+import type { Room, RoomParticipant, Profile, Conversation } from '@/lib/supabase/database.types';
 
 interface ParticipantWithProfile extends RoomParticipant {
   profile: Profile;
@@ -51,7 +51,7 @@ export function useRoom(roomId?: string) {
             .select('*')
             .eq('room_id', roomId)
             .eq('user_id', user.id)
-            .single();
+            .single<RoomParticipant>();
 
           if (participant) {
             setIsJoined(true);
@@ -146,13 +146,15 @@ export function useRoom(roomId?: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase
+    const updateData: Record<string, boolean | undefined> = {};
+    if (state.audio !== undefined) updateData.audio_enabled = state.audio;
+    if (state.video !== undefined) updateData.video_enabled = state.video;
+    if (state.screenSharing !== undefined) updateData.screen_sharing = state.screenSharing;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
       .from('room_participants')
-      .update({
-        audio_enabled: state.audio,
-        video_enabled: state.video,
-        screen_sharing: state.screenSharing,
-      })
+      .update(updateData)
       .eq('room_id', roomId)
       .eq('user_id', user.id);
   }, [roomId, isJoined]);
@@ -196,7 +198,7 @@ export function useRoomChat(roomId?: string) {
       setIsLoading(true);
 
       // Get or create conversation
-      const conversation = await getRoomConversation(roomId);
+      const conversation = await getRoomConversation(roomId) as Conversation | null;
       if (conversation) {
         setConversationId(conversation.id);
 
