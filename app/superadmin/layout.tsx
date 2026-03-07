@@ -46,7 +46,6 @@ const navSections: NavSection[] = [
         label: 'Monetizzazione',
         items: [
             { href: '/superadmin/revenue', label: 'Revenue', icon: DollarSign },
-            { href: '/superadmin/payments', label: 'Pagamenti', icon: CreditCard },
             { href: '/superadmin/infrastructure', label: 'Infrastruttura & Costi', icon: Server },
         ],
     },
@@ -61,6 +60,7 @@ const navSections: NavSection[] = [
     {
         label: 'Integrazioni',
         items: [
+            { href: '/superadmin/payments', label: 'Pagamenti (Stripe/PayPal)', icon: CreditCard },
             { href: '/superadmin/daily', label: 'LiveKit', icon: Video },
             { href: 'https://supabase.com/dashboard', label: 'Supabase', icon: Database, external: true },
             { href: 'https://vercel.com/dashboard', label: 'Vercel', icon: Globe, external: true },
