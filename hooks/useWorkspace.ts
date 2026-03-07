@@ -93,7 +93,7 @@ export function useWorkspace(workspaceId?: string) {
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return;
-    
+
     setIsLoading(true);
     try {
       const [membersData, spacesData] = await Promise.all([
@@ -196,7 +196,7 @@ export function useInviteMember(workspaceId?: string) {
   const [error, setError] = useState<Error | null>(null);
 
   const invite = useCallback(async (
-    email: string, 
+    email: string,
     role: 'admin' | 'member' | 'guest' = 'member'
   ): Promise<boolean> => {
     if (!workspaceId) return false;
@@ -235,7 +235,7 @@ export function useRemoveMember(workspaceId?: string) {
   const [isLoading, setIsLoading] = useState(false);
 
   const remove = useCallback(async (
-    userId: string, 
+    userId: string,
     reason?: string
   ): Promise<boolean> => {
     if (!workspaceId) return false;
@@ -243,17 +243,24 @@ export function useRemoveMember(workspaceId?: string) {
     setIsLoading(true);
 
     try {
+      // Hard delete — remove completely from DB
       const { error } = await supabase
         .from('workspace_members')
-        .update({
-          removed_at: new Date().toISOString(),
-          removed_by: (await supabase.auth.getUser()).data.user?.id,
-          remove_reason: reason,
-        })
+        .delete()
         .eq('workspace_id', workspaceId)
         .eq('user_id', userId);
 
       if (error) throw error;
+
+      // Also revoke any pending invitations
+      const { data: profile } = await supabase.from('profiles').select('email').eq('id', userId).single();
+      if (profile?.email) {
+        await supabase.from('workspace_invitations')
+          .delete()
+          .eq('workspace_id', workspaceId)
+          .eq('email', profile.email);
+      }
+
       return true;
     } catch (err) {
       console.error('Error removing member:', err);
@@ -276,7 +283,7 @@ export function useJoinRequest() {
   const [error, setError] = useState<Error | null>(null);
 
   const request = useCallback(async (
-    workspaceId: string, 
+    workspaceId: string,
     message?: string
   ): Promise<boolean> => {
     setIsLoading(true);

@@ -177,18 +177,23 @@ export function useWorkspaceMembers(workspaceId: string | null): UseWorkspaceMem
             // Can't remove yourself (use leave)
             if (userId === user.id) return { success: false, error: "Can't remove yourself. Use Leave instead." };
 
-            // Soft delete
+            // Hard delete — remove completely from DB
             const { error: rmError } = await supabase
                 .from('workspace_members')
-                .update({
-                    removed_at: new Date().toISOString(),
-                    removed_by: user.id,
-                    remove_reason: 'Removed by admin',
-                })
+                .delete()
                 .eq('workspace_id', workspaceId)
                 .eq('user_id', userId);
 
             if (rmError) throw rmError;
+
+            // Also revoke any pending invitations for this user
+            const { data: profile } = await supabase.from('profiles').select('email').eq('id', userId).single();
+            if (profile?.email) {
+                await supabase.from('workspace_invitations')
+                    .delete()
+                    .eq('workspace_id', workspaceId)
+                    .eq('email', profile.email);
+            }
 
             await fetchMembers();
             return { success: true };

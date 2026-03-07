@@ -746,13 +746,23 @@ export async function POST(req: NextRequest) {
                     return NextResponse.json({ error: 'Cannot remove workspace owner' }, { status: 400 });
                 }
 
+                // Hard delete — remove completely from DB
                 const { error } = await supabase
                     .from('workspace_members')
-                    .update({ removed_at: new Date().toISOString() })
+                    .delete()
                     .eq('id', memberId);
                 if (error) throw error;
 
+                // Revoke any pending invitations for this user in this workspace
                 if (memberInfo) {
+                    const { data: profile } = await supabase.from('profiles').select('email').eq('id', memberInfo.user_id).single();
+                    if (profile?.email) {
+                        await supabase.from('workspace_invitations')
+                            .delete()
+                            .eq('workspace_id', memberInfo.workspace_id)
+                            .eq('email', profile.email);
+                    }
+
                     const { data: ws } = await supabase.from('workspaces').select('name').eq('id', memberInfo.workspace_id).single();
                     await sendNotification(
                         memberInfo.user_id,

@@ -108,14 +108,10 @@ serve(async (req) => {
             )
           );
 
-        // Mark as removed from workspace
+        // Hard delete — remove completely from workspace
         await supabase
           .from('workspace_members')
-          .update({
-            removed_at: new Date().toISOString(),
-            removed_by: adminId,
-            remove_reason: `BANNED: ${reason || 'Violazione regole'}`,
-          })
+          .delete()
           .eq('workspace_id', workspace_id)
           .eq('user_id', target_user_id);
 
@@ -359,16 +355,22 @@ serve(async (req) => {
             )
           );
 
-        // Mark as removed
+        // Hard delete — remove completely from workspace
         await supabase
           .from('workspace_members')
-          .update({
-            removed_at: new Date().toISOString(),
-            removed_by: adminId,
-            remove_reason: reason,
-          })
+          .delete()
           .eq('workspace_id', workspace_id)
           .eq('user_id', target_user_id);
+
+        // Revoke any pending invitations
+        const { data: targetProfile } = await supabase
+          .from('profiles').select('email').eq('id', target_user_id).single();
+        if (targetProfile?.email) {
+          await supabase.from('workspace_invitations')
+            .delete()
+            .eq('workspace_id', workspace_id)
+            .eq('email', targetProfile.email);
+        }
 
         result = { removed: true };
         break;
