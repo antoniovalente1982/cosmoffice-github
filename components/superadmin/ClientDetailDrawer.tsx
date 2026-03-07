@@ -83,7 +83,10 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'get_owner_detail', workspaceId: '', data: { ownerId } }),
             });
-            if (!r.ok) throw new Error('Failed to load');
+            if (!r.ok) {
+                const errBody = await r.json().catch(() => ({}));
+                throw new Error(errBody?.error || `HTTP ${r.status}`);
+            }
             setData(await r.json());
         } catch (e: any) { showFb('error', e.message); }
         setLoading(false);

@@ -547,20 +547,56 @@ export async function POST(req: NextRequest) {
                 const { ownerId } = actionData;
                 if (!ownerId) return NextResponse.json({ error: 'ownerId required' }, { status: 400 });
 
-                // Fetch owner profile
-                const { data: ownerProfile, error: profErr } = await supabase
+                // Fetch owner profile (with fallback for missing columns)
+                let ownerProfile: any = null;
+                const { data: extProfile, error: extProfErr } = await supabase
                     .from('profiles')
                     .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, deleted_at, created_at')
                     .eq('id', ownerId)
                     .single();
-                if (profErr) throw profErr;
+                if (extProfErr) {
+                    // Fallback: some columns may not exist
+                    const { data: basicProfile, error: basicErr } = await supabase
+                        .from('profiles')
+                        .select('id, email, full_name, display_name, avatar_url, is_super_admin')
+                        .eq('id', ownerId)
+                        .single();
+                    if (basicErr) throw basicErr;
+                    ownerProfile = basicProfile;
+                } else {
+                    ownerProfile = extProfile;
+                }
 
-                // Fetch all workspaces owned by this user (created_by or owner role)
-                const { data: ownedWs } = await supabase
+                // Find all workspaces where this user is owner (via workspace_members role)
+                const { data: ownerMemberships } = await supabase
+                    .from('workspace_members')
+                    .select('workspace_id')
+                    .eq('user_id', ownerId)
+                    .eq('role', 'owner')
+                    .is('removed_at', null);
+
+                // Also find workspaces created_by this user (fallback)
+                const { data: createdWs } = await supabase
                     .from('workspaces')
-                    .select('id, name, slug, plan, max_members, max_spaces, max_rooms_per_space, max_guests, plan_expires_at, plan_notes, monthly_amount_cents, payment_status, last_payment_at, created_at, deleted_at, suspended_at')
-                    .eq('created_by', ownerId)
-                    .order('created_at', { ascending: false });
+                    .select('id')
+                    .eq('created_by', ownerId);
+
+                // Merge unique workspace IDs
+                const ownerWsIds = new Set<string>();
+                (ownerMemberships || []).forEach((m: any) => ownerWsIds.add(m.workspace_id));
+                (createdWs || []).forEach((w: any) => ownerWsIds.add(w.id));
+                const uniqueWsIds = Array.from(ownerWsIds);
+
+                // Fetch full workspace details
+                let ownedWs: any[] = [];
+                if (uniqueWsIds.length > 0) {
+                    const { data: wsData } = await supabase
+                        .from('workspaces')
+                        .select('id, name, slug, plan, max_members, max_spaces, max_rooms_per_space, max_guests, plan_expires_at, plan_notes, monthly_amount_cents, payment_status, last_payment_at, created_at, deleted_at, suspended_at')
+                        .in('id', uniqueWsIds)
+                        .order('created_at', { ascending: false });
+                    ownedWs = wsData || [];
+                }
 
                 const wsIds = (ownedWs || []).map((w: any) => w.id);
 
