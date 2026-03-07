@@ -3,9 +3,13 @@
 // Operazioni atomiche di moderazione con audit trail
 // ============================================
 
+// @ts-ignore: Deno module
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+// @ts-ignore: Deno .ts import
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
+// @ts-ignore: Deno .ts import
 import { getServiceRoleClient, getUserClient } from '../_shared/supabase.ts';
+// @ts-ignore: Deno .ts import
 import { AppError, Errors, success, error } from '../_shared/errors.ts';
 
 interface RequestBody {
@@ -19,7 +23,7 @@ interface RequestBody {
   new_role?: 'owner' | 'admin' | 'member' | 'guest';
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS
   const cors = handleCors(req);
   if (cors) return cors;
@@ -79,9 +83,10 @@ serve(async (req) => {
       .is('removed_at', null)
       .single();
 
-    const adminRoleValue = { owner: 3, admin: 2, member: 1, guest: 0 }[adminMember.role] || 0;
+    const roleValues: Record<string, number> = { owner: 3, admin: 2, member: 1, guest: 0 };
+    const adminRoleValue = roleValues[adminMember.role] || 0;
     const targetRoleValue = targetMember
-      ? { owner: 3, admin: 2, member: 1, guest: 0 }[targetMember.role] || 0
+      ? roleValues[targetMember.role] || 0
       : -1;
 
     // Check hierarchy - can't moderate equals or higher

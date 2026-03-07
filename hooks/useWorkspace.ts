@@ -161,8 +161,8 @@ export function useCreateWorkspace() {
     setError(null);
 
     try {
-      const { data: workspace, error: createError } = await supabase
-        .from('workspaces')
+      const { data: workspace, error: createError } = await (supabase
+        .from('workspaces') as any)
         .insert({
           name: data.name,
           slug: data.slug,
@@ -205,8 +205,8 @@ export function useInviteMember(workspaceId?: string) {
     setError(null);
 
     try {
-      const { error } = await supabase
-        .from('workspace_invitations')
+      const { error } = await (supabase
+        .from('workspace_invitations') as any)
         .insert({
           workspace_id: workspaceId,
           email,
@@ -253,9 +253,9 @@ export function useRemoveMember(workspaceId?: string) {
       if (error) throw error;
 
       // Also revoke any pending invitations
-      const { data: profile } = await supabase.from('profiles').select('email').eq('id', userId).single();
+      const { data: profile } = await (supabase.from('profiles') as any).select('email').eq('id', userId).single();
       if (profile?.email) {
-        await supabase.from('workspace_invitations')
+        await (supabase.from('workspace_invitations') as any)
           .delete()
           .eq('workspace_id', workspaceId)
           .eq('email', profile.email);
@@ -290,8 +290,8 @@ export function useJoinRequest() {
     setError(null);
 
     try {
-      const { error } = await supabase
-        .from('workspace_join_requests')
+      const { error } = await (supabase
+        .from('workspace_join_requests') as any)
         .insert({
           workspace_id: workspaceId,
           message,
