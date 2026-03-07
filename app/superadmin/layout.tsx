@@ -18,6 +18,7 @@ import {
     Server,
     Mail,
     LogOut,
+    ClipboardList,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 
@@ -34,6 +35,7 @@ const navSections: NavSection[] = [
         label: 'Gestione',
         items: [
             { href: '/superadmin/customers', label: 'Clienti', icon: Users },
+            { href: '/superadmin/plans', label: 'Gestione Piani', icon: ClipboardList },
         ],
     },
     {
@@ -41,6 +43,7 @@ const navSections: NavSection[] = [
         items: [
             { href: '/superadmin/revenue', label: 'Revenue', icon: DollarSign },
             { href: '/superadmin/payments', label: 'Pagamenti', icon: CreditCard },
+            { href: '/superadmin/infrastructure', label: 'Infrastruttura & Costi', icon: Server },
         ],
     },
     {
@@ -55,7 +58,6 @@ const navSections: NavSection[] = [
         label: 'Integrazioni',
         items: [
             { href: '/superadmin/daily', label: 'LiveKit', icon: Video },
-            { href: '/superadmin/infrastructure', label: 'Infrastruttura & Costi', icon: Server },
             { href: '/superadmin/email', label: 'Email (Resend)', icon: Mail },
         ],
     },
