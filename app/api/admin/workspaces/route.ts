@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { sendNewCustomerEmail } from '../../../../lib/resend';
 
 async function getAdminClient(req: NextRequest) {
     const res = NextResponse.next();
@@ -358,7 +359,37 @@ export async function POST(req: NextRequest) {
                     owner_id: targetUserId,
                 });
 
-                return NextResponse.json({ success: true, workspace: wsData, ownerId: targetUserId });
+                // 6. Generate magic link and send onboarding email via Resend
+                let emailSent = false;
+                try {
+                    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.cosmoffice.io';
+                    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+                        type: 'magiclink',
+                        email,
+                        options: {
+                            redirectTo: `${siteUrl}/set-password`,
+                        },
+                    });
+
+                    if (linkError) {
+                        console.error('[create_customer] generateLink error:', linkError.message);
+                    } else if (linkData?.properties?.hashed_token) {
+                        // Build our own callback URL that uses our auth/callback route
+                        const magicLink = `${siteUrl}/auth/callback?token_hash=${linkData.properties.hashed_token}&type=magiclink&next=/set-password`;
+                        await sendNewCustomerEmail(email, fullName, workspaceName, magicLink);
+                        emailSent = true;
+                    }
+                } catch (emailErr: any) {
+                    console.error('[create_customer] Email send error:', emailErr.message);
+                    // Non-blocking: workspace is created even if email fails
+                }
+
+                return NextResponse.json({
+                    success: true,
+                    workspace: wsData,
+                    ownerId: targetUserId,
+                    emailSent,
+                });
             }
 
             case 'change_plan': {

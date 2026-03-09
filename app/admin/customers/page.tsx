@@ -267,7 +267,11 @@ export default function CustomersPage() {
             const result = await res.json();
             if (!res.ok) throw new Error(result.error);
 
-            showFeedback('success', 'Cliente creato con successo! 🎉 Password provvisoria: Cambiami123!');
+            if (result.emailSent) {
+                showFeedback('success', `Cliente creato con successo! 📧 Email di accesso inviata a ${newCustomerData.email}`);
+            } else {
+                showFeedback('success', 'Cliente creato con successo! ⚠️ Email non inviata — il cliente può accedere con email e password "Cambiami123!"');
+            }
             setIsNewCustomerModalOpen(false);
             setNewCustomerData({ email: '', fullName: '', workspaceName: '', plan: 'premium', maxMembers: '10', pricePerSeat: '10' });
             fetchData();

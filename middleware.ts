@@ -69,9 +69,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // Authenticated — redirect away from auth pages
-  if (isPublicRoute && pathname !== '/' && !pathname.startsWith('/invite') && !pathname.startsWith('/superadmin/login')) {
+  // Authenticated — redirect away from auth pages (but not /auth/callback or /set-password)
+  if (isPublicRoute && pathname !== '/' && !pathname.startsWith('/invite') && !pathname.startsWith('/superadmin/login') && !pathname.startsWith('/auth/callback') && !pathname.startsWith('/set-password')) {
     return NextResponse.redirect(new URL('/office', req.url));
+  }
+
+  // Allow /set-password for authenticated users (they need to set their password after magic link)
+  if (pathname.startsWith('/set-password')) {
+    return res;
   }
 
   // Authenticated superadmin visiting /superadmin/login — redirect to panel
