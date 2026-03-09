@@ -99,6 +99,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                         roomName,
                         participantName: displayName,
                         participantId: supabaseUserId,
+                        spaceId,
                     }),
                 });
 

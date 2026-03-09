@@ -14,6 +14,7 @@ import {
     Trash2,
     CheckCircle2,
     Shield,
+    MapPin,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -51,6 +52,8 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
     const [activeInvites, setActiveInvites] = useState<any[]>([]);
     const [loadingInvites, setLoadingInvites] = useState(false);
     const [limitInfo, setLimitInfo] = useState<{ current: number; max: number; plan: string } | null>(null);
+    const [rooms, setRooms] = useState<any[]>([]);
+    const [destinationRoomId, setDestinationRoomId] = useState<string>('');
     const isAtLimit = limitInfo ? limitInfo.current >= limitInfo.max : false;
 
     const panelRef = useRef<HTMLDivElement>(null);
@@ -99,6 +102,14 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                 const totalSeats = (memberCount || 0) + (guestInviteCount || 0);
                 setLimitInfo({ current: totalSeats, max: wsData.max_members || 3, plan: wsData.plan || 'free' });
             }
+
+            // Load rooms for destination selector
+            const { data: roomsData } = await supabase
+                .from('rooms')
+                .select('id, name')
+                .eq('space_id', spaceId)
+                .order('name');
+            setRooms(roomsData || []);
         };
         load();
         return () => { cancelled = true; };
@@ -135,6 +146,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             // Guest invites: unlimited entry (max_uses = null), no expiry by default
             max_uses: inviteRole === 'guest' ? null : linkMaxUses,
             expires_at: inviteRole === 'guest' ? null : expiresAt,
+            destination_room_id: (inviteRole === 'guest' && destinationRoomId) ? destinationRoomId : null,
             label: inviteRole === 'guest'
                 ? `Guest - ${new Date().toLocaleDateString('it-IT')}`
                 : `Link ${inviteRole} - ${new Date().toLocaleDateString('it-IT')}`,
@@ -180,11 +192,17 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
     }, [workspaceId, isOpen, loadInvites]);
 
     const revokeInvite = async (inviteId: string) => {
-        await supabase
-            .from('workspace_invitations')
-            .delete()
-            .eq('id', inviteId);
-        loadInvites();
+        try {
+            const res = await fetch('/api/workspaces/invites/revoke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ inviteId, workspaceId })
+            });
+            if (!res.ok) throw new Error('Failed to revoke invite');
+            loadInvites();
+        } catch (err) {
+            console.error('Error revoking invite:', err);
+        }
     };
 
     const copyLink = (token: string) => {
@@ -275,40 +293,58 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                         </div>
                     </div>
 
-                    {/* Link options */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
+                    {/* Options (Expiry / Max uses) or Guest Room Selector */}
+                    {inviteRole !== 'guest' ? (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-slate-500 font-medium ml-0.5 flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> Scadenza
+                                </label>
+                                <select
+                                    value={linkExpiry}
+                                    onChange={(e) => setLinkExpiry(e.target.value as any)}
+                                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
+                                >
+                                    <option value="1d">1 giorno</option>
+                                    <option value="7d">7 giorni</option>
+                                    <option value="30d">30 giorni</option>
+                                    <option value="never">Mai</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-slate-500 font-medium ml-0.5 flex items-center gap-1">
+                                    <Users className="w-3 h-3" /> Max utilizzi
+                                </label>
+                                <select
+                                    value={linkMaxUses ?? 'unlimited'}
+                                    onChange={(e) => setLinkMaxUses(e.target.value === 'unlimited' ? null : parseInt(e.target.value))}
+                                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
+                                >
+                                    <option value="1">1 accesso</option>
+                                    <option value="5">5 accessi</option>
+                                    <option value="10">10 accessi</option>
+                                    <option value="25">25 accessi</option>
+                                    <option value="unlimited">Illimitato</option>
+                                </select>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-1.5 mt-2">
                             <label className="text-[10px] text-slate-500 font-medium ml-0.5 flex items-center gap-1">
-                                <Clock className="w-3 h-3" /> Scadenza
+                                <MapPin className="w-3 h-3" /> Stanza di atterraggio
                             </label>
                             <select
-                                value={linkExpiry}
-                                onChange={(e) => setLinkExpiry(e.target.value as any)}
+                                value={destinationRoomId}
+                                onChange={(e) => setDestinationRoomId(e.target.value)}
                                 className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
                             >
-                                <option value="1d">1 giorno</option>
-                                <option value="7d">7 giorni</option>
-                                <option value="30d">30 giorni</option>
-                                <option value="never">Mai</option>
+                                <option value="">Ingresso principale (Mappa globale)</option>
+                                {rooms.map(room => (
+                                    <option key={room.id} value={room.id}>{room.name}</option>
+                                ))}
                             </select>
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] text-slate-500 font-medium ml-0.5 flex items-center gap-1">
-                                <Users className="w-3 h-3" /> Max utilizzi
-                            </label>
-                            <select
-                                value={linkMaxUses ?? 'unlimited'}
-                                onChange={(e) => setLinkMaxUses(e.target.value === 'unlimited' ? null : parseInt(e.target.value))}
-                                className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
-                            >
-                                <option value="1">1 accesso</option>
-                                <option value="5">5 accessi</option>
-                                <option value="10">10 accessi</option>
-                                <option value="25">25 accessi</option>
-                                <option value="unlimited">Illimitato</option>
-                            </select>
-                        </div>
-                    </div>
+                    )}
 
                     {/* Generated link */}
                     {generatedLink && (
@@ -442,7 +478,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                     )}
                 </div>
             </motion.div>
-        </AnimatePresence>
+        </AnimatePresence >
     );
 }
 

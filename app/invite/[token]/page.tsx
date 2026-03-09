@@ -99,11 +99,6 @@ export default function InvitePage() {
         if (res.success) {
             setWorkspaceId(res.workspace_id);
 
-            if (res.space_id) {
-                router.push(`/office/${res.space_id}`);
-                return;
-            }
-
             const wsId = res.workspace_id;
             const { data: space } = await supabase
                 .from('spaces')
@@ -112,11 +107,18 @@ export default function InvitePage() {
                 .limit(1)
                 .single();
 
-            if (space) {
-                router.push(`/office/${space.id}`);
-            } else {
-                router.push('/office');
+            let targetUrl = '/office';
+            if (res.space_id) {
+                targetUrl = `/office/${res.space_id}`;
+            } else if (space) {
+                targetUrl = `/office/${space.id}`;
             }
+
+            if (res.destination_room_id && targetUrl.includes('/office/')) {
+                targetUrl += `?roomId=${res.destination_room_id}`;
+            }
+
+            router.push(targetUrl);
             return;
         } else {
             setState('error');
@@ -206,11 +208,16 @@ export default function InvitePage() {
             .limit(1)
             .single();
 
+        let targetUrl = '/office';
         if (space) {
-            router.push(`/office/${space.id}`);
-        } else {
-            router.push('/office');
+            targetUrl = `/office/${space.id}`;
         }
+
+        if (invite?.destination_room_id && targetUrl.includes('/office/')) {
+            targetUrl += `?roomId=${invite.destination_room_id}`;
+        }
+
+        router.push(targetUrl);
     };
 
     const roleInfo = invite ? ROLE_INFO[invite.role] || ROLE_INFO.member : ROLE_INFO.member;
