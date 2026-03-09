@@ -60,6 +60,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
     const [editSeatsWsId, setEditSeatsWsId] = useState<string | null>(null);
     const [editSeatsValue, setEditSeatsValue] = useState('');
     const [editPricePerSeat, setEditPricePerSeat] = useState('');
+    const [editBillingCycle, setEditBillingCycle] = useState('monthly');
     const [savingSeats, setSavingSeats] = useState(false);
 
     // Owner max_workspaces edit
@@ -428,13 +429,39 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                                 placeholder="0.00" step="0.01" className={inputCls + ' mt-1'} />
                                                         </div>
                                                     </div>
-                                                    {editSeatsValue && editPricePerSeat && (
-                                                        <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                                                            <p className="text-xs text-emerald-300 font-bold">
-                                                                💰 {editSeatsValue} accessi × {cs}{parseFloat(editPricePerSeat).toFixed(2)} = {cs}{(parseFloat(editSeatsValue) * parseFloat(editPricePerSeat)).toFixed(2)}/mese
-                                                            </p>
-                                                        </div>
-                                                    )}
+                                                    <div>
+                                                        <label className={labelCls}>Ciclo di fatturazione</label>
+                                                        <select value={editBillingCycle} onChange={e => setEditBillingCycle(e.target.value)}
+                                                            className={inputCls + ' mt-1 cursor-pointer'}>
+                                                            <option value="monthly">📅 Mensile</option>
+                                                            <option value="quarterly">📅 Trimestrale (ogni 3 mesi)</option>
+                                                            <option value="semiannual">📅 Semestrale (ogni 6 mesi)</option>
+                                                            <option value="annual">📅 Annuale</option>
+                                                        </select>
+                                                    </div>
+                                                    {editSeatsValue && editPricePerSeat && (() => {
+                                                        const monthlyTotal = parseFloat(editSeatsValue) * parseFloat(editPricePerSeat);
+                                                        const cycleLabels: Record<string, { label: string; months: number }> = {
+                                                            monthly: { label: 'mese', months: 1 },
+                                                            quarterly: { label: 'trimestre', months: 3 },
+                                                            semiannual: { label: 'semestre', months: 6 },
+                                                            annual: { label: 'anno', months: 12 },
+                                                        };
+                                                        const cycle = cycleLabels[editBillingCycle] || cycleLabels.monthly;
+                                                        const periodTotal = monthlyTotal * cycle.months;
+                                                        return (
+                                                            <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-1">
+                                                                <p className="text-xs text-emerald-300 font-bold">
+                                                                    💰 {editSeatsValue} accessi × {cs}{parseFloat(editPricePerSeat).toFixed(2)} = {cs}{monthlyTotal.toFixed(2)}/mese
+                                                                </p>
+                                                                {cycle.months > 1 && (
+                                                                    <p className="text-[11px] text-emerald-400/80">
+                                                                        📄 Fatturazione: {cs}{periodTotal.toFixed(2)}/{cycle.label}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                     <div className="flex gap-2">
                                                         <button onClick={async () => {
                                                             setSavingSeats(true);
@@ -448,7 +475,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                                     body: JSON.stringify({
                                                                         action: 'update_seats',
                                                                         workspaceId: ws.id,
-                                                                        data: { max_members: seats, price_per_seat: pricePerSeat, monthly_amount_cents: totalCents },
+                                                                        data: { max_members: seats, price_per_seat: pricePerSeat, monthly_amount_cents: totalCents, billing_cycle: editBillingCycle },
                                                                     }),
                                                                 });
                                                                 showFb('success', `Piano aggiornato ✅`);
@@ -472,6 +499,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     setEditSeatsWsId(ws.id);
                                                     setEditSeatsValue((ws.max_members || 3).toString());
                                                     setEditPricePerSeat(ws.price_per_seat ? (ws.price_per_seat / 100).toFixed(2) : '');
+                                                    setEditBillingCycle(ws.billing_cycle || 'monthly');
                                                 }}
                                                     className="mt-3 w-full py-2 rounded-lg text-xs font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all flex items-center justify-center gap-1.5">
                                                     <Edit3 className="w-3.5 h-3.5" /> Gestisci Piano

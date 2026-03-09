@@ -991,7 +991,7 @@ export async function POST(req: NextRequest) {
             }
 
             case 'update_seats': {
-                const { max_members, price_per_seat, monthly_amount_cents } = actionData;
+                const { max_members, price_per_seat, monthly_amount_cents, billing_cycle } = actionData;
                 const updateData: any = {};
                 if (max_members !== undefined) updateData.max_members = max_members;
                 if (price_per_seat !== undefined) updateData.price_per_seat = price_per_seat;
@@ -999,6 +999,14 @@ export async function POST(req: NextRequest) {
                     updateData.monthly_amount_cents = monthly_amount_cents;
                     // Auto-set plan based on pricing: premium if paid, demo if free
                     updateData.plan = monthly_amount_cents > 0 ? 'premium' : 'demo';
+                }
+                if (billing_cycle !== undefined) {
+                    updateData.billing_cycle = billing_cycle;
+                    // Auto-compute next_invoice_date based on billing cycle from today
+                    const nextDate = new Date();
+                    const cycleMonths: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
+                    nextDate.setMonth(nextDate.getMonth() + (cycleMonths[billing_cycle] || 1));
+                    updateData.next_invoice_date = nextDate.toISOString().split('T')[0];
                 }
 
                 const { error: seatsError } = await supabase
