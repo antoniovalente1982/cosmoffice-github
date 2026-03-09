@@ -20,11 +20,9 @@ import {
     SlidersHorizontal,
     Wrench,
     Circle,
-    UserPlus,
     Grid3X3,
     MessageCircle,
     PenTool,
-    UsersRound,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
@@ -39,13 +37,13 @@ const TeamList = dynamic(() => import('../../../components/office/TeamList').the
 const OfficeManagement = dynamic(() => import('../../../components/office/OfficeManagement'), { ssr: false });
 const DeviceSettings = dynamic(() => import('../../../components/settings/DeviceSettings').then(mod => mod.DeviceSettings), { ssr: false });
 const OfficeBuilder = dynamic(() => import('../../../components/office/OfficeBuilder').then(mod => mod.OfficeBuilder), { ssr: false });
-const InvitePanel = dynamic(() => import('../../../components/office/InvitePanel'), { ssr: false });
+const InvitePanel = null; // Integrated into TeamList
 const FullscreenGrid = dynamic(() => import('../../../components/media/FullscreenGrid').then(mod => mod.FullscreenGrid), { ssr: false });
 const RoomChat = dynamic(() => import('../../../components/office/RoomChat').then(mod => mod.RoomChat), { ssr: false });
 const Whiteboard = dynamic(() => import('../../../components/office/Whiteboard').then(mod => mod.Whiteboard), { ssr: false });
 const DayNightCycle = dynamic(() => import('../../../components/office/DayNightCycle').then(mod => mod.DayNightCycle), { ssr: false });
 const NotificationBell = dynamic(() => import('../../../components/office/NotificationBell'), { ssr: false });
-const UserManagement = dynamic(() => import('../../../components/office/UserManagement'), { ssr: false });
+const UserManagement = null; // Integrated into TeamList
 const SupportTicketForm = dynamic(() => import('../../../components/office/SupportTicketForm'), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
@@ -232,16 +230,14 @@ export default function OfficePage() {
     useOffice(spaceId);
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [isManagementOpen, setIsManagementOpen] = useState(false);
-    const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
-    const [showInitialSetup, setShowInitialSetup] = useState(false);
-    const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
     const [workspaceName, setWorkspaceName] = useState('');
     const [workspaceLogoUrl, setWorkspaceLogoUrl] = useState<string | null>(null);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-    const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
     const [isSupportOpen, setIsSupportOpen] = useState(false);
+    const [isManagementOpen, setIsManagementOpen] = useState(false);
+    const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
+    const [showInitialSetup, setShowInitialSetup] = useState(false);
 
 
     // Avatar sync via PartyKit
@@ -458,19 +454,7 @@ export default function OfficePage() {
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-                    <TeamList spaceId={spaceId} />
-
-                    {/* Gestione Utenti — visible to Owner and Admin */}
-                    {(role === 'owner' || role === 'admin') && (
-                        <Button
-                            variant="ghost"
-                            onClick={() => setIsUserManagementOpen(true)}
-                            className="w-full justify-start gap-3 transition-all duration-300 hover:bg-cyan-500/10 text-slate-400 hover:text-cyan-300"
-                        >
-                            <UsersRound className="w-5 h-5 flex-shrink-0" />
-                            <span className="whitespace-nowrap">Gestione Utenti</span>
-                        </Button>
-                    )}
+                    <TeamList spaceId={spaceId} workspaceId={workspaceId} role={role} canInvite={canInvite} invitableRoles={invitableRoles} />
 
                     {/* Assistenza — visible to everyone */}
                     <Button
@@ -533,27 +517,6 @@ export default function OfficePage() {
                             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                             <span className="text-sm font-bold text-slate-100">{workspaceName || 'Ufficio'}</span>
                         </div>
-                        {canInvite && (
-                            <>
-                                <button
-                                    onClick={() => setIsInvitePanelOpen(!isInvitePanelOpen)}
-                                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${isInvitePanelOpen
-                                        ? 'bg-primary-500/30 text-primary-200 shadow-primary-500/20'
-                                        : 'bg-gradient-to-r from-primary-500/20 to-indigo-500/20 text-primary-300 hover:from-primary-500/30 hover:to-indigo-500/30 hover:shadow-primary-500/15 border border-primary-500/20 hover:border-primary-500/40'
-                                        }`}
-                                    title="Genera link di invito"
-                                >
-                                    <UserPlus className="w-3.5 h-3.5" />
-                                    <span>Invita</span>
-                                </button>
-                                <InvitePanel
-                                    spaceId={spaceId}
-                                    isOpen={isInvitePanelOpen}
-                                    onClose={() => setIsInvitePanelOpen(false)}
-                                    invitableRoles={invitableRoles}
-                                />
-                            </>
-                        )}
                     </div>
 
                     {/* Right side: notifications */}
@@ -766,14 +729,7 @@ export default function OfficePage() {
                 )}
                 {isManagementOpen && <OfficeManagement spaceId={spaceId} onClose={() => setIsManagementOpen(false)} />}
 
-                {/* User Management Panel — visible to Owner/Admin */}
-                {workspaceId && (
-                    <UserManagement
-                        workspaceId={workspaceId}
-                        isOpen={isUserManagementOpen}
-                        onClose={() => setIsUserManagementOpen(false)}
-                    />
-                )}
+
 
                 {/* Support Ticket Form — visible to everyone */}
                 <SupportTicketForm
