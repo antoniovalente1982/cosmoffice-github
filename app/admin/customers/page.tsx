@@ -7,7 +7,7 @@ import {
     Pause, Play, Trash2, RotateCcw, MoreVertical, X, Check, Loader2,
     UserX, UserCheck, Mail, ChevronDown, Crown, Square, CheckSquare,
     ClipboardList, Save, Calendar, DollarSign, Receipt, Link2, Copy,
-    History, CreditCard, BookUser, UserPlus, KeyRound, Plus
+    History, CreditCard, BookUser, UserPlus, KeyRound, Plus, FileText, Zap
 } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
 import ClientDetailDrawer from '../../../components/superadmin/ClientDetailDrawer';
@@ -41,6 +41,11 @@ interface Workspace {
     createdAt: string;
     lastActivity: number;
     activeSpaces: number;
+    pricePerSeat: number;
+    monthlyAmountCents: number;
+    billingCycle: string;
+    nextInvoiceDate: string | null;
+    paymentStatus: string;
     owner: Owner | null;
 }
 
@@ -189,6 +194,23 @@ export default function CustomersPage() {
     const [addWsSeats, setAddWsSeats] = useState('10');
     const [addWsPPS, setAddWsPPS] = useState('10');
     const [addingWs, setAddingWs] = useState(false);
+
+    // Invoices
+    const [invoiceWsId, setInvoiceWsId] = useState<string | null>(null);
+    const [invoices, setInvoices] = useState<any[]>([]);
+    const [loadingInvoices, setLoadingInvoices] = useState(false);
+    const [generatingInvoice, setGeneratingInvoice] = useState(false);
+
+    // Upgrade
+    const [upgradeWs, setUpgradeWs] = useState<Workspace | null>(null);
+    const [upgradeSeats, setUpgradeSeats] = useState('');
+    const [upgradePPS, setUpgradePPS] = useState('');
+    const [upgradingWs, setUpgradingWs] = useState(false);
+
+    // Mark paid form
+    const [markPaidId, setMarkPaidId] = useState<string | null>(null);
+    const [markPaidMethod, setMarkPaidMethod] = useState<'bank_transfer' | 'stripe' | 'manual'>('bank_transfer');
+    const [markPaidRef, setMarkPaidRef] = useState('');
 
     const handleGenerateOwnerLink = async () => {
         setGeneratingOwnerLink(true);
@@ -441,6 +463,87 @@ export default function CustomersPage() {
         setAddingWs(false);
     };
 
+    // ─── Invoice handlers ────────────────────────────
+    const loadInvoices = async (wsId: string) => {
+        setInvoiceWsId(wsId);
+        setLoadingInvoices(true);
+        setActionMenuId(null);
+        try {
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                body: JSON.stringify({ action: 'get_invoices', workspaceId: wsId, data: {} }),
+            });
+            const r = await res.json();
+            setInvoices(r.invoices || []);
+        } catch { setInvoices([]); }
+        setLoadingInvoices(false);
+    };
+
+    const generateInvoice = async (wsId: string, cycle?: string) => {
+        setGeneratingInvoice(true);
+        setActionMenuId(null);
+        try {
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                body: JSON.stringify({ action: 'generate_invoice', workspaceId: wsId, data: { billing_cycle: cycle || 'monthly' } }),
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Errore'); }
+            showFeedback('success', 'Fattura generata ✅');
+            loadInvoices(wsId);
+            fetchData();
+        } catch (err: any) { showFeedback('error', err.message); }
+        setGeneratingInvoice(false);
+    };
+
+    const markInvoicePaid = async () => {
+        if (!markPaidId) return;
+        try {
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                body: JSON.stringify({ action: 'mark_invoice_paid', workspaceId: '_', data: { invoiceId: markPaidId, payment_method: markPaidMethod, payment_reference: markPaidRef } }),
+            });
+            if (!res.ok) throw new Error('Errore');
+            showFeedback('success', 'Pagamento confermato ✅');
+            setMarkPaidId(null); setMarkPaidRef('');
+            if (invoiceWsId) loadInvoices(invoiceWsId);
+            fetchData();
+        } catch (err: any) { showFeedback('error', err.message); }
+    };
+
+    const doUpgrade = async () => {
+        if (!upgradeWs) return;
+        setUpgradingWs(true);
+        try {
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const newPPSCents = Math.round(parseFloat(upgradePPS || '0') * 100);
+            const res = await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                body: JSON.stringify({
+                    action: 'upgrade_workspace',
+                    workspaceId: upgradeWs.id,
+                    data: { new_seats: parseInt(upgradeSeats) || upgradeWs.maxMembers, new_price_per_seat_cents: newPPSCents },
+                }),
+            });
+            if (!res.ok) throw new Error('Errore');
+            const r = await res.json();
+            showFeedback('success', `Upgrade completato! ${r.adjustment_cents > 0 ? `Fattura proporzionale: €${(r.adjustment_cents / 100).toFixed(2)}` : 'Nessun costo aggiuntivo'}`);
+            setUpgradeWs(null);
+            fetchData();
+        } catch (err: any) { showFeedback('error', err.message); }
+        setUpgradingWs(false);
+    };
+
     useEffect(() => {
         const handleClick = () => setActionMenuId(null);
         if (actionMenuId) {
@@ -482,7 +585,7 @@ export default function CustomersPage() {
             else if (ws.status === 'suspended') group.suspendedWs++;
             else group.deletedWs++;
             // Calculate total monthly cost per owner
-            const pps = (ws as any).price_per_seat || 0;
+            const pps = ws.pricePerSeat || 0;
             group.totalMonthlyCents += ws.maxMembers * pps;
         });
 
@@ -1102,15 +1205,15 @@ export default function CustomersPage() {
                                                         {actionMenuId === ws.id && (
                                                             <div className="absolute right-0 top-full mt-1 w-52 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left"
                                                                 onClick={e => e.stopPropagation()}>
-                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Pagamenti</p>
-                                                                <button onClick={() => openPaymentModal(ws)} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
-                                                                    <DollarSign className="w-3.5 h-3.5" /> Registra Pagamento
+                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Fatturazione</p>
+                                                                <button onClick={() => generateInvoice(ws.id)} disabled={generatingInvoice} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
+                                                                    <FileText className="w-3.5 h-3.5" /> Genera Fattura
                                                                 </button>
-                                                                <button onClick={() => loadPaymentHistory(ws.id)} className="w-full px-3 py-2 text-left text-xs text-purple-400 hover:bg-white/5 flex items-center gap-2">
-                                                                    <History className="w-3.5 h-3.5" /> Storico Pagamenti
+                                                                <button onClick={() => loadInvoices(ws.id)} className="w-full px-3 py-2 text-left text-xs text-purple-400 hover:bg-white/5 flex items-center gap-2">
+                                                                    <History className="w-3.5 h-3.5" /> Storico Fatture
                                                                 </button>
-                                                                <button onClick={() => startPlanEdit(ws)} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
-                                                                    <ClipboardList className="w-3.5 h-3.5" /> Configura Accessi
+                                                                <button onClick={() => { setUpgradeWs(ws); setUpgradeSeats(String(ws.maxMembers)); setUpgradePPS(String((ws.pricePerSeat / 100).toFixed(2))); setActionMenuId(null); }} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
+                                                                    <Zap className="w-3.5 h-3.5" /> Upgrade
                                                                 </button>
                                                                 <div className="border-t border-white/5 my-1" />
                                                                 <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Accesso</p>
@@ -1145,16 +1248,16 @@ export default function CustomersPage() {
                                                                         </button>
                                                                         <button onClick={() => openConfirm({
                                                                             action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                                            label: 'Elimina Workspace', description: `Il workspace "${ws.name}" sarà eliminato definitivamente dal database. Questa azione è IRREVERSIBILE.`, danger: true, confirmWord: 'ELIMINA',
+                                                                            label: 'Elimina Workspace', description: `Eliminazione IRREVERSIBILE.`, danger: true, confirmWord: 'ELIMINA',
                                                                         })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
-                                                                            <Trash2 className="w-3.5 h-3.5" /> Elimina Definitivamente
+                                                                            <Trash2 className="w-3.5 h-3.5" /> Elimina
                                                                         </button>
                                                                     </>
                                                                 )}
                                                                 {ws.status === 'deleted' && (
                                                                     <button onClick={() => openConfirm({
                                                                         action: 'delete_workspace', workspaceId: ws.id, workspaceName: ws.name,
-                                                                        label: 'Elimina dal Database', description: `Il workspace "${ws.name}" (già eliminato dall'utente) sarà rimosso definitivamente dal database. Questa azione è IRREVERSIBILE.`, danger: true, confirmWord: 'ELIMINA',
+                                                                        label: 'Elimina dal Database', description: `Rimozione IRREVERSIBILE dal database.`, danger: true, confirmWord: 'ELIMINA',
                                                                     })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
                                                                         <Trash2 className="w-3.5 h-3.5" /> Elimina dal DB
                                                                     </button>
@@ -1230,6 +1333,74 @@ export default function CustomersPage() {
                                                                         <span className="text-slate-400 font-semibold">Totale netto:</span>
                                                                         <span className="text-white font-bold">{fmt(payments.reduce((s: number, p: any) => s + p.amount_cents, 0))}</span>
                                                                     </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Invoice History Inline */}
+                                                    {invoiceWsId === ws.id && (
+                                                        <div className="col-span-full mt-2 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10" onClick={e => e.stopPropagation()}>
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <h4 className="text-xs font-bold text-indigo-300 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Storico Fatture</h4>
+                                                                <button onClick={() => setInvoiceWsId(null)} className="text-slate-500 hover:text-white"><X className="w-3.5 h-3.5" /></button>
+                                                            </div>
+                                                            {loadingInvoices ? (
+                                                                <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-indigo-400" /></div>
+                                                            ) : invoices.length === 0 ? (
+                                                                <p className="text-xs text-slate-500 italic">Nessuna fattura. Clicca &quot;Genera Fattura&quot; dal menu.</p>
+                                                            ) : (
+                                                                <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                                                                    {invoices.map(inv => (
+                                                                        <div key={inv.id} className="p-2.5 rounded-lg bg-black/20 space-y-1.5">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="text-xs font-bold text-white">{inv.invoice_number}</span>
+                                                                                    {inv.is_upgrade && <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">UPGRADE</span>}
+                                                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${inv.status === 'paid' ? 'bg-emerald-500/20 text-emerald-300' :
+                                                                                        inv.status === 'overdue' ? 'bg-red-500/20 text-red-300' :
+                                                                                            inv.status === 'cancelled' ? 'bg-slate-500/20 text-slate-400' :
+                                                                                                'bg-amber-500/20 text-amber-300'
+                                                                                        }`}>{inv.status === 'paid' ? 'PAGATO' : inv.status === 'pending' ? 'IN ATTESA' : inv.status === 'overdue' ? 'SCADUTO' : inv.status.toUpperCase()}</span>
+                                                                                </div>
+                                                                                <span className="text-sm font-bold text-white">€{(inv.total_cents / 100).toFixed(2)}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                                                                                <span>{inv.seats} accessi × €{(inv.price_per_seat_cents / 100).toFixed(2)}</span>
+                                                                                <span>•</span>
+                                                                                <span>{new Date(inv.period_start).toLocaleDateString('it-IT')} → {new Date(inv.period_end).toLocaleDateString('it-IT')}</span>
+                                                                                <span>•</span>
+                                                                                <span>Scadenza: {new Date(inv.due_date).toLocaleDateString('it-IT')}</span>
+                                                                                {inv.payment_method && <><span>•</span><span>{inv.payment_method === 'bank_transfer' ? 'Bonifico' : inv.payment_method === 'stripe' ? 'Stripe' : 'Manuale'}</span></>}
+                                                                                {inv.payment_reference && <><span>•</span><span>CRO: {inv.payment_reference}</span></>}
+                                                                            </div>
+                                                                            {inv.status === 'pending' && (
+                                                                                markPaidId === inv.id ? (
+                                                                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                                                        <select value={markPaidMethod} onChange={e => setMarkPaidMethod(e.target.value as any)}
+                                                                                            className="px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none">
+                                                                                            <option value="bank_transfer">Bonifico</option>
+                                                                                            <option value="stripe">Stripe</option>
+                                                                                            <option value="manual">Manuale</option>
+                                                                                        </select>
+                                                                                        <input type="text" value={markPaidRef} onChange={e => setMarkPaidRef(e.target.value)}
+                                                                                            placeholder="CRO / Riferimento" className="w-36 px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none" />
+                                                                                        <button onClick={markInvoicePaid} className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-emerald-500 hover:bg-emerald-600">
+                                                                                            ✅ Conferma Pagamento
+                                                                                        </button>
+                                                                                        <button onClick={() => setMarkPaidId(null)} className="text-[10px] text-slate-500 hover:text-white">Annulla</button>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <button onClick={() => setMarkPaidId(inv.id)} className="mt-1 px-3 py-1.5 rounded-lg text-[10px] font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10">
+                                                                                        💰 Segna come Pagato
+                                                                                    </button>
+                                                                                )
+                                                                            )}
+                                                                            {inv.status === 'paid' && inv.paid_at && (
+                                                                                <p className="text-[10px] text-emerald-400/60">Pagato il {new Date(inv.paid_at).toLocaleDateString('it-IT')}</p>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1533,6 +1704,90 @@ export default function CustomersPage() {
                                 className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5">
                                 Chiudi
                             </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Upgrade Modal */}
+            <AnimatePresence>
+                {upgradeWs && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                        onClick={() => setUpgradeWs(null)}>
+                        <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full max-w-md rounded-2xl border border-cyan-500/20 p-6 space-y-4"
+                            style={{ background: 'rgba(15, 23, 42, 0.97)', backdropFilter: 'blur(30px)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                                    <Zap className="w-5 h-5 text-cyan-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-white">Upgrade Workspace</h3>
+                                    <p className="text-[11px] text-slate-500">{upgradeWs.name}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="p-3 rounded-xl bg-black/30 border border-white/5">
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">Attuale</p>
+                                    <div className="flex items-center gap-4 text-sm">
+                                        <span className="text-slate-400">{upgradeWs.maxMembers} accessi</span>
+                                        <span className="text-slate-600">×</span>
+                                        <span className="text-slate-400">€{(upgradeWs.pricePerSeat / 100).toFixed(2)}/utente</span>
+                                        <span className="text-slate-600">=</span>
+                                        <span className="text-white font-bold">€{((upgradeWs.maxMembers * upgradeWs.pricePerSeat) / 100).toFixed(2)}/mese</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <div className="flex-1">
+                                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Nuovi Accessi</label>
+                                        <input type="number" min="1" value={upgradeSeats} onChange={e => setUpgradeSeats(e.target.value)}
+                                            className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">€/utente (mese)</label>
+                                        <input type="number" step="0.01" value={upgradePPS} onChange={e => setUpgradePPS(e.target.value)}
+                                            className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                </div>
+
+                                {upgradeSeats && upgradePPS && (
+                                    <div className="p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/10">
+                                        <p className="text-[10px] text-cyan-300 uppercase font-bold tracking-wider mb-1">Nuovo Piano</p>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-slate-300">{upgradeSeats} accessi × €{parseFloat(upgradePPS).toFixed(2)}</span>
+                                            <span className="text-lg font-bold text-cyan-300">€{(parseInt(upgradeSeats) * parseFloat(upgradePPS)).toFixed(2)}/mese</span>
+                                        </div>
+                                        {upgradeWs.nextInvoiceDate && (() => {
+                                            const now = new Date();
+                                            const end = new Date(upgradeWs.nextInvoiceDate!);
+                                            const remainDays = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+                                            const oldDaily = (upgradeWs.maxMembers * upgradeWs.pricePerSeat) / 3000;
+                                            const newDaily = (parseInt(upgradeSeats) * parseFloat(upgradePPS) * 100) / 3000;
+                                            const diff = Math.round((newDaily - oldDaily) * remainDays);
+                                            return diff > 0 ? (
+                                                <p className="text-[10px] text-amber-400 mt-1">
+                                                    ⚡ Adeguamento proporzionale: €{(diff / 100).toFixed(2)} ({remainDays} giorni rimanenti)
+                                                </p>
+                                            ) : null;
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-2">
+                                <button onClick={doUpgrade} disabled={upgradingWs}
+                                    className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2">
+                                    {upgradingWs ? <><Loader2 className="w-4 h-4 animate-spin" /> Aggiorno...</> : <><Zap className="w-4 h-4" /> Applica Upgrade</>}
+                                </button>
+                                <button onClick={() => setUpgradeWs(null)}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5">
+                                    Annulla
+                                </button>
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}

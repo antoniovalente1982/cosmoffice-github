@@ -55,8 +55,8 @@ export async function GET(req: NextRequest) {
         let hasSuspendedColumn = true;
         const buildQuery = (withSuspended: boolean) => {
             const selectFields = withSuspended
-                ? `id, name, slug, plan, max_members, max_spaces, created_at, updated_at, deleted_at, suspended_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`
-                : `id, name, slug, plan, max_members, max_spaces, created_at, updated_at, deleted_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`;
+                ? `id, name, slug, plan, max_members, max_spaces, price_per_seat, monthly_amount_cents, billing_cycle, next_invoice_date, payment_status, created_at, updated_at, deleted_at, suspended_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`
+                : `id, name, slug, plan, max_members, max_spaces, price_per_seat, monthly_amount_cents, billing_cycle, next_invoice_date, payment_status, created_at, updated_at, deleted_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`;
 
             let q = supabase
                 .from('workspaces')
@@ -208,6 +208,11 @@ export async function GET(req: NextRequest) {
                 createdAt: ws.created_at,
                 lastActivity: Math.max(...members.map((m: any) => new Date(m.last_active_at || 0).getTime())) || null,
                 activeSpaces: spaceCounts[ws.id] || 0,
+                pricePerSeat: ws.price_per_seat || 0,
+                monthlyAmountCents: ws.monthly_amount_cents || 0,
+                billingCycle: ws.billing_cycle || 'monthly',
+                nextInvoiceDate: ws.next_invoice_date || null,
+                paymentStatus: ws.payment_status || 'pending',
                 owner: ownerProfile ? {
                     id: ownerProfile.id,
                     email: ownerProfile.email,
@@ -989,6 +994,266 @@ export async function POST(req: NextRequest) {
 
                 if (seatsError) return NextResponse.json({ error: seatsError.message }, { status: 500 });
                 return NextResponse.json({ success: true });
+            }
+
+
+            // ═══════════════════════════════════════════
+            // BILLING / INVOICES
+            // ═══════════════════════════════════════════
+
+            case 'generate_invoice': {
+                const { billing_cycle: cycle } = actionData;
+                const billingCycle = cycle || 'monthly';
+
+                // Get workspace info
+                const { data: ws } = await supabase.from('workspaces')
+                    .select('name, max_members, price_per_seat, monthly_amount_cents, billing_cycle')
+                    .eq('id', workspaceId).single();
+                if (!ws) return NextResponse.json({ error: 'Workspace non trovato' }, { status: 404 });
+
+                const seats = ws.max_members || 0;
+                const ppsCents = ws.price_per_seat || 0;
+                const subtotal = seats * ppsCents;
+                const months = billingCycle === 'annual' ? 12 : 1;
+                const total = subtotal * months;
+
+                // Period calculation
+                const today = new Date();
+                const periodStart = today.toISOString().split('T')[0];
+                let end = new Date(today);
+                if (billingCycle === 'annual') {
+                    end.setFullYear(end.getFullYear() + 1);
+                } else {
+                    end.setMonth(end.getMonth() + 1);
+                }
+                const periodEnd = end.toISOString().split('T')[0];
+                const dueDate = new Date(today.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 15 days
+
+                // Generate invoice number
+                const { data: seqData } = await supabase.rpc('nextval', { seq_name: 'invoice_number_seq' }).single();
+                const invoiceNum = `INV-${new Date().getFullYear()}-${String(seqData || Date.now()).padStart(5, '0')}`;
+
+                const { data: inv, error: invError } = await supabase.from('invoices').insert({
+                    workspace_id: workspaceId,
+                    period_start: periodStart,
+                    period_end: periodEnd,
+                    billing_cycle: billingCycle,
+                    seats,
+                    price_per_seat_cents: ppsCents,
+                    subtotal_cents: subtotal,
+                    total_cents: total,
+                    status: 'pending',
+                    due_date: dueDate,
+                    invoice_number: invoiceNum,
+                    description: `Fattura ${billingCycle === 'annual' ? 'annuale' : 'mensile'} — ${ws.name} (${seats} accessi × ${(ppsCents / 100).toFixed(2)}€)`,
+                    created_by: userId,
+                }).select().single();
+
+                if (invError) throw invError;
+
+                // Update workspace next_invoice_date
+                await supabase.from('workspaces').update({
+                    next_invoice_date: periodEnd,
+                    billing_cycle: billingCycle,
+                    payment_status: 'pending',
+                }).eq('id', workspaceId);
+
+                // Notify owner
+                const ownerId = await getOwnerUserId(workspaceId);
+                if (ownerId) {
+                    await sendNotification(ownerId, '📄 Nuova Fattura',
+                        `Fattura ${invoiceNum} di €${(total / 100).toFixed(2)} per "${ws.name}". Scadenza: ${dueDate}.`,
+                        'workspace', workspaceId);
+                }
+
+                return NextResponse.json({ success: true, invoice: inv });
+            }
+
+            case 'mark_invoice_paid': {
+                const { invoiceId, payment_method: pm, payment_reference: ref } = actionData;
+                if (!invoiceId) return NextResponse.json({ error: 'invoiceId obbligatorio' }, { status: 400 });
+
+                const { data: inv, error: markErr } = await supabase.from('invoices').update({
+                    status: 'paid',
+                    paid_at: new Date().toISOString(),
+                    payment_method: pm || 'bank_transfer',
+                    payment_reference: ref || null,
+                }).eq('id', invoiceId).select().single();
+
+                if (markErr) throw markErr;
+
+                // Update workspace payment status
+                await supabase.from('workspaces').update({
+                    payment_status: 'paid',
+                    last_payment_at: new Date().toISOString(),
+                }).eq('id', inv.workspace_id);
+
+                // Also record in billing_events for backward compat
+                await supabase.from('billing_events').insert({
+                    workspace_id: inv.workspace_id,
+                    event_type: 'payment',
+                    amount_cents: inv.total_cents,
+                    currency: 'EUR',
+                    metadata: { invoice_id: invoiceId, payment_method: pm, reference: ref },
+                });
+
+                // Notify owner
+                const ownerId2 = await getOwnerUserId(inv.workspace_id);
+                if (ownerId2) {
+                    await sendNotification(ownerId2, '✅ Pagamento Confermato',
+                        `Il pagamento di €${(inv.total_cents / 100).toFixed(2)} per la fattura ${inv.invoice_number} è stato confermato.`,
+                        'workspace', inv.workspace_id);
+                }
+
+                return NextResponse.json({ success: true, invoice: inv });
+            }
+
+            case 'upgrade_workspace': {
+                const { new_seats, new_price_per_seat_cents } = actionData;
+
+                // Get current workspace
+                const { data: currWs } = await supabase.from('workspaces')
+                    .select('name, max_members, price_per_seat, monthly_amount_cents, billing_cycle, next_invoice_date')
+                    .eq('id', workspaceId).single();
+                if (!currWs) return NextResponse.json({ error: 'Workspace non trovato' }, { status: 404 });
+
+                const oldSeats = currWs.max_members || 0;
+                const oldPPS = currWs.price_per_seat || 0;
+                const newSeats = new_seats !== undefined ? new_seats : oldSeats;
+                const newPPS = new_price_per_seat_cents !== undefined ? new_price_per_seat_cents : oldPPS;
+                const newMonthly = newSeats * newPPS;
+
+                // Calculate proration (remaining days in current period)
+                let adjustmentCents = 0;
+                if (currWs.next_invoice_date) {
+                    const now = new Date();
+                    const periodEnd = new Date(currWs.next_invoice_date);
+                    const totalDays = 30; // approximate month
+                    const remainingDays = Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+                    const oldDaily = (oldSeats * oldPPS) / totalDays;
+                    const newDaily = (newSeats * newPPS) / totalDays;
+                    adjustmentCents = Math.round((newDaily - oldDaily) * remainingDays);
+                }
+
+                // Update workspace
+                await supabase.from('workspaces').update({
+                    max_members: newSeats,
+                    price_per_seat: newPPS,
+                    monthly_amount_cents: newMonthly,
+                }).eq('id', workspaceId);
+
+                // Generate upgrade invoice if there's a positive difference
+                let invoice = null;
+                if (adjustmentCents > 0) {
+                    const today = new Date().toISOString().split('T')[0];
+                    const { data: seqData2 } = await supabase.rpc('nextval', { seq_name: 'invoice_number_seq' }).single();
+                    const invoiceNum2 = `INV-${new Date().getFullYear()}-${String(seqData2 || Date.now()).padStart(5, '0')}`;
+
+                    const { data: upgInv } = await supabase.from('invoices').insert({
+                        workspace_id: workspaceId,
+                        period_start: today,
+                        period_end: currWs.next_invoice_date || today,
+                        billing_cycle: currWs.billing_cycle || 'monthly',
+                        seats: newSeats,
+                        price_per_seat_cents: newPPS,
+                        subtotal_cents: newSeats * newPPS,
+                        adjustment_cents: adjustmentCents - (newSeats * newPPS), // difference only
+                        total_cents: adjustmentCents,
+                        status: 'pending',
+                        due_date: today,
+                        invoice_number: invoiceNum2,
+                        is_upgrade: true,
+                        description: `Upgrade "${currWs.name}": ${oldSeats}→${newSeats} accessi, €${(oldPPS / 100).toFixed(2)}→€${(newPPS / 100).toFixed(2)}/utente`,
+                        created_by: userId,
+                    }).select().single();
+                    invoice = upgInv;
+                }
+
+                // Log billing event
+                await supabase.from('billing_events').insert({
+                    workspace_id: workspaceId,
+                    event_type: newSeats > oldSeats || newPPS > oldPPS ? 'plan_upgrade' : 'plan_downgrade',
+                    plan_from: `${oldSeats} seats @ €${(oldPPS / 100).toFixed(2)}`,
+                    plan_to: `${newSeats} seats @ €${(newPPS / 100).toFixed(2)}`,
+                    amount_cents: adjustmentCents,
+                    currency: 'EUR',
+                    metadata: { old_seats: oldSeats, new_seats: newSeats, old_pps: oldPPS, new_pps: newPPS },
+                });
+
+                // Notify owner
+                const ownerId3 = await getOwnerUserId(workspaceId);
+                if (ownerId3) {
+                    await sendNotification(ownerId3, '⚡ Upgrade Workspace',
+                        `"${currWs.name}" aggiornato: ${newSeats} accessi, €${(newPPS / 100).toFixed(2)}/utente (€${(newMonthly / 100).toFixed(2)}/mese).`,
+                        'workspace', workspaceId);
+                }
+
+                return NextResponse.json({ success: true, adjustment_cents: adjustmentCents, invoice });
+            }
+
+            case 'generate_all_invoices': {
+                // Generate invoices for all workspaces past their next_invoice_date
+                const today = new Date().toISOString().split('T')[0];
+                const { data: dueWs } = await supabase.from('workspaces')
+                    .select('id, name, max_members, price_per_seat, billing_cycle, next_invoice_date')
+                    .or(`next_invoice_date.is.null,next_invoice_date.lte.${today}`)
+                    .gt('price_per_seat', 0)
+                    .is('deleted_at', null)
+                    .is('suspended_at', null);
+
+                const generated: string[] = [];
+                for (const ws of (dueWs || [])) {
+                    const seats = ws.max_members || 0;
+                    const ppsCents = ws.price_per_seat || 0;
+                    const cycle = ws.billing_cycle || 'monthly';
+                    const months = cycle === 'annual' ? 12 : 1;
+                    const total = seats * ppsCents * months;
+
+                    const periodStart = today;
+                    const end = new Date();
+                    if (cycle === 'annual') { end.setFullYear(end.getFullYear() + 1); }
+                    else { end.setMonth(end.getMonth() + 1); }
+                    const periodEnd = end.toISOString().split('T')[0];
+                    const dueDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+                    const { data: seqD } = await supabase.rpc('nextval', { seq_name: 'invoice_number_seq' }).single();
+                    const invNum = `INV-${new Date().getFullYear()}-${String(seqD || Date.now()).padStart(5, '0')}`;
+
+                    await supabase.from('invoices').insert({
+                        workspace_id: ws.id,
+                        period_start: periodStart,
+                        period_end: periodEnd,
+                        billing_cycle: cycle,
+                        seats,
+                        price_per_seat_cents: ppsCents,
+                        subtotal_cents: seats * ppsCents,
+                        total_cents: total,
+                        status: 'pending',
+                        due_date: dueDate,
+                        invoice_number: invNum,
+                        description: `Fattura ${cycle === 'annual' ? 'annuale' : 'mensile'} — ${ws.name}`,
+                        created_by: userId,
+                    });
+
+                    await supabase.from('workspaces').update({
+                        next_invoice_date: periodEnd,
+                        payment_status: 'pending',
+                    }).eq('id', ws.id);
+
+                    generated.push(ws.name);
+                }
+
+                return NextResponse.json({ success: true, generated_count: generated.length, workspaces: generated });
+            }
+
+            case 'get_invoices': {
+                const { data: invList, error: invListErr } = await supabase.from('invoices')
+                    .select('*')
+                    .eq('workspace_id', workspaceId)
+                    .order('created_at', { ascending: false });
+
+                if (invListErr) throw invListErr;
+                return NextResponse.json({ success: true, invoices: invList || [] });
             }
 
             default:
