@@ -900,6 +900,81 @@ export async function POST(req: NextRequest) {
             }
 
 
+            case 'add_workspace_to_owner': {
+                const { ownerId, workspaceName, maxMembers, pricePerSeat } = actionData;
+                if (!ownerId || !workspaceName) {
+                    return NextResponse.json({ error: 'ownerId e workspaceName obbligatori' }, { status: 400 });
+                }
+
+                // Check owner's max_workspaces limit
+                const { data: ownerProfile } = await supabase
+                    .from('profiles')
+                    .select('max_workspaces')
+                    .eq('id', ownerId)
+                    .single();
+
+                // Count current active workspaces
+                const { data: ownerMemberships } = await supabase
+                    .from('workspace_members')
+                    .select('workspace_id')
+                    .eq('user_id', ownerId)
+                    .eq('role', 'owner')
+                    .is('removed_at', null);
+
+                const currentCount = (ownerMemberships || []).length;
+                const maxAllowed = ownerProfile?.max_workspaces || 1;
+
+                // Auto-increment max_workspaces if at limit (SuperAdmin override)
+                if (currentCount >= maxAllowed) {
+                    await supabase.from('profiles')
+                        .update({ max_workspaces: currentCount + 1 })
+                        .eq('id', ownerId);
+                }
+
+                // Create workspace
+                const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                const uniqueSlug = `${slug}-${Date.now().toString().slice(-4)}`;
+                const seats = maxMembers || 10;
+                const pps = pricePerSeat !== undefined ? pricePerSeat : 0;
+                const monthlyAmountCents = seats * pps;
+
+                const { data: wsData, error: wsError } = await supabase.from('workspaces').insert({
+                    name: workspaceName,
+                    slug: uniqueSlug,
+                    created_by: ownerId,
+                    plan: 'premium',
+                    max_members: seats,
+                    price_per_seat: pps,
+                    monthly_amount_cents: monthlyAmountCents,
+                }).select().single();
+                if (wsError) throw wsError;
+
+                // Add owner as member
+                await supabase.from('workspace_members').insert({
+                    workspace_id: wsData.id,
+                    user_id: ownerId,
+                    role: 'owner',
+                });
+
+                // Create default space
+                await supabase.from('spaces').insert({
+                    workspace_id: wsData.id,
+                    name: 'Ufficio Principale',
+                    layout: 'office',
+                    owner_id: ownerId,
+                });
+
+                // Notify owner
+                await sendNotification(
+                    ownerId,
+                    '🟢 Nuovo Workspace',
+                    `Un nuovo workspace "${workspaceName}" è stato creato per te dall'amministratore.`,
+                    'workspace', wsData.id
+                );
+
+                return NextResponse.json({ success: true, workspace: wsData });
+            }
+
             case 'update_seats': {
                 const { max_members, price_per_seat, monthly_amount_cents } = actionData;
                 const updateData: any = {};

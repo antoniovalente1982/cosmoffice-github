@@ -7,7 +7,7 @@ import {
     Pause, Play, Trash2, RotateCcw, MoreVertical, X, Check, Loader2,
     UserX, UserCheck, Mail, ChevronDown, Crown, Square, CheckSquare,
     ClipboardList, Save, Calendar, DollarSign, Receipt, Link2, Copy,
-    History, CreditCard, BookUser, UserPlus, KeyRound
+    History, CreditCard, BookUser, UserPlus, KeyRound, Plus
 } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
 import ClientDetailDrawer from '../../../components/superadmin/ClientDetailDrawer';
@@ -182,6 +182,13 @@ export default function CustomersPage() {
     const [generatingOwnerLink, setGeneratingOwnerLink] = useState(false);
     const [ownerLink, setOwnerLink] = useState('');
     const [copiedOwnerLink, setCopiedOwnerLink] = useState(false);
+
+    // Add workspace to owner
+    const [addWsOwnerId, setAddWsOwnerId] = useState<string | null>(null);
+    const [addWsName, setAddWsName] = useState('');
+    const [addWsSeats, setAddWsSeats] = useState('10');
+    const [addWsPPS, setAddWsPPS] = useState('10');
+    const [addingWs, setAddingWs] = useState(false);
 
     const handleGenerateOwnerLink = async () => {
         setGeneratingOwnerLink(true);
@@ -405,6 +412,34 @@ export default function CustomersPage() {
     };
 
     useEffect(() => { fetchData(); }, [page, planFilter, statusFilter]);
+
+    const addWorkspaceToOwner = async () => {
+        if (!addWsOwnerId || !addWsName.trim()) return;
+        setAddingWs(true);
+        try {
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const ppsCents = Math.round(parseFloat(addWsPPS || '0') * 100);
+            const res = await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                body: JSON.stringify({
+                    action: 'add_workspace_to_owner',
+                    data: {
+                        ownerId: addWsOwnerId,
+                        workspaceName: addWsName.trim(),
+                        maxMembers: parseInt(addWsSeats) || 10,
+                        pricePerSeat: ppsCents,
+                    },
+                }),
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Errore'); }
+            showFeedback('success', `Workspace "${addWsName}" creato con successo ✅`);
+            setAddWsOwnerId(null);
+            fetchData();
+        } catch (err: any) { showFeedback('error', err.message); }
+        setAddingWs(false);
+    };
 
     useEffect(() => {
         const handleClick = () => setActionMenuId(null);
@@ -855,6 +890,10 @@ export default function CustomersPage() {
                                         {actionMenuId === `owner-${group.owner.id}` && (
                                             <div className="absolute right-0 top-full mt-1 w-56 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left">
                                                 <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Gestione Owner</p>
+                                                <button onClick={() => { setAddWsOwnerId(group.owner.id); setAddWsName(''); setAddWsSeats('10'); setAddWsPPS('10'); setActionMenuId(null); }} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
+                                                    <Plus className="w-3.5 h-3.5" /> Aggiungi Workspace
+                                                </button>
+                                                <div className="border-t border-white/5 my-1" />
                                                 {!group.owner.suspended ? (
                                                     <button onClick={() => openConfirm({
                                                         action: 'suspend_owner', workspaceId: group.workspaces[0]?.id || '', ownerId: group.owner.id,
@@ -901,6 +940,47 @@ export default function CustomersPage() {
                                 </div>
                                 <PlanCostBadge totalMonthlyCents={group.totalMonthlyCents} cs={cs} />
                             </div>
+
+                            {/* Add workspace inline form */}
+                            {addWsOwnerId === group.owner.id && (
+                                <div className="mx-4 mt-2 p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/20" onClick={e => e.stopPropagation()}>
+                                    <p className="text-[10px] text-cyan-300 uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5">
+                                        <Plus className="w-3 h-3" /> Nuovo Workspace per {group.owner.name}
+                                    </p>
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-xs text-slate-500">Nome:</span>
+                                            <input type="text" value={addWsName} onChange={e => setAddWsName(e.target.value)}
+                                                placeholder="Es: Team Marketing" autoFocus
+                                                className="w-44 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-xs text-slate-500">Accessi:</span>
+                                            <input type="number" value={addWsSeats} onChange={e => setAddWsSeats(e.target.value)}
+                                                placeholder="10" min="1"
+                                                className="w-16 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" />
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-xs text-slate-500">{cs}/utente:</span>
+                                            <input type="number" value={addWsPPS} onChange={e => setAddWsPPS(e.target.value)}
+                                                placeholder="10.00" step="0.01"
+                                                className="w-20 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" />
+                                        </div>
+                                        {addWsName && addWsSeats && addWsPPS && (
+                                            <span className="text-xs text-emerald-400 font-bold">
+                                                = {cs}{(parseInt(addWsSeats) * parseFloat(addWsPPS)).toFixed(2)}/mese
+                                            </span>
+                                        )}
+                                        <button onClick={addWorkspaceToOwner} disabled={addingWs || !addWsName.trim()}
+                                            className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5">
+                                            <Save className="w-3.5 h-3.5" />{addingWs ? 'Creo...' : 'Crea Workspace'}
+                                        </button>
+                                        <button onClick={() => setAddWsOwnerId(null)} className="px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-white border border-white/10">
+                                            Annulla
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Expanded workspace list */}
                             <AnimatePresence>
@@ -1022,15 +1102,15 @@ export default function CustomersPage() {
                                                         {actionMenuId === ws.id && (
                                                             <div className="absolute right-0 top-full mt-1 w-52 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left"
                                                                 onClick={e => e.stopPropagation()}>
-                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Piano & Pagamenti</p>
-                                                                <button onClick={() => startPlanEdit(ws)} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
-                                                                    <ClipboardList className="w-3.5 h-3.5" /> Cambia Piano
-                                                                </button>
+                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Pagamenti</p>
                                                                 <button onClick={() => openPaymentModal(ws)} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
                                                                     <DollarSign className="w-3.5 h-3.5" /> Registra Pagamento
                                                                 </button>
                                                                 <button onClick={() => loadPaymentHistory(ws.id)} className="w-full px-3 py-2 text-left text-xs text-purple-400 hover:bg-white/5 flex items-center gap-2">
                                                                     <History className="w-3.5 h-3.5" /> Storico Pagamenti
+                                                                </button>
+                                                                <button onClick={() => startPlanEdit(ws)} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
+                                                                    <ClipboardList className="w-3.5 h-3.5" /> Configura Accessi
                                                                 </button>
                                                                 <div className="border-t border-white/5 my-1" />
                                                                 <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Accesso</p>
