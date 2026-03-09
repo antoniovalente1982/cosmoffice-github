@@ -1,6 +1,9 @@
 /**
  * Plan Limits Enforcement Utilities
  * Reads limits directly from workspace DB columns (no Stripe dependency)
+ * 
+ * Plans: 'demo' | 'premium'
+ * Limits are stored per-workspace in DB columns, set by SuperAdmin.
  */
 
 export type LimitCheckResult = {
@@ -27,9 +30,9 @@ export async function checkPeopleLimit(
 
     if (!workspace) return { allowed: false, current: 0, max: 0, planName: 'unknown', upgradeRequired: false };
 
-    // Enterprise or unlimited
-    if (workspace.plan === 'enterprise' || workspace.max_members <= 0) {
-        return { allowed: true, current: 0, max: 999, planName: 'Enterprise', upgradeRequired: false };
+    // Unlimited if max_members is 0 or negative
+    if (workspace.max_members <= 0) {
+        return { allowed: true, current: 0, max: 999, planName: workspace.plan || 'demo', upgradeRequired: false };
     }
 
     const { count: memberCount } = await supabase
@@ -45,7 +48,7 @@ export async function checkPeopleLimit(
         allowed: current < max,
         current,
         max,
-        planName: workspace.plan,
+        planName: workspace.plan || 'demo',
         upgradeRequired: current >= max,
     };
 }
@@ -68,8 +71,9 @@ export async function checkSpaceLimit(
 
     if (!workspace) return { allowed: false, current: 0, max: 0, planName: 'unknown', upgradeRequired: false };
 
-    if (workspace.plan === 'enterprise' || workspace.max_spaces <= 0) {
-        return { allowed: true, current: 0, max: 999, planName: 'Enterprise', upgradeRequired: false };
+    // Unlimited if max_spaces is 0 or negative
+    if (workspace.max_spaces <= 0) {
+        return { allowed: true, current: 0, max: 999, planName: workspace.plan || 'demo', upgradeRequired: false };
     }
 
     const { count } = await supabase
@@ -86,7 +90,7 @@ export async function checkSpaceLimit(
         allowed: current < max,
         current,
         max,
-        planName: workspace.plan,
+        planName: workspace.plan || 'demo',
         upgradeRequired: current >= max,
     };
 }
@@ -114,8 +118,9 @@ export async function checkRoomLimit(
 
     if (!workspace) return { allowed: false, current: 0, max: 0, planName: 'unknown', upgradeRequired: false };
 
-    if (workspace.plan === 'enterprise' || workspace.max_rooms_per_space <= 0) {
-        return { allowed: true, current: 0, max: 999, planName: 'Enterprise', upgradeRequired: false };
+    // Unlimited if max_rooms_per_space is 0 or negative
+    if (workspace.max_rooms_per_space <= 0) {
+        return { allowed: true, current: 0, max: 999, planName: workspace.plan || 'demo', upgradeRequired: false };
     }
 
     const { count } = await supabase
@@ -131,7 +136,7 @@ export async function checkRoomLimit(
         allowed: current < max,
         current,
         max,
-        planName: workspace.plan,
+        planName: workspace.plan || 'demo',
         upgradeRequired: current >= max,
     };
 }

@@ -49,9 +49,9 @@ export const PLAN_CONFIG: Record<string, {
         storageQuotaBytes: 512 * 1024 * 1024, // 512MB
         monthlyPricePerUserEur: 0,
     },
-    // Active paid workspaces — per-user billing
-    active: {
-        name: 'Per Utente',
+    // Premium paid workspaces — per-user billing
+    premium: {
+        name: 'Premium',
         stripePriceId: process.env.STRIPE_PRICE_PER_USER || '',
         maxMembers: 10, // Default, SuperAdmin overrides via workspace.max_members
         maxSpaces: 50,
@@ -63,9 +63,9 @@ export const PLAN_CONFIG: Record<string, {
 
 // Legacy compatibility: map old plan names to new ones
 export function normalizePlanKey(plan: string): string {
-    if (plan === 'active' || plan === 'demo') return plan;
-    // Map old plans to 'active' (they were all paid)
-    if (['starter', 'pro', 'enterprise'].includes(plan)) return 'active';
+    if (plan === 'premium' || plan === 'demo') return plan;
+    // Map old plans to 'premium' (they were all paid)
+    if (['active', 'starter', 'pro', 'team_10', 'team_25', 'team_50', 'team_100', 'enterprise'].includes(plan)) return 'premium';
     if (plan === 'free') return 'demo';
     return 'demo';
 }

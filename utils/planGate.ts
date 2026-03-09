@@ -1,40 +1,45 @@
 /**
  * Plan Gate — Client-side feature access control
  * 
- * Plans: 'free' | 'team_10' | 'team_25' | 'team_50' | 'enterprise'
- * Guest count is INCLUDED in total people count (max_members + max_guests)
+ * Plans: 'demo' | 'premium'
+ * - demo: limited features (chat only, basic access)
+ * - premium: full features (video, mic, screen share, etc.)
+ * 
+ * Limits are stored in workspace DB columns (max_members, max_spaces, etc.)
+ * NOT derived from plan name — SuperAdmin sets them per-workspace.
  */
 
-export type PlanType = 'free' | 'team_10' | 'team_25' | 'team_50' | 'team_100' | 'enterprise';
+export type PlanType = 'demo' | 'premium';
 
-export const PLAN_DISPLAY: Record<PlanType, { name: string; maxPeople: number | null }> = {
-    free: { name: 'Free', maxPeople: 3 },
-    team_10: { name: 'Team 10', maxPeople: 10 },
-    team_25: { name: 'Team 25', maxPeople: 25 },
-    team_50: { name: 'Team 50', maxPeople: 50 },
-    team_100: { name: 'Team 100', maxPeople: 100 },
-    enterprise: { name: 'Enterprise', maxPeople: null },
+export const PLAN_DISPLAY: Record<PlanType, { name: string; icon: string }> = {
+    demo: { name: 'Demo', icon: '🔹' },
+    premium: { name: 'Premium', icon: '⭐' },
 };
 
-// Feature access — Free = chat only
+// Feature access — Demo = chat only, Premium = everything
 export function canUseVideo(plan: string): boolean {
-    return plan !== 'free';
+    return plan === 'premium';
 }
 
 export function canUseMic(plan: string): boolean {
-    return plan !== 'free';
+    return plan === 'premium';
 }
 
 export function canUseScreenShare(plan: string): boolean {
-    return plan !== 'free';
+    return plan === 'premium';
 }
 
+export function isDemoPlan(plan: string): boolean {
+    return plan !== 'premium';
+}
+
+// Legacy alias
 export function isFreePlan(plan: string): boolean {
-    return plan === 'free';
+    return isDemoPlan(plan);
 }
 
 export function isPaidPlan(plan: string): boolean {
-    return plan !== 'free';
+    return plan === 'premium';
 }
 
 // SuperAdmin always bypasses all limits
@@ -51,7 +56,7 @@ export function canAddPerson(
     currentGuests: number,
     maxPeople: number,
 ): boolean {
-    if (maxPeople <= 0) return true; // unlimited (enterprise)
+    if (maxPeople <= 0) return true; // unlimited
     return (currentMembers + currentGuests) < maxPeople;
 }
 
@@ -59,8 +64,8 @@ export function canAddPerson(
  * Get upgrade message based on current plan
  */
 export function getUpgradeMessage(plan: string): string {
-    if (plan === 'free') {
-        return 'Passa a un piano a pagamento per sbloccare video, microfono e screen share.';
+    if (plan !== 'premium') {
+        return 'Passa al piano Premium per sbloccare video, microfono e screen share.';
     }
-    return 'Contatta il team per un upgrade del piano.';
+    return 'Contatta il team per modificare il tuo piano.';
 }
