@@ -289,6 +289,78 @@ export async function POST(req: NextRequest) {
         };
 
         switch (action) {
+            case 'create_customer_manual': {
+                const { email, fullName, workspaceName, plan, maxMembers, pricePerSeat, monthlyAmountCents } = actionData;
+
+                if (!email || !fullName || !workspaceName || !maxMembers || pricePerSeat === undefined) {
+                    return NextResponse.json({ error: 'Campi obbligatori mancanti' }, { status: 400 });
+                }
+
+                // 1. Create or get user in auth.users
+                let targetUserId = null;
+                const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
+                if (usersError) throw usersError;
+
+                const existingUser = usersData.users.find(u => u.email === email);
+
+                if (existingUser) {
+                    targetUserId = existingUser.id;
+                } else {
+                    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+                        email,
+                        password: 'Cambiami123!',
+                        email_confirm: true,
+                        user_metadata: { full_name: fullName }
+                    });
+                    if (createError) throw createError;
+                    targetUserId = newUser.user.id;
+                }
+
+                // 2. Create profile if it doesn't exist (trigger might have created it)
+                const { data: existingProfile } = await supabase.from('profiles').select('id').eq('id', targetUserId).maybeSingle();
+                if (!existingProfile) {
+                    await supabase.from('profiles').insert({
+                        id: targetUserId,
+                        email,
+                        full_name: fullName,
+                    });
+                } else {
+                    await supabase.from('profiles').update({ full_name: fullName }).eq('id', targetUserId);
+                }
+
+                // 3. Create Workspace
+                const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                const uniqueSlug = `${slug}-${Date.now().toString().slice(-4)}`;
+                const { data: wsData, error: wsError } = await supabase.from('workspaces').insert({
+                    name: workspaceName,
+                    slug: uniqueSlug,
+                    created_by: targetUserId,
+                    plan: plan || 'premium',
+                    max_members: maxMembers,
+                    price_per_seat: pricePerSeat,
+                    monthly_amount_cents: monthlyAmountCents,
+                }).select().single();
+                if (wsError) throw wsError;
+
+                // 4. Add owner member
+                const { error: memberError } = await supabase.from('workspace_members').insert({
+                    workspace_id: wsData.id,
+                    user_id: targetUserId,
+                    role: 'owner',
+                });
+                if (memberError) throw memberError;
+
+                // 5. Create default office space
+                await supabase.from('spaces').insert({
+                    workspace_id: wsData.id,
+                    name: 'Ufficio Principale',
+                    layout: 'office',
+                    owner_id: targetUserId,
+                });
+
+                return NextResponse.json({ success: true, workspace: wsData, ownerId: targetUserId });
+            }
+
             case 'change_plan': {
                 const { data: ws, error } = await supabase
                     .from('workspaces')

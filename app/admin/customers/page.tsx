@@ -7,7 +7,7 @@ import {
     Pause, Play, Trash2, RotateCcw, MoreVertical, X, Check, Loader2,
     UserX, UserCheck, Mail, ChevronDown, Crown, Square, CheckSquare,
     ClipboardList, Save, Calendar, DollarSign, Receipt, Link2, Copy,
-    History, CreditCard, BookUser,
+    History, CreditCard, BookUser, UserPlus
 } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
 import ClientDetailDrawer from '../../../components/superadmin/ClientDetailDrawer';
@@ -161,6 +161,57 @@ export default function CustomersPage() {
     const [generatedLink, setGeneratedLink] = useState('');
     const [copiedLink, setCopiedLink] = useState(false);
     const [generatingLink, setGeneratingLink] = useState(false);
+
+    // New Manual Customer
+    const [isNewCustomerModalOpen, setIsNewCustomerModalOpen] = useState(false);
+    const [newCustomerData, setNewCustomerData] = useState({
+        email: '',
+        fullName: '',
+        workspaceName: '',
+        plan: 'premium',
+        maxMembers: '10',
+        pricePerSeat: '10'
+    });
+    const [creatingCustomer, setCreatingCustomer] = useState(false);
+
+    const handleCreateCustomer = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setCreatingCustomer(true);
+        try {
+            const seats = parseInt(newCustomerData.maxMembers) || 1;
+            const ppsCents = Math.round((parseFloat(newCustomerData.pricePerSeat) || 0) * 100);
+            const totalCents = seats * ppsCents;
+
+            const res = await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'create_customer_manual',
+                    data: {
+                        email: newCustomerData.email,
+                        fullName: newCustomerData.fullName,
+                        workspaceName: newCustomerData.workspaceName,
+                        plan: newCustomerData.plan,
+                        maxMembers: seats,
+                        pricePerSeat: ppsCents,
+                        monthlyAmountCents: totalCents,
+                    }
+                })
+            });
+
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error);
+
+            showFeedback('success', 'Cliente creato con successo! 🎉 Password provvisoria: Cambiami123!');
+            setIsNewCustomerModalOpen(false);
+            setNewCustomerData({ email: '', fullName: '', workspaceName: '', plan: 'premium', maxMembers: '10', pricePerSeat: '10' });
+            fetchData();
+        } catch (err: any) {
+            showFeedback('error', err.message);
+        } finally {
+            setCreatingCustomer(false);
+        }
+    };
 
     const startPlanEdit = (ws: Workspace) => {
         setEditPlanWsId(ws.id);
@@ -585,6 +636,13 @@ export default function CustomersPage() {
                 </form>
 
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setIsNewCustomerModalOpen(true)}
+                        className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 mr-2"
+                    >
+                        <UserPlus className="w-4 h-4" />
+                        Nuovo Cliente Manuale
+                    </button>
                     {['', 'active', 'demo'].map(p => (
                         <button key={p} onClick={() => { setPlanFilter(p); setPage(1); }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${planFilter === p
@@ -1352,6 +1410,92 @@ export default function CustomersPage() {
                                 className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5">
                                 Chiudi
                             </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* New Customer Modal */}
+            <AnimatePresence>
+                {isNewCustomerModalOpen && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                        onClick={() => setIsNewCustomerModalOpen(false)}>
+                        <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full max-w-lg rounded-2xl border border-emerald-500/20 p-6 space-y-4 shadow-2xl"
+                            style={{ background: 'rgba(15, 23, 42, 0.97)', backdropFilter: 'blur(30px)' }}>
+
+                            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                                        <UserPlus className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-bold text-white">Nuovo Cliente Manuale</h3>
+                                        <p className="text-[11px] text-slate-500">Crea Owner e Workspace direttamente</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsNewCustomerModalOpen(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
+                            </div>
+
+                            <form onSubmit={handleCreateCustomer} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] text-slate-500 uppercase">Nome Azienda / Workspace *</label>
+                                        <input type="text" required value={newCustomerData.workspaceName} onChange={e => setNewCustomerData(prev => ({ ...prev, workspaceName: e.target.value }))} placeholder="Cosmoffice SPA"
+                                            className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] text-slate-500 uppercase">Nome Titolare (Owner) *</label>
+                                        <input type="text" required value={newCustomerData.fullName} onChange={e => setNewCustomerData(prev => ({ ...prev, fullName: e.target.value }))} placeholder="Mario Rossi"
+                                            className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] text-slate-500 uppercase">Email Titolare (Login) *</label>
+                                        <input type="email" required value={newCustomerData.email} onChange={e => setNewCustomerData(prev => ({ ...prev, email: e.target.value }))} placeholder="mario@azienda.it"
+                                            className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-4 mt-2">
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 uppercase">Piano</label>
+                                        <select value={newCustomerData.plan} onChange={e => setNewCustomerData(prev => ({ ...prev, plan: e.target.value }))}
+                                            className="w-full mt-1 px-3 py-2.5 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none appearance-none">
+                                            <option value="demo">Demo</option>
+                                            <option value="premium">Premium</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 uppercase">Numero Accessi</label>
+                                        <input type="number" required min="1" step="1" value={newCustomerData.maxMembers} onChange={e => setNewCustomerData(prev => ({ ...prev, maxMembers: e.target.value }))} placeholder="Es: 11"
+                                            className="w-full mt-1 px-3 py-2.5 rounded-lg bg-black/30 border border-emerald-500/30 text-emerald-300 font-bold outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 uppercase">Prezzo cad. (€)</label>
+                                        <input type="number" required min="0" step="0.01" value={newCustomerData.pricePerSeat} onChange={e => setNewCustomerData(prev => ({ ...prev, pricePerSeat: e.target.value }))} placeholder="10.00"
+                                            className="w-full mt-1 px-3 py-2.5 rounded-lg bg-black/30 border border-emerald-500/30 text-emerald-300 font-bold outline-none" />
+                                    </div>
+                                </div>
+                                <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl flex items-center justify-between mt-2">
+                                    <span className="text-xs text-emerald-400 uppercase tracking-wider font-semibold">Totale Mensile Piano:</span>
+                                    <span className="text-lg font-bold text-emerald-300">
+                                        €{((parseInt(newCustomerData.maxMembers) || 0) * (parseFloat(newCustomerData.pricePerSeat) || 0)).toFixed(2)}
+                                    </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-tight">Verrà generato l'Owner e il Workspace. La password dell'Owner sarà impostata di default a "Cambiami123!". Potrai registrare un pagamento manuale subito dopo.</p>
+
+                                <div className="flex gap-3 pt-4 border-t border-white/10">
+                                    <button type="button" onClick={() => setIsNewCustomerModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5">
+                                        Annulla
+                                    </button>
+                                    <button type="submit" disabled={creatingCustomer || !newCustomerData.email || !newCustomerData.fullName || !newCustomerData.workspaceName}
+                                        className="flex-[2] px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-30 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 border border-emerald-500/50">
+                                        {creatingCustomer ? <Loader2 className="w-5 h-5 animate-spin" /> : <><UserPlus className="w-4 h-4" /> Crea Cliente / Workspace</>}
+                                    </button>
+                                </div>
+                            </form>
                         </motion.div>
                     </motion.div>
                 )}
