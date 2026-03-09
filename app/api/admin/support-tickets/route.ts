@@ -20,20 +20,23 @@ async function getAdminClient(req: NextRequest) {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('is_super_admin')
+        .select('is_super_admin, is_support_staff')
         .eq('id', session.user.id)
         .single();
 
-    if (!profile?.is_super_admin) return { error: 'Forbidden', status: 403 };
+    if (!profile?.is_super_admin && !profile?.is_support_staff) {
+        return { error: 'Forbidden', status: 403 };
+    }
 
     const adminClient = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    return { supabase: adminClient, userId: session.user.id };
+    return { supabase: adminClient, userId: session.user.id, isSuperAdmin: profile.is_super_admin };
 }
 
+// GET: List all support tickets
 export async function GET(req: NextRequest) {
     const auth = await getAdminClient(req);
     if ('error' in auth) {
@@ -43,33 +46,32 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '20');
+    const limit = parseInt(url.searchParams.get('limit') || '30');
     const status = url.searchParams.get('status') || '';
-    const severity = url.searchParams.get('severity') || '';
+    const category = url.searchParams.get('category') || '';
     const offset = (page - 1) * limit;
 
     try {
         let query = supabase
-            .from('bug_reports')
+            .from('support_tickets')
             .select(`
-        id, title, description, severity, status, category,
-        screenshot_url, browser_info, admin_notes,
-        created_at, updated_at, resolved_at,
-        reporter:reporter_id(id, email, full_name, display_name, avatar_url, phone, company_name),
-        workspace:workspace_id(id, name),
-        resolver:resolved_by(id, full_name, display_name)
-      `, { count: 'exact' })
+                id, user_id, workspace_id,
+                requester_name, requester_email, requester_phone, requester_role, requester_company,
+                category, subject, description, priority, status,
+                assigned_to, admin_notes, resolution, resolved_at, resolved_by,
+                created_at, updated_at
+            `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
         if (status) query = query.eq('status', status);
-        if (severity) query = query.eq('severity', severity);
+        if (category) query = query.eq('category', category);
 
         const { data, count, error } = await query;
         if (error) throw error;
 
         return NextResponse.json({
-            bugs: data,
+            tickets: data,
             total: count || 0,
             page,
             totalPages: Math.ceil((count || 0) / limit),
@@ -79,6 +81,7 @@ export async function GET(req: NextRequest) {
     }
 }
 
+// PATCH: Update a support ticket (status, notes, assignment, resolution)
 export async function PATCH(req: NextRequest) {
     const auth = await getAdminClient(req);
     if ('error' in auth) {
@@ -88,25 +91,29 @@ export async function PATCH(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { id, status, admin_notes } = body;
+        const { id, status, admin_notes, resolution, assigned_to } = body;
+
+        if (!id) return NextResponse.json({ error: 'Missing ticket id' }, { status: 400 });
 
         const update: any = {};
         if (status) update.status = status;
         if (admin_notes !== undefined) update.admin_notes = admin_notes;
+        if (resolution !== undefined) update.resolution = resolution;
+        if (assigned_to !== undefined) update.assigned_to = assigned_to;
         if (status === 'resolved' || status === 'closed') {
             update.resolved_at = new Date().toISOString();
             update.resolved_by = userId;
         }
 
         const { data, error } = await supabase
-            .from('bug_reports')
+            .from('support_tickets')
             .update(update)
             .eq('id', id)
             .select()
             .single();
 
         if (error) throw error;
-        return NextResponse.json({ success: true, bug: data });
+        return NextResponse.json({ success: true, ticket: data });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }

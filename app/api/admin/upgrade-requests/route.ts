@@ -20,7 +20,7 @@ export async function GET() {
 
     let profileMap: Record<string, any> = {};
     if (userIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('id, email, full_name, display_name').in('id', userIds);
+        const { data: profiles } = await supabase.from('profiles').select('id, email, full_name, display_name, phone, company_name').in('id', userIds);
         (profiles || []).forEach((p: any) => { profileMap[p.id] = p; });
     }
 
@@ -42,13 +42,32 @@ export async function GET() {
         });
     }
 
+    // Get workspace roles for each user
+    let roleMap: Record<string, string> = {};
+    for (const r of (requests || [])) {
+        if (r.workspace_id) {
+            const { data: member } = await supabase
+                .from('workspace_members')
+                .select('role')
+                .eq('workspace_id', r.workspace_id)
+                .eq('user_id', r.user_id)
+                .is('removed_at', null)
+                .maybeSingle();
+            if (member) roleMap[`${r.user_id}_${r.workspace_id}`] = member.role;
+        }
+    }
+
     const enriched = (requests || []).map((r: any) => {
         const profile = profileMap[r.user_id];
         const ws = r.workspace_id ? wsMap[r.workspace_id] : null;
+        const roleKey = `${r.user_id}_${r.workspace_id}`;
         return {
             ...r,
             user_email: profile?.email || null,
             user_name: profile?.display_name || profile?.full_name || null,
+            user_phone: profile?.phone || r.requester_phone || null,
+            user_company: profile?.company_name || r.requester_company || null,
+            user_role: roleMap[roleKey] || r.requester_role || null,
             workspace_name: ws?.name || null,
             current_seats: ws?.max_members || null,
             used_seats: r.workspace_id ? (memberCounts[r.workspace_id] || 0) : null,

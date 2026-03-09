@@ -17,6 +17,9 @@ interface UpgradeRequest {
     // joined data
     user_email?: string;
     user_name?: string;
+    user_phone?: string;
+    user_company?: string;
+    user_role?: string;
     workspace_name?: string;
     current_seats?: number;
     used_seats?: number;
@@ -130,10 +133,26 @@ export default function UpgradeRequestsPage() {
                                         </div>
                                         <p className="text-xs text-slate-400 mb-1">
                                             <span className="text-slate-300 font-medium">{r.user_name || r.user_email || r.user_id.slice(0, 8)}</span>
+                                            {r.user_role && (
+                                                <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-white/5 text-slate-500">
+                                                    {r.user_role}
+                                                </span>
+                                            )}
                                             {r.workspace_name && (
                                                 <> — workspace: <span className="text-cyan-400">{r.workspace_name}</span></>
                                             )}
                                         </p>
+                                        <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
+                                            {r.user_email && (
+                                                <span>📧 {r.user_email}</span>
+                                            )}
+                                            {r.user_phone && (
+                                                <span className="text-emerald-400">📞 {r.user_phone}</span>
+                                            )}
+                                            {r.user_company && (
+                                                <span>🏢 {r.user_company}</span>
+                                            )}
+                                        </div>
                                         {r.current_seats !== undefined && (
                                             <p className="text-[11px] text-slate-500">
                                                 Accessi attuali: {r.used_seats ?? '?'}/{r.current_seats}

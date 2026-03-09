@@ -4,7 +4,7 @@ import { Suspense, useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '../../components/ui/button';
-import { Mail, Lock, User, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Mail, Lock, User, ArrowLeft, AlertCircle, Building2, Phone, Hash } from 'lucide-react';
 import { Logo } from '../../components/ui/logo';
 import { signup } from './actions';
 import '../auth.css';
@@ -32,8 +32,8 @@ function SignupForm() {
       <div className="auth-card__inner">
         <div className="auth-header">
           <Logo size="lg" showText={false} variant="glow" />
-          <h1>{isInvite ? 'Registrati per entrare' : 'Create an account'}</h1>
-          <p>{isInvite ? 'Crea il tuo account per accettare l\'invito' : 'Join Cosmoffice today'}</p>
+          <h1>{isInvite ? 'Registrati per entrare' : 'Crea il tuo account'}</h1>
+          <p>{isInvite ? 'Crea il tuo account per accettare l\'invito' : 'Unisciti a Cosmoffice'}</p>
         </div>
 
         {isInvite && (
@@ -46,8 +46,9 @@ function SignupForm() {
         <form onSubmit={handleSubmit} className="auth-form">
           {redirectTo && <input type="hidden" name="redirect" value={redirectTo} />}
 
+          {/* Personal Info */}
           <div className="auth-field">
-            <label>Full Name</label>
+            <label>Nome Completo *</label>
             <div className="auth-input-wrap">
               <User className="auth-input-icon" />
               <input type="text" name="full_name" placeholder="Mario Rossi" required />
@@ -55,15 +56,47 @@ function SignupForm() {
           </div>
 
           <div className="auth-field">
-            <label>Email</label>
+            <label>Email *</label>
             <div className="auth-input-wrap">
               <Mail className="auth-input-icon" />
-              <input type="email" name="email" placeholder="you@company.com" required />
+              <input type="email" name="email" placeholder="mario@azienda.it" required />
             </div>
           </div>
 
           <div className="auth-field">
-            <label>Password</label>
+            <label>Telefono *</label>
+            <div className="auth-input-wrap">
+              <Phone className="auth-input-icon" />
+              <input type="tel" name="phone" placeholder="+39 333 1234567" required />
+            </div>
+          </div>
+
+          {/* Company Info */}
+          <div style={{ marginTop: '0.5rem', marginBottom: '0.25rem' }}>
+            <p style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(148,163,184,0.6)', paddingLeft: 4 }}>
+              Dati Aziendali
+            </p>
+          </div>
+
+          <div className="auth-field">
+            <label>Nome Azienda *</label>
+            <div className="auth-input-wrap">
+              <Building2 className="auth-input-icon" />
+              <input type="text" name="company_name" placeholder="La Mia Azienda S.r.l." required />
+            </div>
+          </div>
+
+          <div className="auth-field">
+            <label>Partita IVA</label>
+            <div className="auth-input-wrap">
+              <Hash className="auth-input-icon" />
+              <input type="text" name="vat_number" placeholder="IT12345678901" />
+            </div>
+          </div>
+
+          {/* Password */}
+          <div className="auth-field">
+            <label>Password *</label>
             <div className="auth-input-wrap">
               <Lock className="auth-input-icon" />
               <input type="password" name="password" placeholder="••••••••" required minLength={6} />
@@ -78,14 +111,14 @@ function SignupForm() {
           )}
 
           <button type="submit" disabled={isPending} className="auth-submit">
-            <span>{isPending ? 'Signing up...' : isInvite ? 'Registrati e entra' : 'Sign Up'}</span>
+            <span>{isPending ? 'Registrazione...' : isInvite ? 'Registrati e entra' : 'Registrati'}</span>
           </button>
         </form>
 
         <div className="auth-footer">
-          Already have an account?{' '}
+          Hai già un account?{' '}
           <Link href={redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login'}>
-            Sign in
+            Accedi
           </Link>
         </div>
       </div>
@@ -105,7 +138,7 @@ export default function SignupPage() {
       <div className="auth-container fade-up">
         <Link href="/" className="auth-back">
           <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Cosmos
+          Torna alla Home
         </Link>
 
         <Suspense fallback={

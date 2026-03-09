@@ -24,6 +24,7 @@ import {
     Wifi,
     ExternalLink,
     ArrowUpCircle,
+    Headphones,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 
@@ -41,6 +42,7 @@ const navSections: NavSection[] = [
         items: [
             { href: '/superadmin/customers', label: 'Gestionale Clienti', icon: BookUser },
             { href: '/superadmin/upgrade-requests', label: 'Richieste Upgrade', icon: ArrowUpCircle },
+            { href: '/superadmin/support', label: 'Assistenza', icon: Headphones },
         ],
     },
     {
@@ -77,6 +79,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     const [loading, setLoading] = useState(true);
     const [authorized, setAuthorized] = useState(false);
     const [adminEmail, setAdminEmail] = useState('');
+    const [isSupportStaff, setIsSupportStaff] = useState(false);
 
     // Login page: skip auth checks, render directly without sidebar
     const isLoginPage = pathname === '/superadmin/login';
@@ -91,13 +94,21 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
 
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('is_super_admin')
+                .select('is_super_admin, is_support_staff')
                 .eq('id', user.id)
                 .single();
 
-            if (!profile?.is_super_admin) {
+            if (!profile?.is_super_admin && !profile?.is_support_staff) {
                 router.push('/office');
                 return;
+            }
+
+            // Support staff only has access to /superadmin/support
+            if (profile.is_support_staff && !profile.is_super_admin) {
+                setIsSupportStaff(true);
+                if (pathname !== '/superadmin/support' && pathname !== '/superadmin') {
+                    router.push('/superadmin/support');
+                }
             }
 
             setAdminEmail(user.email || '');
@@ -105,7 +116,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
             setLoading(false);
         };
         checkAuth();
-    }, [router, isLoginPage]);
+    }, [router, isLoginPage, pathname]);
 
     const handleSignOut = async () => {
         const supabase = createClient();
@@ -138,13 +149,22 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                         </div>
                         <div>
                             <h1 className="text-sm font-bold text-white tracking-wide">Cosmoffice</h1>
-                            <p className="text-[10px] text-amber-300/60 font-medium uppercase tracking-widest">Super Admin</p>
+                            <p className="text-[10px] text-amber-300/60 font-medium uppercase tracking-widest">
+                                {isSupportStaff ? 'Supporto' : 'Super Admin'}
+                            </p>
                         </div>
                     </div>
                 </div>
 
                 <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-                    {navSections.map((section, si) => (
+                    {(isSupportStaff
+                        ? [{
+                            items: [
+                                { href: '/superadmin/support', label: 'Assistenza', icon: Headphones },
+                            ]
+                        }]
+                        : navSections
+                    ).map((section, si) => (
                         <div key={si}>
                             {section.label && (
                                 <>

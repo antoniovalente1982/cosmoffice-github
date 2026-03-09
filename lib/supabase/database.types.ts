@@ -39,8 +39,35 @@ export interface Profile {
   status: UserStatus;
   last_seen_at: string;
   preferences: Json;
+  company_name: string | null;
+  vat_number: string | null;
+  phone: string | null;
+  is_support_staff: boolean;
   deleted_at: string | null;
   deleted_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  user_id: string;
+  workspace_id: string | null;
+  requester_name: string | null;
+  requester_email: string | null;
+  requester_phone: string | null;
+  requester_role: string | null;
+  requester_company: string | null;
+  category: 'general' | 'technical' | 'billing' | 'feature_request';
+  subject: string;
+  description: string;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  assigned_to: string | null;
+  admin_notes: string | null;
+  resolution: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
   created_at: string;
   updated_at: string;
 }

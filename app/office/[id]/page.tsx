@@ -46,6 +46,7 @@ const Whiteboard = dynamic(() => import('../../../components/office/Whiteboard')
 const DayNightCycle = dynamic(() => import('../../../components/office/DayNightCycle').then(mod => mod.DayNightCycle), { ssr: false });
 const NotificationBell = dynamic(() => import('../../../components/office/NotificationBell'), { ssr: false });
 const UserManagement = dynamic(() => import('../../../components/office/UserManagement'), { ssr: false });
+const SupportTicketForm = dynamic(() => import('../../../components/office/SupportTicketForm'), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
@@ -240,6 +241,7 @@ export default function OfficePage() {
     const [workspaceLogoUrl, setWorkspaceLogoUrl] = useState<string | null>(null);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+    const [isSupportOpen, setIsSupportOpen] = useState(false);
 
 
     // Avatar sync via PartyKit
@@ -469,6 +471,16 @@ export default function OfficePage() {
                             <span className="whitespace-nowrap">Gestione Utenti</span>
                         </Button>
                     )}
+
+                    {/* Assistenza — visible to everyone */}
+                    <Button
+                        variant="ghost"
+                        onClick={() => setIsSupportOpen(true)}
+                        className="w-full justify-start gap-3 transition-all duration-300 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-300"
+                    >
+                        <Headphones className="w-5 h-5 flex-shrink-0" />
+                        <span className="whitespace-nowrap">Assistenza</span>
+                    </Button>
                 </nav>
 
                 <div className="p-4 border-t border-white/5 bg-black/10">
@@ -762,6 +774,13 @@ export default function OfficePage() {
                         onClose={() => setIsUserManagementOpen(false)}
                     />
                 )}
+
+                {/* Support Ticket Form — visible to everyone */}
+                <SupportTicketForm
+                    workspaceId={workspaceId}
+                    isOpen={isSupportOpen}
+                    onClose={() => setIsSupportOpen(false)}
+                />
 
                 {/* Fullscreen Video Grid */}
                 <FullscreenGrid />

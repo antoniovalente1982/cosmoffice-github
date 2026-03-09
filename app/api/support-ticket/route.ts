@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
-// ─── PUBLIC: Create upgrade request (authenticated user) ───
+// ─── PUBLIC: Create support ticket (authenticated user) ───
 export async function POST(req: NextRequest) {
     const res = NextResponse.next();
     const supabase = createServerClient(
@@ -20,10 +20,10 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
     const body = await req.json();
-    const { workspace_id, request_type, message } = body;
+    const { workspace_id, category, subject, description, priority } = body;
 
-    if (!request_type || !['seats', 'workspace'].includes(request_type)) {
-        return NextResponse.json({ error: 'Invalid request_type' }, { status: 400 });
+    if (!subject || !description) {
+        return NextResponse.json({ error: 'Oggetto e descrizione sono obbligatori' }, { status: 400 });
     }
 
     const adminClient = createClient(
@@ -31,27 +31,14 @@ export async function POST(req: NextRequest) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Check for existing pending request of same type
-    const { data: existing } = await adminClient
-        .from('upgrade_requests')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('request_type', request_type)
-        .eq('status', 'pending')
-        .maybeSingle();
-
-    if (existing) {
-        return NextResponse.json({ error: 'Hai già una richiesta in attesa', alreadyPending: true }, { status: 409 });
-    }
-
-    // Get requester info for denormalization
+    // Get requester info
     const { data: profile } = await adminClient
         .from('profiles')
-        .select('email, phone, company_name')
+        .select('full_name, display_name, email, phone, company_name')
         .eq('id', session.user.id)
         .single();
 
-    // Get workspace role if applicable
+    // Get workspace role if workspace_id provided
     let requesterRole = null;
     if (workspace_id) {
         const { data: member } = await adminClient
@@ -60,21 +47,24 @@ export async function POST(req: NextRequest) {
             .eq('workspace_id', workspace_id)
             .eq('user_id', session.user.id)
             .is('removed_at', null)
-            .maybeSingle();
+            .single();
         requesterRole = member?.role || null;
     }
 
     const { error } = await adminClient
-        .from('upgrade_requests')
+        .from('support_tickets')
         .insert({
             user_id: session.user.id,
             workspace_id: workspace_id || null,
-            request_type,
-            message: message || null,
+            requester_name: profile?.display_name || profile?.full_name || null,
             requester_email: profile?.email || session.user.email || null,
             requester_phone: profile?.phone || null,
             requester_role: requesterRole,
             requester_company: profile?.company_name || null,
+            category: category || 'general',
+            subject,
+            description,
+            priority: priority || 'normal',
         });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
