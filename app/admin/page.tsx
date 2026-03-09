@@ -122,15 +122,13 @@ function GlassCard({ children, className = '', glow, span }: {
  * ═══════════════════════════════════════════════════ */
 
 const planStyles: Record<string, { bg: string; border: string; text: string; dot: string }> = {
-    free: { bg: 'bg-slate-500/10', border: 'border-slate-500/20', text: 'text-slate-300', dot: 'bg-slate-400' },
-    starter: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-300', dot: 'bg-blue-400' },
-    pro: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-300', dot: 'bg-purple-400' },
-    enterprise: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-300', dot: 'bg-amber-400' },
+    demo: { bg: 'bg-slate-500/10', border: 'border-slate-500/20', text: 'text-slate-300', dot: 'bg-slate-400' },
+    premium: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-300', dot: 'bg-amber-400' },
 };
 
 function PlanPill({ plan, count, total }: { plan: string; count: number; total: number }) {
     const pct = total > 0 ? ((count / total) * 100).toFixed(0) : '0';
-    const s = planStyles[plan] || planStyles.free;
+    const s = planStyles[plan] || planStyles.demo;
     return (
         <div className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border ${s.bg} ${s.border}`}>
             <span className={`w-2 h-2 rounded-full ${s.dot}`} />

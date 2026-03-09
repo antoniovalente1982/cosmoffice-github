@@ -146,7 +146,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
             owner_name: data?.owner?.name || '',
             type: payType,
             amount_cents: payType === 'refund' ? -amtCents : amtCents,
-            plan_at_time: ws?.plan || 'free',
+            plan_at_time: ws?.plan || 'demo',
             description: `${payType === 'refund' ? 'Rimborso' : 'Pagamento'} ${ws?.name || ''}`,
             payment_method: 'bank_transfer',
             reference: payRef || null,

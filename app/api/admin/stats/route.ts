@@ -238,7 +238,7 @@ export async function GET(req: NextRequest) {
             revenueCents = (billingData || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0);
         } catch { /* billing_events may not exist */ }
 
-        const paidWorkspaces = wsTotal.filter((w: any) => w.plan !== 'free').length;
+        const paidWorkspaces = wsTotal.filter((w: any) => w.plan === 'premium').length;
 
         // ───────────────────────────────────────────────
         // BLOCCO 4: MONITORAGGIO

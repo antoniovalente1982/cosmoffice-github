@@ -750,7 +750,7 @@ export async function POST(req: NextRequest) {
                 // Compute revenue KPIs
                 const totalRevenueCents = allPayments.reduce((s: number, p: any) => s + (p.amount_cents || 0), 0);
                 const mrrCents = (ownedWs || [])
-                    .filter((w: any) => !w.deleted_at && !w.suspended_at && w.plan !== 'free')
+                    .filter((w: any) => !w.deleted_at && !w.suspended_at && w.plan === 'premium')
                     .reduce((s: number, w: any) => s + (w.monthly_amount_cents || 0), 0);
 
                 const workspacesEnriched = (ownedWs || []).map((w: any) => {
@@ -995,7 +995,11 @@ export async function POST(req: NextRequest) {
                 const updateData: any = {};
                 if (max_members !== undefined) updateData.max_members = max_members;
                 if (price_per_seat !== undefined) updateData.price_per_seat = price_per_seat;
-                if (monthly_amount_cents !== undefined) updateData.monthly_amount_cents = monthly_amount_cents;
+                if (monthly_amount_cents !== undefined) {
+                    updateData.monthly_amount_cents = monthly_amount_cents;
+                    // Auto-set plan based on pricing: premium if paid, demo if free
+                    updateData.plan = monthly_amount_cents > 0 ? 'premium' : 'demo';
+                }
 
                 const { error: seatsError } = await supabase
                     .from('workspaces')
