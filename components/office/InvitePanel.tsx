@@ -7,7 +7,6 @@ import {
     UserPlus,
     Check,
     Users,
-    Clock,
     Loader2,
     Link2,
     Copy,
@@ -45,8 +44,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
     const [inviting, setInviting] = useState(false);
     const [inviteResult, setInviteResult] = useState<'idle' | 'success' | 'error'>('idle');
     const [inviteError, setInviteError] = useState('');
-    const [linkExpiry, setLinkExpiry] = useState<'1d' | '7d' | '30d' | 'never'>('7d');
-    const [linkMaxUses, setLinkMaxUses] = useState<number | null>(null);
+
     const [generatedLink, setGeneratedLink] = useState('');
     const [copiedLink, setCopiedLink] = useState(false);
     const [activeInvites, setActiveInvites] = useState<any[]>([]);
@@ -79,28 +77,18 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             if (cancelled || !spaceData) return;
             setWorkspaceId(spaceData.workspace_id);
 
-            // Check plan limits
+            // Check plan limits (seat-based)
             const { data: wsData } = await supabase.from('workspaces')
                 .select('max_members, plan').eq('id', spaceData.workspace_id).single();
 
-            // Count non-guest members
+            // Count all active members (non-removed)
             const { count: memberCount } = await supabase.from('workspace_members')
                 .select('*', { count: 'exact', head: true })
                 .eq('workspace_id', spaceData.workspace_id)
-                .is('removed_at', null)
-                .neq('role', 'guest');
-
-            // Count active guest invites (each counts as 1 seat)
-            const { count: guestInviteCount } = await supabase.from('workspace_invitations')
-                .select('*', { count: 'exact', head: true })
-                .eq('workspace_id', spaceData.workspace_id)
-                .eq('role', 'guest')
-                .is('revoked_at', null)
-                .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);
+                .is('removed_at', null);
 
             if (wsData) {
-                const totalSeats = (memberCount || 0) + (guestInviteCount || 0);
-                setLimitInfo({ current: totalSeats, max: wsData.max_members || 3, plan: wsData.plan || 'free' });
+                setLimitInfo({ current: memberCount || 0, max: wsData.max_members || 3, plan: wsData.plan || 'free' });
             }
 
             // Load rooms for destination selector
@@ -115,15 +103,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
         return () => { cancelled = true; };
     }, [spaceId, isOpen]);
 
-    const getExpiryDate = () => {
-        const now = Date.now();
-        switch (linkExpiry) {
-            case '1d': return new Date(now + 1 * 24 * 60 * 60 * 1000).toISOString();
-            case '7d': return new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
-            case '30d': return new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
-            case 'never': return null;
-        }
-    };
+
 
     const handleGenerateLink = async () => {
         if (!workspaceId || isAtLimit) return;
@@ -135,7 +115,6 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
         if (!user) { setInviting(false); return; }
 
         const token = crypto.randomUUID();
-        const expiresAt = getExpiryDate();
 
         const insertData: any = {
             workspace_id: workspaceId,
@@ -143,13 +122,11 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             invited_by: user.id,
             token,
             invite_type: 'link',
-            // Guest invites: unlimited entry (max_uses = null), no expiry by default
-            max_uses: inviteRole === 'guest' ? null : linkMaxUses,
-            expires_at: inviteRole === 'guest' ? null : expiresAt,
-            destination_room_id: (inviteRole === 'guest' && destinationRoomId) ? destinationRoomId : null,
-            label: inviteRole === 'guest'
-                ? `Guest - ${new Date().toLocaleDateString('it-IT')}`
-                : `Link ${inviteRole} - ${new Date().toLocaleDateString('it-IT')}`,
+            // All links permanent & unlimited — capacity enforced by office max_capacity
+            max_uses: null,
+            expires_at: null,
+            destination_room_id: destinationRoomId || null,
+            label: `Link ${ROLE_LABELS[inviteRole]?.label || inviteRole} - ${new Date().toLocaleDateString('it-IT')}`,
         };
 
         const { error } = await supabase
@@ -180,7 +157,6 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             .select('*')
             .eq('workspace_id', workspaceId)
             .is('revoked_at', null)
-            .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
             .order('invited_at', { ascending: false })
             .limit(20);
         setActiveInvites(data || []);
@@ -293,58 +269,23 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                         </div>
                     </div>
 
-                    {/* Options (Expiry / Max uses) or Guest Room Selector */}
-                    {inviteRole !== 'guest' ? (
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] text-slate-500 font-medium ml-0.5 flex items-center gap-1">
-                                    <Clock className="w-3 h-3" /> Scadenza
-                                </label>
-                                <select
-                                    value={linkExpiry}
-                                    onChange={(e) => setLinkExpiry(e.target.value as any)}
-                                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
-                                >
-                                    <option value="1d">1 giorno</option>
-                                    <option value="7d">7 giorni</option>
-                                    <option value="30d">30 giorni</option>
-                                    <option value="never">Mai</option>
-                                </select>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] text-slate-500 font-medium ml-0.5 flex items-center gap-1">
-                                    <Users className="w-3 h-3" /> Max utilizzi
-                                </label>
-                                <select
-                                    value={linkMaxUses ?? 'unlimited'}
-                                    onChange={(e) => setLinkMaxUses(e.target.value === 'unlimited' ? null : parseInt(e.target.value))}
-                                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
-                                >
-                                    <option value="1">1 accesso</option>
-                                    <option value="5">5 accessi</option>
-                                    <option value="10">10 accessi</option>
-                                    <option value="25">25 accessi</option>
-                                    <option value="unlimited">Illimitato</option>
-                                </select>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-1.5 mt-2">
-                            <label className="text-[10px] text-slate-500 font-medium ml-0.5 flex items-center gap-1">
-                                <MapPin className="w-3 h-3" /> Stanza di atterraggio
-                            </label>
-                            <select
-                                value={destinationRoomId}
-                                onChange={(e) => setDestinationRoomId(e.target.value)}
-                                className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
-                            >
-                                <option value="">Ingresso principale (Mappa globale)</option>
-                                {rooms.map(room => (
-                                    <option key={room.id} value={room.id}>{room.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    {/* Destination Room Selector — available for all roles */}
+                    <div className="space-y-1.5 mt-2">
+                        <label className="text-[10px] text-slate-500 font-medium ml-0.5 flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> Stanza di atterraggio
+                        </label>
+                        <select
+                            value={destinationRoomId}
+                            onChange={(e) => setDestinationRoomId(e.target.value)}
+                            className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
+                        >
+                            <option value="">Ingresso principale (Mappa globale)</option>
+                            {rooms.map(room => (
+                                <option key={room.id} value={room.id}>{room.name}</option>
+                            ))}
+                        </select>
+                        <p className="text-[9px] text-slate-600 ml-0.5">Link permanente — attivo fino a cancellazione manuale</p>
+                    </div>
 
                     {/* Generated link */}
                     {generatedLink && (
@@ -411,68 +352,50 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                                 <span className="text-[10px] text-slate-600 bg-slate-800/50 px-2 py-0.5 rounded-full">{activeInvites.length}</span>
                             </div>
                             <div className="space-y-1.5 max-h-36 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
-                                {activeInvites.map(inv => {
-                                    const isExpired = inv.expires_at && new Date(inv.expires_at) < new Date();
-                                    const isExhausted = inv.max_uses && inv.use_count >= inv.max_uses;
-
-                                    return (
-                                        <div key={inv.id}
-                                            className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${isExpired || isExhausted
-                                                ? 'bg-slate-800/20 border-white/5 opacity-50'
-                                                : 'bg-slate-800/40 border-white/5 hover:border-white/10'
-                                                }`}
-                                        >
-                                            <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 bg-purple-500/15 text-purple-400">
-                                                <Link2 className="w-3 h-3" />
+                                {activeInvites.map(inv => (
+                                    <div key={inv.id}
+                                        className="flex items-center gap-3 p-2 rounded-xl border transition-all bg-slate-800/40 border-white/5 hover:border-white/10"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 bg-purple-500/15 text-purple-400">
+                                            <Link2 className="w-3 h-3" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[11px] text-slate-200 truncate">
+                                                    {inv.label || 'Link invito'}
+                                                </span>
+                                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${inv.role === 'admin' ? 'bg-primary-500/15 text-primary-300'
+                                                    : inv.role === 'guest' ? 'bg-purple-500/15 text-purple-300'
+                                                        : 'bg-emerald-500/15 text-emerald-300'
+                                                    }`}>
+                                                    {inv.role}
+                                                </span>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[11px] text-slate-200 truncate">
-                                                        {inv.label || 'Link invito'}
-                                                    </span>
-                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${inv.role === 'admin' ? 'bg-primary-500/15 text-primary-300'
-                                                        : inv.role === 'guest' ? 'bg-purple-500/15 text-purple-300'
-                                                            : 'bg-emerald-500/15 text-emerald-300'
-                                                        }`}>
-                                                        {inv.role}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    {isExpired && <span className="text-[9px] text-red-400">Scaduto</span>}
-                                                    {isExhausted && <span className="text-[9px] text-amber-400">Esaurito</span>}
-                                                    {!isExpired && !isExhausted && (
-                                                        <span className="text-[9px] text-slate-500">
-                                                            {inv.use_count || 0}{inv.max_uses ? `/${inv.max_uses}` : ''} usi
-                                                        </span>
-                                                    )}
-                                                    {inv.expires_at && !isExpired && (
-                                                        <span className="text-[9px] text-slate-600">
-                                                            scade {new Date(inv.expires_at).toLocaleDateString('it-IT')}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                {!isExpired && !isExhausted && (
-                                                    <button
-                                                        onClick={() => copyLink(inv.token)}
-                                                        className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
-                                                        title="Copia link"
-                                                    >
-                                                        <Copy className="w-3 h-3" />
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => revokeInvite(inv.id)}
-                                                    className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
-                                                    title="Revoca"
-                                                >
-                                                    <Trash2 className="w-3 h-3" />
-                                                </button>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[9px] text-emerald-500/70">∞ Permanente</span>
+                                                <span className="text-[9px] text-slate-600">
+                                                    {inv.use_count || 0} accessi
+                                                </span>
                                             </div>
                                         </div>
-                                    );
-                                })}
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => copyLink(inv.token)}
+                                                className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
+                                                title="Copia link"
+                                            >
+                                                <Copy className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                                onClick={() => revokeInvite(inv.id)}
+                                                className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
+                                                title="Elimina link"
+                                            >
+                                                <Trash2 className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}

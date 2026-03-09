@@ -158,8 +158,114 @@ export function MediaManager() {
                 removeScreenContainer(streamId);
             };
 
+            // Fullscreen button
+            const fullscreenBtn = document.createElement('button');
+            fullscreenBtn.innerHTML = '⛶';
+            fullscreenBtn.title = 'Vai a schermo intero';
+            fullscreenBtn.style.cssText = `
+                width: 24px;
+                height: 24px;
+                border-radius: 8px;
+                background: rgba(99, 102, 241, 0.15);
+                color: #a5b4fc;
+                border: 1px solid rgba(99, 102, 241, 0.2);
+                cursor: pointer;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+                font-weight: 600;
+            `;
+            fullscreenBtn.onmouseenter = () => {
+                fullscreenBtn.style.background = 'rgba(99, 102, 241, 0.3)';
+                fullscreenBtn.style.borderColor = 'rgba(99, 102, 241, 0.4)';
+                fullscreenBtn.style.color = '#c7d2fe';
+            };
+            fullscreenBtn.onmouseleave = () => {
+                fullscreenBtn.style.background = 'rgba(99, 102, 241, 0.15)';
+                fullscreenBtn.style.borderColor = 'rgba(99, 102, 241, 0.2)';
+                fullscreenBtn.style.color = '#a5b4fc';
+            };
+
+            // Fullscreen exit button — large X visible in fullscreen top-right
+            const fullscreenExitBtn = document.createElement('button');
+            fullscreenExitBtn.innerHTML = '✕';
+            fullscreenExitBtn.title = 'Esci da schermo intero';
+            fullscreenExitBtn.style.cssText = `
+                position: absolute;
+                top: 16px;
+                right: 16px;
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                background: rgba(239, 68, 68, 0.25);
+                color: #fca5a5;
+                border: 1px solid rgba(239, 68, 68, 0.3);
+                cursor: pointer;
+                font-size: 20px;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+                font-weight: 600;
+                z-index: 10020;
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            `;
+            fullscreenExitBtn.onmouseenter = () => {
+                fullscreenExitBtn.style.background = 'rgba(239, 68, 68, 0.5)';
+                fullscreenExitBtn.style.color = '#ffffff';
+            };
+            fullscreenExitBtn.onmouseleave = () => {
+                fullscreenExitBtn.style.background = 'rgba(239, 68, 68, 0.25)';
+                fullscreenExitBtn.style.color = '#fca5a5';
+            };
+            fullscreenExitBtn.onclick = () => {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                }
+            };
+
+            // Fullscreen enter/exit logic
+            fullscreenBtn.onclick = () => {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    wrapper.requestFullscreen().catch(err => {
+                        console.warn('[ScreenShare] Fullscreen not available:', err);
+                    });
+                }
+            };
+
+            // Handle fullscreen change
+            const handleFullscreenChange = () => {
+                const isFullscreen = document.fullscreenElement === wrapper;
+                if (isFullscreen) {
+                    toolbar.style.display = 'none';
+                    resizeHandle.style.display = 'none';
+                    fullscreenExitBtn.style.display = 'flex';
+                    wrapper.style.borderRadius = '0';
+                    wrapper.style.border = 'none';
+                } else {
+                    toolbar.style.display = 'flex';
+                    resizeHandle.style.display = 'block';
+                    fullscreenExitBtn.style.display = 'none';
+                    wrapper.style.borderRadius = '16px';
+                    wrapper.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+                }
+            };
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+            // Button group container
+            const btnGroup = document.createElement('div');
+            btnGroup.style.cssText = 'display: flex; align-items: center; gap: 6px;';
+            btnGroup.appendChild(fullscreenBtn);
+            btnGroup.appendChild(closeBtn);
+
             toolbar.appendChild(label);
-            toolbar.appendChild(closeBtn);
+            toolbar.appendChild(btnGroup);
 
             // Drag handlers for toolbar
             toolbar.addEventListener('mousedown', (e) => {
@@ -279,11 +385,13 @@ export function MediaManager() {
             container.addEventListener('remove', () => {
                 document.removeEventListener('mousemove', handleMouseMove);
                 document.removeEventListener('mouseup', handleMouseUp);
+                document.removeEventListener('fullscreenchange', handleFullscreenChange);
             });
 
             wrapper.appendChild(toolbar);
             wrapper.appendChild(videoContainer);
             wrapper.appendChild(resizeHandle);
+            wrapper.appendChild(fullscreenExitBtn);
             container.appendChild(wrapper);
             document.body.appendChild(container);
             screenContainersMap.set(streamId, container);

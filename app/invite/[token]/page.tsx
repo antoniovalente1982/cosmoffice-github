@@ -51,11 +51,6 @@ export default function InvitePage() {
             setInvite(inviteInfo);
             setWorkspace({ name: inviteInfo.workspace_name });
 
-            if (inviteInfo.is_expired) {
-                setState('error');
-                setError('Questo invito è scaduto.');
-                return;
-            }
             if (inviteInfo.is_revoked) {
                 setState('error');
                 setError('Questo invito è stato revocato.');
