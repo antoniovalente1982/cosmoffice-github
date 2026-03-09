@@ -83,6 +83,7 @@ export default function OfficePage() {
     // Avatar store
     const myStatus = useAvatarStore(s => s.myStatus);
     const setMyStatus = useAvatarStore(s => s.setMyStatus);
+    const peerCount = useAvatarStore(s => Object.keys(s.peers).length);
 
     // Chat store
     const isChatOpen = useChatStore(s => s.isOpen);
@@ -234,6 +235,7 @@ export default function OfficePage() {
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
     const [workspaceName, setWorkspaceName] = useState('');
     const [workspaceLogoUrl, setWorkspaceLogoUrl] = useState<string | null>(null);
+    const [maxCapacity, setMaxCapacity] = useState<number | null>(null);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isSupportOpen, setIsSupportOpen] = useState(false);
     const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
@@ -272,12 +274,15 @@ export default function OfficePage() {
         // Fetch workspace name
         const fetchWsInfo = async () => {
             const supabaseClient = createClient();
-            const { data: spaceData } = await supabaseClient.from('spaces').select('workspace_id').eq('id', spaceId).single();
-            if (spaceData?.workspace_id) {
-                const { data: ws } = await supabaseClient.from('workspaces').select('name, logo_url').eq('id', spaceData.workspace_id).single();
-                if (ws) {
-                    setWorkspaceName(ws.name);
-                    setWorkspaceLogoUrl(ws.logo_url || null);
+            const { data: spaceData } = await supabaseClient.from('spaces').select('workspace_id, max_capacity').eq('id', spaceId).single();
+            if (spaceData) {
+                if (spaceData.max_capacity) setMaxCapacity(spaceData.max_capacity);
+                if (spaceData.workspace_id) {
+                    const { data: ws } = await supabaseClient.from('workspaces').select('name, logo_url').eq('id', spaceData.workspace_id).single();
+                    if (ws) {
+                        setWorkspaceName(ws.name);
+                        setWorkspaceLogoUrl(ws.logo_url || null);
+                    }
                 }
             }
         };
@@ -410,7 +415,7 @@ export default function OfficePage() {
         getUser();
     }, [supabase, router, spaceId, setActiveSpace]);
 
-    // ─── Auto-teleport to destination room (from guest invite ?roomId=) ───
+    // ─── Auto-teleport to destination room (from invite ?roomId=) ───
     const searchParams = useSearchParams();
     const autoRoomProcessed = useRef(false);
     useEffect(() => {
@@ -419,25 +424,43 @@ export default function OfficePage() {
         if (!targetRoomId) return;
         autoRoomProcessed.current = true;
 
-        // Wait a bit for rooms to load in the workspace store
-        const timer = setTimeout(() => {
+        // Poll for rooms to be loaded (useOffice fetches async from Supabase)
+        let attempts = 0;
+        const maxAttempts = 30; // 30 × 500ms = 15 seconds max wait
+        const poll = setInterval(() => {
+            attempts++;
             const rooms = useWorkspaceStore.getState().rooms;
             const targetRoom = rooms.find((r: any) => r.id === targetRoomId);
+
             if (targetRoom) {
+                clearInterval(poll);
                 // Teleport avatar to center of the room
                 const centerX = targetRoom.x + (targetRoom.width || 200) / 2;
                 const centerY = targetRoom.y + (targetRoom.height || 150) / 2;
                 useAvatarStore.getState().setMyPosition({ x: centerX, y: centerY });
                 useAvatarStore.getState().setMyRoom(targetRoomId);
-                // Trigger LiveKit join
+
+                // Trigger PartyKit join room broadcast
                 const joinFn = (window as any).__sendJoinRoom;
                 if (joinFn) joinFn(targetRoomId);
-                console.log('[AUTO-TELEPORT] Guest teleported to room:', targetRoomId);
-            } else {
-                console.warn('[AUTO-TELEPORT] Target room not found:', targetRoomId);
+
+                // Broadcast position via PartyKit so peers see us in the room
+                const sendFn = (window as any).__sendAvatarPosition;
+                if (sendFn) sendFn(centerX, centerY, targetRoomId);
+
+                // Re-center the stage camera on the teleported position
+                // Use a small delay to let PixiOffice process the position change
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('center-on-me'));
+                }, 300);
+
+                console.log('[AUTO-TELEPORT] Teleported to room:', targetRoomId, 'at', centerX, centerY);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(poll);
+                console.warn('[AUTO-TELEPORT] Target room not found after 15s:', targetRoomId);
             }
-        }, 2000); // Wait for Pixi/rooms to initialize
-        return () => clearTimeout(timer);
+        }, 500);
+        return () => clearInterval(poll);
     }, [loading, searchParams]);
 
     const handleSignOut = async () => {
@@ -573,8 +596,25 @@ export default function OfficePage() {
                         )}
                     </div>
 
-                    {/* Right side: notifications */}
-                    <div className="flex items-center gap-2">
+                    {/* Right side: capacity counter + notifications */}
+                    <div className="flex items-center gap-3">
+                        {/* Live Capacity Counter */}
+                        {maxCapacity && (() => {
+                            const onlineCount = peerCount + 1;
+                            const ratio = onlineCount / maxCapacity;
+                            const colorClass = ratio >= 0.9 ? 'text-red-400' : ratio >= 0.7 ? 'text-amber-400' : 'text-emerald-400';
+                            const dotColor = ratio >= 0.9 ? 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]' : ratio >= 0.7 ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]';
+                            const label = ratio >= 0.9 ? 'Quasi pieno' : ratio >= 0.7 ? 'Affluenza alta' : 'Disponibile';
+                            return (
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10" style={{ background: 'rgba(15, 23, 42, 0.6)' }} title={`${onlineCount} di ${maxCapacity} posti occupati — ${label}`}>
+                                    <div className={`w-2 h-2 rounded-full ${dotColor} ${ratio >= 0.9 ? 'animate-pulse' : ''}`} />
+                                    <span className={`text-xs font-bold tabular-nums ${colorClass}`}>
+                                        {onlineCount}/{maxCapacity}
+                                    </span>
+                                    <span className="text-[9px] text-slate-500 font-medium hidden sm:inline">{label}</span>
+                                </div>
+                            );
+                        })()}
                         <NotificationBell />
                     </div>
                 </motion.header>
