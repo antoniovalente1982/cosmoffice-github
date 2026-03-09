@@ -337,7 +337,20 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${ws.status === 'active' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : ws.status === 'suspended' ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' : 'bg-red-500/10 text-red-300 border-red-500/20'}`}>
                                                     {ws.status === 'active' ? 'Attivo' : ws.status === 'suspended' ? 'Sospeso' : 'Eliminato'}
                                                 </span>
-                                                <span className="text-xs text-slate-400"><Users className="w-3 h-3 inline mr-1" />{ws.totalMembers}/{ws.max_members}</span>
+                                                <div className="flex flex-col items-end group relative">
+                                                    <span className="text-xs text-slate-400 cursor-help"><Users className="w-3 h-3 inline mr-1" />{ws.totalSeats}/{ws.maxMembers}</span>
+                                                    {/* Tooltip for breakdown */}
+                                                    <div className="absolute top-full right-0 mt-1 w-48 p-2 rounded-lg bg-black border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl pointer-events-none">
+                                                        <div className="flex justify-between text-[10px] text-slate-300">
+                                                            <span>👤 Membri registrati:</span>
+                                                            <span className="font-bold text-white">{ws.nonGuestMembers}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-slate-300 mt-1">
+                                                            <span>🎫 Inviti Guest attivi:</span>
+                                                            <span className="font-bold text-white">{ws.activeGuestInvites}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 {ws.price_per_seat > 0 && (
                                                     <span className="text-xs text-emerald-400">€{(ws.price_per_seat / 100).toFixed(2)}/utente</span>
                                                 )}
@@ -345,8 +358,8 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                             </div>
                                             {/* Seat usage bar */}
                                             {(() => {
-                                                const used = ws.totalMembers || 0;
-                                                const max = ws.max_members || 3;
+                                                const used = ws.totalSeats || 0;
+                                                const max = ws.maxMembers || 3;
                                                 const pct = Math.min((used / max) * 100, 100);
                                                 const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
                                                 return (
@@ -623,9 +636,18 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     </button>
                                                 </div>
                                                 <div className="grid grid-cols-3 gap-3 text-xs">
-                                                    <div>
-                                                        <span className="text-slate-500">Accessi</span>
-                                                        <p className="text-white font-bold">{ws.totalMembers || 0}<span className="text-slate-500">/{maxM}</span></p>
+                                                    <div className="group relative cursor-help">
+                                                        <span className="text-slate-500">Accessi usati</span>
+                                                        <p className="text-white font-bold">{ws.totalSeats || 0}<span className="text-slate-500">/{maxM}</span></p>
+                                                        {/* Tooltip */}
+                                                        <div className="absolute top-full left-0 mt-1 w-48 p-2 rounded-lg bg-black border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl pointer-events-none">
+                                                            <div className="flex justify-between text-[10px] text-slate-300">
+                                                                <span>👤 Membri:</span><span className="font-bold text-white">{ws.nonGuestMembers}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-[10px] text-slate-300 mt-1">
+                                                                <span>🎫 Guest Inviti:</span><span className="font-bold text-white">{ws.activeGuestInvites}</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                     <div>
                                                         <span className="text-slate-500">€ / Utente / Mese</span>
@@ -638,7 +660,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 </div>
                                                 {/* Seat usage bar */}
                                                 {(() => {
-                                                    const pct = maxM > 0 ? Math.min(((ws.totalMembers || 0) / maxM) * 100, 100) : 0;
+                                                    const pct = maxM > 0 ? Math.min(((ws.totalSeats || 0) / maxM) * 100, 100) : 0;
                                                     const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
                                                     return (
                                                         <div className="mt-2">

@@ -26,7 +26,7 @@ type InviteRole = 'admin' | 'member' | 'guest';
 const ROLE_LABELS: Record<InviteRole, { emoji: string; label: string; description: string }> = {
     admin: { emoji: '🛡️', label: 'Admin', description: 'Gestisce spazi, stanze e membri' },
     member: { emoji: '👤', label: 'Membro', description: 'Accesso completo all\'ufficio' },
-    guest: { emoji: '🎫', label: 'Ospite', description: 'Accesso limitato, solo osservazione' },
+    guest: { emoji: '🎫', label: 'Ospite', description: 'Accesso illimitato finché invito è attivo (1 seat)' },
 };
 
 interface InvitePanelProps {
@@ -62,7 +62,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
         }
     }, [invitableRoles, inviteRole]);
 
-    // Load workspace data
+    // Load workspace data + seat check (non-guest members + active guest invites)
     useEffect(() => {
         if (!isOpen) return;
         let cancelled = false;
@@ -79,11 +79,25 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             // Check plan limits
             const { data: wsData } = await supabase.from('workspaces')
                 .select('max_members, plan').eq('id', spaceData.workspace_id).single();
-            const { count } = await supabase.from('workspace_members')
+
+            // Count non-guest members
+            const { count: memberCount } = await supabase.from('workspace_members')
                 .select('*', { count: 'exact', head: true })
-                .eq('workspace_id', spaceData.workspace_id).is('removed_at', null);
+                .eq('workspace_id', spaceData.workspace_id)
+                .is('removed_at', null)
+                .neq('role', 'guest');
+
+            // Count active guest invites (each counts as 1 seat)
+            const { count: guestInviteCount } = await supabase.from('workspace_invitations')
+                .select('*', { count: 'exact', head: true })
+                .eq('workspace_id', spaceData.workspace_id)
+                .eq('role', 'guest')
+                .is('revoked_at', null)
+                .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);
+
             if (wsData) {
-                setLimitInfo({ current: count || 0, max: wsData.max_members || 3, plan: wsData.plan || 'free' });
+                const totalSeats = (memberCount || 0) + (guestInviteCount || 0);
+                setLimitInfo({ current: totalSeats, max: wsData.max_members || 3, plan: wsData.plan || 'free' });
             }
         };
         load();
@@ -118,9 +132,12 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             invited_by: user.id,
             token,
             invite_type: 'link',
-            max_uses: linkMaxUses,
-            expires_at: expiresAt,
-            label: `Link ${inviteRole} - ${new Date().toLocaleDateString('it-IT')}`,
+            // Guest invites: unlimited entry (max_uses = null), no expiry by default
+            max_uses: inviteRole === 'guest' ? null : linkMaxUses,
+            expires_at: inviteRole === 'guest' ? null : expiresAt,
+            label: inviteRole === 'guest'
+                ? `Guest - ${new Date().toLocaleDateString('it-IT')}`
+                : `Link ${inviteRole} - ${new Date().toLocaleDateString('it-IT')}`,
         };
 
         const { error } = await supabase

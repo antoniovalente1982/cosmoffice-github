@@ -20,6 +20,7 @@ import {
     SlidersHorizontal,
     Wrench,
     Circle,
+    UserPlus,
     Grid3X3,
     MessageCircle,
     PenTool,
@@ -37,7 +38,7 @@ const TeamList = dynamic(() => import('../../../components/office/TeamList').the
 const OfficeManagement = dynamic(() => import('../../../components/office/OfficeManagement'), { ssr: false });
 const DeviceSettings = dynamic(() => import('../../../components/settings/DeviceSettings').then(mod => mod.DeviceSettings), { ssr: false });
 const OfficeBuilder = dynamic(() => import('../../../components/office/OfficeBuilder').then(mod => mod.OfficeBuilder), { ssr: false });
-const InvitePanel = null; // Integrated into TeamList
+const InvitePanel = dynamic(() => import('../../../components/office/InvitePanel'), { ssr: false });
 const FullscreenGrid = dynamic(() => import('../../../components/media/FullscreenGrid').then(mod => mod.FullscreenGrid), { ssr: false });
 const RoomChat = dynamic(() => import('../../../components/office/RoomChat').then(mod => mod.RoomChat), { ssr: false });
 const Whiteboard = dynamic(() => import('../../../components/office/Whiteboard').then(mod => mod.Whiteboard), { ssr: false });
@@ -235,6 +236,7 @@ export default function OfficePage() {
     const [workspaceLogoUrl, setWorkspaceLogoUrl] = useState<string | null>(null);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isSupportOpen, setIsSupportOpen] = useState(false);
+    const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
     const [isManagementOpen, setIsManagementOpen] = useState(false);
     const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
     const [showInitialSetup, setShowInitialSetup] = useState(false);
@@ -517,6 +519,27 @@ export default function OfficePage() {
                             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                             <span className="text-sm font-bold text-slate-100">{workspaceName || 'Ufficio'}</span>
                         </div>
+                        {canInvite && (
+                            <>
+                                <button
+                                    onClick={() => setIsInvitePanelOpen(!isInvitePanelOpen)}
+                                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${isInvitePanelOpen
+                                        ? 'bg-primary-500/30 text-primary-200 shadow-primary-500/20'
+                                        : 'bg-gradient-to-r from-primary-500/20 to-indigo-500/20 text-primary-300 hover:from-primary-500/30 hover:to-indigo-500/30 hover:shadow-primary-500/15 border border-primary-500/20 hover:border-primary-500/40'
+                                        }`}
+                                    title="Genera link di invito"
+                                >
+                                    <UserPlus className="w-3.5 h-3.5" />
+                                    <span>Invita</span>
+                                </button>
+                                <InvitePanel
+                                    spaceId={spaceId}
+                                    isOpen={isInvitePanelOpen}
+                                    onClose={() => setIsInvitePanelOpen(false)}
+                                    invitableRoles={invitableRoles}
+                                />
+                            </>
+                        )}
                     </div>
 
                     {/* Right side: notifications */}

@@ -29,6 +29,9 @@ interface Workspace {
     plan: string;
     maxMembers: number;
     totalMembers: number;
+    nonGuestMembers: number;
+    activeGuestInvites: number;
+    totalSeats: number;
     memberUserIds: string[];
     suspendedMembers: number;
     status: 'active' | 'suspended' | 'deleted';
@@ -44,6 +47,7 @@ interface OwnerGroup {
     owner: Owner;
     workspaces: Workspace[];
     totalMembers: number;
+    totalSeats: number;
     uniqueMembers: number;
     activeWs: number;
     suspendedWs: number;
@@ -342,6 +346,7 @@ export default function CustomersPage() {
                     owner: ws.owner,
                     workspaces: [],
                     totalMembers: 0,
+                    totalSeats: 0,
                     uniqueMembers: 0,
                     activeWs: 0, suspendedWs: 0, deletedWs: 0,
                     totalMonthlyCents: 0,
@@ -350,6 +355,7 @@ export default function CustomersPage() {
             const group = map.get(key)!;
             group.workspaces.push(ws);
             group.totalMembers += ws.totalMembers;
+            group.totalSeats += ws.totalSeats;
             if (ws.status === 'active') group.activeWs++;
             else if (ws.status === 'suspended') group.suspendedWs++;
             else group.deletedWs++;
@@ -367,6 +373,7 @@ export default function CustomersPage() {
             });
             group.uniqueMembers = uniqueIds.size;
             group.totalMembers = group.workspaces.reduce((s, w) => s + w.totalMembers, 0);
+            group.totalSeats = group.workspaces.reduce((s, w) => s + w.totalSeats, 0);
         });
         // Sort: most workspaces first
         groups.sort((a, b) => b.workspaces.length - a.workspaces.length);
@@ -377,6 +384,7 @@ export default function CustomersPage() {
                 owner: { id: '__none__', email: '', name: 'Senza Proprietario', avatarUrl: null, isSuperAdmin: false, suspended: false, deleted: false },
                 workspaces: noOwner,
                 totalMembers: noOwner.reduce((s, w) => s + w.totalMembers, 0),
+                totalSeats: noOwner.reduce((s, w) => s + w.totalSeats, 0),
                 uniqueMembers: new Set(noOwner.flatMap(w => w.memberUserIds || [])).size,
                 activeWs: noOwner.filter(w => w.status === 'active').length,
                 suspendedWs: noOwner.filter(w => w.status === 'suspended').length,
@@ -869,14 +877,14 @@ export default function CustomersPage() {
                                                     {/* Usage bar */}
                                                     <div className="hidden sm:flex items-center gap-2 shrink-0" style={{ minWidth: 120 }}>
                                                         <Users className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                                                        <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                                                        <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }} title={`Membri: ${ws.nonGuestMembers} | Ospiti: ${ws.activeGuestInvites}`}>
                                                             <div style={{
-                                                                width: `${Math.min(100, (ws.totalMembers / Math.max(ws.maxMembers, 1)) * 100)}%`,
+                                                                width: `${Math.min(100, (ws.totalSeats / Math.max(ws.maxMembers, 1)) * 100)}%`,
                                                                 height: '100%', borderRadius: 3,
-                                                                background: ws.totalMembers >= ws.maxMembers ? '#ef4444' : ws.totalMembers >= ws.maxMembers * 0.8 ? '#f59e0b' : '#22c55e',
+                                                                background: ws.totalSeats >= ws.maxMembers ? '#ef4444' : ws.totalSeats >= ws.maxMembers * 0.8 ? '#f59e0b' : '#22c55e',
                                                             }} />
                                                         </div>
-                                                        <span className="text-[11px] text-slate-400 font-mono shrink-0">{ws.totalMembers}/{ws.maxMembers}</span>
+                                                        <span className="text-[11px] text-slate-400 font-mono shrink-0">{ws.totalSeats}/{ws.maxMembers}</span>
                                                     </div>
 
                                                     {/* Spaces count */}

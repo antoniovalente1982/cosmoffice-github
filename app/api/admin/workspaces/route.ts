@@ -158,14 +158,31 @@ export async function GET(req: NextRequest) {
             });
         }
 
+        // Fetch active guest invites per workspace (each counts as 1 seat)
+        const guestInviteCounts: Record<string, number> = {};
+        if (wsIds.length > 0) {
+            const { data: guestInvData } = await supabase
+                .from('workspace_invitations')
+                .select('workspace_id')
+                .in('workspace_id', wsIds)
+                .eq('role', 'guest')
+                .is('revoked_at', null)
+                .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);
+            (guestInvData || []).forEach((g: any) => {
+                guestInviteCounts[g.workspace_id] = (guestInviteCounts[g.workspace_id] || 0) + 1;
+            });
+        }
+
         // Enrich with member counts and owner info
         const enriched = (data || []).map((ws: any) => {
             const members = ws.workspace_members || [];
             const activeMembers = members.filter((m: any) => !m.removed_at && !m.is_suspended);
+            const nonGuestMembers = activeMembers.filter((m: any) => m.role !== 'guest');
             const memberUserIds = activeMembers.map((m: any) => m.user_id);
             const ownerMember = members.find((m: any) => m.role === 'owner' && !m.removed_at);
             const ownerUserId = ownerMember?.user_id || ws.created_by;
             const ownerProfile = ownerUserId ? ownerProfiles[ownerUserId] : null;
+            const wsGuestInvites = guestInviteCounts[ws.id] || 0;
 
             // Determine workspace status
             let wsStatus: 'active' | 'suspended' | 'deleted' = 'active';
@@ -180,6 +197,9 @@ export async function GET(req: NextRequest) {
                 maxMembers: ws.max_members,
                 maxSpaces: ws.max_spaces,
                 totalMembers: activeMembers.length,
+                nonGuestMembers: nonGuestMembers.length,
+                activeGuestInvites: wsGuestInvites,
+                totalSeats: nonGuestMembers.length + wsGuestInvites,
                 memberUserIds,
                 suspendedMembers: members.filter((m: any) => m.is_suspended).length,
                 status: wsStatus,
@@ -635,19 +655,42 @@ export async function POST(req: NextRequest) {
                     allPayments = pays || [];
                 }
 
+                // Fetch active guest invites for these workspaces
+                let guestInvitesByWs: Record<string, number> = {};
+                if (wsIds.length > 0) {
+                    const { data: guestInvData } = await supabase
+                        .from('workspace_invitations')
+                        .select('workspace_id')
+                        .in('workspace_id', wsIds)
+                        .eq('role', 'guest')
+                        .is('revoked_at', null)
+                        .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);
+                    (guestInvData || []).forEach((g: any) => {
+                        guestInvitesByWs[g.workspace_id] = (guestInvitesByWs[g.workspace_id] || 0) + 1;
+                    });
+                }
+
                 // Compute revenue KPIs
                 const totalRevenueCents = allPayments.reduce((s: number, p: any) => s + (p.amount_cents || 0), 0);
                 const mrrCents = (ownedWs || [])
                     .filter((w: any) => !w.deleted_at && !w.suspended_at && w.plan !== 'free')
                     .reduce((s: number, w: any) => s + (w.monthly_amount_cents || 0), 0);
 
-                const workspacesEnriched = (ownedWs || []).map((w: any) => ({
-                    ...w,
-                    members: membersByWs[w.id] || [],
-                    totalMembers: (membersByWs[w.id] || []).length,
-                    activeSpaces: spacesByWs[w.id] || 0,
-                    status: w.deleted_at ? 'deleted' : w.suspended_at ? 'suspended' : 'active',
-                }));
+                const workspacesEnriched = (ownedWs || []).map((w: any) => {
+                    const members = membersByWs[w.id] || [];
+                    const nonGuestMembersCount = members.filter(m => m.role !== 'guest').length;
+                    const guestInvitesCount = guestInvitesByWs[w.id] || 0;
+                    return {
+                        ...w,
+                        members,
+                        totalMembers: members.length,
+                        nonGuestMembers: nonGuestMembersCount,
+                        activeGuestInvites: guestInvitesCount,
+                        totalSeats: nonGuestMembersCount + guestInvitesCount,
+                        activeSpaces: spacesByWs[w.id] || 0,
+                        status: w.deleted_at ? 'deleted' : w.suspended_at ? 'suspended' : 'active',
+                    };
+                });
 
                 return NextResponse.json({
                     owner: {
@@ -667,7 +710,7 @@ export async function POST(req: NextRequest) {
                         mrrCents,
                         totalWorkspaces: (ownedWs || []).length,
                         activeWorkspaces: (ownedWs || []).filter((w: any) => !w.deleted_at && !w.suspended_at).length,
-                        totalMembers: Object.values(membersByWs).reduce((s: number, arr: any[]) => s + arr.length, 0),
+                        totalMembers: workspacesEnriched.reduce((s: number, w: any) => s + w.totalSeats, 0),
                         lastPaymentAt: allPayments.length > 0 ? allPayments[0].payment_date : null,
                     },
                 });
