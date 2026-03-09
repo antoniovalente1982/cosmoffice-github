@@ -324,11 +324,10 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                 <div className="space-y-3">
                                     {/* Max workspace limit header */}
                                     <div className="flex items-center justify-between mb-1 px-1">
-                                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Limite Workspace</span>
+                                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Workspace attivi: {kpi?.activeWorkspaces || 0} su {kpi?.maxWorkspaces || 1} max</span>
                                         {!editingMaxWs ? (
                                             <button onClick={() => { setEditingMaxWs(true); setEditMaxWsValue((owner?.maxWorkspaces || 1).toString()); }}
-                                                className="flex items-center gap-1.5 text-xs text-cyan-400/70 hover:text-cyan-300 transition-colors">
-                                                <span className="font-bold">{kpi?.maxWorkspaces || 1}</span>
+                                                className="flex items-center gap-1.5 text-xs text-cyan-400/70 hover:text-cyan-300 transition-colors" title="Modifica limite workspace">
                                                 <Edit3 className="w-3 h-3" />
                                             </button>
                                         ) : (
