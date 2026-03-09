@@ -1361,7 +1361,24 @@ export default function CustomersPage() {
                                                                                                 'bg-amber-500/20 text-amber-300'
                                                                                         }`}>{inv.status === 'paid' ? 'PAGATO' : inv.status === 'pending' ? 'IN ATTESA' : inv.status === 'overdue' ? 'SCADUTO' : inv.status.toUpperCase()}</span>
                                                                                 </div>
-                                                                                <span className="text-sm font-bold text-white">€{(inv.total_cents / 100).toFixed(2)}</span>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="text-sm font-bold text-white">€{(inv.total_cents / 100).toFixed(2)}</span>
+                                                                                    <button onClick={async (e) => {
+                                                                                        e.stopPropagation();
+                                                                                        if (!confirm(`Eliminare la ricevuta ${inv.invoice_number}?`)) return;
+                                                                                        try {
+                                                                                            await fetch('/api/admin/workspaces', {
+                                                                                                method: 'POST',
+                                                                                                headers: { 'Content-Type': 'application/json' },
+                                                                                                body: JSON.stringify({ action: 'delete_invoice', workspaceId: ws.id, data: { invoiceId: inv.id } }),
+                                                                                            });
+                                                                                            loadInvoices(ws.id);
+                                                                                            showFeedback('success', 'Ricevuta eliminata');
+                                                                                        } catch { showFeedback('error', 'Errore eliminazione'); }
+                                                                                    }} className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Elimina ricevuta">
+                                                                                        <Trash2 className="w-3 h-3" />
+                                                                                    </button>
+                                                                                </div>
                                                                             </div>
                                                                             <div className="flex items-center gap-3 text-[10px] text-slate-500">
                                                                                 <span>{inv.seats} accessi × €{(inv.price_per_seat_cents / 100).toFixed(2)}</span>

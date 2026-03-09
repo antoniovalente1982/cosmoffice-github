@@ -1026,7 +1026,7 @@ export async function POST(req: NextRequest) {
 
                 // Get workspace info
                 const { data: ws } = await supabase.from('workspaces')
-                    .select('name, max_members, price_per_seat, monthly_amount_cents, billing_cycle')
+                    .select('name, max_members, price_per_seat, monthly_amount_cents, billing_cycle, created_by')
                     .eq('id', workspaceId).single();
                 if (!ws) return NextResponse.json({ error: 'Workspace non trovato' }, { status: 404 });
 
@@ -1035,6 +1035,42 @@ export async function POST(req: NextRequest) {
                 const subtotal = seats * ppsCents;
                 const months = billingCycle === 'annual' ? 12 : 1;
                 const total = subtotal * months;
+
+                // Validate: don't generate €0 receipts
+                if (total <= 0) {
+                    return NextResponse.json({ error: 'Impossibile generare una ricevuta a €0.00. Imposta prima il prezzo per utente nel piano del workspace.' }, { status: 400 });
+                }
+
+                // Fetch buyer (owner) billing data
+                const ownerIdForInv = ws.created_by || (await getOwnerUserId(workspaceId));
+                let buyerSnapshot: any = {};
+                if (ownerIdForInv) {
+                    const { data: buyerProfile } = await supabase.from('profiles')
+                        .select('display_name, full_name, email, company_name, vat_number, fiscal_code, billing_address, billing_city, billing_zip, billing_country, sdi_code, pec, phone')
+                        .eq('id', ownerIdForInv).single();
+                    if (buyerProfile) {
+                        buyerSnapshot = {
+                            name: buyerProfile.company_name || buyerProfile.display_name || buyerProfile.full_name || buyerProfile.email,
+                            email: buyerProfile.email,
+                            company_name: buyerProfile.company_name,
+                            vat_number: buyerProfile.vat_number,
+                            fiscal_code: buyerProfile.fiscal_code,
+                            address: buyerProfile.billing_address,
+                            city: buyerProfile.billing_city,
+                            zip: buyerProfile.billing_zip,
+                            country: buyerProfile.billing_country || 'IT',
+                            sdi_code: buyerProfile.sdi_code,
+                            pec: buyerProfile.pec,
+                            phone: buyerProfile.phone,
+                        };
+                    }
+                }
+
+                // Seller snapshot (platform info — hardcoded for now, can be made configurable)
+                const sellerSnapshot = {
+                    name: 'Cosmoffice',
+                    email: 'billing@cosmoffice.com',
+                };
 
                 // Period calculation
                 const today = new Date();
@@ -1046,9 +1082,9 @@ export async function POST(req: NextRequest) {
                     end.setMonth(end.getMonth() + 1);
                 }
                 const periodEnd = end.toISOString().split('T')[0];
-                const dueDate = new Date(today.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 15 days
+                const dueDate = new Date(today.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-                // Generate invoice number
+                // Generate receipt number
                 const { data: seqData } = await supabase.rpc('nextval', { seq_name: 'invoice_number_seq' }).single();
                 const invoiceNum = `RIC-${new Date().getFullYear()}-${String(seqData || Date.now()).padStart(5, '0')}`;
 
@@ -1066,6 +1102,8 @@ export async function POST(req: NextRequest) {
                     invoice_number: invoiceNum,
                     description: `Ricevuta ${billingCycle === 'annual' ? 'annuale' : 'mensile'} — ${ws.name} (${seats} accessi × ${(ppsCents / 100).toFixed(2)}€)`,
                     created_by: userId,
+                    seller_snapshot: sellerSnapshot,
+                    buyer_snapshot: buyerSnapshot,
                 }).select().single();
 
                 if (invError) throw invError;
@@ -1078,9 +1116,9 @@ export async function POST(req: NextRequest) {
                 }).eq('id', workspaceId);
 
                 // Notify owner
-                const ownerId = await getOwnerUserId(workspaceId);
-                if (ownerId) {
-                    await sendNotification(ownerId, '📄 Nuova Ricevuta',
+                const notifOwner = ownerIdForInv || (await getOwnerUserId(workspaceId));
+                if (notifOwner) {
+                    await sendNotification(notifOwner, '📄 Nuova Ricevuta',
                         `Ricevuta ${invoiceNum} di €${(total / 100).toFixed(2)} per "${ws.name}". Scadenza: ${dueDate}.`,
                         'workspace', workspaceId);
                 }
@@ -1269,10 +1307,23 @@ export async function POST(req: NextRequest) {
                 const { data: invList, error: invListErr } = await supabase.from('invoices')
                     .select('*')
                     .eq('workspace_id', workspaceId)
+                    .is('deleted_at', null)
                     .order('created_at', { ascending: false });
 
                 if (invListErr) throw invListErr;
                 return NextResponse.json({ success: true, invoices: invList || [] });
+            }
+
+            case 'delete_invoice': {
+                const { invoiceId } = actionData;
+                if (!invoiceId) return NextResponse.json({ error: 'invoiceId obbligatorio' }, { status: 400 });
+
+                const { error: delErr } = await supabase.from('invoices')
+                    .update({ deleted_at: new Date().toISOString() })
+                    .eq('id', invoiceId);
+
+                if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+                return NextResponse.json({ success: true });
             }
 
             default:
