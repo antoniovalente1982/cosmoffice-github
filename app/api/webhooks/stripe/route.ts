@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, getPlanByPriceId, PLAN_CONFIG } from '../../../../lib/stripe';
+import { stripe, getPlanByPriceId, PLAN_CONFIG, normalizePlanKey } from '../../../../lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 
 // Use service role key for webhook (no user session)
@@ -41,49 +41,33 @@ export async function POST(req: NextRequest) {
             case 'checkout.session.completed': {
                 const session = event.data.object;
                 const workspaceId = session.metadata?.workspace_id;
-                const planKey = session.metadata?.plan_key;
 
                 if (workspaceId && session.subscription) {
-                    const plan = planKey ? PLAN_CONFIG[planKey] : null;
-
+                    // Per-user model: activate workspace, keep max_members as set by SuperAdmin
                     await supabaseAdmin.from('workspaces').update({
                         stripe_subscription_id: session.subscription as string,
                         stripe_subscription_status: 'active',
-                        plan: planKey || 'starter',
-                        max_members: plan?.maxMembers || 15,
-                        max_spaces: plan?.maxSpaces || 3,
-                        max_rooms_per_space: plan?.maxRoomsPerSpace || 10,
-                        storage_quota_bytes: plan?.storageQuotaBytes || 2 * 1024 * 1024 * 1024,
+                        plan: 'active',
                     }).eq('id', workspaceId);
 
-                    await logBillingEvent(workspaceId, 'plan_upgrade', 'free', planKey || 'starter', session.amount_total || 0, event.id);
+                    await logBillingEvent(workspaceId, 'plan_upgrade', 'demo', 'active', session.amount_total || 0, event.id);
                 }
                 break;
             }
 
-            // ─── Subscription updated (plan change, renewal) ───
+            // ─── Subscription updated (quantity change, renewal) ───
             case 'customer.subscription.updated': {
                 const subscription = event.data.object;
                 const workspaceId = subscription.metadata?.workspace_id;
 
                 if (workspaceId) {
-                    const priceId = subscription.items.data[0]?.price?.id;
-                    const newPlanKey = priceId ? getPlanByPriceId(priceId) : null;
-                    const plan = newPlanKey ? PLAN_CONFIG[newPlanKey] : null;
-
                     const updateData: Record<string, any> = {
                         stripe_subscription_status: subscription.status,
                     };
 
-                    if (newPlanKey && plan) {
-                        updateData.plan = newPlanKey;
-                        updateData.max_members = plan.maxMembers;
-                        updateData.max_spaces = plan.maxSpaces;
-                        updateData.max_rooms_per_space = plan.maxRoomsPerSpace;
-                        updateData.storage_quota_bytes = plan.storageQuotaBytes;
-                    }
-
+                    // Keep plan active if subscription is active
                     if (subscription.status === 'active') {
+                        updateData.plan = 'active';
                         updateData.suspended_at = null;
                     }
 
@@ -98,22 +82,15 @@ export async function POST(req: NextRequest) {
                 const workspaceId = subscription.metadata?.workspace_id;
 
                 if (workspaceId) {
-                    const freePlan = PLAN_CONFIG.free;
-
-                    // Downgrade to free
+                    // Downgrade to demo (no billing)
                     await supabaseAdmin.from('workspaces').update({
-                        plan: 'free',
+                        plan: 'demo',
                         stripe_subscription_status: 'canceled',
                         stripe_subscription_id: null,
-                        max_members: freePlan.maxMembers,
-                        max_spaces: freePlan.maxSpaces,
-                        max_rooms_per_space: freePlan.maxRoomsPerSpace,
-                        storage_quota_bytes: freePlan.storageQuotaBytes,
+                        max_members: PLAN_CONFIG.demo.maxMembers,
                     }).eq('id', workspaceId);
 
-                    const priceId = subscription.items.data[0]?.price?.id;
-                    const oldPlan = priceId ? getPlanByPriceId(priceId) : 'unknown';
-                    await logBillingEvent(workspaceId, 'cancellation', oldPlan || 'unknown', 'free', 0, event.id);
+                    await logBillingEvent(workspaceId, 'cancellation', 'active', 'demo', 0, event.id);
                 }
                 break;
             }

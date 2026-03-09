@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '../../../../utils/supabase/server';
-import { PLAN_CONFIG } from '../../../../lib/stripe';
+import { PLAN_CONFIG, normalizePlanKey, DEFAULT_PRICE_PER_USER_EUR } from '../../../../lib/stripe';
 
 /**
  * GET /api/stripe/plan-status?workspaceId=xxx
- * Returns workspace plan status, limits, and usage for the owner
+ * Returns workspace plan status, limits, and usage
  */
 export async function GET(req: NextRequest) {
     try {
@@ -48,13 +48,14 @@ export async function GET(req: NextRequest) {
             .is('deleted_at', null)
             .is('archived_at', null);
 
-        const plan = PLAN_CONFIG[workspace.plan] || PLAN_CONFIG.free;
+        const normalizedPlan = normalizePlanKey(workspace.plan);
+        const plan = PLAN_CONFIG[normalizedPlan] || PLAN_CONFIG.demo;
 
         return NextResponse.json({
             plan: {
-                key: workspace.plan,
+                key: normalizedPlan,
                 name: plan.name,
-                monthlyPriceEur: plan.monthlyPriceEur,
+                monthlyPricePerUserEur: plan.monthlyPricePerUserEur || DEFAULT_PRICE_PER_USER_EUR,
             },
             limits: {
                 maxMembers: workspace.max_members,

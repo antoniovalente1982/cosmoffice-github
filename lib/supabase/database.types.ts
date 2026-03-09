@@ -51,7 +51,7 @@ export interface Workspace {
   slug: string;
   description: string | null;
   logo_url: string | null;
-  plan: 'free' | 'starter' | 'pro' | 'enterprise';
+  plan: 'active' | 'demo' | 'free' | 'starter' | 'pro' | 'enterprise'; // 'active' = paid per-user, 'demo' = SuperAdmin test. Legacy: free/starter/pro/enterprise
   plan_expires_at: string | null;
   max_members: number;
   max_spaces: number;

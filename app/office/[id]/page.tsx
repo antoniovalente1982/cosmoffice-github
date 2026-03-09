@@ -17,7 +17,6 @@ import {
     MonitorStop,
     VolumeX,
     Headphones,
-
     SlidersHorizontal,
     Wrench,
     Circle,
@@ -25,7 +24,7 @@ import {
     Grid3X3,
     MessageCircle,
     PenTool,
-
+    UsersRound,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
@@ -46,6 +45,7 @@ const RoomChat = dynamic(() => import('../../../components/office/RoomChat').the
 const Whiteboard = dynamic(() => import('../../../components/office/Whiteboard').then(mod => mod.Whiteboard), { ssr: false });
 const DayNightCycle = dynamic(() => import('../../../components/office/DayNightCycle').then(mod => mod.DayNightCycle), { ssr: false });
 const NotificationBell = dynamic(() => import('../../../components/office/NotificationBell'), { ssr: false });
+const UserManagement = dynamic(() => import('../../../components/office/UserManagement'), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
@@ -237,7 +237,9 @@ export default function OfficePage() {
     const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
     const [workspaceName, setWorkspaceName] = useState('');
+    const [workspaceLogoUrl, setWorkspaceLogoUrl] = useState<string | null>(null);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
 
 
     // Avatar sync via PartyKit
@@ -268,15 +270,18 @@ export default function OfficePage() {
     useEffect(() => {
         getWorkspaceIdFromSpace(spaceId).then(id => setWorkspaceId(id));
         // Fetch workspace name
-        const fetchWsName = async () => {
+        const fetchWsInfo = async () => {
             const supabaseClient = createClient();
             const { data: spaceData } = await supabaseClient.from('spaces').select('workspace_id').eq('id', spaceId).single();
             if (spaceData?.workspace_id) {
-                const { data: ws } = await supabaseClient.from('workspaces').select('name').eq('id', spaceData.workspace_id).single();
-                if (ws) setWorkspaceName(ws.name);
+                const { data: ws } = await supabaseClient.from('workspaces').select('name, logo_url').eq('id', spaceData.workspace_id).single();
+                if (ws) {
+                    setWorkspaceName(ws.name);
+                    setWorkspaceLogoUrl(ws.logo_url || null);
+                }
             }
         };
-        fetchWsName();
+        fetchWsInfo();
     }, [spaceId]);
 
     // Role-based access
@@ -435,14 +440,35 @@ export default function OfficePage() {
             >
                 <div className="p-6 border-b border-white/5">
                     <Link href="/office" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <Logo size="sm" showText={false} variant="glow" />
-                        <span className="text-lg font-bold text-gradient">Cosmoffice</span>
+                        {workspaceLogoUrl ? (
+                            <img
+                                src={workspaceLogoUrl}
+                                alt={workspaceName || 'Logo'}
+                                className="w-8 h-8 rounded-xl object-contain bg-white/5 border border-white/10"
+                            />
+                        ) : (
+                            <Logo size="sm" showText={false} variant="glow" />
+                        )}
+                        <span className="text-lg font-bold text-gradient truncate">
+                            {workspaceName || 'Cosmoffice'}
+                        </span>
                     </Link>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-
                     <TeamList spaceId={spaceId} />
+
+                    {/* Gestione Utenti — visible to Owner and Admin */}
+                    {(role === 'owner' || role === 'admin') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsUserManagementOpen(true)}
+                            className="w-full justify-start gap-3 transition-all duration-300 hover:bg-cyan-500/10 text-slate-400 hover:text-cyan-300"
+                        >
+                            <UsersRound className="w-5 h-5 flex-shrink-0" />
+                            <span className="whitespace-nowrap">Gestione Utenti</span>
+                        </Button>
+                    )}
                 </nav>
 
                 <div className="p-4 border-t border-white/5 bg-black/10">
@@ -727,6 +753,15 @@ export default function OfficePage() {
                     </div>
                 )}
                 {isManagementOpen && <OfficeManagement spaceId={spaceId} onClose={() => setIsManagementOpen(false)} />}
+
+                {/* User Management Panel — visible to Owner/Admin */}
+                {workspaceId && (
+                    <UserManagement
+                        workspaceId={workspaceId}
+                        isOpen={isUserManagementOpen}
+                        onClose={() => setIsUserManagementOpen(false)}
+                    />
+                )}
 
                 {/* Fullscreen Video Grid */}
                 <FullscreenGrid />

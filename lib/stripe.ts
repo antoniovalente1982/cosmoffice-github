@@ -8,7 +8,7 @@ export function getStripe(): Stripe {
             throw new Error('STRIPE_SECRET_KEY is not set in environment variables');
         }
         _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-            apiVersion: '2024-12-18.acacia',
+            apiVersion: '2026-02-25.clover',
             typescript: true,
         });
     }
@@ -23,8 +23,13 @@ export const stripe = new Proxy({} as Stripe, {
 });
 
 // ─── Plan Configuration ────────────────────────────────
-// Maps internal plan names to Stripe Price IDs.
-// Set these in your .env.local after creating products in Stripe Dashboard.
+// Single per-user pricing model: €30 + IVA per user/month
+// SuperAdmin manages max_members and price_per_seat per workspace.
+// The PLAN_CONFIG below defines the DEFAULT plan settings.
+// Actual limits are stored in the workspace table (managed by SuperAdmin).
+
+export const DEFAULT_PRICE_PER_USER_EUR = 30; // €30 + IVA
+
 export const PLAN_CONFIG: Record<string, {
     name: string;
     stripePriceId: string;
@@ -32,45 +37,38 @@ export const PLAN_CONFIG: Record<string, {
     maxSpaces: number;
     maxRoomsPerSpace: number;
     storageQuotaBytes: number;
-    monthlyPriceEur: number;
+    monthlyPricePerUserEur: number;
 }> = {
-    free: {
-        name: 'Free',
-        stripePriceId: '', // No Stripe price for free
-        maxMembers: 5,
+    // Demo workspaces created by SuperAdmin for testing — no billing
+    demo: {
+        name: 'Demo',
+        stripePriceId: '',
+        maxMembers: 3,
         maxSpaces: 1,
         maxRoomsPerSpace: 5,
         storageQuotaBytes: 512 * 1024 * 1024, // 512MB
-        monthlyPriceEur: 0,
+        monthlyPricePerUserEur: 0,
     },
-    starter: {
-        name: 'Starter',
-        stripePriceId: process.env.STRIPE_PRICE_STARTER || '',
-        maxMembers: 15,
-        maxSpaces: 3,
-        maxRoomsPerSpace: 10,
-        storageQuotaBytes: 2 * 1024 * 1024 * 1024, // 2GB
-        monthlyPriceEur: 19,
-    },
-    pro: {
-        name: 'Pro',
-        stripePriceId: process.env.STRIPE_PRICE_PRO || '',
-        maxMembers: 50,
-        maxSpaces: 10,
-        maxRoomsPerSpace: 25,
-        storageQuotaBytes: 10 * 1024 * 1024 * 1024, // 10GB
-        monthlyPriceEur: 49,
-    },
-    enterprise: {
-        name: 'Enterprise',
-        stripePriceId: process.env.STRIPE_PRICE_ENTERPRISE || '',
-        maxMembers: 200,
+    // Active paid workspaces — per-user billing
+    active: {
+        name: 'Per Utente',
+        stripePriceId: process.env.STRIPE_PRICE_PER_USER || '',
+        maxMembers: 10, // Default, SuperAdmin overrides via workspace.max_members
         maxSpaces: 50,
         maxRoomsPerSpace: 100,
         storageQuotaBytes: 50 * 1024 * 1024 * 1024, // 50GB
-        monthlyPriceEur: 149,
+        monthlyPricePerUserEur: DEFAULT_PRICE_PER_USER_EUR,
     },
 };
+
+// Legacy compatibility: map old plan names to new ones
+export function normalizePlanKey(plan: string): string {
+    if (plan === 'active' || plan === 'demo') return plan;
+    // Map old plans to 'active' (they were all paid)
+    if (['starter', 'pro', 'enterprise'].includes(plan)) return 'active';
+    if (plan === 'free') return 'demo';
+    return 'demo';
+}
 
 export function getPlanByPriceId(priceId: string): string | null {
     for (const [planKey, config] of Object.entries(PLAN_CONFIG)) {
