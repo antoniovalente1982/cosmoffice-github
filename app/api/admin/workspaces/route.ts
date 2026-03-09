@@ -616,7 +616,7 @@ export async function POST(req: NextRequest) {
                 let ownerProfile: any = null;
                 const { data: extProfile, error: extProfErr } = await supabase
                     .from('profiles')
-                    .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, deleted_at, created_at')
+                    .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, deleted_at, created_at, max_workspaces')
                     .eq('id', ownerId)
                     .single();
                 if (extProfErr) {
@@ -774,6 +774,7 @@ export async function POST(req: NextRequest) {
                         suspended: !!ownerProfile.suspended_at,
                         deleted: !!ownerProfile.deleted_at,
                         createdAt: ownerProfile.created_at,
+                        maxWorkspaces: ownerProfile.max_workspaces || 1,
                     },
                     workspaces: workspacesEnriched,
                     payments: allPayments,
@@ -782,6 +783,7 @@ export async function POST(req: NextRequest) {
                         mrrCents,
                         totalWorkspaces: (ownedWs || []).length,
                         activeWorkspaces: (ownedWs || []).filter((w: any) => !w.deleted_at && !w.suspended_at).length,
+                        maxWorkspaces: ownerProfile.max_workspaces || 1,
                         totalMembers: workspacesEnriched.reduce((s: number, w: any) => s + w.totalSeats, 0),
                         lastPaymentAt: allPayments.length > 0 ? allPayments[0].payment_date : null,
                     },

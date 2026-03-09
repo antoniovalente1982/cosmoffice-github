@@ -6,7 +6,7 @@ import {
     X, Users, Building2, DollarSign, ClipboardList, ChevronDown,
     CreditCard, Calendar, Save, Loader2, History, Receipt, Crown,
     UserMinus, ShieldCheck, Shield, User, Check, AlertTriangle,
-    Mail, Link2, Copy, TrendingUp, Edit3,
+    Mail, Link2, Copy, TrendingUp, Edit3, KeyRound,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 
@@ -67,6 +67,21 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
     const [editSeatsValue, setEditSeatsValue] = useState('');
     const [editPricePerSeat, setEditPricePerSeat] = useState('');
     const [savingSeats, setSavingSeats] = useState(false);
+
+    // Owner max_workspaces edit
+    const [editingMaxWs, setEditingMaxWs] = useState(false);
+    const [editMaxWsValue, setEditMaxWsValue] = useState('1');
+    const [savingMaxWs, setSavingMaxWs] = useState(false);
+
+    const saveMaxWorkspaces = async () => {
+        setSavingMaxWs(true);
+        const supabase = createClient();
+        const val = parseInt(editMaxWsValue) || 1;
+        const { error } = await supabase.from('profiles').update({ max_workspaces: val }).eq('id', ownerId);
+        if (error) showFb('error', error.message);
+        else { showFb('success', `Max workspace aggiornato a ${val} ✅`); setEditingMaxWs(false); loadDetail(); }
+        setSavingMaxWs(false);
+    };
 
     const showFb = (type: 'success' | 'error', msg: string) => {
         setFeedback({ type, msg });
@@ -284,7 +299,25 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                         </div>
                                         <div className={card} style={cardBg}>
                                             <div className="flex items-center gap-2 mb-1"><Building2 className="w-4 h-4 text-purple-400" /><span className={labelCls}>Workspace</span></div>
-                                            <p className="text-xl font-bold text-white">{kpi.activeWorkspaces}<span className="text-sm text-slate-500">/{kpi.totalWorkspaces}</span></p>
+                                            <p className="text-xl font-bold text-white">{kpi.activeWorkspaces}<span className="text-sm text-slate-500">/{kpi.maxWorkspaces || kpi.totalWorkspaces}</span></p>
+                                            {!editingMaxWs ? (
+                                                <button onClick={() => { setEditingMaxWs(true); setEditMaxWsValue((owner?.maxWorkspaces || 1).toString()); }}
+                                                    className="text-[10px] text-cyan-400/50 hover:text-cyan-300 flex items-center gap-1 mt-1 transition-colors">
+                                                    <Edit3 className="w-3 h-3" /> Modifica limite
+                                                </button>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 mt-1">
+                                                    <input type="number" min="1" max="50" value={editMaxWsValue} onChange={e => setEditMaxWsValue(e.target.value)}
+                                                        className="w-14 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none focus:border-cyan-500/50" autoFocus />
+                                                    <button onClick={saveMaxWorkspaces} disabled={savingMaxWs}
+                                                        className="p-1 rounded-lg text-emerald-300 bg-emerald-500/15 border border-emerald-500/20 hover:bg-emerald-500/25">
+                                                        {savingMaxWs ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                                    </button>
+                                                    <button onClick={() => setEditingMaxWs(false)} className="p-1 rounded-lg text-slate-400 hover:bg-white/5">
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className={card} style={cardBg}>
                                             <div className="flex items-center gap-2 mb-1"><Users className="w-4 h-4 text-amber-400" /><span className={labelCls}>Membri Totali</span></div>
