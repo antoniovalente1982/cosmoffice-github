@@ -1050,7 +1050,7 @@ export async function POST(req: NextRequest) {
 
                 // Generate invoice number
                 const { data: seqData } = await supabase.rpc('nextval', { seq_name: 'invoice_number_seq' }).single();
-                const invoiceNum = `INV-${new Date().getFullYear()}-${String(seqData || Date.now()).padStart(5, '0')}`;
+                const invoiceNum = `RIC-${new Date().getFullYear()}-${String(seqData || Date.now()).padStart(5, '0')}`;
 
                 const { data: inv, error: invError } = await supabase.from('invoices').insert({
                     workspace_id: workspaceId,
@@ -1166,7 +1166,7 @@ export async function POST(req: NextRequest) {
                 if (adjustmentCents > 0) {
                     const today = new Date().toISOString().split('T')[0];
                     const { data: seqData2 } = await supabase.rpc('nextval', { seq_name: 'invoice_number_seq' }).single();
-                    const invoiceNum2 = `INV-${new Date().getFullYear()}-${String(seqData2 || Date.now()).padStart(5, '0')}`;
+                    const invoiceNum2 = `RIC-${new Date().getFullYear()}-${String(seqData2 || Date.now()).padStart(5, '0')}`;
 
                     const { data: upgInv } = await supabase.from('invoices').insert({
                         workspace_id: workspaceId,
@@ -1236,7 +1236,7 @@ export async function POST(req: NextRequest) {
                     const dueDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
                     const { data: seqD } = await supabase.rpc('nextval', { seq_name: 'invoice_number_seq' }).single();
-                    const invNum = `INV-${new Date().getFullYear()}-${String(seqD || Date.now()).padStart(5, '0')}`;
+                    const invNum = `RIC-${new Date().getFullYear()}-${String(seqD || Date.now()).padStart(5, '0')}`;
 
                     await supabase.from('invoices').insert({
                         workspace_id: ws.id,
