@@ -27,7 +27,7 @@ import {
     Headphones,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
-import { useCurrency, CURRENCIES, CurrencyCode } from '../../hooks/useCurrency';
+import CurrencySelector from '../../components/CurrencySelector';
 
 interface NavItem { href: string; label: string; icon: any; external?: boolean; }
 interface NavSection { label?: string; items: NavItem[]; }
@@ -81,7 +81,6 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     const [authorized, setAuthorized] = useState(false);
     const [adminEmail, setAdminEmail] = useState('');
     const [isSupportStaff, setIsSupportStaff] = useState(false);
-    const { currency, setCurrency, symbol } = useCurrency();
 
     // Login page: skip auth checks, render directly without sidebar
     const isLoginPage = pathname === '/superadmin/login';
@@ -224,21 +223,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                         <LogOut className="w-4 h-4" />
                         Esci
                     </button>
-                    <div className="flex items-center gap-2 px-2 pt-1">
-                        <DollarSign className="w-3.5 h-3.5 text-slate-500" />
-                        <select
-                            value={currency}
-                            onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-                            className="flex-1 px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-xs text-slate-300 outline-none appearance-none cursor-pointer hover:border-amber-500/30 transition-colors"
-                            style={{ backgroundImage: 'none' }}
-                        >
-                            {CURRENCIES.map(c => (
-                                <option key={c.code} value={c.code} style={{ background: '#0f172a' }}>
-                                    {c.symbol} {c.code}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <CurrencySelector />
                 </div>
             </aside>
 
