@@ -28,7 +28,7 @@ import { Logo } from '../../components/ui/logo';
 import { WorkspaceSettings } from '../../components/workspace/WorkspaceSettings';
 import { OFFICE_PRESETS, getPresetForSize } from '../../lib/officePresets';
 
-const MAX_OWNED_WORKSPACES = 1;
+// max_workspaces is now dynamic, fetched from profiles table
 
 export default function DashboardPage() {
     const supabase = createClient();
@@ -48,6 +48,7 @@ export default function DashboardPage() {
     const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
     const [userRoles, setUserRoles] = useState<Record<string, string>>({});
     const [ownedWorkspaceCount, setOwnedWorkspaceCount] = useState(0);
+    const [maxOwnedWorkspaces, setMaxOwnedWorkspaces] = useState(1);
     const [upgradeSending, setUpgradeSending] = useState(false);
     const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null);
     // SuperAdmin access is now separate at /superadmin/login
@@ -60,6 +61,14 @@ export default function DashboardPage() {
                 return;
             }
             setUser(user);
+
+            // Fetch max_workspaces from profile
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('max_workspaces')
+                .eq('id', user.id)
+                .single();
+            if (profile?.max_workspaces) setMaxOwnedWorkspaces(profile.max_workspaces);
 
             // Fetch workspaces from both memberships AND created workspaces to be safe
             const [membersRes, createdRes] = await Promise.all([
@@ -333,8 +342,8 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-4">
                         <Button variant="outline" className="gap-2" onClick={() => {
-                            if (ownedWorkspaceCount >= MAX_OWNED_WORKSPACES) {
-                                setError(`Hai raggiunto il limite massimo di ${MAX_OWNED_WORKSPACES} workspace. Contatta cosmoffice.io per richiederne di più.`);
+                            if (ownedWorkspaceCount >= maxOwnedWorkspaces) {
+                                setError(`Hai raggiunto il limite massimo di ${maxOwnedWorkspaces} workspace. Contatta cosmoffice.io per richiederne di più.`);
                                 return;
                             }
                             setIsCreatingWorkspace(true);
@@ -632,14 +641,14 @@ export default function DashboardPage() {
                         );
                     })}
 
-                    {ownedWorkspaceCount >= MAX_OWNED_WORKSPACES ? (
+                    {ownedWorkspaceCount >= maxOwnedWorkspaces ? (
                         <div className="transition-transform duration-150 hover:scale-[1.02]">
                             <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-amber-500/20 bg-amber-500/5 transition-all min-h-[220px] group">
                                 <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
                                     <AlertTriangle className="w-6 h-6 text-amber-400" />
                                 </div>
                                 <p className="text-sm font-semibold text-amber-300 text-center mb-2">Limite raggiunto</p>
-                                <p className="text-xs text-slate-400 text-center mb-4">Hai raggiunto il massimo di {MAX_OWNED_WORKSPACES} workspace</p>
+                                <p className="text-xs text-slate-400 text-center mb-4">Hai raggiunto il massimo di {maxOwnedWorkspaces} workspace</p>
                                 <button
                                     onClick={async () => {
                                         setUpgradeSending(true);

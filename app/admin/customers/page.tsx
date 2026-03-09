@@ -7,7 +7,7 @@ import {
     Pause, Play, Trash2, RotateCcw, MoreVertical, X, Check, Loader2,
     UserX, UserCheck, Mail, ChevronDown, Crown, Square, CheckSquare,
     ClipboardList, Save, Calendar, DollarSign, Receipt, Link2, Copy,
-    History, CreditCard, BookUser, UserPlus
+    History, CreditCard, BookUser, UserPlus, KeyRound
 } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
 import ClientDetailDrawer from '../../../components/superadmin/ClientDetailDrawer';
@@ -173,6 +173,40 @@ export default function CustomersPage() {
         pricePerSeat: '10'
     });
     const [creatingCustomer, setCreatingCustomer] = useState(false);
+
+    // Owner registration link
+    const [isOwnerLinkModalOpen, setIsOwnerLinkModalOpen] = useState(false);
+    const [ownerLinkData, setOwnerLinkData] = useState({ email: '', max_workspaces: '1', max_capacity: '50', notes: '' });
+    const [generatingOwnerLink, setGeneratingOwnerLink] = useState(false);
+    const [ownerLink, setOwnerLink] = useState('');
+    const [copiedOwnerLink, setCopiedOwnerLink] = useState(false);
+
+    const handleGenerateOwnerLink = async () => {
+        setGeneratingOwnerLink(true);
+        try {
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/admin/owner-tokens', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                body: JSON.stringify({
+                    email: ownerLinkData.email || null,
+                    max_workspaces: parseInt(ownerLinkData.max_workspaces) || 1,
+                    max_capacity: parseInt(ownerLinkData.max_capacity) || 50,
+                    notes: ownerLinkData.notes || null,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            setOwnerLink(data.url);
+            navigator.clipboard.writeText(data.url);
+            setCopiedOwnerLink(true);
+            setTimeout(() => setCopiedOwnerLink(false), 3000);
+        } catch (err: any) {
+            showFeedback('error', err.message);
+        }
+        setGeneratingOwnerLink(false);
+    };
 
     const handleCreateCustomer = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -638,10 +672,17 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setIsNewCustomerModalOpen(true)}
-                        className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 mr-2"
+                        className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
                     >
                         <UserPlus className="w-4 h-4" />
                         Nuovo Cliente Manuale
+                    </button>
+                    <button
+                        onClick={() => { setIsOwnerLinkModalOpen(true); setOwnerLink(''); setOwnerLinkData({ email: '', max_workspaces: '1', max_capacity: '50', notes: '' }); }}
+                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-amber-500/20 mr-2"
+                    >
+                        <KeyRound className="w-4 h-4" />
+                        Link Owner
                     </button>
                     {['', 'active', 'demo'].map(p => (
                         <button key={p} onClick={() => { setPlanFilter(p); setPage(1); }}
@@ -1509,6 +1550,91 @@ export default function CustomersPage() {
                         onClose={() => setDetailOwnerId(null)}
                         onRefresh={fetchData}
                     />
+                )}
+            </AnimatePresence>
+
+            {/* Owner Registration Link Modal */}
+            <AnimatePresence>
+                {isOwnerLinkModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                        onClick={() => setIsOwnerLinkModalOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center gap-3 mb-5">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center">
+                                    <Crown className="w-5 h-5 text-amber-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-white">Genera Link Owner</h3>
+                                    <p className="text-xs text-slate-500">Crea un link di registrazione per un nuovo proprietario</p>
+                                </div>
+                                <button onClick={() => setIsOwnerLinkModalOpen(false)} className="ml-auto text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
+                            </div>
+
+                            {!ownerLink ? (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-400 mb-1">Email Owner (opzionale)</label>
+                                        <input type="email" value={ownerLinkData.email} onChange={e => setOwnerLinkData({ ...ownerLinkData, email: e.target.value })}
+                                            placeholder="mario@azienda.it — lascia vuoto per qualsiasi email"
+                                            className="w-full px-3 py-2.5 bg-black/30 border border-white/10 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-400 mb-1">Max Workspace</label>
+                                            <input type="number" min="1" max="50" value={ownerLinkData.max_workspaces} onChange={e => setOwnerLinkData({ ...ownerLinkData, max_workspaces: e.target.value })}
+                                                className="w-full px-3 py-2.5 bg-black/30 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500/50" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-400 mb-1">Max Partecipanti</label>
+                                            <input type="number" min="1" max="500" value={ownerLinkData.max_capacity} onChange={e => setOwnerLinkData({ ...ownerLinkData, max_capacity: e.target.value })}
+                                                className="w-full px-3 py-2.5 bg-black/30 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500/50" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-400 mb-1">Note (opzionale)</label>
+                                        <input type="text" value={ownerLinkData.notes} onChange={e => setOwnerLinkData({ ...ownerLinkData, notes: e.target.value })}
+                                            placeholder="es. Piano Premium - Acme Corp"
+                                            className="w-full px-3 py-2.5 bg-black/30 border border-white/10 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50" />
+                                    </div>
+                                    <button onClick={handleGenerateOwnerLink} disabled={generatingOwnerLink}
+                                        className="w-full px-4 py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20">
+                                        {generatingOwnerLink ? <Loader2 className="w-5 h-5 animate-spin" /> : <><KeyRound className="w-4 h-4" /> Genera Link</>}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                                        <p className="text-xs text-emerald-300 font-semibold mb-2 flex items-center gap-1.5">
+                                            <Check className="w-4 h-4" /> Link generato e copiato!
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <input type="text" readOnly value={ownerLink}
+                                                className="flex-1 px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-xs text-white font-mono truncate" />
+                                            <button onClick={() => { navigator.clipboard.writeText(ownerLink); setCopiedOwnerLink(true); setTimeout(() => setCopiedOwnerLink(false), 2000); }}
+                                                className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition-all flex items-center gap-1">
+                                                {copiedOwnerLink ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                                {copiedOwnerLink ? 'Copiato!' : 'Copia'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 text-center">
+                                        Il link scade tra 7 giorni e può essere usato una sola volta.
+                                    </p>
+                                    <button onClick={() => setIsOwnerLinkModalOpen(false)}
+                                        className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5 transition-all">
+                                        Chiudi
+                                    </button>
+                                </div>
+                            )}
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>

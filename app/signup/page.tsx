@@ -46,7 +46,7 @@ function SignupForm() {
         <form onSubmit={handleSubmit} className="auth-form">
           {redirectTo && <input type="hidden" name="redirect" value={redirectTo} />}
 
-          {/* Personal Info */}
+          {/* Nome — always required */}
           <div className="auth-field">
             <label>Nome Completo *</label>
             <div className="auth-input-wrap">
@@ -55,6 +55,7 @@ function SignupForm() {
             </div>
           </div>
 
+          {/* Email — always required */}
           <div className="auth-field">
             <label>Email *</label>
             <div className="auth-input-wrap">
@@ -63,38 +64,42 @@ function SignupForm() {
             </div>
           </div>
 
-          <div className="auth-field">
-            <label>Telefono *</label>
-            <div className="auth-input-wrap">
-              <Phone className="auth-input-icon" />
-              <input type="tel" name="phone" placeholder="+39 333 1234567" required />
-            </div>
-          </div>
+          {/* Company fields — only for non-invite registration */}
+          {!isInvite && (
+            <>
+              <div className="auth-field">
+                <label>Telefono *</label>
+                <div className="auth-input-wrap">
+                  <Phone className="auth-input-icon" />
+                  <input type="tel" name="phone" placeholder="+39 333 1234567" required />
+                </div>
+              </div>
 
-          {/* Company Info */}
-          <div style={{ marginTop: '0.5rem', marginBottom: '0.25rem' }}>
-            <p style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(148,163,184,0.6)', paddingLeft: 4 }}>
-              Dati Aziendali
-            </p>
-          </div>
+              <div style={{ marginTop: '0.5rem', marginBottom: '0.25rem' }}>
+                <p style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(148,163,184,0.6)', paddingLeft: 4 }}>
+                  Dati Aziendali
+                </p>
+              </div>
 
-          <div className="auth-field">
-            <label>Nome Azienda *</label>
-            <div className="auth-input-wrap">
-              <Building2 className="auth-input-icon" />
-              <input type="text" name="company_name" placeholder="La Mia Azienda S.r.l." required />
-            </div>
-          </div>
+              <div className="auth-field">
+                <label>Nome Azienda *</label>
+                <div className="auth-input-wrap">
+                  <Building2 className="auth-input-icon" />
+                  <input type="text" name="company_name" placeholder="La Mia Azienda S.r.l." required />
+                </div>
+              </div>
 
-          <div className="auth-field">
-            <label>Partita IVA</label>
-            <div className="auth-input-wrap">
-              <Hash className="auth-input-icon" />
-              <input type="text" name="vat_number" placeholder="IT12345678901" />
-            </div>
-          </div>
+              <div className="auth-field">
+                <label>Partita IVA</label>
+                <div className="auth-input-wrap">
+                  <Hash className="auth-input-icon" />
+                  <input type="text" name="vat_number" placeholder="IT12345678901" />
+                </div>
+              </div>
+            </>
+          )}
 
-          {/* Password */}
+          {/* Password — always required */}
           <div className="auth-field">
             <label>Password *</label>
             <div className="auth-input-wrap">
