@@ -1212,9 +1212,7 @@ export default function CustomersPage() {
                                                                 <button onClick={() => loadInvoices(ws.id)} className="w-full px-3 py-2 text-left text-xs text-purple-400 hover:bg-white/5 flex items-center gap-2">
                                                                     <History className="w-3.5 h-3.5" /> Storico Ricevute
                                                                 </button>
-                                                                <button onClick={() => { setUpgradeWs(ws); setUpgradeSeats(String(ws.maxMembers)); setUpgradePPS(String((ws.pricePerSeat / 100).toFixed(2))); setActionMenuId(null); }} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
-                                                                    <Zap className="w-3.5 h-3.5" /> Upgrade
-                                                                </button>
+
                                                                 <div className="border-t border-white/5 my-1" />
                                                                 <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Accesso</p>
                                                                 <button onClick={() => generateInviteLink(ws)} className="w-full px-3 py-2 text-left text-xs text-sky-400 hover:bg-white/5 flex items-center gap-2">

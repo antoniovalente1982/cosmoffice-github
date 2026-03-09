@@ -283,24 +283,6 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                         <div className={card} style={cardBg}>
                                             <div className="flex items-center gap-2 mb-1"><Building2 className="w-4 h-4 text-purple-400" /><span className={labelCls}>Workspace</span></div>
                                             <p className="text-xl font-bold text-white">{kpi.activeWorkspaces}<span className="text-sm text-slate-500">/{kpi.maxWorkspaces || kpi.totalWorkspaces}</span></p>
-                                            {!editingMaxWs ? (
-                                                <button onClick={() => { setEditingMaxWs(true); setEditMaxWsValue((owner?.maxWorkspaces || 1).toString()); }}
-                                                    className="text-[10px] text-cyan-400/50 hover:text-cyan-300 flex items-center gap-1 mt-1 transition-colors">
-                                                    <Edit3 className="w-3 h-3" /> Modifica limite
-                                                </button>
-                                            ) : (
-                                                <div className="flex items-center gap-1.5 mt-1">
-                                                    <input type="number" min="1" max="50" value={editMaxWsValue} onChange={e => setEditMaxWsValue(e.target.value)}
-                                                        className="w-14 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none focus:border-cyan-500/50" autoFocus />
-                                                    <button onClick={saveMaxWorkspaces} disabled={savingMaxWs}
-                                                        className="p-1 rounded-lg text-emerald-300 bg-emerald-500/15 border border-emerald-500/20 hover:bg-emerald-500/25">
-                                                        {savingMaxWs ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                                                    </button>
-                                                    <button onClick={() => setEditingMaxWs(false)} className="p-1 rounded-lg text-slate-400 hover:bg-white/5">
-                                                        <X className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            )}
                                         </div>
                                         <div className={card} style={cardBg}>
                                             <div className="flex items-center gap-2 mb-1"><Users className="w-4 h-4 text-amber-400" /><span className={labelCls}>Membri Totali</span></div>
@@ -340,6 +322,30 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                             {/* ─── TAB: WORKSPACE ─── */}
                             {tab === 'workspaces' && (
                                 <div className="space-y-3">
+                                    {/* Max workspace limit header */}
+                                    <div className="flex items-center justify-between mb-1 px-1">
+                                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Limite Workspace</span>
+                                        {!editingMaxWs ? (
+                                            <button onClick={() => { setEditingMaxWs(true); setEditMaxWsValue((owner?.maxWorkspaces || 1).toString()); }}
+                                                className="flex items-center gap-1.5 text-xs text-cyan-400/70 hover:text-cyan-300 transition-colors">
+                                                <span className="font-bold">{kpi?.maxWorkspaces || 1}</span>
+                                                <Edit3 className="w-3 h-3" />
+                                            </button>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5">
+                                                <input type="number" min="1" max="50" value={editMaxWsValue} onChange={e => setEditMaxWsValue(e.target.value)}
+                                                    className="w-14 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none focus:border-cyan-500/50" autoFocus />
+                                                <button onClick={saveMaxWorkspaces} disabled={savingMaxWs}
+                                                    className="p-1 rounded-lg text-emerald-300 bg-emerald-500/15 border border-emerald-500/20 hover:bg-emerald-500/25">
+                                                    {savingMaxWs ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                                </button>
+                                                <button onClick={() => setEditingMaxWs(false)} className="p-1 rounded-lg text-slate-400 hover:bg-white/5">
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {workspaces.map((ws: any) => (
                                         <div key={ws.id} className={card} style={cardBg}>
                                             <div className="flex items-center gap-3">
@@ -353,24 +359,20 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${ws.status === 'active' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : ws.status === 'suspended' ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' : 'bg-red-500/10 text-red-300 border-red-500/20'}`}>
                                                     {ws.status === 'active' ? 'Attivo' : ws.status === 'suspended' ? 'Sospeso' : 'Eliminato'}
                                                 </span>
-                                                <div className="flex flex-col items-end group relative">
-                                                    <span className="text-xs text-slate-400 cursor-help"><Users className="w-3 h-3 inline mr-1" />{ws.totalSeats}/{ws.maxMembers}</span>
-                                                    {/* Tooltip for breakdown */}
-                                                    <div className="absolute top-full right-0 mt-1 w-48 p-2 rounded-lg bg-black border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl pointer-events-none">
-                                                        <div className="flex justify-between text-[10px] text-slate-300">
-                                                            <span>👤 Membri registrati:</span>
-                                                            <span className="font-bold text-white">{ws.nonGuestMembers}</span>
-                                                        </div>
-                                                        <div className="flex justify-between text-[10px] text-slate-300 mt-1">
-                                                            <span>🎫 Inviti Guest attivi:</span>
-                                                            <span className="font-bold text-white">{ws.activeGuestInvites}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                {ws.price_per_seat > 0 && (
-                                                    <span className="text-xs text-emerald-400">{fmt(ws.price_per_seat)}/utente</span>
+                                            </div>
+                                            {/* Info row */}
+                                            <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
+                                                <span className="flex items-center gap-1"><Users className="w-3 h-3" />{ws.totalSeats}/{ws.maxMembers} accessi</span>
+                                                {ws.price_per_seat > 0 && <span className="text-emerald-400">{fmt(ws.price_per_seat)}/utente</span>}
+                                                <span>{ws.activeSpaces} uffici</span>
+                                                {ws.monthly_amount_cents > 0 && (
+                                                    <span className="ml-auto text-emerald-400 font-semibold">{fmt(ws.monthly_amount_cents)}/mese</span>
                                                 )}
-                                                <span className="text-xs text-slate-500">{ws.activeSpaces} uffici</span>
+                                                {ws.payment_status && ws.payment_status !== 'none' && (
+                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ws.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-300' : ws.payment_status === 'overdue' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
+                                                        {ws.payment_status === 'paid' ? 'Pagato' : ws.payment_status === 'overdue' ? 'Scaduto' : 'In attesa'}
+                                                    </span>
+                                                )}
                                             </div>
                                             {/* Seat usage bar */}
                                             {(() => {
@@ -379,35 +381,37 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 const pct = Math.min((used / max) * 100, 100);
                                                 const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
                                                 return (
-                                                    <div className="mt-2.5">
+                                                    <div className="mt-2">
                                                         <div className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden">
                                                             <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
                                                         </div>
                                                     </div>
                                                 );
                                             })()}
-                                            {/* Inline seat + price/seat editor */}
+                                            {/* Gestisci Piano – single unified button */}
                                             {editSeatsWsId === ws.id ? (
-                                                <div className="mt-3 space-y-2 p-3 rounded-xl bg-black/20 border border-white/5">
-                                                    <div className="flex items-center gap-2">
-                                                        <label className="text-[10px] text-slate-500 w-20">Accessi:</label>
-                                                        <input type="number" value={editSeatsValue} onChange={e => setEditSeatsValue(e.target.value)}
-                                                            className="w-20 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none focus:border-cyan-500/50"
-                                                            autoFocus min="1" />
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <label className="text-[10px] text-slate-500 w-20">{cs}/accesso:</label>
-                                                        <input type="number" value={editPricePerSeat} onChange={e => setEditPricePerSeat(e.target.value)}
-                                                            placeholder="0.00" step="0.01"
-                                                            className="w-20 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none focus:border-cyan-500/50" />
-                                                        <span className="text-[10px] text-slate-500">/mese</span>
+                                                <div className="mt-3 space-y-3 p-3 rounded-xl bg-black/20 border border-white/5">
+                                                    <h4 className="text-[10px] uppercase text-cyan-300 font-bold tracking-wider">Gestisci Piano</h4>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className={labelCls}>Accessi</label>
+                                                            <input type="number" value={editSeatsValue} onChange={e => setEditSeatsValue(e.target.value)}
+                                                                className={inputCls + ' mt-1'} autoFocus min="1" />
+                                                        </div>
+                                                        <div>
+                                                            <label className={labelCls}>{cs}/utente/mese</label>
+                                                            <input type="number" value={editPricePerSeat} onChange={e => setEditPricePerSeat(e.target.value)}
+                                                                placeholder="0.00" step="0.01" className={inputCls + ' mt-1'} />
+                                                        </div>
                                                     </div>
                                                     {editSeatsValue && editPricePerSeat && (
-                                                        <p className="text-[10px] text-cyan-400 font-bold">
-                                                            Totale: {cs}{(parseFloat(editSeatsValue) * parseFloat(editPricePerSeat)).toFixed(2)}/mese
-                                                        </p>
+                                                        <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                                            <p className="text-xs text-emerald-300 font-bold">
+                                                                💰 {editSeatsValue} accessi × {cs}{parseFloat(editPricePerSeat).toFixed(2)} = {cs}{(parseFloat(editSeatsValue) * parseFloat(editPricePerSeat)).toFixed(2)}/mese
+                                                            </p>
+                                                        </div>
                                                     )}
-                                                    <div className="flex gap-2 pt-1">
+                                                    <div className="flex gap-2">
                                                         <button onClick={async () => {
                                                             setSavingSeats(true);
                                                             const seats = parseInt(editSeatsValue) || ws.max_members;
@@ -423,17 +427,18 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                                         data: { max_members: seats, price_per_seat: pricePerSeat, monthly_amount_cents: totalCents },
                                                                     }),
                                                                 });
-                                                                showFb('success', `Aggiornato: ${seats} accessi × ${cs}${(pricePerSeat / 100).toFixed(2)} = ${cs}${(totalCents / 100).toFixed(2)}/mese`);
+                                                                showFb('success', `Piano aggiornato ✅`);
                                                                 setEditSeatsWsId(null);
                                                                 loadDetail();
+                                                                onRefresh();
                                                             } catch { showFb('error', 'Errore salvataggio'); }
                                                             setSavingSeats(false);
                                                         }} disabled={savingSeats}
-                                                            className="px-3 py-1 rounded-lg text-[10px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all disabled:opacity-50">
-                                                            {savingSeats ? '...' : '✓ Salva'}
+                                                            className="flex-1 px-3 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-1.5">
+                                                            {savingSeats ? <><Loader2 className="w-3 h-3 animate-spin" /> Salvo...</> : <><Save className="w-3 h-3" /> Salva Piano</>}
                                                         </button>
                                                         <button onClick={() => setEditSeatsWsId(null)}
-                                                            className="px-3 py-1 rounded-lg text-[10px] text-slate-400 hover:bg-white/5 transition-all">
+                                                            className="px-3 py-2 rounded-lg text-xs text-slate-400 border border-white/10 hover:bg-white/5">
                                                             Annulla
                                                         </button>
                                                     </div>
@@ -444,51 +449,9 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     setEditSeatsValue((ws.max_members || 3).toString());
                                                     setEditPricePerSeat(ws.price_per_seat ? (ws.price_per_seat / 100).toFixed(2) : '');
                                                 }}
-                                                    className="mt-2 text-[10px] text-cyan-400/60 hover:text-cyan-300 flex items-center gap-1 transition-colors">
-                                                    <Edit3 className="w-3 h-3" /> Modifica accessi e prezzo
+                                                    className="mt-3 w-full py-2 rounded-lg text-xs font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all flex items-center justify-center gap-1.5">
+                                                    <Edit3 className="w-3.5 h-3.5" /> Gestisci Piano
                                                 </button>
-                                            )}
-                                            {ws.monthly_amount_cents > 0 && editPriceWsId !== ws.id && (
-                                                <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-                                                    <DollarSign className="w-3 h-3" /> {fmt(ws.monthly_amount_cents)}/mese
-                                                    {ws.payment_status && ws.payment_status !== 'none' && (
-                                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ws.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-300' : ws.payment_status === 'overdue' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
-                                                            {ws.payment_status === 'paid' ? 'Pagato' : ws.payment_status === 'overdue' ? 'Scaduto' : 'In attesa'}
-                                                        </span>
-                                                    )}
-                                                    <button onClick={() => { setEditPriceWsId(ws.id); setEditPriceValue((ws.monthly_amount_cents / 100).toString()); }}
-                                                        className="ml-auto p-1 rounded text-slate-600 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors">
-                                                        <Edit3 className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            )
-                                            }
-                                            {
-                                                ws.monthly_amount_cents === 0 && editPriceWsId !== ws.id && ws.plan !== 'free' && (
-                                                    <button onClick={() => { setEditPriceWsId(ws.id); setEditPriceValue(''); }}
-                                                        className="mt-2 text-[10px] text-cyan-400/60 hover:text-cyan-300 flex items-center gap-1 transition-colors">
-                                                        <DollarSign className="w-3 h-3" /> Imposta prezzo
-                                                    </button>
-                                                )
-                                            }
-                                            {editPriceWsId === ws.id && (
-                                                <div className="mt-2 flex items-center gap-2">
-                                                    <span className="text-xs text-slate-500">{cs}</span>
-                                                    <input type="number" value={editPriceValue} onChange={e => setEditPriceValue(e.target.value)}
-                                                        placeholder="0.00" autoFocus
-                                                        className="w-24 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none focus:border-cyan-500/50"
-                                                        onKeyDown={e => { if (e.key === 'Enter') saveQuickPrice(ws.id); if (e.key === 'Escape') setEditPriceWsId(null); }}
-                                                    />
-                                                    <span className="text-[10px] text-slate-500">/mese</span>
-                                                    <button onClick={() => saveQuickPrice(ws.id)}
-                                                        className="px-2 py-1 rounded-lg text-[10px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all">
-                                                        <Check className="w-3 h-3" />
-                                                    </button>
-                                                    <button onClick={() => setEditPriceWsId(null)}
-                                                        className="px-2 py-1 rounded-lg text-[10px] text-slate-400 hover:bg-white/5 transition-all">
-                                                        <X className="w-3 h-3" />
-                                                    </button>
-                                                </div>
                                             )}
                                         </div>
                                     ))}
