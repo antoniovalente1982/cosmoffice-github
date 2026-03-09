@@ -6,7 +6,7 @@ import {
     X, Users, Building2, DollarSign, ClipboardList, ChevronDown,
     CreditCard, Calendar, Save, Loader2, History, Receipt, Crown,
     UserMinus, ShieldCheck, Shield, User, Check, AlertTriangle,
-    Mail, Link2, Copy, TrendingUp, Edit3, KeyRound,
+    Mail, Link2, Copy, TrendingUp, Edit3, KeyRound, Plus,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import { useCurrency } from '../../hooks/useCurrency';
@@ -66,6 +66,13 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
     const [editingMaxWs, setEditingMaxWs] = useState(false);
     const [editMaxWsValue, setEditMaxWsValue] = useState('1');
     const [savingMaxWs, setSavingMaxWs] = useState(false);
+
+    // Add workspace
+    const [showAddWs, setShowAddWs] = useState(false);
+    const [addWsName, setAddWsName] = useState('');
+    const [addWsSeats, setAddWsSeats] = useState('10');
+    const [addWsPPS, setAddWsPPS] = useState('30');
+    const [addingWs, setAddingWs] = useState(false);
 
     const saveMaxWorkspaces = async () => {
         setSavingMaxWs(true);
@@ -486,6 +493,79 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                         </div>
                                     ))}
                                     {workspaces.length === 0 && <p className="text-center text-slate-500 py-8">Nessun workspace</p>}
+
+                                    {/* Add Workspace */}
+                                    {!showAddWs ? (
+                                        <button onClick={() => setShowAddWs(true)}
+                                            className="w-full py-3 rounded-xl border border-dashed border-cyan-500/30 text-sm font-semibold text-cyan-400 hover:bg-cyan-500/5 hover:border-cyan-500/50 transition-all flex items-center justify-center gap-2">
+                                            <Plus className="w-4 h-4" /> Aggiungi Workspace
+                                        </button>
+                                    ) : (
+                                        <div className={card + ' space-y-3'} style={cardBg}>
+                                            <h4 className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                                                <Plus className="w-3.5 h-3.5" /> Nuovo Workspace
+                                            </h4>
+                                            <div>
+                                                <label className={labelCls}>Nome Workspace</label>
+                                                <input type="text" value={addWsName} onChange={e => setAddWsName(e.target.value)}
+                                                    placeholder="Es: Ufficio Marketing" autoFocus
+                                                    className={inputCls + ' mt-1'} />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className={labelCls}>Accessi</label>
+                                                    <input type="number" min="1" value={addWsSeats} onChange={e => setAddWsSeats(e.target.value)}
+                                                        className={inputCls + ' mt-1'} />
+                                                </div>
+                                                <div>
+                                                    <label className={labelCls}>{cs}/utente/mese</label>
+                                                    <input type="number" step="0.01" value={addWsPPS} onChange={e => setAddWsPPS(e.target.value)}
+                                                        className={inputCls + ' mt-1'} />
+                                                </div>
+                                            </div>
+                                            {addWsSeats && addWsPPS && (
+                                                <p className="text-[10px] text-emerald-300 font-bold">
+                                                    💰 Totale: {addWsSeats} × {cs}{parseFloat(addWsPPS).toFixed(2)} = {cs}{(parseInt(addWsSeats) * parseFloat(addWsPPS)).toFixed(2)}/mese
+                                                </p>
+                                            )}
+                                            <div className="flex gap-2">
+                                                <button onClick={async () => {
+                                                    if (!addWsName.trim()) { showFb('error', 'Inserisci un nome'); return; }
+                                                    setAddingWs(true);
+                                                    try {
+                                                        const res = await fetch('/api/admin/workspaces', {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({
+                                                                action: 'add_workspace_to_owner',
+                                                                workspaceId: '',
+                                                                data: {
+                                                                    ownerId,
+                                                                    workspaceName: addWsName.trim(),
+                                                                    maxMembers: parseInt(addWsSeats) || 10,
+                                                                    pricePerSeatCents: Math.round((parseFloat(addWsPPS) || 0) * 100),
+                                                                },
+                                                            }),
+                                                        });
+                                                        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Errore'); }
+                                                        showFb('success', `Workspace "${addWsName}" creato ✅`);
+                                                        setShowAddWs(false);
+                                                        setAddWsName(''); setAddWsSeats('10'); setAddWsPPS('30');
+                                                        loadDetail();
+                                                        onRefresh();
+                                                    } catch (e: any) { showFb('error', e.message); }
+                                                    setAddingWs(false);
+                                                }} disabled={addingWs}
+                                                    className="flex-1 px-3 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-1.5">
+                                                    {addingWs ? <><Loader2 className="w-3 h-3 animate-spin" /> Creo...</> : <><Plus className="w-3 h-3" /> Crea Workspace</>}
+                                                </button>
+                                                <button onClick={() => setShowAddWs(false)}
+                                                    className="px-3 py-2 rounded-lg text-xs text-slate-400 border border-white/10 hover:bg-white/5">
+                                                    Annulla
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
