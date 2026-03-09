@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { DollarSign, TrendingUp, Receipt, Filter, ArrowUp, ArrowDown, Loader2, Users, Calendar } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
+import { useCurrency } from '../../../hooks/useCurrency';
 
 interface Payment {
     id: string;
@@ -38,6 +39,7 @@ export default function RevenuePage() {
     const [filterType, setFilterType] = useState('');
     const [filterMonth, setFilterMonth] = useState('');
     const [mrrData, setMrrData] = useState({ mrr: 0, payingCount: 0 });
+    const { symbol: cs, fmt } = useCurrency();
 
     useEffect(() => { fetchAll(); }, []);
 
@@ -97,7 +99,7 @@ export default function RevenuePage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="rounded-2xl border border-white/5 p-5 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Incassato Totale</p>
-                    <p className="text-3xl font-bold text-white mt-1">€{(totals.incassato / 100).toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-white mt-1">{fmt(totals.incassato)}</p>
                     <div className="flex items-center gap-1 mt-2">
                         <ArrowUp className="w-3 h-3 text-emerald-400" />
                         <span className="text-xs text-emerald-400">{payments.filter(p => p.type === 'payment').length} pagamenti</span>
@@ -105,7 +107,7 @@ export default function RevenuePage() {
                 </div>
                 <div className="rounded-2xl border border-white/5 p-5 bg-gradient-to-br from-red-500/20 to-red-500/5">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Rimborsato</p>
-                    <p className="text-3xl font-bold text-white mt-1">€{(totals.rimborsato / 100).toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-white mt-1">{fmt(totals.rimborsato)}</p>
                     <div className="flex items-center gap-1 mt-2">
                         <ArrowDown className="w-3 h-3 text-red-400" />
                         <span className="text-xs text-red-400">{payments.filter(p => p.type === 'refund').length} rimborsi</span>
@@ -113,12 +115,12 @@ export default function RevenuePage() {
                 </div>
                 <div className="rounded-2xl border border-white/5 p-5 bg-gradient-to-br from-purple-500/20 to-purple-500/5">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Netto</p>
-                    <p className="text-3xl font-bold text-white mt-1">€{(totals.netto / 100).toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-white mt-1">{fmt(totals.netto)}</p>
                     <p className="text-xs text-slate-500 mt-2">Incassato − Rimborsato</p>
                 </div>
                 <div className="rounded-2xl border border-white/5 p-5 bg-gradient-to-br from-cyan-500/20 to-cyan-500/5">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">MRR Stimato</p>
-                    <p className="text-3xl font-bold text-white mt-1">€{(mrrData.mrr / 100).toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-white mt-1">{fmt(mrrData.mrr)}</p>
                     <div className="flex items-center gap-1 mt-2">
                         <Users className="w-3 h-3 text-cyan-400" />
                         <span className="text-xs text-cyan-400">{mrrData.payingCount} clienti paganti</span>
@@ -172,7 +174,7 @@ export default function RevenuePage() {
                                     {p.notes && <span className="block text-slate-600 truncate">{p.notes}</span>}
                                 </div>
                                 <p className={`text-sm font-bold text-right ${p.type === 'refund' ? 'text-red-400' : 'text-emerald-400'}`}>
-                                    {p.type === 'refund' ? '−' : '+'}€{(Math.abs(p.amount_cents) / 100).toFixed(2)}
+                                    {p.type === 'refund' ? '−' : '+'}{fmt(Math.abs(p.amount_cents))}
                                 </p>
                                 <p className="text-xs text-slate-400 text-right">{new Date(p.payment_date).toLocaleDateString('it-IT')}</p>
                                 <span className={`text-right text-[10px] font-bold uppercase ${TYPE_LABELS[p.type]?.color || 'text-slate-400'}`}>

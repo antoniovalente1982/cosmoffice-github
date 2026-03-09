@@ -9,6 +9,7 @@ import {
     Mail, Link2, Copy, TrendingUp, Edit3, KeyRound,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
+import { useCurrency } from '../../hooks/useCurrency';
 
 type Tab = 'overview' | 'workspaces' | 'members' | 'payments' | 'plans';
 
@@ -28,9 +29,7 @@ const TABS: { id: Tab; label: string; icon: any }[] = [
     { id: 'plans', label: 'Piano & Limiti', icon: ClipboardList },
 ];
 
-function formatCents(cents: number) {
-    return `€${(cents / 100).toFixed(2)}`;
-}
+// formatCents is now replaced by useCurrency().fmt()
 
 export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Props) {
     const [tab, setTab] = useState<Tab>('overview');
@@ -50,6 +49,8 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
     const [payWsId, setPayWsId] = useState<string | null>(null);
     const [payAmount, setPayAmount] = useState('');
     const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
+
+    const { symbol: cs, fmt, currency: currCode } = useCurrency();
     const [payRef, setPayRef] = useState('');
     const [payType, setPayType] = useState<'payment' | 'refund'>('payment');
     const [payNotes, setPayNotes] = useState('');
@@ -129,7 +130,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                     },
                 }),
             });
-            showFb('success', `Piano aggiornato: ${maxMembers} accessi × €${(pricePerSeatCents / 100).toFixed(2)} = €${(totalCents / 100).toFixed(2)}/mese ✅`);
+            showFb('success', `Piano aggiornato: ${maxMembers} accessi × ${cs}${(pricePerSeatCents / 100).toFixed(2)} = ${cs}${(totalCents / 100).toFixed(2)}/mese ✅`);
             setEditPlanWsId(null); loadDetail(); onRefresh();
         } catch (e: any) { showFb('error', e.message); }
         setSavingPlan(false);
@@ -291,11 +292,11 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                         <div className={card} style={cardBg}>
                                             <div className="flex items-center gap-2 mb-1"><DollarSign className="w-4 h-4 text-emerald-400" /><span className={labelCls}>Revenue Totale</span></div>
-                                            <p className="text-xl font-bold text-white">{formatCents(kpi.totalRevenueCents)}</p>
+                                            <p className="text-xl font-bold text-white">{fmt(kpi.totalRevenueCents)}</p>
                                         </div>
                                         <div className={card} style={cardBg}>
                                             <div className="flex items-center gap-2 mb-1"><TrendingUp className="w-4 h-4 text-cyan-400" /><span className={labelCls}>MRR</span></div>
-                                            <p className="text-xl font-bold text-white">{formatCents(kpi.mrrCents)}</p>
+                                            <p className="text-xl font-bold text-white">{fmt(kpi.mrrCents)}</p>
                                         </div>
                                         <div className={card} style={cardBg}>
                                             <div className="flex items-center gap-2 mb-1"><Building2 className="w-4 h-4 text-purple-400" /><span className={labelCls}>Workspace</span></div>
@@ -341,7 +342,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     <div key={p.id} className="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-black/20">
                                                         <div className="flex items-center gap-2">
                                                             <span className={p.type === 'refund' ? 'text-red-400' : 'text-emerald-400'}>
-                                                                {p.type === 'refund' ? '−' : '+'}€{(Math.abs(p.amount_cents) / 100).toFixed(2)}
+                                                                {p.type === 'refund' ? '−' : '+'}{fmt(Math.abs(p.amount_cents))}
                                                             </span>
                                                             <span className="text-slate-500">{new Date(p.payment_date).toLocaleDateString('it-IT')}</span>
                                                             <span className="text-slate-600">{p.workspace_name}</span>
@@ -385,7 +386,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     </div>
                                                 </div>
                                                 {ws.price_per_seat > 0 && (
-                                                    <span className="text-xs text-emerald-400">€{(ws.price_per_seat / 100).toFixed(2)}/utente</span>
+                                                    <span className="text-xs text-emerald-400">{fmt(ws.price_per_seat)}/utente</span>
                                                 )}
                                                 <span className="text-xs text-slate-500">{ws.activeSpaces} uffici</span>
                                             </div>
@@ -413,7 +414,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                             autoFocus min="1" />
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <label className="text-[10px] text-slate-500 w-20">€/accesso:</label>
+                                                        <label className="text-[10px] text-slate-500 w-20">{cs}/accesso:</label>
                                                         <input type="number" value={editPricePerSeat} onChange={e => setEditPricePerSeat(e.target.value)}
                                                             placeholder="0.00" step="0.01"
                                                             className="w-20 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none focus:border-cyan-500/50" />
@@ -421,7 +422,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     </div>
                                                     {editSeatsValue && editPricePerSeat && (
                                                         <p className="text-[10px] text-cyan-400 font-bold">
-                                                            Totale: €{(parseFloat(editSeatsValue) * parseFloat(editPricePerSeat)).toFixed(2)}/mese
+                                                            Totale: {cs}{(parseFloat(editSeatsValue) * parseFloat(editPricePerSeat)).toFixed(2)}/mese
                                                         </p>
                                                     )}
                                                     <div className="flex gap-2 pt-1">
@@ -440,7 +441,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                                         data: { max_members: seats, price_per_seat: pricePerSeat, monthly_amount_cents: totalCents },
                                                                     }),
                                                                 });
-                                                                showFb('success', `Aggiornato: ${seats} accessi × €${(pricePerSeat / 100).toFixed(2)} = €${(totalCents / 100).toFixed(2)}/mese`);
+                                                                showFb('success', `Aggiornato: ${seats} accessi × ${cs}${(pricePerSeat / 100).toFixed(2)} = ${cs}${(totalCents / 100).toFixed(2)}/mese`);
                                                                 setEditSeatsWsId(null);
                                                                 loadDetail();
                                                             } catch { showFb('error', 'Errore salvataggio'); }
@@ -467,7 +468,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                             )}
                                             {ws.monthly_amount_cents > 0 && editPriceWsId !== ws.id && (
                                                 <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-                                                    <DollarSign className="w-3 h-3" /> {formatCents(ws.monthly_amount_cents)}/mese
+                                                    <DollarSign className="w-3 h-3" /> {fmt(ws.monthly_amount_cents)}/mese
                                                     {ws.payment_status && ws.payment_status !== 'none' && (
                                                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ws.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-300' : ws.payment_status === 'overdue' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
                                                             {ws.payment_status === 'paid' ? 'Pagato' : ws.payment_status === 'overdue' ? 'Scaduto' : 'In attesa'}
@@ -490,7 +491,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                             }
                                             {editPriceWsId === ws.id && (
                                                 <div className="mt-2 flex items-center gap-2">
-                                                    <span className="text-xs text-slate-500">€</span>
+                                                    <span className="text-xs text-slate-500">{cs}</span>
                                                     <input type="number" value={editPriceValue} onChange={e => setEditPriceValue(e.target.value)}
                                                         placeholder="0.00" autoFocus
                                                         className="w-24 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-xs text-white outline-none focus:border-cyan-500/50"
@@ -579,7 +580,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 </select>
                                             </div>
                                             <div>
-                                                <label className={labelCls}>Importo (€)</label>
+                                                <label className={labelCls}>Importo ({cs})</label>
                                                 <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="49.00" className={inputCls + ' mt-1'} />
                                             </div>
                                             <div>
@@ -613,7 +614,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     <div key={p.id} className="flex items-center justify-between text-xs py-2 px-2 rounded-lg bg-black/20">
                                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                                             <span className={`font-bold ${p.type === 'refund' ? 'text-red-400' : 'text-emerald-400'}`}>
-                                                                {p.type === 'refund' ? '−' : '+'}€{(Math.abs(p.amount_cents) / 100).toFixed(2)}
+                                                                {p.type === 'refund' ? '−' : '+'}{fmt(Math.abs(p.amount_cents))}
                                                             </span>
                                                             <span className="text-slate-500">{new Date(p.payment_date).toLocaleDateString('it-IT')}</span>
                                                             <span className="text-slate-600 truncate">{p.workspace_name}</span>
@@ -626,7 +627,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 ))}
                                                 <div className="pt-2 border-t border-white/5 flex justify-between text-xs">
                                                     <span className="text-slate-400 font-semibold">Totale netto:</span>
-                                                    <span className="text-white font-bold">{formatCents(payments.reduce((s: number, p: any) => s + p.amount_cents, 0))}</span>
+                                                    <span className="text-white font-bold">{fmt(payments.reduce((s: number, p: any) => s + p.amount_cents, 0))}</span>
                                                 </div>
                                             </div>
                                         )}
@@ -683,12 +684,12 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <span className="text-slate-500">€ / Utente / Mese</span>
-                                                        <p className="text-white font-bold">{pricePerSeat > 0 ? `€${(pricePerSeat / 100).toFixed(2)}` : '—'}</p>
+                                                        <span className="text-slate-500">{cs} / Utente / Mese</span>
+                                                        <p className="text-white font-bold">{pricePerSeat > 0 ? fmt(pricePerSeat) : '—'}</p>
                                                     </div>
                                                     <div>
                                                         <span className="text-slate-500">Totale Mensile</span>
-                                                        <p className="text-emerald-400 font-bold">{totalMonthly > 0 ? formatCents(totalMonthly) : '—'}</p>
+                                                        <p className="text-emerald-400 font-bold">{totalMonthly > 0 ? fmt(totalMonthly) : '—'}</p>
                                                     </div>
                                                 </div>
                                                 {/* Seat usage bar */}
@@ -715,7 +716,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                                 <input type="number" value={editMaxMembers} onChange={e => setEditMaxMembers(e.target.value)} placeholder="10" min="1" className={inputCls + ' mt-1'} autoFocus />
                                                             </div>
                                                             <div>
-                                                                <label className={labelCls}>€ per Accesso / Mese</label>
+                                                                <label className={labelCls}>{cs} per Accesso / Mese</label>
                                                                 <input type="number" value={editPlanPPS} onChange={e => setEditPlanPPS(e.target.value)} placeholder="30.00" step="0.01" className={inputCls + ' mt-1'} />
                                                             </div>
                                                             <div>
@@ -730,7 +731,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                         {editMaxMembers && editPlanPPS && (
                                                             <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                                                                 <p className="text-xs text-emerald-300 font-bold">
-                                                                    💰 Totale: {editMaxMembers} accessi × €{parseFloat(editPlanPPS).toFixed(2)} = €{(parseInt(editMaxMembers) * parseFloat(editPlanPPS)).toFixed(2)}/mese
+                                                                    💰 Totale: {editMaxMembers} accessi × {cs}{parseFloat(editPlanPPS).toFixed(2)} = {cs}{(parseInt(editMaxMembers) * parseFloat(editPlanPPS)).toFixed(2)}/mese
                                                                 </p>
                                                             </div>
                                                         )}

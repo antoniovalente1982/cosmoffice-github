@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
 import ClientDetailDrawer from '../../../components/superadmin/ClientDetailDrawer';
+import { useCurrency, CURRENCIES, CurrencyCode } from '../../../hooks/useCurrency';
 
 interface Owner {
     id: string;
@@ -68,9 +69,9 @@ function PaymentBadge({ status }: { status: string }) {
     return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.text} ${s.border}`}>{s.label}</span>;
 }
 
-function PlanCostBadge({ totalMonthlyCents }: { totalMonthlyCents: number }) {
+function PlanCostBadge({ totalMonthlyCents, cs }: { totalMonthlyCents: number; cs: string }) {
     if (totalMonthlyCents > 0) {
-        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">€{(totalMonthlyCents / 100).toFixed(0)}/mese</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">{cs}{(totalMonthlyCents / 100).toFixed(0)}/mese</span>;
     }
     return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-slate-500/20 text-slate-400 border-slate-500/30">Demo</span>;
 }
@@ -92,6 +93,7 @@ function OwnerStatusBadge({ suspended, deleted }: { suspended: boolean; deleted:
 }
 
 export default function CustomersPage() {
+    const { symbol: cs, fmt, currency: currCode, setCurrency } = useCurrency();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -276,7 +278,7 @@ export default function CustomersPage() {
                     },
                 }),
             });
-            showFeedback('success', `Piano aggiornato: ${maxMembers} accessi × €${(ppsCents / 100).toFixed(2)} = €${(totalCents / 100).toFixed(2)}/mese ✅`);
+            showFeedback('success', `Piano aggiornato: ${maxMembers} accessi × ${cs}${(ppsCents / 100).toFixed(2)} = ${cs}${(totalCents / 100).toFixed(2)}/mese ✅`);
             setEditPlanWsId(null); fetchData();
         } catch (err: any) { showFeedback('error', err.message); }
         setSavingPlan(false);
@@ -818,7 +820,7 @@ export default function CustomersPage() {
                                         <span className="text-white font-medium">{group.uniqueMembers}</span>
                                         <span className="text-slate-600">utenti unici</span>
                                     </div>
-                                    <PlanCostBadge totalMonthlyCents={group.totalMonthlyCents} />
+                                    <PlanCostBadge totalMonthlyCents={group.totalMonthlyCents} cs={cs} />
                                     {group.suspendedWs > 0 && (
                                         <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
                                             {group.suspendedWs} sospesi
@@ -897,7 +899,7 @@ export default function CustomersPage() {
                                 <div className="flex items-center gap-1 text-[11px] text-slate-400">
                                     <Users className="w-3 h-3" /> {group.uniqueMembers} utenti unici
                                 </div>
-                                <PlanCostBadge totalMonthlyCents={group.totalMonthlyCents} />
+                                <PlanCostBadge totalMonthlyCents={group.totalMonthlyCents} cs={cs} />
                             </div>
 
                             {/* Expanded workspace list */}
@@ -1092,14 +1094,14 @@ export default function CustomersPage() {
                                                                         placeholder="10" min="1" className="w-16 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" autoFocus />
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
-                                                                    <span className="text-xs text-slate-500">€/utente:</span>
+                                                                    <span className="text-xs text-slate-500">{cs}/utente:</span>
                                                                     <input type="number" value={editPlanPPS} onChange={e => setEditPlanPPS(e.target.value)}
                                                                         placeholder="30.00" step="0.01" className="w-20 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" />
                                                                     <span className="text-xs text-slate-500">/mese</span>
                                                                 </div>
                                                                 {editPlanMembers && editPlanPPS && (
                                                                     <span className="text-xs text-emerald-400 font-bold">
-                                                                        = €{(parseInt(editPlanMembers) * parseFloat(editPlanPPS)).toFixed(2)}/mese
+                                                                        = {cs}{(parseInt(editPlanMembers) * parseFloat(editPlanPPS)).toFixed(2)}/mese
                                                                     </span>
                                                                 )}
                                                                 <input type="date" value={editPlanExpiry} onChange={e => setEditPlanExpiry(e.target.value)}
@@ -1134,7 +1136,7 @@ export default function CustomersPage() {
                                                                         <div key={p.id} className="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-black/20">
                                                                             <div className="flex items-center gap-2">
                                                                                 <span className={p.type === 'refund' ? 'text-red-400' : 'text-emerald-400'}>
-                                                                                    {p.type === 'refund' ? '−' : '+'}€{(Math.abs(p.amount_cents) / 100).toFixed(2)}
+                                                                                    {p.type === 'refund' ? '−' : '+'}{fmt(Math.abs(p.amount_cents))}
                                                                                 </span>
                                                                                 <span className="text-slate-500">{new Date(p.payment_date).toLocaleDateString('it-IT')}</span>
                                                                                 {p.reference && <span className="text-slate-600">CRO: {p.reference}</span>}
@@ -1146,7 +1148,7 @@ export default function CustomersPage() {
                                                                     ))}
                                                                     <div className="pt-1 border-t border-white/5 flex justify-between text-xs">
                                                                         <span className="text-slate-400 font-semibold">Totale netto:</span>
-                                                                        <span className="text-white font-bold">€{(payments.reduce((s: number, p: any) => s + p.amount_cents, 0) / 100).toFixed(2)}</span>
+                                                                        <span className="text-white font-bold">{fmt(payments.reduce((s: number, p: any) => s + p.amount_cents, 0))}</span>
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -1361,7 +1363,7 @@ export default function CustomersPage() {
                                     <button onClick={() => setPayType('refund')} className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payType === 'refund' ? 'bg-red-500/20 text-red-300 border-red-500/30' : 'bg-black/20 text-slate-400 border-white/5'}`}>Rimborso</button>
                                 </div>
                                 <div>
-                                    <label className="text-[10px] text-slate-500 uppercase">Importo (€)</label>
+                                    <label className="text-[10px] text-slate-500 uppercase">Importo ({cs})</label>
                                     <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="29.00" autoFocus
                                         className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
                                 </div>
@@ -1514,7 +1516,7 @@ export default function CustomersPage() {
                                             className="w-full mt-1 px-3 py-2.5 rounded-lg bg-black/30 border border-emerald-500/30 text-emerald-300 font-bold outline-none" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-slate-500 uppercase">Prezzo cad. (€)</label>
+                                        <label className="text-[10px] text-slate-500 uppercase">Prezzo cad. ({cs})</label>
                                         <input type="number" required min="0" step="0.01" value={newCustomerData.pricePerSeat} onChange={e => setNewCustomerData(prev => ({ ...prev, pricePerSeat: e.target.value }))} placeholder="10.00"
                                             className="w-full mt-1 px-3 py-2.5 rounded-lg bg-black/30 border border-emerald-500/30 text-emerald-300 font-bold outline-none" />
                                     </div>
@@ -1522,7 +1524,7 @@ export default function CustomersPage() {
                                 <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl flex items-center justify-between mt-2">
                                     <span className="text-xs text-emerald-400 uppercase tracking-wider font-semibold">Totale Mensile Piano:</span>
                                     <span className="text-lg font-bold text-emerald-300">
-                                        €{((parseInt(newCustomerData.maxMembers) || 0) * (parseFloat(newCustomerData.pricePerSeat) || 0)).toFixed(2)}
+                                        {cs}{((parseInt(newCustomerData.maxMembers) || 0) * (parseFloat(newCustomerData.pricePerSeat) || 0)).toFixed(2)}
                                     </span>
                                 </div>
                                 <p className="text-[10px] text-slate-500 leading-tight">Verrà generato l'Owner e il Workspace. La password dell'Owner sarà impostata di default a "Cambiami123!". Potrai registrare un pagamento manuale subito dopo.</p>

@@ -18,6 +18,7 @@ import {
     Server,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
+import { useCurrency, CURRENCIES, CurrencyCode } from '../../hooks/useCurrency';
 
 interface NavItem { href: string; label: string; icon: any; }
 interface NavSection { label?: string; items: NavItem[]; }
@@ -63,6 +64,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
     const [loading, setLoading] = useState(true);
     const [authorized, setAuthorized] = useState(false);
+    const { currency, setCurrency, symbol } = useCurrency();
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -163,6 +165,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <ArrowLeft className="w-4 h-4" />
                         Torna all&apos;Office
                     </Link>
+                    <div className="flex items-center gap-2 px-2 pt-1">
+                        <DollarSign className="w-3.5 h-3.5 text-slate-500" />
+                        <select
+                            value={currency}
+                            onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                            className="flex-1 px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-xs text-slate-300 outline-none appearance-none cursor-pointer hover:border-cyan-500/30 transition-colors"
+                            style={{ backgroundImage: 'none' }}
+                        >
+                            {CURRENCIES.map(c => (
+                                <option key={c.code} value={c.code} style={{ background: '#0f172a' }}>
+                                    {c.symbol} {c.code}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </aside>
 
