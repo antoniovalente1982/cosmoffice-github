@@ -271,18 +271,16 @@ export default function OfficePage() {
     // Fetch workspace ID from space
     useEffect(() => {
         getWorkspaceIdFromSpace(spaceId).then(id => setWorkspaceId(id));
-        // Fetch workspace name
+        // Fetch workspace name + capacity from workspace (not space)
         const fetchWsInfo = async () => {
             const supabaseClient = createClient();
-            const { data: spaceData } = await supabaseClient.from('spaces').select('workspace_id, max_capacity').eq('id', spaceId).single();
-            if (spaceData) {
-                if (spaceData.max_capacity) setMaxCapacity(spaceData.max_capacity);
-                if (spaceData.workspace_id) {
-                    const { data: ws } = await supabaseClient.from('workspaces').select('name, logo_url').eq('id', spaceData.workspace_id).single();
-                    if (ws) {
-                        setWorkspaceName(ws.name);
-                        setWorkspaceLogoUrl(ws.logo_url || null);
-                    }
+            const { data: spaceData } = await supabaseClient.from('spaces').select('workspace_id').eq('id', spaceId).single();
+            if (spaceData?.workspace_id) {
+                const { data: ws } = await supabaseClient.from('workspaces').select('name, logo_url, max_members').eq('id', spaceData.workspace_id).single();
+                if (ws) {
+                    setWorkspaceName(ws.name);
+                    setWorkspaceLogoUrl(ws.logo_url || null);
+                    if (ws.max_members) setMaxCapacity(ws.max_members);
                 }
             }
         };

@@ -25,6 +25,19 @@ export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: 
     const [isLoading, setIsLoading] = useState(false);
     const supabase = createClient();
     const loadedRef = useRef(false);
+    const prevWorkspaceRef = useRef<string | null>(null);
+
+    // Reset chat when switching workspace — prevents messages leaking between workspaces
+    useEffect(() => {
+        if (workspaceId && workspaceId !== prevWorkspaceRef.current) {
+            if (prevWorkspaceRef.current !== null) {
+                // Actually switching — clear old messages
+                clearOfficeMessages();
+                loadedRef.current = false;
+            }
+            prevWorkspaceRef.current = workspaceId;
+        }
+    }, [workspaceId, clearOfficeMessages]);
 
     // ─── Load history from Supabase (once) ────────────────
     useEffect(() => {
