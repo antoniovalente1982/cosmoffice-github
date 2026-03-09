@@ -37,6 +37,7 @@ export function WorkspaceSettings({
 }: WorkspaceSettingsProps) {
     const [activeTab, setActiveTab] = useState<Tab>('members');
     const [wsName, setWsName] = useState(workspaceName);
+    const [wsPlan, setWsPlan] = useState('demo');
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -51,6 +52,15 @@ export function WorkspaceSettings({
         changeRole,
         cancelInvitation,
     } = useWorkspaceMembers(workspaceId);
+
+    // Fetch workspace plan from DB
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.from('workspaces').select('plan').eq('id', workspaceId).single()
+            .then(({ data }) => {
+                if (data?.plan) setWsPlan(data.plan);
+            });
+    }, [workspaceId]);
 
     const tabs: { id: Tab; label: string; icon: typeof Settings; count?: number }[] = [
         { id: 'general', label: 'Generale', icon: Building2 },
@@ -185,7 +195,9 @@ export function WorkspaceSettings({
                                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider">Membri</p>
                                                 </div>
                                                 <div className="p-3 rounded-xl bg-slate-800/30 border border-white/5 text-center">
-                                                    <p className="text-lg font-bold text-cyan-400 capitalize">Free</p>
+                                                    <p className={`text-lg font-bold capitalize ${wsPlan === 'premium' ? 'text-amber-400' : 'text-cyan-400'}`}>
+                                                        {wsPlan === 'premium' ? '⭐ Premium' : 'Demo'}
+                                                    </p>
                                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider">Piano</p>
                                                 </div>
                                             </div>

@@ -26,7 +26,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Logo } from '../../components/ui/logo';
 import { WorkspaceSettings } from '../../components/workspace/WorkspaceSettings';
-import { OFFICE_PRESETS, getPresetForSize } from '../../lib/officePresets';
+import { OFFICE_PRESETS } from '../../lib/officePresets';
 
 // max_workspaces is now dynamic, fetched from profiles table
 
@@ -539,14 +539,6 @@ export default function DashboardPage() {
                                                         <p className="text-slate-400 text-sm flex items-center gap-1">
                                                             <Globe className="w-3 h-3" /> {space.name}
                                                         </p>
-                                                        {(() => {
-                                                            const preset = getPresetForSize(space.width || 4000, space.height || 3000);
-                                                            return (
-                                                                <span className="text-[10px] font-semibold text-slate-500 bg-white/5 px-1.5 py-0.5 rounded-md border border-white/5">
-                                                                    {preset.icon} {preset.label}
-                                                                </span>
-                                                            );
-                                                        })()}
                                                     </div>
                                                 </div>
                                             )}
