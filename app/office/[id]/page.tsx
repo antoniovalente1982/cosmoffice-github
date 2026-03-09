@@ -458,6 +458,9 @@ export default function OfficePage() {
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                     <TeamList spaceId={spaceId} workspaceId={workspaceId} role={role} canInvite={canInvite} invitableRoles={invitableRoles} />
 
+                </nav>
+
+                <div className="p-4 border-t border-white/5 bg-black/10 flex flex-col gap-2">
                     {/* Assistenza — visible to everyone */}
                     <Button
                         variant="ghost"
@@ -467,9 +470,7 @@ export default function OfficePage() {
                         <Headphones className="w-5 h-5 flex-shrink-0" />
                         <span className="whitespace-nowrap">Assistenza</span>
                     </Button>
-                </nav>
 
-                <div className="p-4 border-t border-white/5 bg-black/10">
                     <div
                         className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer"
                         onClick={() => setIsManagementOpen(true)}
