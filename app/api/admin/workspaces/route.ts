@@ -1045,7 +1045,7 @@ export async function POST(req: NextRequest) {
                     status: 'pending',
                     due_date: dueDate,
                     invoice_number: invoiceNum,
-                    description: `Fattura ${billingCycle === 'annual' ? 'annuale' : 'mensile'} — ${ws.name} (${seats} accessi × ${(ppsCents / 100).toFixed(2)}€)`,
+                    description: `Ricevuta ${billingCycle === 'annual' ? 'annuale' : 'mensile'} — ${ws.name} (${seats} accessi × ${(ppsCents / 100).toFixed(2)}€)`,
                     created_by: userId,
                 }).select().single();
 
@@ -1061,8 +1061,8 @@ export async function POST(req: NextRequest) {
                 // Notify owner
                 const ownerId = await getOwnerUserId(workspaceId);
                 if (ownerId) {
-                    await sendNotification(ownerId, '📄 Nuova Fattura',
-                        `Fattura ${invoiceNum} di €${(total / 100).toFixed(2)} per "${ws.name}". Scadenza: ${dueDate}.`,
+                    await sendNotification(ownerId, '📄 Nuova Ricevuta',
+                        `Ricevuta ${invoiceNum} di €${(total / 100).toFixed(2)} per "${ws.name}". Scadenza: ${dueDate}.`,
                         'workspace', workspaceId);
                 }
 
@@ -1101,7 +1101,7 @@ export async function POST(req: NextRequest) {
                 const ownerId2 = await getOwnerUserId(inv.workspace_id);
                 if (ownerId2) {
                     await sendNotification(ownerId2, '✅ Pagamento Confermato',
-                        `Il pagamento di €${(inv.total_cents / 100).toFixed(2)} per la fattura ${inv.invoice_number} è stato confermato.`,
+                        `Il pagamento di €${(inv.total_cents / 100).toFixed(2)} per la ricevuta ${inv.invoice_number} è stato confermato.`,
                         'workspace', inv.workspace_id);
                 }
 
@@ -1231,7 +1231,7 @@ export async function POST(req: NextRequest) {
                         status: 'pending',
                         due_date: dueDate,
                         invoice_number: invNum,
-                        description: `Fattura ${cycle === 'annual' ? 'annuale' : 'mensile'} — ${ws.name}`,
+                        description: `Ricevuta ${cycle === 'annual' ? 'annuale' : 'mensile'} — ${ws.name}`,
                         created_by: userId,
                     });
 

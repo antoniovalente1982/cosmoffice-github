@@ -494,7 +494,7 @@ export default function CustomersPage() {
                 body: JSON.stringify({ action: 'generate_invoice', workspaceId: wsId, data: { billing_cycle: cycle || 'monthly' } }),
             });
             if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Errore'); }
-            showFeedback('success', 'Fattura generata ✅');
+            showFeedback('success', 'Ricevuta generata ✅');
             loadInvoices(wsId);
             fetchData();
         } catch (err: any) { showFeedback('error', err.message); }
@@ -537,7 +537,7 @@ export default function CustomersPage() {
             });
             if (!res.ok) throw new Error('Errore');
             const r = await res.json();
-            showFeedback('success', `Upgrade completato! ${r.adjustment_cents > 0 ? `Fattura proporzionale: €${(r.adjustment_cents / 100).toFixed(2)}` : 'Nessun costo aggiuntivo'}`);
+            showFeedback('success', `Upgrade completato! ${r.adjustment_cents > 0 ? `Ricevuta proporzionale: €${(r.adjustment_cents / 100).toFixed(2)}` : 'Nessun costo aggiuntivo'}`);
             setUpgradeWs(null);
             fetchData();
         } catch (err: any) { showFeedback('error', err.message); }
@@ -1205,12 +1205,12 @@ export default function CustomersPage() {
                                                         {actionMenuId === ws.id && (
                                                             <div className="absolute right-0 top-full mt-1 w-52 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left"
                                                                 onClick={e => e.stopPropagation()}>
-                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Fatturazione</p>
+                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Ricevute</p>
                                                                 <button onClick={() => generateInvoice(ws.id)} disabled={generatingInvoice} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
-                                                                    <FileText className="w-3.5 h-3.5" /> Genera Fattura
+                                                                    <FileText className="w-3.5 h-3.5" /> Genera Ricevuta
                                                                 </button>
                                                                 <button onClick={() => loadInvoices(ws.id)} className="w-full px-3 py-2 text-left text-xs text-purple-400 hover:bg-white/5 flex items-center gap-2">
-                                                                    <History className="w-3.5 h-3.5" /> Storico Fatture
+                                                                    <History className="w-3.5 h-3.5" /> Storico Ricevute
                                                                 </button>
                                                                 <button onClick={() => { setUpgradeWs(ws); setUpgradeSeats(String(ws.maxMembers)); setUpgradePPS(String((ws.pricePerSeat / 100).toFixed(2))); setActionMenuId(null); }} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
                                                                     <Zap className="w-3.5 h-3.5" /> Upgrade
@@ -1342,13 +1342,13 @@ export default function CustomersPage() {
                                                     {invoiceWsId === ws.id && (
                                                         <div className="col-span-full mt-2 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10" onClick={e => e.stopPropagation()}>
                                                             <div className="flex items-center justify-between mb-2">
-                                                                <h4 className="text-xs font-bold text-indigo-300 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Storico Fatture</h4>
+                                                                <h4 className="text-xs font-bold text-indigo-300 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Storico Ricevute</h4>
                                                                 <button onClick={() => setInvoiceWsId(null)} className="text-slate-500 hover:text-white"><X className="w-3.5 h-3.5" /></button>
                                                             </div>
                                                             {loadingInvoices ? (
                                                                 <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-indigo-400" /></div>
                                                             ) : invoices.length === 0 ? (
-                                                                <p className="text-xs text-slate-500 italic">Nessuna fattura. Clicca &quot;Genera Fattura&quot; dal menu.</p>
+                                                                <p className="text-xs text-slate-500 italic">Nessuna ricevuta. Clicca &quot;Genera Ricevuta&quot; dal menu.</p>
                                                             ) : (
                                                                 <div className="space-y-1.5 max-h-52 overflow-y-auto">
                                                                     {invoices.map(inv => (
@@ -1629,7 +1629,7 @@ export default function CustomersPage() {
                                         className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none placeholder:text-slate-600" />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] text-slate-500 uppercase">N. Fattura</label>
+                                    <label className="text-[10px] text-slate-500 uppercase">N. Ricevuta</label>
                                     <input type="text" value={payInvoice} onChange={e => setPayInvoice(e.target.value)} placeholder="FT-001"
                                         className="w-full mt-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none placeholder:text-slate-600" />
                                 </div>

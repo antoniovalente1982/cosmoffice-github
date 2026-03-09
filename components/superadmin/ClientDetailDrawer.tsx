@@ -11,7 +11,7 @@ import {
 import { createClient } from '../../utils/supabase/client';
 import { useCurrency } from '../../hooks/useCurrency';
 
-type Tab = 'overview' | 'workspaces' | 'members' | 'payments' | 'plans';
+type Tab = 'overview' | 'workspaces' | 'members' | 'payments';
 
 interface Props {
     ownerId: string;
@@ -26,7 +26,6 @@ const TABS: { id: Tab; label: string; icon: any }[] = [
     { id: 'workspaces', label: 'Workspace', icon: Building2 },
     { id: 'members', label: 'Utenti & Admin', icon: Users },
     { id: 'payments', label: 'Pagamenti', icon: CreditCard },
-    { id: 'plans', label: 'Piano & Limiti', icon: ClipboardList },
 ];
 
 // formatCents is now replaced by useCurrency().fmt()
@@ -37,13 +36,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
     const [loading, setLoading] = useState(true);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
-    // Plan editing (per-user model)
-    const [editPlanWsId, setEditPlanWsId] = useState<string | null>(null);
-    const [editMaxMembers, setEditMaxMembers] = useState('');
-    const [editPlanPPS, setEditPlanPPS] = useState('');
-    const [editExpiry, setEditExpiry] = useState('');
-    const [editNotes, setEditNotes] = useState('');
-    const [savingPlan, setSavingPlan] = useState(false);
+
 
     // Payment registration
     const [payWsId, setPayWsId] = useState<string | null>(null);
@@ -108,33 +101,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
 
     useEffect(() => { loadDetail(); }, [ownerId]);
 
-    const savePlanEdit = async () => {
-        if (!editPlanWsId) return;
-        setSavingPlan(true);
-        const maxMembers = parseInt(editMaxMembers) || 3;
-        const pricePerSeatCents = Math.round((parseFloat(editPlanPPS) || 0) * 100);
-        const totalCents = maxMembers * pricePerSeatCents;
-        try {
-            await fetch('/api/admin/workspaces', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'update_seats',
-                    workspaceId: editPlanWsId,
-                    data: {
-                        max_members: maxMembers,
-                        price_per_seat: pricePerSeatCents,
-                        monthly_amount_cents: totalCents,
-                        plan_expires_at: editExpiry || null,
-                        plan_notes: editNotes || null,
-                    },
-                }),
-            });
-            showFb('success', `Piano aggiornato: ${maxMembers} accessi × ${cs}${(pricePerSeatCents / 100).toFixed(2)} = ${cs}${(totalCents / 100).toFixed(2)}/mese ✅`);
-            setEditPlanWsId(null); loadDetail(); onRefresh();
-        } catch (e: any) { showFb('error', e.message); }
-        setSavingPlan(false);
-    };
+
 
     const savePayment = async () => {
         if (!payWsId || !payAmount) return;
@@ -291,7 +258,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                 <>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                         <div className={card} style={cardBg}>
-                                            <div className="flex items-center gap-2 mb-1"><DollarSign className="w-4 h-4 text-emerald-400" /><span className={labelCls}>Revenue Totale</span></div>
+                                            <div className="flex items-center gap-2 mb-1"><Receipt className="w-4 h-4 text-emerald-400" /><span className={labelCls}>Revenue Totale</span></div>
                                             <p className="text-xl font-bold text-white">{fmt(kpi.totalRevenueCents)}</p>
                                         </div>
                                         <div className={card} style={cardBg}>
@@ -635,121 +602,6 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                 </div>
                             )}
 
-                            {/* ─── TAB: PIANO & ACCESSI ─── */}
-                            {tab === 'plans' && (
-                                <div className="space-y-3">
-                                    {workspaces.map((ws: any) => {
-                                        const pricePerSeat = ws.price_per_seat || 0;
-                                        const maxM = ws.max_members || 0;
-                                        const totalMonthly = maxM * pricePerSeat;
-                                        return (
-                                            <div key={ws.id} className={card} style={cardBg}>
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <Building2 className="w-4 h-4 text-cyan-400" />
-                                                        <span className="text-sm font-semibold text-white">{ws.name}</span>
-                                                        {pricePerSeat > 0 ? (
-                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border bg-emerald-500/15 text-emerald-300 border-emerald-500/20">
-                                                                Attivo
-                                                            </span>
-                                                        ) : (
-                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border bg-slate-500/15 text-slate-400 border-slate-500/20">
-                                                                Demo
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <button onClick={() => {
-                                                        setEditPlanWsId(ws.id);
-                                                        setEditMaxMembers((ws.max_members || 3).toString());
-                                                        setEditPlanPPS(pricePerSeat > 0 ? (pricePerSeat / 100).toFixed(2) : '');
-                                                        setEditExpiry(ws.plan_expires_at?.split('T')[0] || '');
-                                                        setEditNotes(ws.plan_notes || '');
-                                                    }}
-                                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all">
-                                                        Modifica Piano
-                                                    </button>
-                                                </div>
-                                                <div className="grid grid-cols-3 gap-3 text-xs">
-                                                    <div className="group relative cursor-help">
-                                                        <span className="text-slate-500">Accessi usati</span>
-                                                        <p className="text-white font-bold">{ws.totalSeats || 0}<span className="text-slate-500">/{maxM}</span></p>
-                                                        {/* Tooltip */}
-                                                        <div className="absolute top-full left-0 mt-1 w-48 p-2 rounded-lg bg-black border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl pointer-events-none">
-                                                            <div className="flex justify-between text-[10px] text-slate-300">
-                                                                <span>👤 Membri:</span><span className="font-bold text-white">{ws.nonGuestMembers}</span>
-                                                            </div>
-                                                            <div className="flex justify-between text-[10px] text-slate-300 mt-1">
-                                                                <span>🎫 Guest Inviti:</span><span className="font-bold text-white">{ws.activeGuestInvites}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-slate-500">{cs} / Utente / Mese</span>
-                                                        <p className="text-white font-bold">{pricePerSeat > 0 ? fmt(pricePerSeat) : '—'}</p>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-slate-500">Totale Mensile</span>
-                                                        <p className="text-emerald-400 font-bold">{totalMonthly > 0 ? fmt(totalMonthly) : '—'}</p>
-                                                    </div>
-                                                </div>
-                                                {/* Seat usage bar */}
-                                                {(() => {
-                                                    const pct = maxM > 0 ? Math.min(((ws.totalSeats || 0) / maxM) * 100, 100) : 0;
-                                                    const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
-                                                    return (
-                                                        <div className="mt-2">
-                                                            <div className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden">
-                                                                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })()}
-                                                {ws.plan_expires_at && <p className="text-[10px] text-slate-500 mt-2">Scade: {new Date(ws.plan_expires_at).toLocaleDateString('it-IT')}</p>}
-                                                {ws.plan_notes && <p className="text-[10px] text-slate-500 mt-1">Note: {ws.plan_notes}</p>}
-
-                                                {/* Inline plan editor */}
-                                                {editPlanWsId === ws.id && (
-                                                    <div className="mt-3 pt-3 border-t border-white/5 space-y-3">
-                                                        <div className="grid grid-cols-2 gap-3">
-                                                            <div>
-                                                                <label className={labelCls}>Numero Accessi</label>
-                                                                <input type="number" value={editMaxMembers} onChange={e => setEditMaxMembers(e.target.value)} placeholder="10" min="1" className={inputCls + ' mt-1'} autoFocus />
-                                                            </div>
-                                                            <div>
-                                                                <label className={labelCls}>{cs} per Accesso / Mese</label>
-                                                                <input type="number" value={editPlanPPS} onChange={e => setEditPlanPPS(e.target.value)} placeholder="30.00" step="0.01" className={inputCls + ' mt-1'} />
-                                                            </div>
-                                                            <div>
-                                                                <label className={labelCls}>Scadenza</label>
-                                                                <input type="date" value={editExpiry} onChange={e => setEditExpiry(e.target.value)} className={inputCls + ' mt-1'} />
-                                                            </div>
-                                                            <div>
-                                                                <label className={labelCls}>Note</label>
-                                                                <input type="text" value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Note..." className={inputCls + ' mt-1 placeholder:text-slate-600'} />
-                                                            </div>
-                                                        </div>
-                                                        {editMaxMembers && editPlanPPS && (
-                                                            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                                                                <p className="text-xs text-emerald-300 font-bold">
-                                                                    💰 Totale: {editMaxMembers} accessi × {cs}{parseFloat(editPlanPPS).toFixed(2)} = {cs}{(parseInt(editMaxMembers) * parseFloat(editPlanPPS)).toFixed(2)}/mese
-                                                                </p>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex gap-2 justify-end">
-                                                            <button onClick={() => setEditPlanWsId(null)} className="px-3 py-2 rounded-lg text-xs text-slate-400 border border-white/10 hover:bg-white/5">Annulla</button>
-                                                            <button onClick={savePlanEdit} disabled={savingPlan}
-                                                                className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5">
-                                                                <Save className="w-3.5 h-3.5" />{savingPlan ? 'Salvo...' : 'Salva Piano'}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                    {workspaces.length === 0 && <p className="text-center text-slate-500 py-8">Nessun workspace</p>}
-                                </div>
-                            )}
                         </div>
                     </>
                 )}

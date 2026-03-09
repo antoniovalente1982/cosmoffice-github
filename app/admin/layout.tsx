@@ -9,7 +9,7 @@ import {
     Shield,
     Bug,
     Video,
-    DollarSign,
+    Receipt,
     CreditCard,
     ScrollText,
     ArrowLeft,
@@ -38,7 +38,7 @@ const navSections: NavSection[] = [
     {
         label: 'Monetizzazione',
         items: [
-            { href: '/admin/revenue', label: 'Revenue', icon: DollarSign },
+            { href: '/admin/revenue', label: 'Revenue', icon: Receipt },
             { href: '/admin/payments', label: 'Pagamenti', icon: CreditCard },
         ],
     },
