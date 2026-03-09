@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
             let profiles: any[] | null = null;
             const { data: extProfiles, error: extError } = await supabase
                 .from('profiles')
-                .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, deleted_at')
+                .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, deleted_at, created_at')
                 .in('id', Array.from(ownerUserIds));
 
             if (extError) {
@@ -222,6 +222,7 @@ export async function GET(req: NextRequest) {
                     isSuperAdmin: !!ownerProfile.is_super_admin,
                     suspended: !!ownerProfile.suspended_at,
                     deleted: !!ownerProfile.deleted_at,
+                    createdAt: ownerProfile.created_at || null,
                 } : null,
             };
         });
@@ -538,6 +539,51 @@ export async function POST(req: NextRequest) {
                 );
 
                 return NextResponse.json({ success: true });
+            }
+
+            case 'hard_delete_owner': {
+                const { ownerId } = actionData;
+                if (!ownerId) return NextResponse.json({ error: 'ownerId required' }, { status: 400 });
+
+                // Safety check: cannot delete yourself (super admin)
+                if (ownerId === userId) {
+                    return NextResponse.json({ error: 'Non puoi eliminare il tuo account' }, { status: 400 });
+                }
+
+                // 1. Get all workspaces owned by this user
+                const { data: ownedWs } = await supabase
+                    .from('workspaces')
+                    .select('id')
+                    .eq('created_by', ownerId);
+                const wsIds = (ownedWs || []).map((w: any) => w.id);
+
+                // 2. For each workspace: delete spaces, invitations, members
+                if (wsIds.length > 0) {
+                    // Delete spaces
+                    await supabase.from('spaces').delete().in('workspace_id', wsIds);
+                    // Delete invitations
+                    await supabase.from('workspace_invitations').delete().in('workspace_id', wsIds);
+                    // Delete workspace members
+                    await supabase.from('workspace_members').delete().in('workspace_id', wsIds);
+                    // Nullify workspace references in payments (preserve payment records)
+                    // payments table already has owner_email, owner_name, workspace_name columns
+                    // so financial data is preserved even after workspace deletion
+                    await supabase.from('workspaces').delete().in('id', wsIds);
+                }
+
+                // 3. Also remove as member from any other workspaces
+                await supabase.from('workspace_members').delete().eq('user_id', ownerId);
+
+                // 4. Delete profile
+                await supabase.from('profiles').delete().eq('id', ownerId);
+
+                // 5. Delete from auth.users
+                const { error: authDeleteError } = await supabase.auth.admin.deleteUser(ownerId);
+                if (authDeleteError) {
+                    console.error('[hard_delete_owner] auth.admin.deleteUser error:', authDeleteError.message);
+                }
+
+                return NextResponse.json({ success: true, deletedWorkspaces: wsIds.length });
             }
 
             case 'bulk_delete': {

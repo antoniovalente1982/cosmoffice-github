@@ -21,7 +21,10 @@ interface Owner {
     isSuperAdmin: boolean;
     suspended: boolean;
     deleted: boolean;
+    createdAt: string | null;
 }
+
+type SortMode = 'name_asc' | 'name_desc' | 'date_asc' | 'date_desc' | 'workspaces';
 
 interface Workspace {
     id: string;
@@ -59,6 +62,8 @@ interface OwnerGroup {
     suspendedWs: number;
     deletedWs: number;
     totalMonthlyCents: number;
+    ownerCreatedAt: string | null;
+    earliestWsCreatedAt: string | null;
 }
 
 // Single per-user pricing model
@@ -194,6 +199,8 @@ export default function CustomersPage() {
     const [addWsSeats, setAddWsSeats] = useState('10');
     const [addWsPPS, setAddWsPPS] = useState('10');
     const [addingWs, setAddingWs] = useState(false);
+    const [sortMode, setSortMode] = useState<SortMode>('date_desc');
+    const [deletingOwnerId, setDeletingOwnerId] = useState<string | null>(null);
 
     // Invoices
     const [invoiceWsId, setInvoiceWsId] = useState<string | null>(null);
@@ -579,6 +586,8 @@ export default function CustomersPage() {
                     uniqueMembers: 0,
                     activeWs: 0, suspendedWs: 0, deletedWs: 0,
                     totalMonthlyCents: 0,
+                    ownerCreatedAt: ws.owner.createdAt || null,
+                    earliestWsCreatedAt: null,
                 });
             }
             const group = map.get(key)!;
@@ -588,12 +597,14 @@ export default function CustomersPage() {
             if (ws.status === 'active') group.activeWs++;
             else if (ws.status === 'suspended') group.suspendedWs++;
             else group.deletedWs++;
-            // Calculate total monthly cost per owner
             const pps = ws.pricePerSeat || 0;
             group.totalMonthlyCents += ws.maxMembers * pps;
+            // Track earliest workspace creation
+            if (!group.earliestWsCreatedAt || (ws.createdAt && ws.createdAt < group.earliestWsCreatedAt)) {
+                group.earliestWsCreatedAt = ws.createdAt;
+            }
         });
 
-        // Compute unique members per owner
         const groups = Array.from(map.values());
         groups.forEach(group => {
             const uniqueIds = new Set<string>();
@@ -604,13 +615,21 @@ export default function CustomersPage() {
             group.totalMembers = group.workspaces.reduce((s, w) => s + w.totalMembers, 0);
             group.totalSeats = group.workspaces.reduce((s, w) => s + w.totalSeats, 0);
         });
-        // Sort: most workspaces first
-        groups.sort((a, b) => b.workspaces.length - a.workspaces.length);
 
-        // Add "no owner" group if any
+        // Sort based on sortMode
+        groups.sort((a, b) => {
+            switch (sortMode) {
+                case 'name_asc': return a.owner.name.localeCompare(b.owner.name, 'it');
+                case 'name_desc': return b.owner.name.localeCompare(a.owner.name, 'it');
+                case 'date_asc': return (a.ownerCreatedAt || '').localeCompare(b.ownerCreatedAt || '');
+                case 'date_desc': return (b.ownerCreatedAt || '').localeCompare(a.ownerCreatedAt || '');
+                case 'workspaces': default: return b.workspaces.length - a.workspaces.length;
+            }
+        });
+
         if (noOwner.length > 0) {
             groups.push({
-                owner: { id: '__none__', email: '', name: 'Senza Proprietario', avatarUrl: null, isSuperAdmin: false, suspended: false, deleted: false },
+                owner: { id: '__none__', email: '', name: 'Senza Proprietario', avatarUrl: null, isSuperAdmin: false, suspended: false, deleted: false, createdAt: null },
                 workspaces: noOwner,
                 totalMembers: noOwner.reduce((s, w) => s + w.totalMembers, 0),
                 totalSeats: noOwner.reduce((s, w) => s + w.totalSeats, 0),
@@ -619,11 +638,13 @@ export default function CustomersPage() {
                 suspendedWs: noOwner.filter(w => w.status === 'suspended').length,
                 deletedWs: noOwner.filter(w => w.status === 'deleted').length,
                 totalMonthlyCents: 0,
+                ownerCreatedAt: null,
+                earliestWsCreatedAt: null,
             });
         }
 
         return groups;
-    }, [workspaces]);
+    }, [workspaces, sortMode]);
 
     const toggleOwner = (ownerId: string) => {
         setExpandedOwners(prev => {
@@ -732,7 +753,7 @@ export default function CustomersPage() {
         setActionLoading(true);
         try {
             const body: any = { action: confirmAction.action, workspaceId: confirmAction.workspaceId };
-            if (confirmAction.action === 'suspend_owner' || confirmAction.action === 'reactivate_owner') {
+            if (confirmAction.action === 'suspend_owner' || confirmAction.action === 'reactivate_owner' || confirmAction.action === 'hard_delete_owner') {
                 body.data = { ownerId: confirmAction.ownerId };
             }
             const res = await fetch('/api/admin/workspaces', {
@@ -857,6 +878,35 @@ export default function CustomersPage() {
                         </button>
                     ))}
                 </div>
+
+                <div className="w-px h-6 bg-white/10" />
+
+                {/* Sort controls */}
+                <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mr-1">Ordina:</span>
+                    <button onClick={() => setSortMode(sortMode === 'name_asc' ? 'name_desc' : 'name_asc')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border ${sortMode.startsWith('name_')
+                            ? 'bg-violet-500/20 text-violet-300 border-violet-500/30'
+                            : 'bg-black/20 text-slate-400 border-white/5 hover:bg-white/5'
+                            }`}>
+                        {sortMode === 'name_desc' ? 'Z→A' : 'A→Z'}
+                    </button>
+                    <button onClick={() => setSortMode(sortMode === 'date_desc' ? 'date_asc' : 'date_desc')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border flex items-center gap-1 ${sortMode.startsWith('date_')
+                            ? 'bg-violet-500/20 text-violet-300 border-violet-500/30'
+                            : 'bg-black/20 text-slate-400 border-white/5 hover:bg-white/5'
+                            }`}>
+                        <Calendar className="w-3 h-3" />
+                        {sortMode === 'date_asc' ? 'Vecchi→' : '→Recenti'}
+                    </button>
+                    <button onClick={() => setSortMode('workspaces')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border flex items-center gap-1 ${sortMode === 'workspaces'
+                            ? 'bg-violet-500/20 text-violet-300 border-violet-500/30'
+                            : 'bg-black/20 text-slate-400 border-white/5 hover:bg-white/5'
+                            }`}>
+                        <Building2 className="w-3 h-3" /> WS
+                    </button>
+                </div>
             </div>
 
             {error && (
@@ -946,6 +996,12 @@ export default function CustomersPage() {
                                     {!isNoOwner && (
                                         <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
                                             <Mail className="w-3 h-3 shrink-0" />{group.owner.email}
+                                            {group.ownerCreatedAt && (
+                                                <span className="text-slate-600 ml-2 flex items-center gap-0.5">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {new Date(group.ownerCreatedAt).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                </span>
+                                            )}
                                         </p>
                                     )}
                                 </div>
@@ -1027,6 +1083,15 @@ export default function CustomersPage() {
                                                     ownerId: group.owner.id,
                                                 })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
                                                     <Trash2 className="w-3.5 h-3.5" /> Elimina Workspace
+                                                </button>
+                                                <button onClick={() => openConfirm({
+                                                    action: 'hard_delete_owner', workspaceId: '', ownerId: group.owner.id,
+                                                    ownerName: group.owner.name, workspaceName: group.owner.name,
+                                                    label: `ELIMINA DEFINITIVAMENTE ${group.owner.name}`,
+                                                    description: `Eliminerai DEFINITIVAMENTE l'account di ${group.owner.name} (${group.owner.email}), tutti i suoi ${group.workspaces.length} workspace, membri e dati. I pagamenti registrati verranno preservati. Questa azione è IRREVERSIBILE.`,
+                                                    danger: true, confirmWord: 'ELIMINA ACCOUNT',
+                                                })} className="w-full px-3 py-2 text-left text-xs text-red-500 hover:bg-red-500/10 flex items-center gap-2 font-bold">
+                                                    <UserX className="w-3.5 h-3.5" /> 🗑️ Hard Delete Account
                                                 </button>
                                             </div>
                                         )}
