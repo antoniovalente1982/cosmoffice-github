@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '../../../utils/supabase/client';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -409,6 +409,36 @@ export default function OfficePage() {
         };
         getUser();
     }, [supabase, router, spaceId, setActiveSpace]);
+
+    // ─── Auto-teleport to destination room (from guest invite ?roomId=) ───
+    const searchParams = useSearchParams();
+    const autoRoomProcessed = useRef(false);
+    useEffect(() => {
+        if (loading || autoRoomProcessed.current) return;
+        const targetRoomId = searchParams.get('roomId');
+        if (!targetRoomId) return;
+        autoRoomProcessed.current = true;
+
+        // Wait a bit for rooms to load in the workspace store
+        const timer = setTimeout(() => {
+            const rooms = useWorkspaceStore.getState().rooms;
+            const targetRoom = rooms.find((r: any) => r.id === targetRoomId);
+            if (targetRoom) {
+                // Teleport avatar to center of the room
+                const centerX = targetRoom.x + (targetRoom.width || 200) / 2;
+                const centerY = targetRoom.y + (targetRoom.height || 150) / 2;
+                useAvatarStore.getState().setMyPosition({ x: centerX, y: centerY });
+                useAvatarStore.getState().setMyRoom(targetRoomId);
+                // Trigger LiveKit join
+                const joinFn = (window as any).__sendJoinRoom;
+                if (joinFn) joinFn(targetRoomId);
+                console.log('[AUTO-TELEPORT] Guest teleported to room:', targetRoomId);
+            } else {
+                console.warn('[AUTO-TELEPORT] Target room not found:', targetRoomId);
+            }
+        }, 2000); // Wait for Pixi/rooms to initialize
+        return () => clearTimeout(timer);
+    }, [loading, searchParams]);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
