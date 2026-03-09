@@ -621,14 +621,14 @@ export async function POST(req: NextRequest) {
                 let ownerProfile: any = null;
                 const { data: extProfile, error: extProfErr } = await supabase
                     .from('profiles')
-                    .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, created_at, max_workspaces')
+                    .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, created_at, max_workspaces, company_name, vat_number, phone, billing_address, billing_city, billing_zip, billing_country, fiscal_code, sdi_code, pec')
                     .eq('id', ownerId)
                     .single();
                 if (extProfErr) {
                     // Fallback: some columns may not exist
                     const { data: basicProfile, error: basicErr } = await supabase
                         .from('profiles')
-                        .select('id, email, full_name, display_name, avatar_url, is_super_admin, max_workspaces')
+                        .select('id, email, full_name, display_name, avatar_url, is_super_admin, max_workspaces, company_name, vat_number, phone, billing_address, billing_city, billing_zip, billing_country, fiscal_code, sdi_code, pec')
                         .eq('id', ownerId)
                         .single();
                     if (basicErr) throw basicErr;
@@ -780,6 +780,16 @@ export async function POST(req: NextRequest) {
                         deleted: !!ownerProfile.deleted_at,
                         createdAt: ownerProfile.created_at,
                         maxWorkspaces: ownerProfile.max_workspaces || 1,
+                        companyName: ownerProfile.company_name || '',
+                        vatNumber: ownerProfile.vat_number || '',
+                        phone: ownerProfile.phone || '',
+                        billingAddress: ownerProfile.billing_address || '',
+                        billingCity: ownerProfile.billing_city || '',
+                        billingZip: ownerProfile.billing_zip || '',
+                        billingCountry: ownerProfile.billing_country || 'IT',
+                        fiscalCode: ownerProfile.fiscal_code || '',
+                        sdiCode: ownerProfile.sdi_code || '',
+                        pec: ownerProfile.pec || '',
                     },
                     workspaces: workspacesEnriched,
                     payments: allPayments,
@@ -1323,6 +1333,27 @@ export async function POST(req: NextRequest) {
                     .eq('id', invoiceId);
 
                 if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+                return NextResponse.json({ success: true });
+            }
+
+            case 'update_billing': {
+                const { owner_id, company_name, vat_number, phone: ph, billing_address, billing_city, billing_zip, billing_country, fiscal_code, sdi_code, pec } = actionData;
+                if (!owner_id) return NextResponse.json({ error: 'owner_id obbligatorio' }, { status: 400 });
+
+                const { error: bilErr } = await supabase.from('profiles').update({
+                    company_name: company_name || null,
+                    vat_number: vat_number || null,
+                    phone: ph || null,
+                    billing_address: billing_address || null,
+                    billing_city: billing_city || null,
+                    billing_zip: billing_zip || null,
+                    billing_country: billing_country || 'IT',
+                    fiscal_code: fiscal_code || null,
+                    sdi_code: sdi_code || null,
+                    pec: pec || null,
+                }).eq('id', owner_id);
+
+                if (bilErr) return NextResponse.json({ error: bilErr.message }, { status: 500 });
                 return NextResponse.json({ success: true });
             }
 

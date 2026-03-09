@@ -74,6 +74,20 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
     const [addWsPPS, setAddWsPPS] = useState('30');
     const [addingWs, setAddingWs] = useState(false);
 
+    // Billing info
+    const [billingOpen, setBillingOpen] = useState(false);
+    const [bilCompany, setBilCompany] = useState('');
+    const [bilVat, setBilVat] = useState('');
+    const [bilFiscal, setBilFiscal] = useState('');
+    const [bilAddress, setBilAddress] = useState('');
+    const [bilCity, setBilCity] = useState('');
+    const [bilZip, setBilZip] = useState('');
+    const [bilCountry, setBilCountry] = useState('IT');
+    const [bilSdi, setBilSdi] = useState('');
+    const [bilPec, setBilPec] = useState('');
+    const [bilPhone, setBilPhone] = useState('');
+    const [savingBilling, setSavingBilling] = useState(false);
+
     const saveMaxWorkspaces = async () => {
         setSavingMaxWs(true);
         const val = parseInt(editMaxWsValue) || 1;
@@ -583,6 +597,106 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                             {/* ─── TAB: PAYMENTS ─── */}
                             {tab === 'payments' && (
                                 <div className="space-y-4">
+                                    {/* Dati di Fatturazione */}
+                                    <div className={card} style={cardBg}>
+                                        <button onClick={() => {
+                                            if (!billingOpen && owner) {
+                                                setBilCompany(owner.companyName || '');
+                                                setBilVat(owner.vatNumber || '');
+                                                setBilFiscal(owner.fiscalCode || '');
+                                                setBilAddress(owner.billingAddress || '');
+                                                setBilCity(owner.billingCity || '');
+                                                setBilZip(owner.billingZip || '');
+                                                setBilCountry(owner.billingCountry || 'IT');
+                                                setBilSdi(owner.sdiCode || '');
+                                                setBilPec(owner.pec || '');
+                                                setBilPhone(owner.phone || '');
+                                            }
+                                            setBillingOpen(!billingOpen);
+                                        }} className="w-full flex items-center justify-between text-xs font-bold text-slate-300">
+                                            <span className="flex items-center gap-2"><Receipt className="w-3.5 h-3.5 text-amber-400" /> Dati di Fatturazione</span>
+                                            <span className="text-slate-500 text-[10px]">{billingOpen ? '▲ Chiudi' : '▼ Espandi'}</span>
+                                        </button>
+                                        {billingOpen && (
+                                            <div className="mt-3 space-y-3">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="col-span-2">
+                                                        <label className={labelCls}>Ragione Sociale / Nome</label>
+                                                        <input type="text" value={bilCompany} onChange={e => setBilCompany(e.target.value)} placeholder="Acme S.r.l." className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelCls}>P.IVA</label>
+                                                        <input type="text" value={bilVat} onChange={e => setBilVat(e.target.value)} placeholder="IT12345678901" className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelCls}>Codice Fiscale</label>
+                                                        <input type="text" value={bilFiscal} onChange={e => setBilFiscal(e.target.value)} placeholder="RSSMRA80A01H501Z" className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                    <div className="col-span-2">
+                                                        <label className={labelCls}>Indirizzo</label>
+                                                        <input type="text" value={bilAddress} onChange={e => setBilAddress(e.target.value)} placeholder="Via Roma 1" className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelCls}>Città</label>
+                                                        <input type="text" value={bilCity} onChange={e => setBilCity(e.target.value)} placeholder="Milano" className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelCls}>CAP</label>
+                                                        <input type="text" value={bilZip} onChange={e => setBilZip(e.target.value)} placeholder="20100" className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelCls}>Paese</label>
+                                                        <input type="text" value={bilCountry} onChange={e => setBilCountry(e.target.value)} placeholder="IT" className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelCls}>Telefono</label>
+                                                        <input type="text" value={bilPhone} onChange={e => setBilPhone(e.target.value)} placeholder="+39 02..." className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelCls}>Codice SDI</label>
+                                                        <input type="text" value={bilSdi} onChange={e => setBilSdi(e.target.value)} placeholder="0000000" className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelCls}>PEC</label>
+                                                        <input type="text" value={bilPec} onChange={e => setBilPec(e.target.value)} placeholder="pec@azienda.it" className={inputCls + ' mt-1'} />
+                                                    </div>
+                                                </div>
+                                                <button onClick={async () => {
+                                                    setSavingBilling(true);
+                                                    try {
+                                                        const res = await fetch('/api/admin/workspaces', {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({
+                                                                action: 'update_billing',
+                                                                workspaceId: '',
+                                                                data: {
+                                                                    owner_id: ownerId,
+                                                                    company_name: bilCompany,
+                                                                    vat_number: bilVat,
+                                                                    fiscal_code: bilFiscal,
+                                                                    billing_address: bilAddress,
+                                                                    billing_city: bilCity,
+                                                                    billing_zip: bilZip,
+                                                                    billing_country: bilCountry,
+                                                                    sdi_code: bilSdi,
+                                                                    pec: bilPec,
+                                                                    phone: bilPhone,
+                                                                },
+                                                            }),
+                                                        });
+                                                        if (!res.ok) throw new Error('Errore');
+                                                        showFb('success', 'Dati di fatturazione salvati ✅');
+                                                        loadDetail();
+                                                    } catch { showFb('error', 'Errore salvataggio'); }
+                                                    setSavingBilling(false);
+                                                }} disabled={savingBilling}
+                                                    className="w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 disabled:opacity-30 flex items-center justify-center gap-2 transition-all">
+                                                    {savingBilling ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Salva Dati Fatturazione</>}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                     {/* Quick register */}
                                     <div className={card} style={cardBg}>
                                         <h3 className="text-xs font-bold text-slate-300 mb-3 flex items-center gap-2"><CreditCard className="w-3.5 h-3.5 text-emerald-400" /> Registra Pagamento</h3>
