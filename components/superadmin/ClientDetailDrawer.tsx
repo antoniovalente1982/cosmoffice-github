@@ -18,19 +18,7 @@ interface Props {
     onRefresh: () => void;
 }
 
-const PLAN_OPTIONS = [
-    { value: 'free', label: 'Free', maxPeople: 3, maxSpaces: 1, maxRooms: 5 },
-    { value: 'team_10', label: 'Team 10', maxPeople: 10, maxSpaces: 3, maxRooms: 15 },
-    { value: 'team_25', label: 'Team 25', maxPeople: 25, maxSpaces: 5, maxRooms: 25 },
-    { value: 'team_50', label: 'Team 50', maxPeople: 50, maxSpaces: 10, maxRooms: 50 },
-    { value: 'team_100', label: 'Team 100', maxPeople: 100, maxSpaces: 20, maxRooms: 100 },
-    { value: 'enterprise', label: 'Enterprise', maxPeople: 999, maxSpaces: 999, maxRooms: 999 },
-];
-
-const PLAN_COLORS: Record<string, string> = {
-    free: '#64748b', team_10: '#06b6d4', team_25: '#8b5cf6',
-    team_50: '#f59e0b', team_100: '#f97316', enterprise: '#ef4444',
-};
+// Single per-user pricing model: max_members × price_per_seat = monthly cost
 
 const TABS: { id: Tab; label: string; icon: any }[] = [
     { id: 'overview', label: 'Panoramica', icon: TrendingUp },
@@ -50,12 +38,12 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
     const [loading, setLoading] = useState(true);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
-    // Plan editing
+    // Plan editing (per-user model)
     const [editPlanWsId, setEditPlanWsId] = useState<string | null>(null);
-    const [editPlan, setEditPlan] = useState('free');
+    const [editMaxMembers, setEditMaxMembers] = useState('');
+    const [editPlanPPS, setEditPlanPPS] = useState('');
     const [editExpiry, setEditExpiry] = useState('');
     const [editNotes, setEditNotes] = useState('');
-    const [editAmount, setEditAmount] = useState('');
     const [savingPlan, setSavingPlan] = useState(false);
 
     // Payment registration
@@ -107,25 +95,28 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
     const savePlanEdit = async () => {
         if (!editPlanWsId) return;
         setSavingPlan(true);
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        const planDef = PLAN_OPTIONS.find(p => p.value === editPlan);
-        const amt = editAmount ? Math.round(parseFloat(editAmount) * 100) : 0;
-        const { error } = await supabase.from('workspaces').update({
-            plan: editPlan,
-            max_members: planDef?.maxPeople || 3,
-            max_spaces: planDef?.maxSpaces || 1,
-            max_rooms_per_space: planDef?.maxRooms || 5,
-            max_guests: planDef?.maxPeople || 0,
-            plan_expires_at: editExpiry || null,
-            plan_notes: editNotes || null,
-            plan_activated_by: user?.id,
-            plan_activated_at: new Date().toISOString(),
-            monthly_amount_cents: amt,
-            payment_status: editPlan === 'free' ? 'none' : 'pending',
-        }).eq('id', editPlanWsId);
-        if (error) showFb('error', error.message);
-        else { showFb('success', 'Piano aggiornato ✅'); setEditPlanWsId(null); loadDetail(); onRefresh(); }
+        const maxMembers = parseInt(editMaxMembers) || 3;
+        const pricePerSeatCents = Math.round((parseFloat(editPlanPPS) || 0) * 100);
+        const totalCents = maxMembers * pricePerSeatCents;
+        try {
+            await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'update_seats',
+                    workspaceId: editPlanWsId,
+                    data: {
+                        max_members: maxMembers,
+                        price_per_seat: pricePerSeatCents,
+                        monthly_amount_cents: totalCents,
+                        plan_expires_at: editExpiry || null,
+                        plan_notes: editNotes || null,
+                    },
+                }),
+            });
+            showFb('success', `Piano aggiornato: ${maxMembers} accessi × €${(pricePerSeatCents / 100).toFixed(2)} = €${(totalCents / 100).toFixed(2)}/mese ✅`);
+            setEditPlanWsId(null); loadDetail(); onRefresh();
+        } catch (e: any) { showFb('error', e.message); }
         setSavingPlan(false);
     };
 
@@ -343,14 +334,13 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     <p className="text-sm font-semibold text-white truncate">{ws.name}</p>
                                                     <p className="text-[10px] text-slate-500">/{ws.slug}</p>
                                                 </div>
-                                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border"
-                                                    style={{ color: PLAN_COLORS[ws.plan] || '#64748b', borderColor: `${PLAN_COLORS[ws.plan] || '#64748b'}50`, background: `${PLAN_COLORS[ws.plan] || '#64748b'}15` }}>
-                                                    {PLAN_OPTIONS.find(p => p.value === ws.plan)?.label || ws.plan}
-                                                </span>
                                                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${ws.status === 'active' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : ws.status === 'suspended' ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' : 'bg-red-500/10 text-red-300 border-red-500/20'}`}>
                                                     {ws.status === 'active' ? 'Attivo' : ws.status === 'suspended' ? 'Sospeso' : 'Eliminato'}
                                                 </span>
                                                 <span className="text-xs text-slate-400"><Users className="w-3 h-3 inline mr-1" />{ws.totalMembers}/{ws.max_members}</span>
+                                                {ws.price_per_seat > 0 && (
+                                                    <span className="text-xs text-emerald-400">€{(ws.price_per_seat / 100).toFixed(2)}/utente</span>
+                                                )}
                                                 <span className="text-xs text-slate-500">{ws.activeSpaces} uffici</span>
                                             </div>
                                             {/* Seat usage bar */}
@@ -598,68 +588,109 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                 </div>
                             )}
 
-                            {/* ─── TAB: PLANS ─── */}
+                            {/* ─── TAB: PIANO & ACCESSI ─── */}
                             {tab === 'plans' && (
                                 <div className="space-y-3">
-                                    {workspaces.map((ws: any) => (
-                                        <div key={ws.id} className={card} style={cardBg}>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div className="flex items-center gap-2">
-                                                    <Building2 className="w-4 h-4 text-cyan-400" />
-                                                    <span className="text-sm font-semibold text-white">{ws.name}</span>
-                                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border"
-                                                        style={{ color: PLAN_COLORS[ws.plan] || '#64748b', borderColor: `${PLAN_COLORS[ws.plan] || '#64748b'}50`, background: `${PLAN_COLORS[ws.plan] || '#64748b'}15` }}>
-                                                        {PLAN_OPTIONS.find(p => p.value === ws.plan)?.label || ws.plan}
-                                                    </span>
+                                    {workspaces.map((ws: any) => {
+                                        const pricePerSeat = ws.price_per_seat || 0;
+                                        const maxM = ws.max_members || 0;
+                                        const totalMonthly = maxM * pricePerSeat;
+                                        return (
+                                            <div key={ws.id} className={card} style={cardBg}>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Building2 className="w-4 h-4 text-cyan-400" />
+                                                        <span className="text-sm font-semibold text-white">{ws.name}</span>
+                                                        {pricePerSeat > 0 ? (
+                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border bg-emerald-500/15 text-emerald-300 border-emerald-500/20">
+                                                                Attivo
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border bg-slate-500/15 text-slate-400 border-slate-500/20">
+                                                                Demo
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <button onClick={() => {
+                                                        setEditPlanWsId(ws.id);
+                                                        setEditMaxMembers((ws.max_members || 3).toString());
+                                                        setEditPlanPPS(pricePerSeat > 0 ? (pricePerSeat / 100).toFixed(2) : '');
+                                                        setEditExpiry(ws.plan_expires_at?.split('T')[0] || '');
+                                                        setEditNotes(ws.plan_notes || '');
+                                                    }}
+                                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all">
+                                                        Modifica Piano
+                                                    </button>
                                                 </div>
-                                                <button onClick={() => { setEditPlanWsId(ws.id); setEditPlan(ws.plan); setEditExpiry(ws.plan_expires_at?.split('T')[0] || ''); setEditNotes(ws.plan_notes || ''); setEditAmount(ws.monthly_amount_cents ? (ws.monthly_amount_cents / 100).toString() : ''); }}
-                                                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all">
-                                                    Modifica Piano
-                                                </button>
-                                            </div>
-                                            <div className="grid grid-cols-4 gap-3 text-xs">
-                                                <div><span className="text-slate-500">Max Persone</span><p className="text-white font-bold">{ws.max_members}</p></div>
-                                                <div><span className="text-slate-500">Max Uffici</span><p className="text-white font-bold">{ws.max_spaces}</p></div>
-                                                <div><span className="text-slate-500">Max Stanze</span><p className="text-white font-bold">{ws.max_rooms_per_space}</p></div>
-                                                <div><span className="text-slate-500">Importo</span><p className="text-white font-bold">{ws.monthly_amount_cents ? formatCents(ws.monthly_amount_cents) + '/mese' : '—'}</p></div>
-                                            </div>
-                                            {ws.plan_expires_at && <p className="text-[10px] text-slate-500 mt-2">Scade: {new Date(ws.plan_expires_at).toLocaleDateString('it-IT')}</p>}
-                                            {ws.plan_notes && <p className="text-[10px] text-slate-500 mt-1">Note: {ws.plan_notes}</p>}
+                                                <div className="grid grid-cols-3 gap-3 text-xs">
+                                                    <div>
+                                                        <span className="text-slate-500">Accessi</span>
+                                                        <p className="text-white font-bold">{ws.totalMembers || 0}<span className="text-slate-500">/{maxM}</span></p>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-500">€ / Utente / Mese</span>
+                                                        <p className="text-white font-bold">{pricePerSeat > 0 ? `€${(pricePerSeat / 100).toFixed(2)}` : '—'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-500">Totale Mensile</span>
+                                                        <p className="text-emerald-400 font-bold">{totalMonthly > 0 ? formatCents(totalMonthly) : '—'}</p>
+                                                    </div>
+                                                </div>
+                                                {/* Seat usage bar */}
+                                                {(() => {
+                                                    const pct = maxM > 0 ? Math.min(((ws.totalMembers || 0) / maxM) * 100, 100) : 0;
+                                                    const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
+                                                    return (
+                                                        <div className="mt-2">
+                                                            <div className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden">
+                                                                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                                {ws.plan_expires_at && <p className="text-[10px] text-slate-500 mt-2">Scade: {new Date(ws.plan_expires_at).toLocaleDateString('it-IT')}</p>}
+                                                {ws.plan_notes && <p className="text-[10px] text-slate-500 mt-1">Note: {ws.plan_notes}</p>}
 
-                                            {/* Inline plan editor */}
-                                            {editPlanWsId === ws.id && (
-                                                <div className="mt-3 pt-3 border-t border-white/5 space-y-3">
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        <div>
-                                                            <label className={labelCls}>Piano</label>
-                                                            <select value={editPlan} onChange={e => setEditPlan(e.target.value)} className={inputCls + ' mt-1'}>
-                                                                {PLAN_OPTIONS.map(p => <option key={p.value} value={p.value} style={{ background: '#0f172a' }}>{p.label} (max {p.maxPeople})</option>)}
-                                                            </select>
+                                                {/* Inline plan editor */}
+                                                {editPlanWsId === ws.id && (
+                                                    <div className="mt-3 pt-3 border-t border-white/5 space-y-3">
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <label className={labelCls}>Numero Accessi</label>
+                                                                <input type="number" value={editMaxMembers} onChange={e => setEditMaxMembers(e.target.value)} placeholder="10" min="1" className={inputCls + ' mt-1'} autoFocus />
+                                                            </div>
+                                                            <div>
+                                                                <label className={labelCls}>€ per Accesso / Mese</label>
+                                                                <input type="number" value={editPlanPPS} onChange={e => setEditPlanPPS(e.target.value)} placeholder="30.00" step="0.01" className={inputCls + ' mt-1'} />
+                                                            </div>
+                                                            <div>
+                                                                <label className={labelCls}>Scadenza</label>
+                                                                <input type="date" value={editExpiry} onChange={e => setEditExpiry(e.target.value)} className={inputCls + ' mt-1'} />
+                                                            </div>
+                                                            <div>
+                                                                <label className={labelCls}>Note</label>
+                                                                <input type="text" value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Note..." className={inputCls + ' mt-1 placeholder:text-slate-600'} />
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <label className={labelCls}>€ / mese</label>
-                                                            <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="0" className={inputCls + ' mt-1'} />
-                                                        </div>
-                                                        <div>
-                                                            <label className={labelCls}>Scadenza</label>
-                                                            <input type="date" value={editExpiry} onChange={e => setEditExpiry(e.target.value)} className={inputCls + ' mt-1'} />
-                                                        </div>
-                                                        <div>
-                                                            <label className={labelCls}>Note</label>
-                                                            <input type="text" value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Note..." className={inputCls + ' mt-1 placeholder:text-slate-600'} />
+                                                        {editMaxMembers && editPlanPPS && (
+                                                            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                                                                <p className="text-xs text-emerald-300 font-bold">
+                                                                    💰 Totale: {editMaxMembers} accessi × €{parseFloat(editPlanPPS).toFixed(2)} = €{(parseInt(editMaxMembers) * parseFloat(editPlanPPS)).toFixed(2)}/mese
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex gap-2 justify-end">
+                                                            <button onClick={() => setEditPlanWsId(null)} className="px-3 py-2 rounded-lg text-xs text-slate-400 border border-white/10 hover:bg-white/5">Annulla</button>
+                                                            <button onClick={savePlanEdit} disabled={savingPlan}
+                                                                className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5">
+                                                                <Save className="w-3.5 h-3.5" />{savingPlan ? 'Salvo...' : 'Salva Piano'}
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                    <div className="flex gap-2 justify-end">
-                                                        <button onClick={() => setEditPlanWsId(null)} className="px-3 py-2 rounded-lg text-xs text-slate-400 border border-white/10 hover:bg-white/5">Annulla</button>
-                                                        <button onClick={savePlanEdit} disabled={savingPlan}
-                                                            className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5">
-                                                            <Save className="w-3.5 h-3.5" />{savingPlan ? 'Salvo...' : 'Salva Piano'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                     {workspaces.length === 0 && <p className="text-center text-slate-500 py-8">Nessun workspace</p>}
                                 </div>
                             )}

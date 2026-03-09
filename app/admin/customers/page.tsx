@@ -48,19 +48,10 @@ interface OwnerGroup {
     activeWs: number;
     suspendedWs: number;
     deletedWs: number;
-    bestPlan: string;
+    totalMonthlyCents: number;
 }
 
-const planRank: Record<string, number> = { free: 0, team_10: 1, team_25: 2, team_50: 3, team_100: 4, enterprise: 5 };
-const PLAN_LABELS: Record<string, string> = { free: 'Free', team_10: 'Team 10', team_25: 'Team 25', team_50: 'Team 50', team_100: 'Team 100', enterprise: 'Enterprise' };
-const PLAN_OPTIONS = [
-    { value: 'free', label: 'Free', maxPeople: 3, maxSpaces: 1, maxRooms: 5 },
-    { value: 'team_10', label: 'Team 10', maxPeople: 10, maxSpaces: 3, maxRooms: 15 },
-    { value: 'team_25', label: 'Team 25', maxPeople: 25, maxSpaces: 5, maxRooms: 25 },
-    { value: 'team_50', label: 'Team 50', maxPeople: 50, maxSpaces: 10, maxRooms: 50 },
-    { value: 'team_100', label: 'Team 100', maxPeople: 100, maxSpaces: 20, maxRooms: 100 },
-    { value: 'enterprise', label: 'Enterprise', maxPeople: 999, maxSpaces: 999, maxRooms: 999 },
-];
+// Single per-user pricing model
 const PAYMENT_STATUS_COLORS: Record<string, { bg: string, text: string, border: string, label: string }> = {
     none: { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20', label: '—' },
     pending: { bg: 'bg-amber-500/10', text: 'text-amber-300', border: 'border-amber-500/20', label: 'In attesa' },
@@ -73,16 +64,11 @@ function PaymentBadge({ status }: { status: string }) {
     return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.text} ${s.border}`}>{s.label}</span>;
 }
 
-function PlanBadge({ plan }: { plan: string }) {
-    const c: Record<string, string> = {
-        free: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-        team_10: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-        team_25: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-        team_50: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-        team_100: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-        enterprise: 'bg-red-500/20 text-red-300 border-red-500/30',
-    };
-    return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${c[plan] || c.free}`}>{PLAN_LABELS[plan] || plan}</span>;
+function PlanCostBadge({ totalMonthlyCents }: { totalMonthlyCents: number }) {
+    if (totalMonthlyCents > 0) {
+        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">€{(totalMonthlyCents / 100).toFixed(0)}/mese</span>;
+    }
+    return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-slate-500/20 text-slate-400 border-slate-500/30">Demo</span>;
 }
 
 function StatusBadge({ status }: { status: 'active' | 'suspended' | 'deleted' }) {
@@ -141,12 +127,12 @@ export default function CustomersPage() {
     const [confirmText, setConfirmText] = useState('');
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-    // Plan editing inline
+    // Plan editing (per-user model)
     const [editPlanWsId, setEditPlanWsId] = useState<string | null>(null);
-    const [editPlanValue, setEditPlanValue] = useState('free');
+    const [editPlanMembers, setEditPlanMembers] = useState('');
+    const [editPlanPPS, setEditPlanPPS] = useState('');
     const [editPlanExpiry, setEditPlanExpiry] = useState('');
     const [editPlanNotes, setEditPlanNotes] = useState('');
-    const [editPlanAmount, setEditPlanAmount] = useState('');
     const [savingPlan, setSavingPlan] = useState(false);
 
     // Payment registration
@@ -174,7 +160,8 @@ export default function CustomersPage() {
 
     const startPlanEdit = (ws: Workspace) => {
         setEditPlanWsId(ws.id);
-        setEditPlanValue(ws.plan);
+        setEditPlanMembers((ws.maxMembers || 3).toString());
+        setEditPlanPPS('');
         setEditPlanExpiry('');
         setEditPlanNotes('');
         setActionMenuId(null);
@@ -183,25 +170,26 @@ export default function CustomersPage() {
     const savePlanEdit = async () => {
         if (!editPlanWsId) return;
         setSavingPlan(true);
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        const planDef = PLAN_OPTIONS.find(p => p.value === editPlanValue);
-        const amt = editPlanAmount ? Math.round(parseFloat(editPlanAmount) * 100) : 0;
-        const { error } = await supabase.from('workspaces').update({
-            plan: editPlanValue,
-            max_members: planDef?.maxPeople || 3,
-            max_spaces: planDef?.maxSpaces || 1,
-            max_rooms_per_space: planDef?.maxRooms || 5,
-            max_guests: planDef?.maxPeople || 0,
-            plan_expires_at: editPlanExpiry || null,
-            plan_notes: editPlanNotes || null,
-            plan_activated_by: user?.id,
-            plan_activated_at: new Date().toISOString(),
-            monthly_amount_cents: amt,
-            payment_status: editPlanValue === 'free' ? 'none' : 'pending',
-        }).eq('id', editPlanWsId);
-        if (error) { showFeedback('error', error.message); }
-        else { showFeedback('success', 'Piano aggiornato ✅'); setEditPlanWsId(null); fetchData(); }
+        const maxMembers = parseInt(editPlanMembers) || 3;
+        const ppsCents = Math.round((parseFloat(editPlanPPS) || 0) * 100);
+        const totalCents = maxMembers * ppsCents;
+        try {
+            await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'update_seats',
+                    workspaceId: editPlanWsId,
+                    data: {
+                        max_members: maxMembers,
+                        price_per_seat: ppsCents,
+                        monthly_amount_cents: totalCents,
+                    },
+                }),
+            });
+            showFeedback('success', `Piano aggiornato: ${maxMembers} accessi × €${(ppsCents / 100).toFixed(2)} = €${(totalCents / 100).toFixed(2)}/mese ✅`);
+            setEditPlanWsId(null); fetchData();
+        } catch (err: any) { showFeedback('error', err.message); }
         setSavingPlan(false);
     };
 
@@ -356,7 +344,7 @@ export default function CustomersPage() {
                     totalMembers: 0,
                     uniqueMembers: 0,
                     activeWs: 0, suspendedWs: 0, deletedWs: 0,
-                    bestPlan: 'free',
+                    totalMonthlyCents: 0,
                 });
             }
             const group = map.get(key)!;
@@ -365,9 +353,9 @@ export default function CustomersPage() {
             if (ws.status === 'active') group.activeWs++;
             else if (ws.status === 'suspended') group.suspendedWs++;
             else group.deletedWs++;
-            if ((planRank[ws.plan] || 0) > (planRank[group.bestPlan] || 0)) {
-                group.bestPlan = ws.plan;
-            }
+            // Calculate total monthly cost per owner
+            const pps = (ws as any).price_per_seat || 0;
+            group.totalMonthlyCents += ws.maxMembers * pps;
         });
 
         // Compute unique members per owner
@@ -393,7 +381,7 @@ export default function CustomersPage() {
                 activeWs: noOwner.filter(w => w.status === 'active').length,
                 suspendedWs: noOwner.filter(w => w.status === 'suspended').length,
                 deletedWs: noOwner.filter(w => w.status === 'deleted').length,
-                bestPlan: 'free',
+                totalMonthlyCents: 0,
             });
         }
 
@@ -589,13 +577,13 @@ export default function CustomersPage() {
                 </form>
 
                 <div className="flex items-center gap-2">
-                    {['', 'free', 'team_10', 'team_25', 'team_50', 'team_100', 'enterprise'].map(p => (
+                    {['', 'active', 'demo'].map(p => (
                         <button key={p} onClick={() => { setPlanFilter(p); setPage(1); }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${planFilter === p
                                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
                                 : 'bg-black/20 text-slate-400 border-white/5 hover:bg-white/5'
                                 }`}>
-                            {PLAN_LABELS[p] || 'Tutti'}
+                            {p === '' ? 'Tutti' : p === 'active' ? '🟢 Con Piano' : '🔵 Demo'}
                         </button>
                     ))}
                 </div>
@@ -723,7 +711,7 @@ export default function CustomersPage() {
                                         <span className="text-white font-medium">{group.uniqueMembers}</span>
                                         <span className="text-slate-600">utenti unici</span>
                                     </div>
-                                    <PlanBadge plan={group.bestPlan} />
+                                    <PlanCostBadge totalMonthlyCents={group.totalMonthlyCents} />
                                     {group.suspendedWs > 0 && (
                                         <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
                                             {group.suspendedWs} sospesi
@@ -802,7 +790,7 @@ export default function CustomersPage() {
                                 <div className="flex items-center gap-1 text-[11px] text-slate-400">
                                     <Users className="w-3 h-3" /> {group.uniqueMembers} utenti unici
                                 </div>
-                                <PlanBadge plan={group.bestPlan} />
+                                <PlanCostBadge totalMonthlyCents={group.totalMonthlyCents} />
                             </div>
 
                             {/* Expanded workspace list */}
@@ -989,23 +977,30 @@ export default function CustomersPage() {
                                                     {/* Inline Plan Editor */}
                                                     {editPlanWsId === ws.id && (
                                                         <div className="col-span-full mt-2 p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/10" onClick={e => e.stopPropagation()}>
+                                                            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">Configura Accessi & Prezzo</p>
                                                             <div className="flex items-center gap-3 flex-wrap">
-                                                                <select value={editPlanValue} onChange={e => setEditPlanValue(e.target.value)}
-                                                                    className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none">
-                                                                    {PLAN_OPTIONS.map(p => <option key={p.value} value={p.value} style={{ background: '#0f172a' }}>{p.label} (max {p.maxPeople})</option>)}
-                                                                </select>
                                                                 <div className="flex items-center gap-1">
-                                                                    <span className="text-xs text-slate-500">€</span>
-                                                                    <input type="number" value={editPlanAmount} onChange={e => setEditPlanAmount(e.target.value)}
-                                                                        placeholder="0" className="w-20 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" />
+                                                                    <span className="text-xs text-slate-500">Accessi:</span>
+                                                                    <input type="number" value={editPlanMembers} onChange={e => setEditPlanMembers(e.target.value)}
+                                                                        placeholder="10" min="1" className="w-16 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" autoFocus />
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="text-xs text-slate-500">€/utente:</span>
+                                                                    <input type="number" value={editPlanPPS} onChange={e => setEditPlanPPS(e.target.value)}
+                                                                        placeholder="30.00" step="0.01" className="w-20 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" />
                                                                     <span className="text-xs text-slate-500">/mese</span>
                                                                 </div>
+                                                                {editPlanMembers && editPlanPPS && (
+                                                                    <span className="text-xs text-emerald-400 font-bold">
+                                                                        = €{(parseInt(editPlanMembers) * parseFloat(editPlanPPS)).toFixed(2)}/mese
+                                                                    </span>
+                                                                )}
                                                                 <input type="date" value={editPlanExpiry} onChange={e => setEditPlanExpiry(e.target.value)}
                                                                     placeholder="Scadenza" className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none" />
                                                                 <input type="text" value={editPlanNotes} onChange={e => setEditPlanNotes(e.target.value)}
                                                                     placeholder="Note" className="flex-1 min-w-[150px] px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none placeholder:text-slate-600" />
                                                                 <button onClick={savePlanEdit} disabled={savingPlan}
-                                                                    className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5">
+                                                                    className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5">
                                                                     <Save className="w-3.5 h-3.5" />{savingPlan ? 'Salvo...' : 'Salva'}
                                                                 </button>
                                                                 <button onClick={() => setEditPlanWsId(null)} className="px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-white border border-white/10">
