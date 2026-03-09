@@ -347,13 +347,8 @@ export async function POST(req: NextRequest) {
                 }).select().single();
                 if (wsError) throw wsError;
 
-                // 4. Add owner member
-                const { error: memberError } = await supabase.from('workspace_members').insert({
-                    workspace_id: wsData.id,
-                    user_id: targetUserId,
-                    role: 'owner',
-                });
-                if (memberError) throw memberError;
+                // 4. Owner membership is auto-created by the DB trigger `handle_new_workspace`
+                //    (no manual insert needed — it would cause a duplicate key violation)
 
                 // 5. Create default office space
                 await supabase.from('spaces').insert({
