@@ -621,14 +621,14 @@ export async function POST(req: NextRequest) {
                 let ownerProfile: any = null;
                 const { data: extProfile, error: extProfErr } = await supabase
                     .from('profiles')
-                    .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, deleted_at, created_at, max_workspaces')
+                    .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, created_at, max_workspaces')
                     .eq('id', ownerId)
                     .single();
                 if (extProfErr) {
                     // Fallback: some columns may not exist
                     const { data: basicProfile, error: basicErr } = await supabase
                         .from('profiles')
-                        .select('id, email, full_name, display_name, avatar_url, is_super_admin')
+                        .select('id, email, full_name, display_name, avatar_url, is_super_admin, max_workspaces')
                         .eq('id', ownerId)
                         .single();
                     if (basicErr) throw basicErr;
