@@ -804,7 +804,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                     </div>
                                     {/* ─── CASHFLOW / PIANO SCADENZE ─── */}
                                     <div className={card} style={cardBg}>
-                                        <h3 className="text-xs font-bold text-slate-300 mb-3 flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-blue-400" /> Piano Scadenze (Cashflow)</h3>
+                                        <h3 className="text-xs font-bold text-slate-300 mb-3 flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-blue-400" /> Previsionale Pagamenti per Mese</h3>
                                         {(() => {
                                             // Build schedule from all active workspaces
                                             const activeWs = workspaces.filter((w: any) => w.status === 'active' && w.monthly_amount_cents > 0);
@@ -812,122 +812,114 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 return <p className="text-xs text-slate-600 italic">Nessun workspace attivo con piano di pagamento.</p>;
                                             }
 
-                                            // Collect all existing invoices for matching
-                                            const allInvoices = payments.filter((p: any) => p.type === 'payment');
-
-                                            // Build schedule entries (next 6 months for monthly, next 2 for annual)
-                                            const schedule: Array<{ date: string; wsName: string; wsId: string; amount: number; cycle: string; status: string; invoiceId?: string }> = [];
                                             const now = new Date();
+                                            const cycleMonthsMap: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
+                                            const cycleLabelMap: Record<string, string> = { monthly: 'Mens.', quarterly: 'Trim.', semiannual: 'Sem.', annual: 'Ann.' };
+
+                                            // Build schedule entries for next 12 months
+                                            const schedule: Array<{ date: string; month: string; monthLabel: string; wsName: string; wsId: string; amount: number; cycle: string; status: string }> = [];
+                                            const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
                                             activeWs.forEach((ws: any) => {
-                                                const cycle = ws.billingCycle || 'monthly';
-                                                const periods = cycle === 'annual' ? 2 : 6;
-                                                let nextDate = ws.nextInvoiceDate ? new Date(ws.nextInvoiceDate) : new Date();
+                                                const cycle = ws.billingCycle || ws.billing_cycle || 'monthly';
+                                                const cycleMonths = cycleMonthsMap[cycle] || 1;
+                                                const totalEntries = Math.max(1, Math.ceil(12 / cycleMonths));
+                                                let nextDate = ws.nextInvoiceDate || ws.next_invoice_date ? new Date(ws.nextInvoiceDate || ws.next_invoice_date) : new Date();
 
-                                                // If nextDate is in the past, start from there
-                                                for (let i = 0; i < periods; i++) {
+                                                for (let i = 0; i < totalEntries; i++) {
                                                     const dueDate = new Date(nextDate);
-                                                    if (i > 0) {
-                                                        if (cycle === 'annual') {
-                                                            dueDate.setFullYear(dueDate.getFullYear() + i);
-                                                        } else {
-                                                            dueDate.setMonth(dueDate.getMonth() + i);
-                                                        }
-                                                    }
+                                                    if (i > 0) dueDate.setMonth(dueDate.getMonth() + (i * cycleMonths));
 
                                                     const dateStr = dueDate.toISOString().split('T')[0];
+                                                    const monthKey = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}`;
+                                                    const monthLbl = `${monthNames[dueDate.getMonth()]} ${dueDate.getFullYear()}`;
                                                     const isPast = dueDate < now;
+                                                    const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                                    const periodAmount = ws.monthly_amount_cents * cycleMonths;
 
-                                                    // Check if there's a matching paid invoice
-                                                    const matchingInv = allInvoices.find((p: any) =>
-                                                        p.workspace_id === ws.id &&
-                                                        p.amount_cents === ws.monthly_amount_cents
-                                                    );
-
-                                                    let status = 'future'; // default
-                                                    if (isPast && ws.payment_status === 'paid' && i === 0) {
-                                                        status = 'paid';
-                                                    } else if (isPast) {
-                                                        status = 'overdue';
-                                                    } else {
-                                                        const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                                                        if (daysUntil <= 15) {
-                                                            status = 'pending';
-                                                        } else {
-                                                            status = 'future';
-                                                        }
-                                                    }
+                                                    let status = 'future';
+                                                    if (isPast) status = 'overdue';
+                                                    else if (daysUntil <= 15) status = 'pending';
 
                                                     schedule.push({
                                                         date: dateStr,
+                                                        month: monthKey,
+                                                        monthLabel: monthLbl,
                                                         wsName: ws.name,
                                                         wsId: ws.id,
-                                                        amount: cycle === 'annual' ? ws.monthly_amount_cents * 12 : ws.monthly_amount_cents,
+                                                        amount: periodAmount,
                                                         cycle,
                                                         status,
                                                     });
                                                 }
                                             });
 
-                                            // Sort by date
                                             schedule.sort((a, b) => a.date.localeCompare(b.date));
+
+                                            // Group by month
+                                            const monthGroups: Record<string, { label: string; entries: typeof schedule; total: number }> = {};
+                                            schedule.forEach(e => {
+                                                if (!monthGroups[e.month]) monthGroups[e.month] = { label: e.monthLabel, entries: [], total: 0 };
+                                                monthGroups[e.month].entries.push(e);
+                                                monthGroups[e.month].total += e.amount;
+                                            });
+                                            const sortedMonths = Object.keys(monthGroups).sort();
+                                            const grandTotal = schedule.reduce((s, e) => s + e.amount, 0);
 
                                             const statusConfig: Record<string, { label: string; bg: string; text: string; icon: string }> = {
                                                 paid: { label: 'Pagato', bg: 'bg-emerald-500/20', text: 'text-emerald-300', icon: '✅' },
                                                 pending: { label: 'In Attesa', bg: 'bg-amber-500/20', text: 'text-amber-300', icon: '⏳' },
-                                                overdue: { label: 'In Ritardo', bg: 'bg-red-500/20', text: 'text-red-300', icon: '🔴' },
+                                                overdue: { label: 'Scaduto', bg: 'bg-red-500/20', text: 'text-red-300', icon: '🔴' },
                                                 future: { label: 'Futuro', bg: 'bg-blue-500/20', text: 'text-blue-300', icon: '📅' },
                                             };
 
-                                            // Summary
-                                            const totalPending = schedule.filter(s => s.status === 'pending').reduce((a, s) => a + s.amount, 0);
-                                            const totalOverdue = schedule.filter(s => s.status === 'overdue').reduce((a, s) => a + s.amount, 0);
-                                            const totalFuture = schedule.filter(s => s.status === 'future').reduce((a, s) => a + s.amount, 0);
-
                                             return (
-                                                <div className="space-y-2">
-                                                    {/* Summary cards */}
-                                                    <div className="grid grid-cols-3 gap-2 mb-3">
-                                                        {totalOverdue > 0 && (
-                                                            <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
-                                                                <p className="text-[9px] text-red-400 uppercase font-bold">In Ritardo</p>
-                                                                <p className="text-xs text-red-300 font-bold">{fmt(totalOverdue)}</p>
-                                                            </div>
-                                                        )}
-                                                        <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
-                                                            <p className="text-[9px] text-amber-400 uppercase font-bold">In Attesa</p>
-                                                            <p className="text-xs text-amber-300 font-bold">{fmt(totalPending)}</p>
-                                                        </div>
-                                                        <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
-                                                            <p className="text-[9px] text-blue-400 uppercase font-bold">Futuro</p>
-                                                            <p className="text-xs text-blue-300 font-bold">{fmt(totalFuture)}</p>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Schedule list */}
-                                                    <div className="space-y-1 max-h-64 overflow-y-auto">
-                                                        {schedule.map((entry, i) => {
-                                                            const sc = statusConfig[entry.status];
-                                                            return (
-                                                                <div key={`${entry.wsId}-${entry.date}-${i}`} className="flex items-center justify-between py-2 px-2.5 rounded-lg bg-black/20 gap-2">
-                                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                        <span className="text-[10px] text-slate-500 font-mono w-20 shrink-0">
-                                                                            {new Date(entry.date).toLocaleDateString('it-IT')}
-                                                                        </span>
-                                                                        <span className="text-xs text-white truncate">{entry.wsName}</span>
-                                                                        <span className="text-[9px] text-slate-500 px-1 py-0.5 rounded bg-white/5 shrink-0">
-                                                                            {entry.cycle === 'annual' ? 'Annuale' : 'Mensile'}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 shrink-0">
-                                                                        <span className="text-xs font-bold text-white">{fmt(entry.amount)}</span>
-                                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${sc.bg} ${sc.text}`}>
-                                                                            {sc.icon} {sc.label}
-                                                                        </span>
-                                                                    </div>
+                                                <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                                                    {sortedMonths.map(mk => {
+                                                        const mg = monthGroups[mk];
+                                                        return (
+                                                            <div key={mk} className="rounded-xl bg-black/20 border border-white/5 overflow-hidden">
+                                                                {/* Month header */}
+                                                                <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border-b border-white/5">
+                                                                    <span className="text-xs font-bold text-slate-200">{mg.label}</span>
+                                                                    <span className="text-sm font-black text-cyan-300">{fmt(mg.total)}</span>
                                                                 </div>
-                                                            );
-                                                        })}
+                                                                {/* Entries */}
+                                                                <div className="divide-y divide-white/[0.03]">
+                                                                    {mg.entries.map((entry, i) => {
+                                                                        const sc = statusConfig[entry.status];
+                                                                        return (
+                                                                            <div key={`${entry.wsId}-${entry.date}-${i}`} className="flex items-center justify-between py-1.5 px-3 gap-2">
+                                                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                                                    <span className="text-[10px] text-slate-500 font-mono w-14 shrink-0">
+                                                                                        {new Date(entry.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                                                                                    </span>
+                                                                                    <span className="text-xs text-white truncate">{entry.wsName}</span>
+                                                                                    <span className="text-[8px] text-slate-600 shrink-0">{cycleLabelMap[entry.cycle] || 'Mens.'}</span>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                                                    <span className="text-xs font-bold text-white">{fmt(entry.amount)}</span>
+                                                                                    <span className={`text-[8px] px-1 py-0.5 rounded font-bold ${sc.bg} ${sc.text}`}>
+                                                                                        {sc.icon}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                    {/* Grand total previsionale */}
+                                                    <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Previsionale Totale</p>
+                                                                <p className="text-[10px] text-slate-500 mt-0.5">{sortedMonths.length} mesi • {schedule.length} pagamenti attesi</p>
+                                                            </div>
+                                                            <p className="text-lg font-black text-emerald-300">{fmt(grandTotal)}</p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
