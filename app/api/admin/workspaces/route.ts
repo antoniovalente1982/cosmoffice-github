@@ -998,6 +998,25 @@ export async function POST(req: NextRequest) {
 
 
             // ═══════════════════════════════════════════
+            // MAX WORKSPACES (OWNER LIMIT)
+            // ═══════════════════════════════════════════
+
+            case 'update_max_workspaces': {
+                const { owner_id, max_workspaces } = actionData;
+                if (!owner_id) return NextResponse.json({ error: 'owner_id required' }, { status: 400 });
+                const val = parseInt(max_workspaces) || 1;
+
+                const { error: mwError } = await supabase
+                    .from('profiles')
+                    .update({ max_workspaces: val })
+                    .eq('id', owner_id);
+
+                if (mwError) return NextResponse.json({ error: mwError.message }, { status: 500 });
+                return NextResponse.json({ success: true, max_workspaces: val });
+            }
+
+
+            // ═══════════════════════════════════════════
             // BILLING / INVOICES
             // ═══════════════════════════════════════════
 

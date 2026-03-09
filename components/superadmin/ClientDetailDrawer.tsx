@@ -69,11 +69,19 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
 
     const saveMaxWorkspaces = async () => {
         setSavingMaxWs(true);
-        const supabase = createClient();
         const val = parseInt(editMaxWsValue) || 1;
-        const { error } = await supabase.from('profiles').update({ max_workspaces: val }).eq('id', ownerId);
-        if (error) showFb('error', error.message);
-        else { showFb('success', `Max workspace aggiornato a ${val} ✅`); setEditingMaxWs(false); loadDetail(); }
+        try {
+            const res = await fetch('/api/admin/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'update_max_workspaces', workspaceId: '', data: { owner_id: ownerId, max_workspaces: val } }),
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Errore'); }
+            showFb('success', `Max workspace aggiornato a ${val} ✅`);
+            setEditingMaxWs(false);
+            loadDetail();
+            onRefresh();
+        } catch (e: any) { showFb('error', e.message); }
         setSavingMaxWs(false);
     };
 
