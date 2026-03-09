@@ -342,7 +342,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                         {!editingMaxWs ? (
                                             <button onClick={() => { setEditingMaxWs(true); setEditMaxWsValue((owner?.maxWorkspaces || 1).toString()); }}
                                                 className="flex items-center gap-1.5 text-xs text-cyan-400/70 hover:text-cyan-300 transition-colors" title="Modifica limite workspace">
-                                                <Edit3 className="w-3 h-3" />
+                                                <Edit3 className="w-3 h-3" /> <span className="text-[10px]">Modifica limite</span>
                                             </button>
                                         ) : (
                                             <div className="flex items-center gap-1.5">
@@ -374,7 +374,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 </span>
                                             </div>
                                             {/* Info row */}
-                                            <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
+                                            <div className="mt-2 flex items-center gap-3 text-xs text-slate-400 flex-wrap">
                                                 <span className="flex items-center gap-1"><Users className="w-3 h-3" />{ws.totalSeats}/{ws.maxMembers} accessi</span>
                                                 {ws.price_per_seat > 0 && <span className="text-emerald-400">{fmt(ws.price_per_seat)}/utente</span>}
                                                 <span>{ws.activeSpaces} uffici</span>
@@ -384,6 +384,17 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 {ws.payment_status && ws.payment_status !== 'none' && (
                                                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ws.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-300' : ws.payment_status === 'overdue' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
                                                         {ws.payment_status === 'paid' ? 'Pagato' : ws.payment_status === 'overdue' ? 'Scaduto' : 'In attesa'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {/* Subscription info row */}
+                                            <div className="mt-1.5 flex items-center gap-3 text-[10px] text-slate-500">
+                                                <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 font-bold uppercase">
+                                                    {ws.billingCycle === 'annual' ? '📅 Annuale' : '📅 Mensile'}
+                                                </span>
+                                                {ws.nextInvoiceDate && (
+                                                    <span className="flex items-center gap-1">
+                                                        Prossimo rinnovo: <span className="text-white font-semibold">{new Date(ws.nextInvoiceDate).toLocaleDateString('it-IT')}</span>
                                                     </span>
                                                 )}
                                             </div>
@@ -762,6 +773,137 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
+                                    {/* ─── CASHFLOW / PIANO SCADENZE ─── */}
+                                    <div className={card} style={cardBg}>
+                                        <h3 className="text-xs font-bold text-slate-300 mb-3 flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-blue-400" /> Piano Scadenze (Cashflow)</h3>
+                                        {(() => {
+                                            // Build schedule from all active workspaces
+                                            const activeWs = workspaces.filter((w: any) => w.status === 'active' && w.monthly_amount_cents > 0);
+                                            if (activeWs.length === 0) {
+                                                return <p className="text-xs text-slate-600 italic">Nessun workspace attivo con piano di pagamento.</p>;
+                                            }
+
+                                            // Collect all existing invoices for matching
+                                            const allInvoices = payments.filter((p: any) => p.type === 'payment');
+
+                                            // Build schedule entries (next 6 months for monthly, next 2 for annual)
+                                            const schedule: Array<{ date: string; wsName: string; wsId: string; amount: number; cycle: string; status: string; invoiceId?: string }> = [];
+                                            const now = new Date();
+
+                                            activeWs.forEach((ws: any) => {
+                                                const cycle = ws.billingCycle || 'monthly';
+                                                const periods = cycle === 'annual' ? 2 : 6;
+                                                let nextDate = ws.nextInvoiceDate ? new Date(ws.nextInvoiceDate) : new Date();
+
+                                                // If nextDate is in the past, start from there
+                                                for (let i = 0; i < periods; i++) {
+                                                    const dueDate = new Date(nextDate);
+                                                    if (i > 0) {
+                                                        if (cycle === 'annual') {
+                                                            dueDate.setFullYear(dueDate.getFullYear() + i);
+                                                        } else {
+                                                            dueDate.setMonth(dueDate.getMonth() + i);
+                                                        }
+                                                    }
+
+                                                    const dateStr = dueDate.toISOString().split('T')[0];
+                                                    const isPast = dueDate < now;
+
+                                                    // Check if there's a matching paid invoice
+                                                    const matchingInv = allInvoices.find((p: any) =>
+                                                        p.workspace_id === ws.id &&
+                                                        p.amount_cents === ws.monthly_amount_cents
+                                                    );
+
+                                                    let status = 'future'; // default
+                                                    if (isPast && ws.payment_status === 'paid' && i === 0) {
+                                                        status = 'paid';
+                                                    } else if (isPast) {
+                                                        status = 'overdue';
+                                                    } else {
+                                                        const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                                        if (daysUntil <= 15) {
+                                                            status = 'pending';
+                                                        } else {
+                                                            status = 'future';
+                                                        }
+                                                    }
+
+                                                    schedule.push({
+                                                        date: dateStr,
+                                                        wsName: ws.name,
+                                                        wsId: ws.id,
+                                                        amount: cycle === 'annual' ? ws.monthly_amount_cents * 12 : ws.monthly_amount_cents,
+                                                        cycle,
+                                                        status,
+                                                    });
+                                                }
+                                            });
+
+                                            // Sort by date
+                                            schedule.sort((a, b) => a.date.localeCompare(b.date));
+
+                                            const statusConfig: Record<string, { label: string; bg: string; text: string; icon: string }> = {
+                                                paid: { label: 'Pagato', bg: 'bg-emerald-500/20', text: 'text-emerald-300', icon: '✅' },
+                                                pending: { label: 'In Attesa', bg: 'bg-amber-500/20', text: 'text-amber-300', icon: '⏳' },
+                                                overdue: { label: 'In Ritardo', bg: 'bg-red-500/20', text: 'text-red-300', icon: '🔴' },
+                                                future: { label: 'Futuro', bg: 'bg-blue-500/20', text: 'text-blue-300', icon: '📅' },
+                                            };
+
+                                            // Summary
+                                            const totalPending = schedule.filter(s => s.status === 'pending').reduce((a, s) => a + s.amount, 0);
+                                            const totalOverdue = schedule.filter(s => s.status === 'overdue').reduce((a, s) => a + s.amount, 0);
+                                            const totalFuture = schedule.filter(s => s.status === 'future').reduce((a, s) => a + s.amount, 0);
+
+                                            return (
+                                                <div className="space-y-2">
+                                                    {/* Summary cards */}
+                                                    <div className="grid grid-cols-3 gap-2 mb-3">
+                                                        {totalOverdue > 0 && (
+                                                            <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
+                                                                <p className="text-[9px] text-red-400 uppercase font-bold">In Ritardo</p>
+                                                                <p className="text-xs text-red-300 font-bold">{fmt(totalOverdue)}</p>
+                                                            </div>
+                                                        )}
+                                                        <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                                                            <p className="text-[9px] text-amber-400 uppercase font-bold">In Attesa</p>
+                                                            <p className="text-xs text-amber-300 font-bold">{fmt(totalPending)}</p>
+                                                        </div>
+                                                        <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
+                                                            <p className="text-[9px] text-blue-400 uppercase font-bold">Futuro</p>
+                                                            <p className="text-xs text-blue-300 font-bold">{fmt(totalFuture)}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Schedule list */}
+                                                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                                                        {schedule.map((entry, i) => {
+                                                            const sc = statusConfig[entry.status];
+                                                            return (
+                                                                <div key={`${entry.wsId}-${entry.date}-${i}`} className="flex items-center justify-between py-2 px-2.5 rounded-lg bg-black/20 gap-2">
+                                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                                        <span className="text-[10px] text-slate-500 font-mono w-20 shrink-0">
+                                                                            {new Date(entry.date).toLocaleDateString('it-IT')}
+                                                                        </span>
+                                                                        <span className="text-xs text-white truncate">{entry.wsName}</span>
+                                                                        <span className="text-[9px] text-slate-500 px-1 py-0.5 rounded bg-white/5 shrink-0">
+                                                                            {entry.cycle === 'annual' ? 'Annuale' : 'Mensile'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 shrink-0">
+                                                                        <span className="text-xs font-bold text-white">{fmt(entry.amount)}</span>
+                                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${sc.bg} ${sc.text}`}>
+                                                                            {sc.icon} {sc.label}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             )}
