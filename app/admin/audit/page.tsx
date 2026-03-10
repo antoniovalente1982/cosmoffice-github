@@ -4,18 +4,17 @@ import { useEffect, useState } from 'react';
 import { ScrollText, ChevronLeft, ChevronRight, User, AlertTriangle, Clock } from 'lucide-react';
 
 interface AuditLog {
-    id: string; action: string; details: any; ip_address: string; created_at: string;
+    id: string; action: string; entity_type: string; entity_id: string; metadata: any; ip_address: string; created_at: string;
     workspaces: { name: string } | null;
     actor: { email: string; full_name: string; display_name: string } | null;
-    target: { email: string; full_name: string; display_name: string } | null;
 }
 
 function ActionBadge({ action }: { action: string }) {
     let color = 'bg-slate-500/20 text-slate-300 border-slate-500/30';
-    if (action.includes('ban') || action.includes('kick')) color = 'bg-red-500/20 text-red-300 border-red-500/30';
-    else if (action.includes('invited') || action.includes('joined')) color = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-    else if (action.includes('role')) color = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
-    else if (action.includes('mute')) color = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+    if (action.includes('ban') || action.includes('kick') || action.includes('delete')) color = 'bg-red-500/20 text-red-300 border-red-500/30';
+    else if (action.includes('invite') || action.includes('join') || action.includes('create')) color = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+    else if (action.includes('role') || action.includes('update') || action.includes('change')) color = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+    else if (action.includes('mute') || action.includes('suspend')) color = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
     return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${color}`}>{action}</span>;
 }
 
@@ -63,7 +62,7 @@ export default function AuditPage() {
                             <th className="text-left p-3 font-semibold">Data</th>
                             <th className="text-left p-3 font-semibold">Azione</th>
                             <th className="text-left p-3 font-semibold">Attore</th>
-                            <th className="text-left p-3 font-semibold">Target</th>
+                            <th className="text-left p-3 font-semibold">Entità</th>
                             <th className="text-left p-3 font-semibold">Workspace</th>
                         </tr>
                     </thead>
@@ -86,7 +85,7 @@ export default function AuditPage() {
                                     ) : '—'}
                                 </td>
                                 <td className="p-3 text-slate-400 text-xs">
-                                    {log.target ? (log.target.display_name || log.target.full_name || log.target.email) : '—'}
+                                    {log.entity_type ? <span>{log.entity_type}{log.entity_id ? ` · ${log.entity_id.slice(0, 8)}…` : ''}</span> : '—'}
                                 </td>
                                 <td className="p-3 text-slate-500 text-xs">{log.workspaces?.name || '—'}</td>
                             </tr>

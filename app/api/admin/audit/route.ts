@@ -52,10 +52,9 @@ export async function GET(req: NextRequest) {
         let query = supabase
             .from('workspace_audit_logs')
             .select(`
-        id, workspace_id, actor_id, target_id, action, details, ip_address, created_at,
+        id, workspace_id, user_id, action, entity_type, entity_id, metadata, ip_address, created_at,
         workspaces:workspace_id(name),
-        actor:actor_id(email, full_name, display_name),
-        target:target_id(email, full_name, display_name)
+        actor:user_id(email, full_name, display_name)
       `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
