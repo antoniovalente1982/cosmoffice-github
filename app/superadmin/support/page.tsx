@@ -27,6 +27,7 @@ interface SupportTicket {
     resolved_at: string | null;
     created_at: string;
     updated_at: string;
+    unreadUserCount?: number;
 }
 
 interface TicketMessage {
@@ -102,6 +103,14 @@ export default function SupportPage() {
 
     useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
+    // Auto-poll for new messages every 30s
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchTickets();
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [fetchTickets]);
+
     const updateTicket = async (id: string, updates: Record<string, any>) => {
         setProcessing(id);
         try {
@@ -176,6 +185,7 @@ export default function SupportPage() {
     const resolvedCount = tickets.filter(t => t.status === 'resolved').length;
     const closedCount = tickets.filter(t => t.status === 'closed').length;
     const totalCount = tickets.length;
+    const totalUnreadReplies = tickets.reduce((sum, t) => sum + (t.unreadUserCount || 0), 0);
 
     const formatTime = (dateStr: string) => {
         const d = new Date(dateStr);
@@ -206,6 +216,11 @@ export default function SupportPage() {
                             {inProgressCount > 0 && (
                                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
                                     {inProgressCount} in corso
+                                </span>
+                            )}
+                            {totalUnreadReplies > 0 && (
+                                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse">
+                                    🔴 {totalUnreadReplies} rispost{totalUnreadReplies === 1 ? 'a' : 'e'} da leggere
                                 </span>
                             )}
                         </h1>
@@ -296,6 +311,11 @@ export default function SupportPage() {
                                                     {messages.length > 0 && (
                                                         <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-violet-400 bg-violet-500/15 border border-violet-500/20 flex items-center gap-1">
                                                             <MessageSquare className="w-3 h-3" /> {messages.length}
+                                                        </span>
+                                                    )}
+                                                    {(t.unreadUserCount || 0) > 0 && (
+                                                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-red-300 bg-red-500/20 border border-red-500/30 flex items-center gap-1 animate-pulse">
+                                                            🔴 {t.unreadUserCount} nuov{t.unreadUserCount === 1 ? 'a' : 'e'}
                                                         </span>
                                                     )}
                                                 </div>

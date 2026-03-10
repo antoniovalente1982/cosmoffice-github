@@ -76,8 +76,30 @@ export async function GET(req: NextRequest) {
         const { data, count, error } = await query;
         if (error) throw error;
 
+        // Compute unread user message counts for each ticket
+        const ticketIds = (data || []).map((t: any) => t.id);
+        let unreadCounts: Record<string, number> = {};
+
+        if (ticketIds.length > 0) {
+            const { data: msgs } = await supabase
+                .from('ticket_messages')
+                .select('ticket_id, is_admin, created_at')
+                .in('ticket_id', ticketIds)
+                .order('created_at', { ascending: false });
+
+            ticketIds.forEach((tid: string) => {
+                const ticketMsgs = (msgs || []).filter((m: any) => m.ticket_id === tid);
+                const lastAdminMsg = ticketMsgs.find((m: any) => m.is_admin);
+                const lastAdminTime = lastAdminMsg?.created_at || '1970-01-01';
+                unreadCounts[tid] = ticketMsgs.filter((m: any) => !m.is_admin && m.created_at > lastAdminTime).length;
+            });
+        }
+
         return NextResponse.json({
-            tickets: data,
+            tickets: (data || []).map((t: any) => ({
+                ...t,
+                unreadUserCount: unreadCounts[t.id] || 0,
+            })),
             total: count || 0,
             page,
             totalPages: Math.ceil((count || 0) / limit),
