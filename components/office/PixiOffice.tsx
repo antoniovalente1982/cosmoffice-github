@@ -35,126 +35,109 @@ function drawCorporateLobby(container: Container, x: number, y: number, scale: n
     const s = scale;
     const g = new PixiGraphics();
 
-    // ── Outer ambient ring ──────────────────────────────────
-    g.circle(x, y - 5 * s, 140 * s);
-    g.fill({ color: 0x1e3a8a, alpha: 0.025 });
-
-    // ── Marble floor ────────────────────────────────────────
-    // Main floor
-    g.roundRect(x - 120 * s, y - 90 * s, 240 * s, 180 * s, 16 * s);
-    g.fill({ color: 0x0f1729, alpha: 0.65 });
-
-    // Floor border — thin elegant line
-    g.roundRect(x - 120 * s, y - 90 * s, 240 * s, 180 * s, 16 * s);
-    g.stroke({ color: 0x334155, width: 1, alpha: 0.35 });
-
-    // Inner floor — lighter center area
-    g.roundRect(x - 108 * s, y - 78 * s, 216 * s, 156 * s, 12 * s);
-    g.fill({ color: 0x1a2332, alpha: 0.3 });
-
-    // Center accent line (vertical, subtle)
-    g.roundRect(x - 0.5 * s, y - 70 * s, 1 * s, 140 * s, 0);
+    // ── Outer glow ring ─────────────────────────────────────
+    g.circle(x, y, 145 * s);
     g.fill({ color: 0x3b82f6, alpha: 0.08 });
 
-    // ── Executive desk ──────────────────────────────────────
-    // Main desk body — walnut dark
-    g.roundRect(x - 48 * s, y - 28 * s, 96 * s, 30 * s, 4 * s);
-    g.fill({ color: 0x1c1917, alpha: 0.9 });
+    // ── Floor ───────────────────────────────────────────────
+    g.roundRect(x - 120 * s, y - 90 * s, 240 * s, 180 * s, 16 * s);
+    g.fill({ color: 0x1e293b, alpha: 0.95 });
+    g.roundRect(x - 120 * s, y - 90 * s, 240 * s, 180 * s, 16 * s);
+    g.stroke({ color: 0x3b82f6, width: 1.5, alpha: 0.3 });
 
-    // Desk surface — slightly lighter
-    g.roundRect(x - 46 * s, y - 26 * s, 92 * s, 26 * s, 3 * s);
-    g.fill({ color: 0x292524, alpha: 0.85 });
+    // Inner floor accent
+    g.roundRect(x - 108 * s, y - 78 * s, 216 * s, 156 * s, 12 * s);
+    g.fill({ color: 0x0f172a, alpha: 0.4 });
+    g.roundRect(x - 108 * s, y - 78 * s, 216 * s, 156 * s, 12 * s);
+    g.stroke({ color: 0x475569, width: 0.5, alpha: 0.3 });
 
-    // Subtle gold/bronze accent strip along desk front edge
-    g.roundRect(x - 44 * s, y + 0 * s, 88 * s, 1.5 * s, 1 * s);
-    g.fill({ color: 0xb45309, alpha: 0.35 });
+    // ── Desk ────────────────────────────────────────────────
+    g.roundRect(x - 50 * s, y - 25 * s, 100 * s, 32 * s, 6 * s);
+    g.fill({ color: 0x44403c, alpha: 1 });
+    g.roundRect(x - 48 * s, y - 23 * s, 96 * s, 28 * s, 4 * s);
+    g.fill({ color: 0x57534e, alpha: 0.9 });
 
-    // Ultrawide monitor
-    g.roundRect(x - 20 * s, y - 22 * s, 40 * s, 16 * s, 2 * s);
-    g.fill({ color: 0x0a0a0a, alpha: 0.95 });
-    // Screen
-    g.roundRect(x - 18 * s, y - 20 * s, 36 * s, 12 * s, 1.5 * s);
-    g.fill({ color: 0x1e40af, alpha: 0.15 });
+    // Gold accent strip
+    g.roundRect(x - 46 * s, y + 3 * s, 92 * s, 2 * s, 1 * s);
+    g.fill({ color: 0xd97706, alpha: 0.6 });
+
+    // Monitor (ultrawide)
+    g.roundRect(x - 22 * s, y - 20 * s, 44 * s, 18 * s, 2.5 * s);
+    g.fill({ color: 0x1e1e1e, alpha: 1 });
+    g.roundRect(x - 20 * s, y - 18 * s, 40 * s, 14 * s, 2 * s);
+    g.fill({ color: 0x2563eb, alpha: 0.3 }); // bright screen glow
     // Monitor stand
-    g.roundRect(x - 4 * s, y - 6 * s, 8 * s, 3 * s, 1 * s);
-    g.fill({ color: 0x1c1917, alpha: 0.8 });
+    g.roundRect(x - 5 * s, y - 2 * s, 10 * s, 4 * s, 1 * s);
+    g.fill({ color: 0x44403c, alpha: 1 });
 
     // Keyboard
-    g.roundRect(x - 12 * s, y - 2 * s, 24 * s, 6 * s, 1.5 * s);
-    g.fill({ color: 0x1c1917, alpha: 0.5 });
+    g.roundRect(x - 14 * s, y + 4 * s, 28 * s, 7 * s, 2 * s);
+    g.fill({ color: 0x374151, alpha: 0.9 });
 
-    // ── Desk chair (behind desk) ────────────────────────────
-    g.circle(x, y - 40 * s, 10 * s);
-    g.fill({ color: 0x1c1917, alpha: 0.5 });
-    g.circle(x, y - 40 * s, 7 * s);
-    g.fill({ color: 0x292524, alpha: 0.4 });
+    // ── Chair behind desk ───────────────────────────────────
+    g.circle(x, y - 38 * s, 11 * s);
+    g.fill({ color: 0x374151, alpha: 0.9 });
+    g.circle(x, y - 38 * s, 7 * s);
+    g.fill({ color: 0x4b5563, alpha: 0.8 });
 
     // ── Visitor chairs ──────────────────────────────────────
-    // Slim designer chairs (slight rectangle with rounded)
+    g.roundRect(x - 38 * s, y + 32 * s, 18 * s, 16 * s, 6 * s);
+    g.fill({ color: 0x374151, alpha: 0.85 });
+    g.roundRect(x - 36 * s, y + 34 * s, 14 * s, 12 * s, 4 * s);
+    g.fill({ color: 0x4b5563, alpha: 0.7 });
+
+    g.roundRect(x + 20 * s, y + 32 * s, 18 * s, 16 * s, 6 * s);
+    g.fill({ color: 0x374151, alpha: 0.85 });
+    g.roundRect(x + 22 * s, y + 34 * s, 14 * s, 12 * s, 4 * s);
+    g.fill({ color: 0x4b5563, alpha: 0.7 });
+
+    // Side table
+    g.circle(x, y + 40 * s, 6 * s);
+    g.fill({ color: 0x44403c, alpha: 0.85 });
+    g.circle(x, y + 40 * s, 6 * s);
+    g.stroke({ color: 0x78716c, width: 1, alpha: 0.5 });
+
+    // ── Plants ──────────────────────────────────────────────
     // Left
-    g.roundRect(x - 35 * s, y + 30 * s, 16 * s, 14 * s, 5 * s);
-    g.fill({ color: 0x1e293b, alpha: 0.55 });
-    g.roundRect(x - 33 * s, y + 32 * s, 12 * s, 10 * s, 3 * s);
-    g.fill({ color: 0x334155, alpha: 0.35 });
+    g.roundRect(x - 104 * s, y + 35 * s, 14 * s, 12 * s, 3 * s);
+    g.fill({ color: 0x78350f, alpha: 0.8 }); // pot
+    g.circle(x - 97 * s, y + 28 * s, 12 * s);
+    g.fill({ color: 0x15803d, alpha: 0.7 });
+    g.circle(x - 94 * s, y + 22 * s, 9 * s);
+    g.fill({ color: 0x22c55e, alpha: 0.5 });
 
     // Right
-    g.roundRect(x + 19 * s, y + 30 * s, 16 * s, 14 * s, 5 * s);
-    g.fill({ color: 0x1e293b, alpha: 0.55 });
-    g.roundRect(x + 21 * s, y + 32 * s, 12 * s, 10 * s, 3 * s);
-    g.fill({ color: 0x334155, alpha: 0.35 });
+    g.roundRect(x + 90 * s, y + 35 * s, 14 * s, 12 * s, 3 * s);
+    g.fill({ color: 0x78350f, alpha: 0.8 });
+    g.circle(x + 97 * s, y + 28 * s, 12 * s);
+    g.fill({ color: 0x15803d, alpha: 0.7 });
+    g.circle(x + 100 * s, y + 22 * s, 9 * s);
+    g.fill({ color: 0x22c55e, alpha: 0.5 });
 
-    // ── Small side table between chairs ─────────────────────
-    g.circle(x, y + 37 * s, 5 * s);
-    g.fill({ color: 0x1c1917, alpha: 0.4 });
-    g.circle(x, y + 37 * s, 5 * s);
-    g.stroke({ color: 0x44403c, width: 0.5, alpha: 0.4 });
-
-    // ── Decorative elements ─────────────────────────────────
-    // Left — tall plant (vertical line + circle top)
-    g.roundRect(x - 100 * s, y + 20 * s, 3 * s, 18 * s, 1 * s);
-    g.fill({ color: 0x365314, alpha: 0.3 });
-    g.circle(x - 98.5 * s, y + 16 * s, 10 * s);
-    g.fill({ color: 0x166534, alpha: 0.2 });
-    g.circle(x - 96 * s, y + 12 * s, 7 * s);
-    g.fill({ color: 0x22c55e, alpha: 0.15 });
-    // Pot
-    g.roundRect(x - 105 * s, y + 38 * s, 14 * s, 10 * s, 2 * s);
-    g.fill({ color: 0x44403c, alpha: 0.3 });
-
-    // Right — tall plant
-    g.roundRect(x + 97 * s, y + 20 * s, 3 * s, 18 * s, 1 * s);
-    g.fill({ color: 0x365314, alpha: 0.3 });
-    g.circle(x + 98.5 * s, y + 16 * s, 10 * s);
-    g.fill({ color: 0x166534, alpha: 0.2 });
-    g.circle(x + 101 * s, y + 12 * s, 7 * s);
-    g.fill({ color: 0x22c55e, alpha: 0.15 });
-    g.roundRect(x + 91 * s, y + 38 * s, 14 * s, 10 * s, 2 * s);
-    g.fill({ color: 0x44403c, alpha: 0.3 });
-
-    // ── Entry indicator — subtle floor light ────────────────
-    g.roundRect(x - 30 * s, y + 80 * s, 60 * s, 2 * s, 1 * s);
-    g.fill({ color: 0x3b82f6, alpha: 0.15 });
+    // ── Entry floor light ───────────────────────────────────
+    g.roundRect(x - 35 * s, y + 82 * s, 70 * s, 2.5 * s, 1 * s);
+    g.fill({ color: 0x3b82f6, alpha: 0.4 });
 
     container.addChild(g);
 
-    // ── Typography ──────────────────────────────────────────
-    // RECEPTION — refined, spaced
+    // ── RECEPTION text ──────────────────────────────────────
     const titleStyle = new PixiTextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 11 * s,
-        fontWeight: '600',
-        fill: 0x94a3b8,
+        fontSize: 13 * s,
+        fontWeight: '700',
+        fill: 0xffffff,
         letterSpacing: 5,
+        dropShadow: { color: 0x000000, alpha: 0.5, blur: 4, distance: 0 },
     });
-    const title = new PixiText({ text: 'RECEPTION', style: titleStyle, resolution: 2 });
+    const title = new PixiText({ text: 'R E C E P T I O N', style: titleStyle, resolution: 2 });
     title.anchor.set(0.5, 0.5);
-    title.position.set(x, y - 70 * s);
+    title.position.set(x, y - 72 * s);
     container.addChild(title);
 
-    // Thin line under title
+    // Decorative line under text
     const line = new PixiGraphics();
-    line.roundRect(x - 30 * s, y - 62 * s, 60 * s, 0.5 * s, 0);
-    line.fill({ color: 0x475569, alpha: 0.3 });
+    line.roundRect(x - 40 * s, y - 62 * s, 80 * s, 1 * s, 0);
+    line.fill({ color: 0x3b82f6, alpha: 0.5 });
     container.addChild(line);
 }
 // ─── Main Component ──────────────────────────────────────────────
