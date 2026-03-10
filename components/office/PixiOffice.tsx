@@ -348,7 +348,11 @@ export function PixiOffice() {
                 if (frameCount % 8 === 0) {
                     if (particleGfxRef.current) {
                         const tc = getThemeConfig(useWorkspaceStore.getState().theme);
-                        updateParticles(particleGfxRef.current, particlesRef.current, oW, oH, useWorkspaceStore.getState().isPerformanceMode, tc.particleColors, tc.particleAlpha);
+                        if (tc.showParticles) {
+                            updateParticles(particleGfxRef.current, particlesRef.current, oW, oH, useWorkspaceStore.getState().isPerformanceMode, tc.particleColors, tc.particleAlpha);
+                        } else {
+                            particleGfxRef.current.clear();
+                        }
                     }
                     if (spaceshipRef.current) {
                         spaceshipFrameRef.current = frameCount;

@@ -46,6 +46,7 @@ export interface OfficeThemeConfig {
     // Features toggle
     showSpaceship: boolean;
     showStars: boolean;
+    showParticles: boolean;
 
     // Landing pad (corporate alternative)
     landingPadLabel: string;
@@ -101,6 +102,7 @@ const SPACE_THEME: OfficeThemeConfig = {
 
     showSpaceship: true,
     showStars: true,
+    showParticles: true,
 
     landingPadLabel: 'Landing Pad',
 
@@ -152,6 +154,7 @@ const CORPORATE_THEME: OfficeThemeConfig = {
 
     showSpaceship: false,
     showStars: false,
+    showParticles: false,
 
     landingPadLabel: 'Reception',
 
