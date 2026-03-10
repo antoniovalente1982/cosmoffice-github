@@ -58,6 +58,23 @@ export async function GET(req: NextRequest) {
     const offset = (page - 1) * limit;
 
     try {
+        // 1. Get global status counts (unfiltered) for the tabs
+        const { data: allTickets } = await supabase
+            .from('support_tickets')
+            .select('status');
+
+        const statusCounts = {
+            open: 0, in_progress: 0, resolved: 0, closed: 0, total: 0,
+        };
+        (allTickets || []).forEach((t: any) => {
+            statusCounts.total++;
+            if (t.status === 'open') statusCounts.open++;
+            else if (t.status === 'in_progress') statusCounts.in_progress++;
+            else if (t.status === 'resolved') statusCounts.resolved++;
+            else if (t.status === 'closed') statusCounts.closed++;
+        });
+
+        // 2. Get filtered tickets for the list
         let query = supabase
             .from('support_tickets')
             .select(`
@@ -76,7 +93,7 @@ export async function GET(req: NextRequest) {
         const { data, count, error } = await query;
         if (error) throw error;
 
-        // Compute unread user message counts for each ticket
+        // 3. Compute unread user message counts for each ticket
         const ticketIds = (data || []).map((t: any) => t.id);
         let unreadCounts: Record<string, number> = {};
 
@@ -100,6 +117,7 @@ export async function GET(req: NextRequest) {
                 ...t,
                 unreadUserCount: unreadCounts[t.id] || 0,
             })),
+            statusCounts,
             total: count || 0,
             page,
             totalPages: Math.ceil((count || 0) / limit),

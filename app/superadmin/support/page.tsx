@@ -87,6 +87,7 @@ export default function SupportPage() {
     const [sendingMessage, setSendingMessage] = useState<string | null>(null);
     const [loadingMessages, setLoadingMessages] = useState<string | null>(null);
     const chatEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const [statusCounts, setStatusCounts] = useState({ open: 0, in_progress: 0, resolved: 0, closed: 0, total: 0 });
 
     const fetchTickets = useCallback(async () => {
         setLoading(true);
@@ -97,6 +98,7 @@ export default function SupportPage() {
             const res = await fetch(`/api/admin/support-tickets?${params}`);
             const data = await res.json();
             setTickets(data.tickets || []);
+            if (data.statusCounts) setStatusCounts(data.statusCounts);
         } catch { /* ignore */ }
         setLoading(false);
     }, [filter, categoryFilter]);
@@ -180,11 +182,11 @@ export default function SupportPage() {
         );
     });
 
-    const openCount = tickets.filter(t => t.status === 'open').length;
-    const inProgressCount = tickets.filter(t => t.status === 'in_progress').length;
-    const resolvedCount = tickets.filter(t => t.status === 'resolved').length;
-    const closedCount = tickets.filter(t => t.status === 'closed').length;
-    const totalCount = tickets.length;
+    const openCount = statusCounts.open;
+    const inProgressCount = statusCounts.in_progress;
+    const resolvedCount = statusCounts.resolved;
+    const closedCount = statusCounts.closed;
+    const totalCount = statusCounts.total;
     const totalUnreadReplies = tickets.reduce((sum, t) => sum + (t.unreadUserCount || 0), 0);
 
     const formatTime = (dateStr: string) => {
