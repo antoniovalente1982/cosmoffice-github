@@ -7,12 +7,24 @@ import { createClient } from '../../utils/supabase/server'
 export async function login(formData: FormData) {
     const supabase = createClient()
 
-    const data = {
-        email: formData.get('email') as string,
-        password: formData.get('password') as string,
-    }
+    const email = formData.get('email') as string
+    const password = formData.get('password') as string
 
-    const { error } = await supabase.auth.signInWithPassword(data)
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
+    // Log login event (success or failure)
+    try {
+        await supabase.rpc('log_login_event', {
+            p_user_id: data?.user?.id || null,
+            p_email: email,
+            p_event_type: error ? 'failed_login' : 'login',
+            p_success: !error,
+            p_failure_reason: error?.message || null,
+        });
+    } catch (e) {
+        // Don't block login if logging fails
+        console.error('[login] Failed to log login event:', e);
+    }
 
     if (error) {
         return { error: error.message }

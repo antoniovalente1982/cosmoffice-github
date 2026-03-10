@@ -25,6 +25,7 @@ import {
     MessageCircle,
     MessageSquare,
     PenTool,
+    AlertTriangle,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
@@ -48,6 +49,7 @@ const NotificationBell = dynamic(() => import('../../../components/office/Notifi
 const UserManagement = null; // Integrated into TeamList
 const SupportTicketForm = dynamic(() => import('../../../components/office/SupportTicketForm'), { ssr: false });
 const SupportTickets = dynamic(() => import('../../../components/office/SupportTickets'), { ssr: false });
+const BugReportForm = dynamic(() => import('../../../components/office/BugReportForm'), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
@@ -245,6 +247,7 @@ export default function OfficePage() {
     const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
     const [showInitialSetup, setShowInitialSetup] = useState(false);
     const [isTicketsOpen, setIsTicketsOpen] = useState(false);
+    const [isBugReportOpen, setIsBugReportOpen] = useState(false);
     const [ticketUnread, setTicketUnread] = useState(0);
 
     // ─── Reset stores on workspace change to avoid cross-workspace bleed ───
@@ -554,6 +557,15 @@ export default function OfficePage() {
                     >
                         <Headphones className="w-5 h-5 flex-shrink-0" />
                         <span className="whitespace-nowrap">Assistenza</span>
+                    </Button>
+                    {/* Segnala Bug */}
+                    <Button
+                        variant="ghost"
+                        onClick={() => setIsBugReportOpen(true)}
+                        className="w-full justify-start gap-3 transition-all duration-300 hover:bg-red-500/10 text-slate-400 hover:text-red-300"
+                    >
+                        <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                        <span className="whitespace-nowrap">Segnala Bug</span>
                     </Button>
                     <Button
                         variant="ghost"
@@ -875,6 +887,13 @@ export default function OfficePage() {
                     workspaceId={workspaceId}
                     isOpen={isSupportOpen}
                     onClose={() => setIsSupportOpen(false)}
+                />
+
+                {/* Bug Report Form */}
+                <BugReportForm
+                    workspaceId={workspaceId}
+                    isOpen={isBugReportOpen}
+                    onClose={() => setIsBugReportOpen(false)}
                 />
 
                 {/* Support Tickets Chat — view & reply to tickets */}
