@@ -44,8 +44,7 @@ const navSections: NavSection[] = [
         label: 'Gestione',
         items: [
             { href: '/superadmin/customers', label: 'Gestionale Clienti', icon: BookUser },
-            { href: '/superadmin/upgrade-requests', label: 'Richieste Upgrade', icon: ArrowUpCircle, badgeKey: 'upgrades' },
-            { href: '/superadmin/support', label: 'Assistenza', icon: Headphones, badgeKey: 'support' },
+            { href: '/superadmin/support', label: 'Assistenza', icon: Headphones, badgeKey: 'total' },
         ],
     },
     {
@@ -79,6 +78,7 @@ const navSections: NavSection[] = [
 interface PendingCounts {
     support: number;
     upgrades: number;
+    total: number;
 }
 
 interface PendingNotification {
@@ -96,7 +96,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     const [authorized, setAuthorized] = useState(false);
     const [adminEmail, setAdminEmail] = useState('');
     const [isSupportStaff, setIsSupportStaff] = useState(false);
-    const [pendingCounts, setPendingCounts] = useState<PendingCounts>({ support: 0, upgrades: 0 });
+    const [pendingCounts, setPendingCounts] = useState<PendingCounts>({ support: 0, upgrades: 0, total: 0 });
     const [notifications, setNotifications] = useState<PendingNotification[]>([]);
     const [showNotifPanel, setShowNotifPanel] = useState(false);
     const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
@@ -108,21 +108,24 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
         try {
             const supabase = createClient();
 
-            // Count open support tickets
+            // Count open support tickets (non-upgrade)
             const { count: supportCount } = await supabase
                 .from('support_tickets')
                 .select('id', { count: 'exact', head: true })
-                .in('status', ['open', 'pending', 'new']);
+                .in('status', ['open', 'pending', 'new'])
+                .neq('category', 'upgrade');
 
-            // Count pending upgrade requests
+            // Count open upgrade tickets
             const { count: upgradeCount } = await supabase
-                .from('upgrade_requests')
+                .from('support_tickets')
                 .select('id', { count: 'exact', head: true })
-                .eq('status', 'pending');
+                .in('status', ['open', 'pending', 'new'])
+                .eq('category', 'upgrade');
 
             setPendingCounts({
                 support: supportCount || 0,
                 upgrades: upgradeCount || 0,
+                total: (supportCount || 0) + (upgradeCount || 0),
             });
 
             // Fetch recent pending items for the notification panel
@@ -130,35 +133,21 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
 
             const { data: openTickets } = await supabase
                 .from('support_tickets')
-                .select('id, subject, requester_name, created_at')
+                .select('id, subject, category, requester_name, created_at')
                 .in('status', ['open', 'pending', 'new'])
                 .order('created_at', { ascending: false })
-                .limit(5);
+                .limit(10);
 
             (openTickets || []).forEach((t: any) => {
+                const isUpgrade = t.category === 'upgrade';
                 notifs.push({
-                    id: `support-${t.id}`,
-                    type: 'support',
-                    title: `🎧 Assistenza: ${t.subject || 'Nuovo ticket'}`,
+                    id: `${isUpgrade ? 'upgrade' : 'support'}-${t.id}`,
+                    type: isUpgrade ? 'upgrade' : 'support',
+                    title: isUpgrade
+                        ? `⬆️ Upgrade: ${t.subject || 'Richiesta Upgrade'}`
+                        : `🎧 Assistenza: ${t.subject || 'Nuovo ticket'}`,
                     message: `Da ${t.requester_name || 'Utente'}`,
                     createdAt: t.created_at,
-                });
-            });
-
-            const { data: pendingUpgrades } = await supabase
-                .from('upgrade_requests')
-                .select('id, message, requester_email, created_at')
-                .eq('status', 'pending')
-                .order('created_at', { ascending: false })
-                .limit(5);
-
-            (pendingUpgrades || []).forEach((u: any) => {
-                notifs.push({
-                    id: `upgrade-${u.id}`,
-                    type: 'upgrade',
-                    title: `⬆️ Richiesta Upgrade`,
-                    message: u.message || `Da ${u.requester_email || 'Utente'}`,
-                    createdAt: u.created_at,
                 });
             });
 
@@ -381,7 +370,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                                     </Link>
                                 )}
                                 {pendingCounts.upgrades > 0 && (
-                                    <Link href="/superadmin/upgrade-requests"
+                                    <Link href="/superadmin/support"
                                         className="px-3 py-1 rounded-lg text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/20 hover:bg-purple-500/30 transition-all flex items-center gap-1.5">
                                         <ArrowUpCircle className="w-3 h-3" />
                                         {pendingCounts.upgrades} upgrade
@@ -420,7 +409,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                                             className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group cursor-pointer"
                                             onClick={() => {
                                                 setShowNotifPanel(false);
-                                                router.push(notif.type === 'support' ? '/superadmin/support' : '/superadmin/upgrade-requests');
+                                                router.push('/superadmin/support');
                                             }}
                                         >
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${notif.type === 'support'

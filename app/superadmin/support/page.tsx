@@ -45,6 +45,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
     technical: { label: 'Tecnico', color: 'text-amber-400 bg-amber-500/15 border-amber-500/20' },
     billing: { label: 'Fatturazione', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/20' },
     feature_request: { label: 'Funzionalità', color: 'text-purple-400 bg-purple-500/15 border-purple-500/20' },
+    upgrade: { label: '⬆️ Upgrade', color: 'text-orange-400 bg-orange-500/15 border-orange-500/20' },
 };
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
@@ -71,7 +72,7 @@ const ROLE_ICONS: Record<string, typeof Crown> = {
 export default function SupportPage() {
     const [tickets, setTickets] = useState<SupportTicket[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'open' | 'in_progress' | 'resolved' | 'closed'>('open');
+    const [filter, setFilter] = useState<'all' | 'open' | 'in_progress' | 'resolved' | 'closed'>('all');
     const [categoryFilter, setCategoryFilter] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [processing, setProcessing] = useState<string | null>(null);

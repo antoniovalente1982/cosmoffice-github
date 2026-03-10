@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, MessageSquare, Send, Loader2, Headphones, ChevronLeft,
-    Clock, CheckCircle, AlertCircle, XCircle,
+    Clock, CheckCircle, AlertCircle, XCircle, Trash2,
 } from 'lucide-react';
 
 interface SupportTicketsProps {
@@ -99,6 +99,15 @@ export default function SupportTickets({ isOpen, onClose, workspaceId }: Support
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
         } catch { /* ignore */ }
         setSending(false);
+    };
+
+    const deleteTicket = async (ticketId: string) => {
+        if (!confirm('Sei sicuro di voler eliminare questo ticket? L\'azione è irreversibile.')) return;
+        try {
+            await fetch(`/api/support/messages?ticketId=${ticketId}`, { method: 'DELETE' });
+            setTickets(prev => prev.filter(t => t.id !== ticketId));
+            if (selectedTicket?.id === ticketId) setSelectedTicket(null);
+        } catch { /* ignore */ }
     };
 
     const formatTime = (dateStr: string) => {
@@ -205,6 +214,13 @@ export default function SupportTickets({ isOpen, onClose, workspaceId }: Support
                                                                 </span>
                                                             )}
                                                             <MessageSquare className="w-3.5 h-3.5 text-slate-600 group-hover:text-violet-400 transition-colors" />
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); deleteTicket(t.id); }}
+                                                                className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition-all"
+                                                                title="Elimina ticket"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </button>

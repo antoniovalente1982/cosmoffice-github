@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Headphones, Send, Loader2, CheckCircle,
-    AlertTriangle, HelpCircle, Wrench, CreditCard, Lightbulb,
+    AlertTriangle, HelpCircle, Wrench, CreditCard, Lightbulb, ArrowUpCircle,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -12,6 +12,7 @@ const CATEGORIES = [
     { value: 'technical', label: 'Problema Tecnico', icon: Wrench, color: 'text-amber-400' },
     { value: 'billing', label: 'Fatturazione', icon: CreditCard, color: 'text-emerald-400' },
     { value: 'feature_request', label: 'Richiesta Funzionalità', icon: Lightbulb, color: 'text-purple-400' },
+    { value: 'upgrade', label: 'Richiedi Upgrade', icon: ArrowUpCircle, color: 'text-orange-400' },
 ];
 
 const PRIORITIES = [

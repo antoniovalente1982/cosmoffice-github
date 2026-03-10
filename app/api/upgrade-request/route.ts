@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
-// ─── PUBLIC: Create upgrade request (authenticated user) ───
+// ─── PUBLIC: Create upgrade request as a support ticket ───
 export async function POST(req: NextRequest) {
     const res = NextResponse.next();
     const supabase = createServerClient(
@@ -31,23 +31,23 @@ export async function POST(req: NextRequest) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Check for existing pending request of same type
+    // Check for existing open upgrade ticket from this user
     const { data: existing } = await adminClient
-        .from('upgrade_requests')
+        .from('support_tickets')
         .select('id')
         .eq('user_id', session.user.id)
-        .eq('request_type', request_type)
-        .eq('status', 'pending')
+        .eq('category', 'upgrade')
+        .in('status', ['open', 'in_progress'])
         .maybeSingle();
 
     if (existing) {
-        return NextResponse.json({ error: 'Hai già una richiesta in attesa', alreadyPending: true }, { status: 409 });
+        return NextResponse.json({ error: 'Hai già una richiesta di upgrade in attesa', alreadyPending: true }, { status: 409 });
     }
 
-    // Get requester info for denormalization
+    // Get requester info
     const { data: profile } = await adminClient
         .from('profiles')
-        .select('email, phone, company_name')
+        .select('full_name, email, phone, company_name')
         .eq('id', session.user.id)
         .single();
 
@@ -64,17 +64,30 @@ export async function POST(req: NextRequest) {
         requesterRole = member?.role || null;
     }
 
+    const subject = request_type === 'seats'
+        ? 'Richiesta Upgrade — Più Posti'
+        : 'Richiesta Upgrade — Nuovo Workspace';
+
+    const description = message || (request_type === 'seats'
+        ? 'Vorrei aumentare il numero di posti disponibili nel mio workspace.'
+        : 'Vorrei aggiungere un nuovo workspace al mio account.');
+
+    // Create as support ticket with category 'upgrade'
     const { error } = await adminClient
-        .from('upgrade_requests')
+        .from('support_tickets')
         .insert({
             user_id: session.user.id,
             workspace_id: workspace_id || null,
-            request_type,
-            message: message || null,
+            requester_name: profile?.full_name || session.user.email || null,
             requester_email: profile?.email || session.user.email || null,
             requester_phone: profile?.phone || null,
             requester_role: requesterRole,
             requester_company: profile?.company_name || null,
+            category: 'upgrade',
+            subject,
+            description,
+            priority: 'high',
+            status: 'open',
         });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

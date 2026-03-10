@@ -176,3 +176,38 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
+
+// DELETE: User deletes their own ticket (hard delete)
+export async function DELETE(req: NextRequest) {
+    const auth = await getUserClient(req);
+    if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    const { supabase, userId } = auth;
+
+    try {
+        const url = new URL(req.url);
+        const ticketId = url.searchParams.get('ticketId');
+        if (!ticketId) return NextResponse.json({ error: 'ticketId required' }, { status: 400 });
+
+        // Verify user owns this ticket
+        const { data: ticket } = await supabase
+            .from('support_tickets')
+            .select('id, user_id')
+            .eq('id', ticketId)
+            .single();
+
+        if (!ticket || ticket.user_id !== userId) {
+            return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+        }
+
+        // Delete ticket (messages cascade via FK)
+        const { error } = await supabase
+            .from('support_tickets')
+            .delete()
+            .eq('id', ticketId);
+
+        if (error) throw error;
+        return NextResponse.json({ success: true });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
