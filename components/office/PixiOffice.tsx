@@ -32,56 +32,157 @@ import { Graphics as PixiGraphics, Text as PixiText, TextStyle as PixiTextStyle 
 
 function drawCorporateLobby(container: Container, x: number, y: number, scale: number = 1) {
     container.removeChildren();
-    const g = new PixiGraphics();
     const s = scale;
 
-    // Outer glow circle
-    g.circle(x, y, 70 * s);
-    g.fill({ color: 0x3b82f6, alpha: 0.06 });
+    // ── Floor area ──────────────────────────────────────────
+    const floor = new PixiGraphics();
 
-    // Main circle background
-    g.circle(x, y, 55 * s);
-    g.fill({ color: 0xffffff, alpha: 0.95 });
-    g.circle(x, y, 55 * s);
-    g.stroke({ color: 0x93c5fd, width: 2.5, alpha: 0.5 });
+    // Outer ambient glow (large, soft)
+    floor.circle(x, y, 130 * s);
+    floor.fill({ color: 0x3b82f6, alpha: 0.03 });
 
-    // Building icon (simple corporate building shape)
-    const bw = 24 * s; const bh = 32 * s;
-    const bx = x - bw / 2; const by = y - bh / 2 - 4 * s;
+    // Floor base — dark polished surface
+    floor.roundRect(x - 110 * s, y - 80 * s, 220 * s, 160 * s, 20 * s);
+    floor.fill({ color: 0x1e293b, alpha: 0.6 });
+    floor.roundRect(x - 110 * s, y - 80 * s, 220 * s, 160 * s, 20 * s);
+    floor.stroke({ color: 0x334155, width: 1.5, alpha: 0.4 });
 
-    // Main building
-    g.roundRect(bx, by, bw, bh, 3 * s);
-    g.fill({ color: 0x3b82f6, alpha: 0.85 });
+    // Floor inner accent line
+    floor.roundRect(x - 100 * s, y - 70 * s, 200 * s, 140 * s, 14 * s);
+    floor.stroke({ color: 0x3b82f6, width: 1, alpha: 0.15 });
 
-    // Windows (2x3 grid)
-    for (let row = 0; row < 3; row++) {
-        for (let col = 0; col < 2; col++) {
-            const wx = bx + 4 * s + col * 10 * s;
-            const wy = by + 4 * s + row * 9 * s;
-            g.roundRect(wx, wy, 6 * s, 5 * s, 1 * s);
-            g.fill({ color: 0xbfdbfe, alpha: 0.9 });
+    // Floor tiles pattern (subtle grid)
+    for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 5; col++) {
+            const tx = x - 90 * s + col * 40 * s;
+            const ty = y - 60 * s + row * 35 * s;
+            floor.roundRect(tx, ty, 36 * s, 31 * s, 3 * s);
+            floor.fill({ color: 0x1e293b, alpha: (row + col) % 2 === 0 ? 0.2 : 0.1 });
         }
     }
+    container.addChild(floor);
 
-    // Door
-    g.roundRect(x - 4 * s, by + bh - 7 * s, 8 * s, 7 * s, 1.5 * s);
-    g.fill({ color: 0x1d4ed8, alpha: 0.9 });
+    // ── Reception desk (curved) ─────────────────────────────
+    const desk = new PixiGraphics();
 
-    container.addChild(g);
+    // Desk body — wide arc shape
+    desk.roundRect(x - 55 * s, y - 20 * s, 110 * s, 36 * s, 8 * s);
+    desk.fill({ color: 0x1e3a5f, alpha: 0.95 });
 
-    // Label
-    const style = new PixiTextStyle({
+    // Desk top surface (lighter)
+    desk.roundRect(x - 52 * s, y - 18 * s, 104 * s, 32 * s, 6 * s);
+    desk.fill({ color: 0x234876, alpha: 0.8 });
+
+    // Blue accent strip on front
+    desk.roundRect(x - 50 * s, y + 10 * s, 100 * s, 4 * s, 2 * s);
+    desk.fill({ color: 0x3b82f6, alpha: 0.7 });
+
+    // Monitor on desk (left)
+    desk.roundRect(x - 30 * s, y - 14 * s, 18 * s, 12 * s, 2 * s);
+    desk.fill({ color: 0x0f172a, alpha: 0.95 });
+    desk.roundRect(x - 29 * s, y - 13 * s, 16 * s, 9 * s, 1.5 * s);
+    desk.fill({ color: 0x38bdf8, alpha: 0.25 }); // screen glow
+
+    // Monitor on desk (right)
+    desk.roundRect(x + 12 * s, y - 14 * s, 18 * s, 12 * s, 2 * s);
+    desk.fill({ color: 0x0f172a, alpha: 0.95 });
+    desk.roundRect(x + 13 * s, y - 13 * s, 16 * s, 9 * s, 1.5 * s);
+    desk.fill({ color: 0x38bdf8, alpha: 0.2 });
+
+    // Keyboard
+    desk.roundRect(x - 8 * s, y - 6 * s, 16 * s, 6 * s, 1.5 * s);
+    desk.fill({ color: 0x334155, alpha: 0.7 });
+
+    container.addChild(desk);
+
+    // ── Decorative plants (left & right) ────────────────────
+    const plants = new PixiGraphics();
+
+    // Left plant pot
+    plants.roundRect(x - 95 * s, y + 15 * s, 16 * s, 14 * s, 3 * s);
+    plants.fill({ color: 0x78350f, alpha: 0.6 }); // pot
+    plants.circle(x - 87 * s, y + 12 * s, 10 * s);
+    plants.fill({ color: 0x16a34a, alpha: 0.5 }); // foliage
+    plants.circle(x - 83 * s, y + 8 * s, 7 * s);
+    plants.fill({ color: 0x22c55e, alpha: 0.4 });
+
+    // Right plant pot
+    plants.roundRect(x + 79 * s, y + 15 * s, 16 * s, 14 * s, 3 * s);
+    plants.fill({ color: 0x78350f, alpha: 0.6 });
+    plants.circle(x + 87 * s, y + 12 * s, 10 * s);
+    plants.fill({ color: 0x16a34a, alpha: 0.5 });
+    plants.circle(x + 91 * s, y + 8 * s, 7 * s);
+    plants.fill({ color: 0x22c55e, alpha: 0.4 });
+
+    container.addChild(plants);
+
+    // ── Chairs in front of desk ─────────────────────────────
+    const chairs = new PixiGraphics();
+
+    // Left chair
+    chairs.circle(x - 30 * s, y + 45 * s, 8 * s);
+    chairs.fill({ color: 0x334155, alpha: 0.6 });
+    chairs.circle(x - 30 * s, y + 45 * s, 5 * s);
+    chairs.fill({ color: 0x475569, alpha: 0.5 });
+
+    // Right chair
+    chairs.circle(x + 30 * s, y + 45 * s, 8 * s);
+    chairs.fill({ color: 0x334155, alpha: 0.6 });
+    chairs.circle(x + 30 * s, y + 45 * s, 5 * s);
+    chairs.fill({ color: 0x475569, alpha: 0.5 });
+
+    container.addChild(chairs);
+
+    // ── Welcome mat / carpet ────────────────────────────────
+    const mat = new PixiGraphics();
+    mat.roundRect(x - 40 * s, y + 55 * s, 80 * s, 16 * s, 5 * s);
+    mat.fill({ color: 0x1e3a8a, alpha: 0.25 });
+    mat.roundRect(x - 40 * s, y + 55 * s, 80 * s, 16 * s, 5 * s);
+    mat.stroke({ color: 0x3b82f6, width: 1, alpha: 0.2 });
+    container.addChild(mat);
+
+    // ── Labels ───────────────────────────────────────────────
+
+    // "RECEPTION" label
+    const titleStyle = new PixiTextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 12 * s,
+        fontSize: 13 * s,
         fontWeight: '800',
-        fill: 0xffffff,
-        letterSpacing: 1.5,
-        dropShadow: { color: 0x000000, alpha: 0.5, blur: 4, distance: 0 },
+        fill: 0xe2e8f0,
+        letterSpacing: 3,
+        dropShadow: { color: 0x000000, alpha: 0.6, blur: 6, distance: 0 },
     });
-    const label = new PixiText({ text: 'RECEPTION', style, resolution: 2 });
-    label.anchor.set(0.5, 0);
-    label.position.set(x, y + 62 * s);
-    container.addChild(label);
+    const title = new PixiText({ text: 'RECEPTION', style: titleStyle, resolution: 2 });
+    title.anchor.set(0.5, 0);
+    title.position.set(x, y - 95 * s);
+    container.addChild(title);
+
+    // "WELCOME" on the mat
+    const welcomeStyle = new PixiTextStyle({
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: 7 * s,
+        fontWeight: '700',
+        fill: 0x93c5fd,
+        letterSpacing: 2,
+    });
+    const welcome = new PixiText({ text: 'WELCOME', style: welcomeStyle, resolution: 2 });
+    welcome.anchor.set(0.5, 0.5);
+    welcome.position.set(x, y + 63 * s);
+    container.addChild(welcome);
+
+    // Pulsing entry indicator
+    const pulse = new PixiGraphics();
+    pulse.circle(x, y + 63 * s, 3 * s);
+    pulse.fill({ color: 0x22d3ee, alpha: 0.6 });
+    // Small dot
+    const dot = new PixiGraphics();
+    dot.circle(x - 35 * s, y + 63 * s, 2 * s);
+    dot.fill({ color: 0x3b82f6, alpha: 0.4 });
+    const dot2 = new PixiGraphics();
+    dot2.circle(x + 35 * s, y + 63 * s, 2 * s);
+    dot2.fill({ color: 0x3b82f6, alpha: 0.4 });
+    container.addChild(dot);
+    container.addChild(dot2);
 }
 // ─── Main Component ──────────────────────────────────────────────
 export function PixiOffice() {
