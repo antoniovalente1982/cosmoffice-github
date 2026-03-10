@@ -117,7 +117,7 @@ export default function CashflowPage() {
                 startDate.setTime(prev.getTime());
             }
 
-            for (let i = 0; i < totalEntries + 2; i++) {
+            for (let i = 0; i < totalEntries; i++) {
                 const dueDate = new Date(startDate);
                 dueDate.setMonth(dueDate.getMonth() + (i * cycleMonths));
 
