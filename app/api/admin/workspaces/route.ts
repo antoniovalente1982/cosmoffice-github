@@ -1127,7 +1127,7 @@ export async function POST(req: NextRequest) {
             }
 
             case 'update_seats': {
-                const { max_members, price_per_seat, monthly_amount_cents, billing_cycle } = actionData;
+                const { max_members, price_per_seat, monthly_amount_cents, billing_cycle, register_payment } = actionData;
                 const updateData: any = {};
                 if (max_members !== undefined) updateData.max_members = max_members;
                 if (price_per_seat !== undefined) updateData.price_per_seat = price_per_seat;
@@ -1136,11 +1136,14 @@ export async function POST(req: NextRequest) {
                     // Auto-set plan based on pricing: premium if paid, demo if free
                     updateData.plan = monthly_amount_cents > 0 ? 'premium' : 'demo';
                 }
+
+                const cycleMonths: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
+                const cycleLabels: Record<string, string> = { monthly: 'mensile', quarterly: 'trimestrale', semiannual: 'semestrale', annual: 'annuale' };
+
                 if (billing_cycle !== undefined) {
                     updateData.billing_cycle = billing_cycle;
-                    // Auto-compute next_invoice_date based on billing cycle from today
+                    // next_invoice_date = today + cycle months
                     const nextDate = new Date();
-                    const cycleMonths: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
                     nextDate.setMonth(nextDate.getMonth() + (cycleMonths[billing_cycle] || 1));
                     updateData.next_invoice_date = nextDate.toISOString().split('T')[0];
                 }
@@ -1151,6 +1154,86 @@ export async function POST(req: NextRequest) {
                     .eq('id', workspaceId);
 
                 if (seatsError) return NextResponse.json({ error: seatsError.message }, { status: 500 });
+
+                // Auto-register payment for today if requested (plan change = payment now)
+                if (register_payment && monthly_amount_cents && monthly_amount_cents > 0) {
+                    const cycle = billing_cycle || 'monthly';
+                    const months = cycleMonths[cycle] || 1;
+                    const totalCents = monthly_amount_cents * months;
+                    const today = new Date().toISOString().split('T')[0];
+
+                    // Get workspace info for receipt
+                    const { data: wsInfo } = await supabase.from('workspaces')
+                        .select('name, created_by')
+                        .eq('id', workspaceId).single();
+
+                    // Get owner profile for receipt
+                    let ownerProfile: any = {};
+                    if (wsInfo?.created_by) {
+                        const { data: prof } = await supabase.from('profiles')
+                            .select('email, full_name, display_name, company_name, vat_number, fiscal_code, billing_address, billing_city, billing_zip, billing_country, sdi_code, pec')
+                            .eq('id', wsInfo.created_by).single();
+                        if (prof) ownerProfile = prof;
+                    }
+
+                    // Generate receipt number
+                    const dateStr = today.replace(/-/g, '');
+                    const { count: todayCount } = await supabase
+                        .from('payments')
+                        .select('id', { count: 'exact', head: true })
+                        .gte('created_at', today)
+                        .lt('created_at', new Date(new Date(today).getTime() + 86400000).toISOString().split('T')[0]);
+                    const receiptNumber = `R-${dateStr}-${String((todayCount || 0) + 1).padStart(3, '0')}`;
+
+                    const ownerName = ownerProfile.display_name || ownerProfile.full_name || ownerProfile.email || '';
+
+                    const receiptData = {
+                        receipt_number: receiptNumber,
+                        date: today,
+                        type: 'payment',
+                        workspace_name: wsInfo?.name || '',
+                        owner_name: ownerName,
+                        owner_email: ownerProfile.email || '',
+                        company_name: ownerProfile.company_name || '',
+                        vat_number: ownerProfile.vat_number || '',
+                        fiscal_code: ownerProfile.fiscal_code || '',
+                        billing_address: ownerProfile.billing_address || '',
+                        billing_city: ownerProfile.billing_city || '',
+                        billing_zip: ownerProfile.billing_zip || '',
+                        billing_country: ownerProfile.billing_country || 'IT',
+                        sdi_code: ownerProfile.sdi_code || '',
+                        pec: ownerProfile.pec || '',
+                        amount_cents: totalCents,
+                        seats: max_members || 0,
+                        price_per_seat_cents: price_per_seat || 0,
+                        billing_cycle: cycle,
+                    };
+
+                    await supabase.from('payments').insert({
+                        workspace_id: workspaceId,
+                        workspace_name: wsInfo?.name || '',
+                        owner_email: ownerProfile.email || '',
+                        owner_name: ownerName,
+                        type: 'payment',
+                        amount_cents: totalCents,
+                        plan_at_time: monthly_amount_cents > 0 ? 'premium' : 'demo',
+                        description: `Pagamento ${cycleLabels[cycle] || cycle} — ${wsInfo?.name || ''} (${max_members || '?'} accessi × €${((price_per_seat || 0) / 100).toFixed(2)} × ${months} mesi)`,
+                        payment_method: 'bank_transfer',
+                        payment_date: today,
+                        recorded_by: userId,
+                        receipt_number: receiptNumber,
+                        receipt_data: receiptData,
+                    });
+
+                    // Update workspace payment status
+                    await supabase.from('workspaces').update({
+                        payment_status: 'paid',
+                        last_payment_at: new Date().toISOString(),
+                    }).eq('id', workspaceId);
+
+                    return NextResponse.json({ success: true, payment_registered: true, receipt_number: receiptNumber });
+                }
+
                 return NextResponse.json({ success: true });
             }
 

@@ -62,6 +62,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
     const [editPricePerSeat, setEditPricePerSeat] = useState('');
     const [editBillingCycle, setEditBillingCycle] = useState('monthly');
     const [savingSeats, setSavingSeats] = useState(false);
+    const [registerPaymentOnSave, setRegisterPaymentOnSave] = useState(false);
 
     // Owner max_workspaces edit
     const [editingMaxWs, setEditingMaxWs] = useState(false);
@@ -414,9 +415,14 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 <span className="flex items-center gap-1"><Users className="w-3 h-3" />{ws.totalSeats}/{ws.maxMembers} accessi</span>
                                                 {ws.price_per_seat > 0 && <span className="text-emerald-400">{fmt(ws.price_per_seat)}/utente</span>}
                                                 <span>{ws.activeSpaces} uffici</span>
-                                                {ws.monthly_amount_cents > 0 && (
-                                                    <span className="ml-auto text-emerald-400 font-semibold">{fmt(ws.monthly_amount_cents)}/mese</span>
-                                                )}
+                                                {ws.monthly_amount_cents > 0 && (() => {
+                                                    const cycle = ws.billingCycle || ws.billing_cycle || 'monthly';
+                                                    const months: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
+                                                    const labels: Record<string, string> = { monthly: 'mese', quarterly: 'trimestre', semiannual: 'semestre', annual: 'anno' };
+                                                    const m = months[cycle] || 1;
+                                                    const total = ws.monthly_amount_cents * m;
+                                                    return <span className="ml-auto text-emerald-400 font-semibold">{fmt(total)}/{labels[cycle] || 'mese'}</span>;
+                                                })()}
                                                 {ws.payment_status && ws.payment_status !== 'none' && (
                                                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ws.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-300' : ws.payment_status === 'overdue' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
                                                         {ws.payment_status === 'paid' ? 'Pagato' : ws.payment_status === 'overdue' ? 'Scaduto' : 'In attesa'}
@@ -426,11 +432,15 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                             {/* Subscription info row */}
                                             <div className="mt-1.5 flex items-center gap-3 text-[10px] text-slate-500">
                                                 <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 font-bold uppercase">
-                                                    {ws.billingCycle === 'annual' ? '📅 Annuale' : '📅 Mensile'}
+                                                    {(() => {
+                                                        const cycle = ws.billingCycle || ws.billing_cycle || 'monthly';
+                                                        const labels: Record<string, string> = { monthly: '📅 Mensile', quarterly: '📅 Trimestrale', semiannual: '📅 Semestrale', annual: '📅 Annuale' };
+                                                        return labels[cycle] || '📅 Mensile';
+                                                    })()}
                                                 </span>
-                                                {ws.nextInvoiceDate && (
+                                                {(ws.nextInvoiceDate || ws.next_invoice_date) && (
                                                     <span className="flex items-center gap-1">
-                                                        Prossimo rinnovo: <span className="text-white font-semibold">{new Date(ws.nextInvoiceDate).toLocaleDateString('it-IT')}</span>
+                                                        Prossimo rinnovo: <span className="text-white font-semibold">{new Date(ws.nextInvoiceDate || ws.next_invoice_date).toLocaleDateString('it-IT')}</span>
                                                     </span>
                                                 )}
                                             </div>
@@ -497,6 +507,22 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                             </div>
                                                         );
                                                     })()}
+                                                    {/* Register payment checkbox */}
+                                                    {editSeatsValue && editPricePerSeat && parseFloat(editPricePerSeat) > 0 && (() => {
+                                                        const cycleMonthsMap: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
+                                                        const m = cycleMonthsMap[editBillingCycle] || 1;
+                                                        const total = parseFloat(editSeatsValue) * parseFloat(editPricePerSeat) * m;
+                                                        return (
+                                                            <label className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 cursor-pointer hover:bg-blue-500/15 transition-colors">
+                                                                <input type="checkbox" checked={registerPaymentOnSave} onChange={e => setRegisterPaymentOnSave(e.target.checked)}
+                                                                    className="mt-0.5 rounded border-blue-500/30 accent-blue-500" />
+                                                                <div>
+                                                                    <p className="text-xs text-blue-200 font-semibold">💳 Registra pagamento oggi ({new Date().toLocaleDateString('it-IT')})</p>
+                                                                    <p className="text-[10px] text-blue-300/70 mt-0.5">Importo: {cs}{total.toFixed(2)} — Genera ricevuta automaticamente</p>
+                                                                </div>
+                                                            </label>
+                                                        );
+                                                    })()}
                                                     <div className="flex gap-2">
                                                         <button onClick={async () => {
                                                             setSavingSeats(true);
@@ -504,17 +530,29 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                             const pricePerSeat = Math.round((parseFloat(editPricePerSeat) || 0) * 100);
                                                             const totalCents = seats * pricePerSeat;
                                                             try {
-                                                                await fetch('/api/admin/workspaces', {
+                                                                const res = await fetch('/api/admin/workspaces', {
                                                                     method: 'POST',
                                                                     headers: { 'Content-Type': 'application/json' },
                                                                     body: JSON.stringify({
                                                                         action: 'update_seats',
                                                                         workspaceId: ws.id,
-                                                                        data: { max_members: seats, price_per_seat: pricePerSeat, monthly_amount_cents: totalCents, billing_cycle: editBillingCycle },
+                                                                        data: {
+                                                                            max_members: seats,
+                                                                            price_per_seat: pricePerSeat,
+                                                                            monthly_amount_cents: totalCents,
+                                                                            billing_cycle: editBillingCycle,
+                                                                            register_payment: registerPaymentOnSave,
+                                                                        },
                                                                     }),
                                                                 });
-                                                                showFb('success', `Piano aggiornato ✅`);
+                                                                const result = await res.json();
+                                                                if (result.receipt_number) {
+                                                                    showFb('success', `Piano aggiornato + Pagamento registrato ✅ Ricevuta: ${result.receipt_number}`);
+                                                                } else {
+                                                                    showFb('success', `Piano aggiornato ✅`);
+                                                                }
                                                                 setEditSeatsWsId(null);
+                                                                setRegisterPaymentOnSave(false);
                                                                 loadDetail();
                                                                 onRefresh();
                                                             } catch { showFb('error', 'Errore salvataggio'); }
@@ -523,7 +561,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                             className="flex-1 px-3 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-1.5">
                                                             {savingSeats ? <><Loader2 className="w-3 h-3 animate-spin" /> Salvo...</> : <><Save className="w-3 h-3" /> Salva Piano</>}
                                                         </button>
-                                                        <button onClick={() => setEditSeatsWsId(null)}
+                                                        <button onClick={() => { setEditSeatsWsId(null); setRegisterPaymentOnSave(false); }}
                                                             className="px-3 py-2 rounded-lg text-xs text-slate-400 border border-white/10 hover:bg-white/5">
                                                             Annulla
                                                         </button>
