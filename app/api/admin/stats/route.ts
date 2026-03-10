@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
 
         const uniqueUserIds = new Set(allMembers.map((m: any) => m.user_id));
         const uniqueUsers = uniqueUserIds.size;
-        const totalUsers = Math.max(totalProfiles, uniqueUsers);
+        const totalUsers = totalProfiles;
 
         const roleCounts = { owner: 0, admin: 0, member: 0, guest: 0 };
         const roleSets: Record<string, Set<string>> = {
