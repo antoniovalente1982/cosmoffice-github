@@ -23,6 +23,7 @@ import {
     UserPlus,
     Grid3X3,
     MessageCircle,
+    MessageSquare,
     PenTool,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
@@ -46,6 +47,7 @@ const DayNightCycle = dynamic(() => import('../../../components/office/DayNightC
 const NotificationBell = dynamic(() => import('../../../components/office/NotificationBell'), { ssr: false });
 const UserManagement = null; // Integrated into TeamList
 const SupportTicketForm = dynamic(() => import('../../../components/office/SupportTicketForm'), { ssr: false });
+const SupportTickets = dynamic(() => import('../../../components/office/SupportTickets'), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
@@ -242,6 +244,7 @@ export default function OfficePage() {
     const [isManagementOpen, setIsManagementOpen] = useState(false);
     const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
     const [showInitialSetup, setShowInitialSetup] = useState(false);
+    const [isTicketsOpen, setIsTicketsOpen] = useState(false);
 
 
     // Avatar sync via PartyKit
@@ -520,6 +523,14 @@ export default function OfficePage() {
                     >
                         <Headphones className="w-5 h-5 flex-shrink-0" />
                         <span className="whitespace-nowrap">Assistenza</span>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        onClick={() => setIsTicketsOpen(true)}
+                        className="w-full justify-start gap-3 transition-all duration-300 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300"
+                    >
+                        <MessageSquare className="w-5 h-5 flex-shrink-0" />
+                        <span className="whitespace-nowrap">I miei Ticket</span>
                     </Button>
 
                     <div
@@ -828,6 +839,12 @@ export default function OfficePage() {
                     workspaceId={workspaceId}
                     isOpen={isSupportOpen}
                     onClose={() => setIsSupportOpen(false)}
+                />
+
+                {/* Support Tickets Chat — view & reply to tickets */}
+                <SupportTickets
+                    isOpen={isTicketsOpen}
+                    onClose={() => setIsTicketsOpen(false)}
                 />
 
                 {/* Fullscreen Video Grid */}

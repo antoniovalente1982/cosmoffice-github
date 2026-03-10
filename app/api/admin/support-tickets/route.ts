@@ -20,7 +20,7 @@ async function getAdminClient(req: NextRequest) {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('is_super_admin, is_support_staff')
+        .select('is_super_admin, is_support_staff, full_name, email')
         .eq('id', session.user.id)
         .single();
 
@@ -33,7 +33,13 @@ async function getAdminClient(req: NextRequest) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    return { supabase: adminClient, userId: session.user.id, isSuperAdmin: profile.is_super_admin };
+    return {
+        supabase: adminClient,
+        userId: session.user.id,
+        userEmail: session.user.email || profile.email || '',
+        userName: profile.full_name || session.user.email || 'Admin',
+        isSuperAdmin: profile.is_super_admin,
+    };
 }
 
 // GET: List all support tickets
@@ -114,6 +120,79 @@ export async function PATCH(req: NextRequest) {
 
         if (error) throw error;
         return NextResponse.json({ success: true, ticket: data });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
+
+// POST: Send a message on a ticket (admin chat reply)
+export async function POST(req: NextRequest) {
+    const auth = await getAdminClient(req);
+    if ('error' in auth) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    const { supabase, userId, userName, userEmail } = auth;
+
+    try {
+        const body = await req.json();
+
+        // If action is 'get_messages', return messages for a specific ticket
+        if (body.action === 'get_messages') {
+            const { ticketId } = body;
+            if (!ticketId) return NextResponse.json({ error: 'ticketId required' }, { status: 400 });
+
+            const { data: messages, error } = await supabase
+                .from('ticket_messages')
+                .select('*')
+                .eq('ticket_id', ticketId)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            return NextResponse.json({ messages: messages || [] });
+        }
+
+        // Default action: send message
+        const { ticketId, message } = body;
+        if (!ticketId || !message?.trim()) {
+            return NextResponse.json({ error: 'ticketId and message required' }, { status: 400 });
+        }
+
+        // Insert the message
+        const { data: msg, error: msgError } = await supabase
+            .from('ticket_messages')
+            .insert({
+                ticket_id: ticketId,
+                sender_id: userId,
+                sender_name: userName,
+                sender_email: userEmail,
+                is_admin: true,
+                message: message.trim(),
+            })
+            .select()
+            .single();
+
+        if (msgError) throw msgError;
+
+        // If ticket is 'open', automatically set to 'in_progress'
+        const { data: ticket } = await supabase
+            .from('support_tickets')
+            .select('status')
+            .eq('id', ticketId)
+            .single();
+
+        if (ticket?.status === 'open') {
+            await supabase
+                .from('support_tickets')
+                .update({ status: 'in_progress', updated_at: new Date().toISOString() })
+                .eq('id', ticketId);
+        } else {
+            await supabase
+                .from('support_tickets')
+                .update({ updated_at: new Date().toISOString() })
+                .eq('id', ticketId);
+        }
+
+        return NextResponse.json({ success: true, message: msg });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
