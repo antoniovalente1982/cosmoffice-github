@@ -247,6 +247,16 @@ export default function OfficePage() {
     const [isTicketsOpen, setIsTicketsOpen] = useState(false);
     const [ticketUnread, setTicketUnread] = useState(0);
 
+    // ─── Reset stores on workspace change to avoid cross-workspace bleed ───
+    useEffect(() => {
+        // Clear whiteboard data from previous workspace
+        useWhiteboardStore.getState().clearRoomStrokes();
+        useWhiteboardStore.getState().clearOfficeStrokes();
+        // Clear chat data from previous workspace
+        useChatStore.getState().clearMessages();
+        useChatStore.getState().clearOfficeMessages();
+    }, [workspaceId]);
+
     // Poll for unread ticket messages
     useEffect(() => {
         if (!workspaceId) return;
