@@ -173,6 +173,9 @@ export default function SupportPage() {
 
     const openCount = tickets.filter(t => t.status === 'open').length;
     const inProgressCount = tickets.filter(t => t.status === 'in_progress').length;
+    const resolvedCount = tickets.filter(t => t.status === 'resolved').length;
+    const closedCount = tickets.filter(t => t.status === 'closed').length;
+    const totalCount = tickets.length;
 
     const formatTime = (dateStr: string) => {
         const d = new Date(dateStr);
@@ -229,7 +232,7 @@ export default function SupportPage() {
                                     ? 'bg-white/10 text-white border border-white/20'
                                     : 'text-slate-500 hover:text-slate-300 border border-transparent'
                                     }`}>
-                                {f === 'open' ? `Aperti (${openCount})` : f === 'in_progress' ? `In Corso (${inProgressCount})` : f === 'all' ? 'Tutti' : f === 'resolved' ? 'Risolti' : 'Chiusi'}
+                                {f === 'open' ? `Aperti (${openCount})` : f === 'in_progress' ? `In Corso (${inProgressCount})` : f === 'all' ? `Tutti (${totalCount})` : f === 'resolved' ? `Risolti (${resolvedCount})` : `Chiusi (${closedCount})`}
                             </button>
                         ))}
                     </div>
