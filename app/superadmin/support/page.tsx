@@ -265,18 +265,15 @@ export default function SupportPage() {
                             return (
                                 <button key={f} onClick={() => setFilter(f)}
                                     className={`relative px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${filter === f
-                                        ? hasUnread
-                                            ? 'bg-red-500/15 text-red-300 border border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
-                                            : 'bg-white/10 text-white border border-white/20'
-                                        : hasUnread
-                                            ? 'text-red-400 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10'
-                                            : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                                        ? 'bg-white/10 text-white border border-white/20'
+                                        : 'text-slate-500 hover:text-slate-300 border border-transparent'
                                         }`}>
-                                    {hasUnread && (
-                                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
-                                    )}
                                     {label}
-                                    {hasUnread && <span className="ml-1 text-red-400">🔴{unreadForTab}</span>}
+                                    {hasUnread && (
+                                        <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white px-1">
+                                            {unreadForTab}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}
