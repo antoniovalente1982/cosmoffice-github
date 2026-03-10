@@ -11,7 +11,13 @@ import {
     Shield,
     Star,
     Crown,
-    User
+    User,
+    Receipt,
+    Building2,
+    ChevronDown,
+    FileText,
+    CreditCard,
+    History
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAvatarStore } from '../../stores/avatarStore';
@@ -55,6 +61,20 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
     const [saving, setSaving] = useState(false);
     const [saveResult, setSaveResult] = useState<'idle' | 'success' | 'error'>('idle');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
+    // Billing state
+    const [bilCompany, setBilCompany] = useState('');
+    const [bilVat, setBilVat] = useState('');
+    const [bilFiscal, setBilFiscal] = useState('');
+    const [bilSdi, setBilSdi] = useState('');
+    const [bilPec, setBilPec] = useState('');
+    const [bilAddress, setBilAddress] = useState('');
+    const [bilCity, setBilCity] = useState('');
+    const [bilZip, setBilZip] = useState('');
+    const [bilCountry, setBilCountry] = useState('IT');
+    const [payments, setPayments] = useState<any[]>([]);
+    const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+    const [workspaceName, setWorkspaceName] = useState('');
 
     // Load profile data
     useEffect(() => {
@@ -77,6 +97,16 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                 setName(profile.display_name || profile.full_name || '');
                 setAvatarUrl(profile.avatar_url || '');
                 setTimezone(profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+                // Load billing data
+                setBilCompany(profile.company_name || '');
+                setBilVat(profile.vat_number || '');
+                setBilFiscal(profile.fiscal_code || '');
+                setBilSdi(profile.sdi_code || '');
+                setBilPec(profile.pec || '');
+                setBilAddress(profile.billing_address || '');
+                setBilCity(profile.billing_city || '');
+                setBilZip(profile.billing_zip || '');
+                setBilCountry(profile.billing_country || 'IT');
             }
 
             // Fetch user role in this workspace
@@ -87,6 +117,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                     .eq('id', spaceId)
                     .single();
                 if (spaceData?.workspace_id) {
+                    if (!cancelled) setWorkspaceId(spaceData.workspace_id);
                     const { data: member } = await supabase
                         .from('workspace_members')
                         .select('role')
@@ -95,6 +126,23 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                         .is('removed_at', null)
                         .single();
                     if (!cancelled && member) setUserRole(member.role);
+                    // Load workspace name
+                    const { data: wsInfo } = await supabase
+                        .from('workspaces')
+                        .select('name')
+                        .eq('id', spaceData.workspace_id)
+                        .single();
+                    if (!cancelled && wsInfo) setWorkspaceName(wsInfo.name);
+                    // Load payments for owner/admin
+                    if (member && (member.role === 'owner' || member.role === 'admin')) {
+                        const { data: pays } = await supabase
+                            .from('payments')
+                            .select('*')
+                            .eq('workspace_id', spaceData.workspace_id)
+                            .order('payment_date', { ascending: false })
+                            .limit(20);
+                        if (!cancelled && pays) setPayments(pays);
+                    }
                 }
             }
         };
@@ -178,12 +226,24 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
         if (!user) { setSaving(false); return; }
 
         // Sync both full_name and display_name with the single "name" field
-        const updates = {
+        const updates: any = {
             full_name: name,
             display_name: name || null,
             avatar_url: avatarUrl || null,
             timezone,
         };
+        // Include billing data for owner/admin
+        if (userRole === 'owner' || userRole === 'admin') {
+            updates.company_name = bilCompany || null;
+            updates.vat_number = bilVat || null;
+            updates.fiscal_code = bilFiscal || null;
+            updates.sdi_code = bilSdi || null;
+            updates.pec = bilPec || null;
+            updates.billing_address = bilAddress || null;
+            updates.billing_city = bilCity || null;
+            updates.billing_zip = bilZip || null;
+            updates.billing_country = bilCountry || 'IT';
+        }
 
         const { error } = await supabase
             .from('profiles')
@@ -218,148 +278,261 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                     </Button>
                 </div>
 
+                {/* Tabs for owner/admin */}
+                {(userRole === 'owner' || userRole === 'admin') && (
+                    <div className="flex border-b border-white/5">
+                        <button
+                            onClick={() => setActiveTab('profile')}
+                            className={`flex-1 px-4 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'profile' ? 'text-cyan-300 border-b-2 border-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            <User className="w-3.5 h-3.5" /> Profilo
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('billing')}
+                            className={`flex-1 px-4 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'billing' ? 'text-cyan-300 border-b-2 border-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            <Receipt className="w-3.5 h-3.5" /> Fatturazione
+                        </button>
+                    </div>
+                )}
+
                 {/* Content */}
                 <div className="p-5 overflow-y-auto max-h-[65vh]">
-                    <div className="space-y-6 animate-[fadeIn_0.15s_ease-out]">
-                        {/* Avatar section */}
-                        <div className="flex items-center gap-5">
-                            <div className="relative group">
-                                <div className="w-24 h-24 rounded-2xl overflow-hidden ring-2 ring-primary-500/30 shadow-xl">
-                                    {avatarUrl ? (
-                                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-3xl font-bold text-slate-400">
-                                            {(name || '?')[0]?.toUpperCase()}
-                                        </div>
-                                    )}
+                    {activeTab === 'profile' && (
+                        <div className="space-y-6 animate-[fadeIn_0.15s_ease-out]">
+                            {/* Avatar section */}
+                            <div className="flex items-center gap-5">
+                                <div className="relative group">
+                                    <div className="w-24 h-24 rounded-2xl overflow-hidden ring-2 ring-primary-500/30 shadow-xl">
+                                        {avatarUrl ? (
+                                            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-3xl font-bold text-slate-400">
+                                                {(name || '?')[0]?.toUpperCase()}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploading}
+                                        className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer disabled:cursor-wait"
+                                    >
+                                        {uploading ? (
+                                            <Loader2 className="w-6 h-6 text-white animate-spin" />
+                                        ) : (
+                                            <Camera className="w-6 h-6 text-white" />
+                                        )}
+                                    </button>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={uploadAvatar}
+                                        accept="image/*"
+                                        className="hidden"
+                                    />
                                 </div>
-                                <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={uploading}
-                                    className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer disabled:cursor-wait"
-                                >
-                                    {uploading ? (
-                                        <Loader2 className="w-6 h-6 text-white animate-spin" />
-                                    ) : (
-                                        <Camera className="w-6 h-6 text-white" />
-                                    )}
-                                </button>
+                                <div className="flex-1 space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-semibold text-slate-100">{name || 'Il tuo profilo'}</h3>
+                                        {userRole && ROLE_DISPLAY[userRole] && (() => {
+                                            const rd = ROLE_DISPLAY[userRole];
+                                            const RIcon = rd.icon;
+                                            return (
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold ${rd.color} ${rd.bg}`}>
+                                                    <RIcon className="w-3 h-3" />
+                                                    {rd.label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                    <p className="text-sm text-slate-500">{userEmail}</p>
+                                    <p className="text-xs text-slate-600">Clicca sull&apos;avatar per cambiarlo • Max 5MB</p>
+                                </div>
+                            </div>
+
+                            {/* Name field */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400 font-medium ml-1">Nome</label>
                                 <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    onChange={uploadAvatar}
-                                    accept="image/*"
-                                    className="hidden"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder="Il tuo nome"
+                                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
                                 />
                             </div>
-                            <div className="flex-1 space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="text-base font-semibold text-slate-100">{name || 'Il tuo profilo'}</h3>
-                                    {userRole && ROLE_DISPLAY[userRole] && (() => {
-                                        const rd = ROLE_DISPLAY[userRole];
-                                        const RIcon = rd.icon;
-                                        return (
-                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold ${rd.color} ${rd.bg}`}>
-                                                <RIcon className="w-3 h-3" />
-                                                {rd.label}
-                                            </span>
-                                        );
-                                    })()}
-                                </div>
-                                <p className="text-sm text-slate-500">{userEmail}</p>
-                                <p className="text-xs text-slate-600">Clicca sull&apos;avatar per cambiarlo • Max 5MB</p>
+
+                            {/* Timezone */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
+                                    <Clock className="w-3 h-3" /> Fuso orario
+                                </label>
+                                <select
+                                    value={timezone}
+                                    onChange={(e) => setTimezone(e.target.value)}
+                                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
+                                >
+                                    {TIMEZONES.map(tz => (
+                                        <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
+                                    ))}
+                                </select>
                             </div>
-                        </div>
 
-                        {/* Name field — single unified field */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs text-slate-400 font-medium ml-1">Nome</label>
-                            <input
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="Il tuo nome"
-                                className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
-                            />
-                        </div>
-
-                        {/* Timezone */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                <Clock className="w-3 h-3" /> Fuso orario
-                            </label>
-                            <select
-                                value={timezone}
-                                onChange={(e) => setTimezone(e.target.value)}
-                                className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none"
-                            >
-                                {TIMEZONES.map(tz => (
-                                    <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Performance Mode Toggle */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                <Shield className="w-3 h-3" /> Qualità Grafica
-                            </label>
-                            <button
-                                onClick={() => {
-                                    togglePerformanceMode();
-                                    // Sync class on body so CSS rules work globally
-                                    document.body.classList.toggle('low-power-mode');
-                                }}
-                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${isPerformanceMode
+                            {/* Performance Mode Toggle */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
+                                    <Shield className="w-3 h-3" /> Qualità Grafica
+                                </label>
+                                <button
+                                    onClick={() => {
+                                        togglePerformanceMode();
+                                        document.body.classList.toggle('low-power-mode');
+                                    }}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${isPerformanceMode
                                         ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
                                         : 'bg-slate-800/60 border-white/10 hover:bg-slate-800/80 text-slate-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-lg ${isPerformanceMode ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                            <Star className="w-4 h-4" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="text-sm font-medium flex items-center gap-2">
+                                                {isPerformanceMode ? 'Risparmio Energetico' : 'Alta Qualità'}
+                                                <span className={`w-2 h-2 rounded-full ${isPerformanceMode ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                                            </div>
+                                            <div className="text-[10px] sm:text-xs opacity-70 mt-0.5">
+                                                {isPerformanceMode
+                                                    ? 'Particelle, ombre e glow disabilitati. Ideale per PC datati.'
+                                                    : 'Effetti grafici completi attivi. Clicca per ridurre.'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className={`w-10 h-5.5 rounded-full p-0.5 flex items-center transition-colors ${isPerformanceMode ? 'bg-amber-500' : 'bg-emerald-500'}`}>
+                                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isPerformanceMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                    </div>
+                                </button>
+                            </div>
+
+                            {/* Save button */}
+                            <Button
+                                onClick={saveProfile}
+                                disabled={saving}
+                                className={`w-full gap-2 font-semibold rounded-xl py-2.5 transition-all ${saveResult === 'success'
+                                    ? 'bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
+                                    : saveResult === 'error'
+                                        ? 'bg-red-500 hover:bg-red-400'
+                                        : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
                                     }`}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${isPerformanceMode ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                                        <Star className="w-4 h-4" />
-                                    </div>
-                                    <div className="text-left">
-                                        <div className="text-sm font-medium flex items-center gap-2">
-                                            {isPerformanceMode ? 'Risparmio Energetico' : 'Alta Qualità'}
-                                            <span className={`w-2 h-2 rounded-full ${isPerformanceMode ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                                        </div>
-                                        <div className="text-[10px] sm:text-xs opacity-70 mt-0.5">
-                                            {isPerformanceMode
-                                                ? 'Particelle, ombre e glow disabilitati. Ideale per PC datati.'
-                                                : 'Effetti grafici completi attivi. Clicca per ridurre.'}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Toggle switch */}
-                                <div className={`w-10 h-5.5 rounded-full p-0.5 flex items-center transition-colors ${isPerformanceMode ? 'bg-amber-500' : 'bg-emerald-500'}`}>
-                                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isPerformanceMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                                </div>
-                            </button>
+                                {saving ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : saveResult === 'success' ? (
+                                    <><Check className="w-4 h-4" /> Salvato!</>
+                                ) : saveResult === 'error' ? (
+                                    'Errore nel salvataggio'
+                                ) : (
+                                    'Salva profilo'
+                                )}
+                            </Button>
                         </div>
+                    )}
 
-                        {/* Save button */}
-                        <Button
-                            onClick={saveProfile}
-                            disabled={saving}
-                            className={`w-full gap-2 font-semibold rounded-xl py-2.5 transition-all ${saveResult === 'success'
-                                ? 'bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
-                                : saveResult === 'error'
-                                    ? 'bg-red-500 hover:bg-red-400'
-                                    : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
-                                }`}
-                        >
-                            {saving ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : saveResult === 'success' ? (
-                                <><Check className="w-4 h-4" /> Salvato!</>
-                            ) : saveResult === 'error' ? (
-                                'Errore nel salvataggio'
-                            ) : (
-                                'Salva profilo'
-                            )}
-                        </Button>
-                    </div>
+                    {/* ═══ BILLING TAB ═══ */}
+                    {activeTab === 'billing' && (
+                        <div className="space-y-5 animate-[fadeIn_0.15s_ease-out]">
+                            {/* Billing data */}
+                            <div className="space-y-3">
+                                <h3 className="text-xs font-bold text-slate-300 flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-cyan-400" /> Dati di Fatturazione</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Ragione Sociale</label>
+                                        <input value={bilCompany} onChange={e => setBilCompany(e.target.value)}
+                                            className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Partita IVA</label>
+                                        <input value={bilVat} onChange={e => setBilVat(e.target.value)}
+                                            className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Codice Fiscale</label>
+                                        <input value={bilFiscal} onChange={e => setBilFiscal(e.target.value)}
+                                            className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Codice SDI</label>
+                                        <input value={bilSdi} onChange={e => setBilSdi(e.target.value)}
+                                            className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">PEC</label>
+                                        <input value={bilPec} onChange={e => setBilPec(e.target.value)}
+                                            className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Indirizzo</label>
+                                        <input value={bilAddress} onChange={e => setBilAddress(e.target.value)}
+                                            className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Città</label>
+                                        <input value={bilCity} onChange={e => setBilCity(e.target.value)}
+                                            className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">CAP</label>
+                                        <input value={bilZip} onChange={e => setBilZip(e.target.value)}
+                                            className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
+                                    </div>
+                                </div>
+                                <Button
+                                    onClick={saveProfile}
+                                    disabled={saving}
+                                    className={`w-full gap-2 font-semibold rounded-xl py-2.5 transition-all ${saveResult === 'success'
+                                        ? 'bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
+                                        : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
+                                        }`}
+                                >
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveResult === 'success' ? <><Check className="w-4 h-4" /> Salvato!</> : 'Salva dati fatturazione'}
+                                </Button>
+                            </div>
+
+                            {/* Payment History */}
+                            <div className="space-y-3">
+                                <h3 className="text-xs font-bold text-slate-300 flex items-center gap-2"><History className="w-3.5 h-3.5 text-purple-400" /> Storico Pagamenti</h3>
+                                {payments.length === 0 ? (
+                                    <p className="text-xs text-slate-600 italic">Nessun pagamento registrato</p>
+                                ) : (
+                                    <div className="space-y-1 max-h-60 overflow-y-auto">
+                                        {payments.map((p: any) => (
+                                            <div key={p.id} className="flex items-center justify-between text-xs py-2 px-3 rounded-lg bg-slate-800/40 border border-white/5">
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <span className={`font-bold ${p.type === 'refund' ? 'text-red-400' : 'text-emerald-400'}`}>
+                                                        {p.type === 'refund' ? '−' : '+'}€{(Math.abs(p.amount_cents) / 100).toFixed(2)}
+                                                    </span>
+                                                    <span className="text-slate-500">{new Date(p.payment_date).toLocaleDateString('it-IT')}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    {p.receipt_number && (
+                                                        <button
+                                                            onClick={() => window.open(`/api/admin/receipt?id=${p.id}`, '_blank')}
+                                                            className="px-1.5 py-0.5 rounded text-[9px] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                                                        >
+                                                            📄 Ricevuta
+                                                        </button>
+                                                    )}
+                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${p.type === 'refund' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                                                        {p.type === 'refund' ? 'Rimborso' : 'Pagato'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

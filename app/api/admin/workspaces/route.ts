@@ -798,7 +798,7 @@ export async function POST(req: NextRequest) {
                 if (uniqueWsIds.length > 0) {
                     const { data: wsData } = await supabase
                         .from('workspaces')
-                        .select('id, name, slug, plan, max_members, max_spaces, max_rooms_per_space, max_guests, price_per_seat, plan_expires_at, plan_notes, monthly_amount_cents, payment_status, last_payment_at, created_at, deleted_at, suspended_at')
+                        .select('id, name, slug, plan, max_members, max_spaces, max_rooms_per_space, max_guests, price_per_seat, plan_expires_at, plan_notes, monthly_amount_cents, billing_cycle, next_invoice_date, payment_status, last_payment_at, created_at, deleted_at, suspended_at')
                         .in('id', uniqueWsIds)
                         .order('created_at', { ascending: false });
                     ownedWs = wsData || [];

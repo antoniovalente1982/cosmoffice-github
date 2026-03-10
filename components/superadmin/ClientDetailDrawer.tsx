@@ -140,6 +140,39 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
         const { data: { user } } = await supabase.auth.getUser();
         const amtCents = Math.round(parseFloat(payAmount) * 100);
         const ws = data?.workspaces?.find((w: any) => w.id === payWsId);
+
+        // Generate receipt number: R-YYYYMMDD-XXX
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+        const { count: todayCount } = await supabase
+            .from('payments')
+            .select('id', { count: 'exact', head: true })
+            .gte('created_at', now.toISOString().split('T')[0])
+            .lt('created_at', new Date(now.getTime() + 86400000).toISOString().split('T')[0]);
+        const receiptNumber = `R-${dateStr}-${String((todayCount || 0) + 1).padStart(3, '0')}`;
+
+        // Build receipt data
+        const receiptData = {
+            receipt_number: receiptNumber,
+            date: payDate,
+            type: payType,
+            workspace_name: ws?.name || '',
+            owner_name: data?.owner?.name || '',
+            owner_email: data?.owner?.email || '',
+            company_name: data?.owner?.companyName || '',
+            vat_number: data?.owner?.vatNumber || '',
+            fiscal_code: data?.owner?.fiscalCode || '',
+            billing_address: data?.owner?.billingAddress || '',
+            billing_city: data?.owner?.billingCity || '',
+            billing_zip: data?.owner?.billingZip || '',
+            billing_country: data?.owner?.billingCountry || 'IT',
+            sdi_code: data?.owner?.sdiCode || '',
+            pec: data?.owner?.pec || '',
+            amount_cents: payType === 'refund' ? -amtCents : amtCents,
+            reference: payRef || null,
+            notes: payNotes || null,
+        };
+
         const { error } = await supabase.from('payments').insert({
             workspace_id: payWsId,
             workspace_name: ws?.name || '',
@@ -154,13 +187,15 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
             recorded_by: user?.id,
             payment_date: payDate,
             notes: payNotes || null,
+            receipt_number: receiptNumber,
+            receipt_data: receiptData,
         });
         if (!error) {
             await supabase.from('workspaces').update({
                 payment_status: payType === 'refund' ? 'pending' : 'paid',
                 last_payment_at: payType === 'refund' ? undefined : new Date().toISOString(),
             }).eq('id', payWsId);
-            showFb('success', payType === 'refund' ? 'Rimborso registrato ✅' : 'Pagamento registrato ✅');
+            showFb('success', payType === 'refund' ? 'Rimborso registrato ✅' : `Pagamento registrato ✅ Ricevuta: ${receiptNumber}`);
             setPayWsId(null);
             loadDetail(); onRefresh();
         } else showFb('error', error.message);
@@ -803,9 +838,20 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                             <span className="text-slate-600 truncate">{p.workspace_name}</span>
                                                             {p.reference && <span className="text-slate-600">CRO: {p.reference}</span>}
                                                         </div>
-                                                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold shrink-0 ${p.type === 'refund' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
-                                                            {p.type === 'refund' ? 'Rimborso' : 'Pagamento'}
-                                                        </span>
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            {p.receipt_number && (
+                                                                <button
+                                                                    onClick={() => window.open(`/api/admin/receipt?id=${p.id}`, '_blank')}
+                                                                    className="px-1.5 py-0.5 rounded text-[9px] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                                                                    title={`Ricevuta ${p.receipt_number}`}
+                                                                >
+                                                                    📄 {p.receipt_number}
+                                                                </button>
+                                                            )}
+                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${p.type === 'refund' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                                                                {p.type === 'refund' ? 'Rimborso' : 'Pagamento'}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 ))}
                                                 <div className="pt-2 border-t border-white/5 flex justify-between text-xs">
