@@ -352,13 +352,30 @@ export async function POST(req: NextRequest) {
                 // 4. Owner membership is auto-created by the DB trigger `handle_new_workspace`
                 //    (no manual insert needed — it would cause a duplicate key violation)
 
-                // 5. Create default office space
-                await supabase.from('spaces').insert({
+                // 5. Create default office space (with correct columns)
+                const defaultLayoutData = {
+                    officeWidth: 4000,
+                    officeHeight: 3000,
+                    bgOpacity: 0.8,
+                    preset: 'team',
+                };
+                const { data: spaceData } = await supabase.from('spaces').insert({
                     workspace_id: wsData.id,
                     name: 'Ufficio Principale',
-                    layout: 'office',
-                    owner_id: targetUserId,
-                });
+                    slug: 'ufficio-principale',
+                    created_by: targetUserId,
+                    layout_data: defaultLayoutData,
+                }).select().single();
+
+                // 5b. Create default rooms if space was created
+                if (spaceData) {
+                    await supabase.from('rooms').insert([
+                        { space_id: spaceData.id, name: 'Lobby', type: 'reception', x: 400, y: 400, width: 250, height: 200 },
+                        { space_id: spaceData.id, name: 'Coffee Break', type: 'break', x: 700, y: 400, width: 200, height: 200 },
+                        { space_id: spaceData.id, name: 'Deep Work', type: 'focus', x: 400, y: 700, width: 300, height: 250 },
+                        { space_id: spaceData.id, name: 'Design Hub', type: 'meeting', x: 750, y: 700, width: 250, height: 250 },
+                    ]);
+                }
 
                 // 6. Generate magic link and send onboarding email via Resend
                 let emailSent = false;
