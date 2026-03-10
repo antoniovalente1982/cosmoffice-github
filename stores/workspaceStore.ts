@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { OfficeThemeId } from '../lib/officeThemes';
 
 // ============================================
 // WORKSPACE STORE — Rooms, config, builder state
@@ -97,6 +98,9 @@ interface WorkspaceState {
     // Admin-locked rooms
     lockedRoomIds: Set<string>;
 
+    // Theme
+    theme: OfficeThemeId;
+
     // Actions — space
     setActiveSpace: (spaceId: string) => void;
 
@@ -133,6 +137,9 @@ interface WorkspaceState {
 
     // Actions — admin
     setRoomLocked: (roomId: string, locked: boolean) => void;
+
+    // Actions — theme
+    setTheme: (theme: OfficeThemeId) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -145,6 +152,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     activeTab: 'office',
     isPerformanceMode: typeof window !== 'undefined' ? localStorage.getItem('isPerformanceMode') === 'true' : false,
     lockedRoomIds: new Set<string>(),
+    theme: 'space' as OfficeThemeId,
 
     isBuilderMode: false,
     bgOpacity: 0.8,
@@ -188,6 +196,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             landingPad: { x: 500, y: 500 },
             landingPadScale: 1,
             layoutMode: 'free' as const,
+            theme: 'space' as OfficeThemeId,
         });
     },
 
@@ -244,4 +253,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         if (locked) next.add(roomId); else next.delete(roomId);
         return { lockedRoomIds: next };
     }),
+
+    // ─── Theme ──────────────────────────────────────────────
+    setTheme: (theme) => set({ theme }),
 }));

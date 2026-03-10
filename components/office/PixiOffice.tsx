@@ -20,12 +20,68 @@ import { playCallRingSound } from '../../utils/sounds';
 import { drawSpaceship } from './PixiSpaceship';
 import { drawRoom, drawRoomConnections } from './PixiRoomLayer';
 import { createParticles, updateParticles, type Particle } from './PixiParticles';
+import { getThemeConfig, type OfficeThemeConfig } from '../../lib/officeThemes';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 function lerp(a: number, b: number, t: number) {
     return a + (b - a) * t;
 }
 
+// ─── Corporate lobby landing pad (alternative to Spaceship) ─────
+import { Graphics as PixiGraphics, Text as PixiText, TextStyle as PixiTextStyle } from 'pixi.js';
+
+function drawCorporateLobby(container: Container, x: number, y: number, scale: number = 1) {
+    container.removeChildren();
+    const g = new PixiGraphics();
+    const s = scale;
+
+    // Outer glow circle
+    g.circle(x, y, 70 * s);
+    g.fill({ color: 0x3b82f6, alpha: 0.06 });
+
+    // Main circle background
+    g.circle(x, y, 55 * s);
+    g.fill({ color: 0xffffff, alpha: 0.95 });
+    g.circle(x, y, 55 * s);
+    g.stroke({ color: 0x93c5fd, width: 2.5, alpha: 0.5 });
+
+    // Building icon (simple corporate building shape)
+    const bw = 24 * s; const bh = 32 * s;
+    const bx = x - bw / 2; const by = y - bh / 2 - 4 * s;
+
+    // Main building
+    g.roundRect(bx, by, bw, bh, 3 * s);
+    g.fill({ color: 0x3b82f6, alpha: 0.85 });
+
+    // Windows (2x3 grid)
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 2; col++) {
+            const wx = bx + 4 * s + col * 10 * s;
+            const wy = by + 4 * s + row * 9 * s;
+            g.roundRect(wx, wy, 6 * s, 5 * s, 1 * s);
+            g.fill({ color: 0xbfdbfe, alpha: 0.9 });
+        }
+    }
+
+    // Door
+    g.roundRect(x - 4 * s, by + bh - 7 * s, 8 * s, 7 * s, 1.5 * s);
+    g.fill({ color: 0x1d4ed8, alpha: 0.9 });
+
+    container.addChild(g);
+
+    // Label
+    const style = new PixiTextStyle({
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: 11 * s,
+        fontWeight: '700',
+        fill: 0x1e293b,
+        letterSpacing: 1,
+    });
+    const label = new PixiText({ text: 'RECEPTION', style, resolution: 2 });
+    label.anchor.set(0.5, 0);
+    label.position.set(x, y + 60 * s);
+    container.addChild(label);
+}
 // ─── Main Component ──────────────────────────────────────────────
 export function PixiOffice() {
     const supabase = createClient();
@@ -55,6 +111,8 @@ export function PixiOffice() {
     const setLandingPad = useWorkspaceStore(s => s.setLandingPad);
     const landingPadScale = useWorkspaceStore(s => s.landingPadScale);
     const setLandingPadScale = useWorkspaceStore(s => s.setLandingPadScale);
+    const theme = useWorkspaceStore(s => s.theme);
+    const themeConfig = useMemo(() => getThemeConfig(theme), [theme]);
 
     // ─── Sync low-power-mode class on body for global CSS rules ──
     useEffect(() => {
@@ -190,7 +248,7 @@ export function PixiOffice() {
         const initApp = async () => {
             await app.init({
                 canvas: canvasRef.current!,
-                background: 0x050a15,
+                background: themeConfig.canvasBg,
                 antialias: true,
                 resolution: window.devicePixelRatio || 2,
                 autoDensity: true,
@@ -237,15 +295,20 @@ export function PixiOffice() {
             world.addChildAt(aura.graphics, world.getChildIndex(roomLayer));
             auraRef.current = aura;
 
-            // Spaceship landing pad layer
+            // Spaceship / Corporate landing pad layer
             const spaceshipContainer = new Container();
             spaceshipContainer.label = 'spaceship';
             world.addChild(spaceshipContainer);
             spaceshipRef.current = spaceshipContainer;
 
-            // Draw initial spaceship
+            // Draw initial landing pad (spaceship or corporate lobby)
             const padPos = useWorkspaceStore.getState().landingPad;
-            drawSpaceship(spaceshipContainer, padPos.x, padPos.y, 0, useWorkspaceStore.getState().landingPadScale);
+            const currentTheme = getThemeConfig(useWorkspaceStore.getState().theme);
+            if (currentTheme.showSpaceship) {
+                drawSpaceship(spaceshipContainer, padPos.x, padPos.y, 0, useWorkspaceStore.getState().landingPadScale);
+            } else {
+                drawCorporateLobby(spaceshipContainer, padPos.x, padPos.y, useWorkspaceStore.getState().landingPadScale);
+            }
 
             // Initialize particles
             particlesRef.current = createParticles(20, oW, oH);
@@ -254,13 +317,14 @@ export function PixiOffice() {
             if (platformGfxRef.current) {
                 const pg = platformGfxRef.current;
                 const currentMode = useWorkspaceStore.getState().layoutMode;
+                const tc = getThemeConfig(useWorkspaceStore.getState().theme);
                 if (currentMode === 'free') {
                     pg.roundRect(0, 0, oW, oH, 120);
-                    pg.fill({ color: 0x06b6d4, alpha: 0.02 });
+                    pg.fill({ color: tc.platformFill, alpha: tc.platformFillAlpha });
                     pg.roundRect(40, 40, oW - 80, oH - 80, 80);
-                    pg.fill({ color: 0x0a0f1e, alpha: 0.75 });
+                    pg.fill({ color: tc.platformInnerFill, alpha: tc.platformInnerAlpha });
                     pg.roundRect(40, 40, oW - 80, oH - 80, 80);
-                    pg.stroke({ color: 0x06b6d4, width: 1, alpha: 0.15 });
+                    pg.stroke({ color: tc.platformBorder, width: 1, alpha: tc.platformBorderAlpha });
                 }
             }
 
@@ -279,15 +343,21 @@ export function PixiOffice() {
 
                 frameCount++;
 
-                // Particles + Spaceship at ~4fps (every 8th frame at 30fps)
+                // Particles + Landing Pad at ~4fps (every 8th frame at 30fps)
                 if (frameCount % 8 === 0) {
                     if (particleGfxRef.current) {
-                        updateParticles(particleGfxRef.current, particlesRef.current, oW, oH, useWorkspaceStore.getState().isPerformanceMode);
+                        const tc = getThemeConfig(useWorkspaceStore.getState().theme);
+                        updateParticles(particleGfxRef.current, particlesRef.current, oW, oH, useWorkspaceStore.getState().isPerformanceMode, tc.particleColors, tc.particleAlpha);
                     }
                     if (spaceshipRef.current) {
                         spaceshipFrameRef.current = frameCount;
                         const padPos = useWorkspaceStore.getState().landingPad;
-                        drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount, useWorkspaceStore.getState().landingPadScale);
+                        const tc = getThemeConfig(useWorkspaceStore.getState().theme);
+                        if (tc.showSpaceship) {
+                            drawSpaceship(spaceshipRef.current, padPos.x, padPos.y, frameCount, useWorkspaceStore.getState().landingPadScale);
+                        } else {
+                            drawCorporateLobby(spaceshipRef.current, padPos.x, padPos.y, useWorkspaceStore.getState().landingPadScale);
+                        }
                     }
                 }
 
@@ -349,9 +419,10 @@ export function PixiOffice() {
             if (changed) {
                 peersByRoomRef.current = counts;
                 const existingContainers = roomContainersRef.current;
+                const tc = getThemeConfig(useWorkspaceStore.getState().theme);
                 useWorkspaceStore.getState().rooms.forEach((room: any) => {
                     const rc = existingContainers.get(room.id);
-                    if (rc) drawRoom(rc, room, false, counts[room.id] || 0);
+                    if (rc) drawRoom(rc, room, false, counts[room.id] || 0, tc);
                 });
             }
         };
@@ -389,7 +460,7 @@ export function PixiOffice() {
                 existingContainers.set(room.id, rc);
             }
             const isHovered = hoveredRoomId === room.id;
-            drawRoom(rc, room, isHovered, peersByRoom[room.id] || 0);
+            drawRoom(rc, room, isHovered, peersByRoom[room.id] || 0, themeConfig);
         });
 
         // Draw room connections
@@ -725,24 +796,17 @@ export function PixiOffice() {
             className={`w-full h-full overflow-hidden relative ${isPerformanceMode ? 'low-power-mode' : ''}`}
             style={{
                 cursor: isDraggingAvatar ? 'grabbing' : 'grab',
-                background: `
-                    radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
-                    radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.12) 0%, transparent 40%),
-                    radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.08) 0%, transparent 60%),
-                    linear-gradient(135deg, #050a15 0%, #0a0f1e 50%, #030712 100%)
-                `,
+                background: themeConfig.bgGradientCSS,
             }}
         >
             {/* Animated grid overlay */}
             {!isPerformanceMode && (
                 <div
-                    className="absolute inset-0 pointer-events-none opacity-20"
+                    className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundImage: `
-                            linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px)
-                        `,
-                        backgroundSize: '60px 60px',
+                        opacity: themeConfig.gridOpacity,
+                        backgroundImage: themeConfig.gridCSS,
+                        backgroundSize: themeConfig.id === 'corporate' ? '20px 20px' : '60px 60px',
                     }}
                 />
             )}
@@ -770,8 +834,8 @@ export function PixiOffice() {
                         <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Live</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
-                        <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">WebGL</span>
+                        <div className={`w-2 h-2 rounded-full ${themeConfig.id === 'corporate' ? 'bg-blue-500' : 'bg-cyan-400'} shadow-[0_0_6px_${themeConfig.id === 'corporate' ? 'rgba(59,130,246,0.8)' : 'rgba(34,211,238,0.8)'}]`} />
+                        <span className={`text-[10px] font-bold ${themeConfig.hudBadgeColor} uppercase tracking-widest`}>{themeConfig.hudBadgeText}</span>
                     </div>
                     <p className="text-xs font-medium text-slate-300">
                         Trascina il tuo avatar per muoverti • Trascina la mappa • Scroll per zoomare

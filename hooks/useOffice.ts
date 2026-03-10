@@ -14,6 +14,7 @@ export function useOffice(spaceId?: string) {
     const setLandingPad = useWorkspaceStore(s => s.setLandingPad);
     const setLandingPadScale = useWorkspaceStore(s => s.setLandingPadScale);
     const setLayoutMode = useWorkspaceStore(s => s.setLayoutMode);
+    const setTheme = useWorkspaceStore(s => s.setTheme);
 
     // ─── Initial full fetch (once) ───────────────────────────
     const fetchOfficeData = useCallback(async () => {
@@ -46,6 +47,25 @@ export function useOffice(spaceId?: string) {
                 setLayoutMode('free'); // Backward compat
             } else if (layout.layoutMode === 'mindmap') {
                 setLayoutMode('teamsmap'); // Backward compat
+            }
+        }
+
+        // Fetch workspace theme
+        const { data: spaceForWs } = await supabase
+            .from('spaces')
+            .select('workspace_id')
+            .eq('id', spaceId)
+            .single();
+        if (spaceForWs?.workspace_id) {
+            const { data: ws } = await supabase
+                .from('workspaces')
+                .select('settings')
+                .eq('id', spaceForWs.workspace_id)
+                .single();
+            if (ws?.settings?.theme) {
+                setTheme(ws.settings.theme);
+            } else {
+                setTheme('space');
             }
         }
 
@@ -83,7 +103,7 @@ export function useOffice(spaceId?: string) {
         if (!connError && connections) {
             setRoomConnections(connections);
         }
-    }, [spaceId, supabase, setRooms, setRoomConnections, setFurnitureItems, setOfficeDimensions, setBgOpacity, setLandingPad, setLandingPadScale, setLayoutMode]);
+    }, [spaceId, supabase, setRooms, setRoomConnections, setFurnitureItems, setOfficeDimensions, setBgOpacity, setLandingPad, setLandingPadScale, setLayoutMode, setTheme]);
 
     useEffect(() => {
         fetchOfficeData();

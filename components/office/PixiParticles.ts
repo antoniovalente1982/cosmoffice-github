@@ -35,16 +35,22 @@ export function updateParticles(
     particles: Particle[],
     oW: number,
     oH: number,
-    isPerformanceMode: boolean
+    isPerformanceMode: boolean,
+    colors?: number[],
+    baseAlpha?: number,
 ) {
     gfx.clear();
     if (isPerformanceMode) return;
 
-    particles.forEach(p => {
+    const particleColors = colors || [0x6366f1];
+    const alphaMultiplier = baseAlpha ?? 1;
+
+    particles.forEach((p, i) => {
         p.x = (p.x + p.vx * 4 + oW) % oW;
         p.y = (p.y + p.vy * 4 + oH) % oH;
+        const color = particleColors[i % particleColors.length];
         gfx.circle(p.x, p.y, p.size);
-        gfx.fill({ color: 0x6366f1, alpha: p.alpha });
+        gfx.fill({ color, alpha: p.alpha * alphaMultiplier });
     });
 }
 

@@ -4,6 +4,7 @@
 
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { getRoomColor } from './OfficeBuilder';
+import type { OfficeThemeConfig } from '../../lib/officeThemes';
 
 
 function hexColor(hex: string): number {
@@ -41,7 +42,7 @@ export function getRoomEdge(room: any, targetX: number, targetY: number): { x: n
  * Draw a single room card onto its container
  * Supports shape: 'rect' (default) and 'circle'
  */
-export function drawRoom(container: Container, room: any, isHovered: boolean, occupants: number = 0) {
+export function drawRoom(container: Container, room: any, isHovered: boolean, occupants: number = 0, theme?: OfficeThemeConfig) {
     container.removeChildren();
 
     const color = getRoomColor(room);
@@ -49,53 +50,60 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     const department = room.settings?.department || room.department || null;
     const isCircle = room.shape === 'circle';
 
+    // Theme-driven colors
+    const roomBgColor = theme?.roomBg ?? 0x070c18;
+    const roomBgAlpha = theme?.roomBgAlpha ?? 0.85;
+    const glowAlpha = isHovered ? (theme?.roomGlowHoverAlpha ?? 0.20) : (theme?.roomGlowAlpha ?? 0.10);
+    const midGlowAlpha = isHovered ? (glowAlpha * 0.7) : (glowAlpha * 0.7);
+    const textColor = theme?.roomTextColor ?? 0xffffff;
+    const statusColor = theme?.roomStatusTextColor ?? 0x34d399;
+
     // ─── Background layers ───────────────────────────────────
     const body = new Graphics();
 
     if (isCircle) {
-        // Circle room: center + radius from bounding box
         const cx = room.x + room.width / 2;
         const cy = room.y + room.height / 2;
         const r = Math.min(room.width, room.height) / 2;
 
         // Outer soft glow
         body.circle(cx, cy, r + 8);
-        body.fill({ color: colorNum, alpha: isHovered ? 0.20 : 0.10 });
+        body.fill({ color: colorNum, alpha: glowAlpha });
 
         // Mid glow
         body.circle(cx, cy, r + 3);
-        body.fill({ color: colorNum, alpha: isHovered ? 0.14 : 0.07 });
+        body.fill({ color: colorNum, alpha: midGlowAlpha });
 
-        // Main background — dark glass
+        // Main background
         body.circle(cx, cy, r);
-        body.fill({ color: 0x070c18, alpha: 0.85 });
+        body.fill({ color: roomBgColor, alpha: roomBgAlpha });
 
         // Color tint overlay
         body.circle(cx, cy, r);
         body.fill({ color: colorNum, alpha: isHovered ? 0.12 : 0.05 });
 
-        // Border — thick and glowing
+        // Border
         body.circle(cx, cy, r);
         body.stroke({ color: colorNum, width: isHovered ? 4 : 3, alpha: isHovered ? 0.95 : 0.6 });
     } else {
-        // Rect room (original)
+        // Rect room
         // Outer soft glow
         body.roundRect(room.x - 8, room.y - 8, room.width + 16, room.height + 16, 24);
-        body.fill({ color: colorNum, alpha: isHovered ? 0.20 : 0.10 });
+        body.fill({ color: colorNum, alpha: glowAlpha });
 
         // Mid glow
         body.roundRect(room.x - 3, room.y - 3, room.width + 6, room.height + 6, 19);
-        body.fill({ color: colorNum, alpha: isHovered ? 0.14 : 0.07 });
+        body.fill({ color: colorNum, alpha: midGlowAlpha });
 
-        // Main card background — dark glass
+        // Main card background
         body.roundRect(room.x, room.y, room.width, room.height, 16);
-        body.fill({ color: 0x070c18, alpha: 0.85 });
+        body.fill({ color: roomBgColor, alpha: roomBgAlpha });
 
         // Color tint overlay
         body.roundRect(room.x, room.y, room.width, room.height, 16);
         body.fill({ color: colorNum, alpha: isHovered ? 0.12 : 0.05 });
 
-        // Border — thick and glowing
+        // Border
         body.roundRect(room.x, room.y, room.width, room.height, 16);
         body.stroke({ color: colorNum, width: isHovered ? 4 : 3, alpha: isHovered ? 0.95 : 0.6 });
     }
@@ -111,7 +119,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 18,
         fontWeight: '700',
-        fill: 0xffffff,
+        fill: textColor,
         letterSpacing: 0.3,
     });
     const nameText = new Text({ text: room.name, style: nameStyle, resolution: 2 });
@@ -153,7 +161,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
             fontFamily: 'Inter, system-ui, sans-serif',
             fontSize: 12,
             fontWeight: '700',
-            fill: 0x34d399,
+            fill: statusColor,
             letterSpacing: 0.3,
         });
         const statusText = `${occupants} online`;
@@ -169,7 +177,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
             // Green dot
             const statusDot = new Graphics();
             statusDot.circle(room.x + room.width / 2 - status.width / 2 - 10, statusY, 3.5);
-            statusDot.fill({ color: 0x34d399, alpha: 1 });
+            statusDot.fill({ color: statusColor, alpha: 1 });
             container.addChild(statusDot);
             container.addChild(status);
         } else {
@@ -179,7 +187,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
             // Green dot
             const statusDot = new Graphics();
             statusDot.circle(room.x + 14, statusY, 3.5);
-            statusDot.fill({ color: 0x34d399, alpha: 1 });
+            statusDot.fill({ color: statusColor, alpha: 1 });
             container.addChild(statusDot);
             container.addChild(status);
         }

@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
+import { getThemeConfig } from '../../lib/officeThemes';
 
 // ============================================
 // DayNightCycle — ambient time indicator + stars
-// Shows current time + emoji, always-on stars
+// Shows current time + emoji, always-on stars (space theme)
 // ============================================
 
 function getPhaseEmoji(hour: number): string {
@@ -30,6 +32,8 @@ const STAR_DATA = Array.from({ length: 25 }, (_, i) => ({
 export function DayNightCycle() {
     const [timeStr, setTimeStr] = useState(() => new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }));
     const [emoji, setEmoji] = useState(() => getPhaseEmoji(new Date().getHours()));
+    const theme = useWorkspaceStore(s => s.theme);
+    const themeConfig = useMemo(() => getThemeConfig(theme), [theme]);
 
     useEffect(() => {
         const update = () => {
@@ -43,37 +47,41 @@ export function DayNightCycle() {
 
     return (
         <>
-            {/* Stars — always visible, subtle space atmosphere */}
-            <div className="absolute inset-0 pointer-events-none z-[1] overflow-hidden">
-                {STAR_DATA.map(star => (
-                    <div
-                        key={star.key}
-                        className="absolute rounded-full bg-white"
-                        style={{
-                            width: star.size,
-                            height: star.size,
-                            left: star.left,
-                            top: star.top,
-                            opacity: star.opacity,
-                            animation: `starTwinkle ${star.animDuration} ease-in-out infinite ${star.animDelay}`,
-                        }}
-                    />
-                ))}
-            </div>
+            {/* Stars — only in space theme */}
+            {themeConfig.showStars && (
+                <div className="absolute inset-0 pointer-events-none z-[1] overflow-hidden">
+                    {STAR_DATA.map(star => (
+                        <div
+                            key={star.key}
+                            className="absolute rounded-full bg-white"
+                            style={{
+                                width: star.size,
+                                height: star.size,
+                                left: star.left,
+                                top: star.top,
+                                opacity: star.opacity,
+                                animation: `starTwinkle ${star.animDuration} ease-in-out infinite ${star.animDelay}`,
+                            }}
+                        />
+                    ))}
+                </div>
+            )}
 
             {/* Time indicator — bottom right */}
-            <div className="absolute bottom-4 right-4 z-[2] flex items-center gap-2 px-4 py-2 rounded-2xl border border-white/10 pointer-events-none"
-                style={{ background: 'rgba(15, 23, 42, 0.85)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+            <div className={`absolute bottom-4 right-4 z-[2] flex items-center gap-2 px-4 py-2 rounded-2xl border ${themeConfig.id === 'corporate' ? 'border-slate-200' : 'border-white/10'} pointer-events-none`}
+                style={{ background: themeConfig.id === 'corporate' ? 'rgba(255,255,255,0.9)' : 'rgba(15, 23, 42, 0.85)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
                 <span className="text-lg leading-none">{emoji}</span>
-                <span className="text-sm font-semibold text-white/80 tabular-nums tracking-wide">{timeStr}</span>
+                <span className={`text-sm font-semibold tabular-nums tracking-wide ${themeConfig.id === 'corporate' ? 'text-slate-700' : 'text-white/80'}`}>{timeStr}</span>
             </div>
 
-            <style jsx global>{`
-                @keyframes starTwinkle {
-                    0%, 100% { opacity: 0.15; }
-                    50% { opacity: 0.8; }
-                }
-            `}</style>
+            {themeConfig.showStars && (
+                <style jsx global>{`
+                    @keyframes starTwinkle {
+                        0%, 100% { opacity: 0.15; }
+                        50% { opacity: 0.8; }
+                    }
+                `}</style>
+            )}
         </>
     );
 }
