@@ -120,24 +120,24 @@ function drawCorporateLobby(container: Container, x: number, y: number, scale: n
 
     container.addChild(g);
 
-    // ── RECEPTION text ──────────────────────────────────────
+    // ── RECEPTION text — below the lobby ─────────────────────
     const titleStyle = new PixiTextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 13 * s,
+        fontSize: 16 * s,
         fontWeight: '700',
         fill: 0xffffff,
-        letterSpacing: 5,
+        letterSpacing: 2,
         dropShadow: { color: 0x000000, alpha: 0.5, blur: 4, distance: 0 },
     });
-    const title = new PixiText({ text: 'R E C E P T I O N', style: titleStyle, resolution: 2 });
-    title.anchor.set(0.5, 0.5);
-    title.position.set(x, y - 72 * s);
+    const title = new PixiText({ text: 'RECEPTION', style: titleStyle, resolution: 2 });
+    title.anchor.set(0.5, 0);
+    title.position.set(x, y + 92 * s);
     container.addChild(title);
 
-    // Decorative line under text
+    // Decorative line above text
     const line = new PixiGraphics();
-    line.roundRect(x - 40 * s, y - 62 * s, 80 * s, 1 * s, 0);
-    line.fill({ color: 0x3b82f6, alpha: 0.5 });
+    line.roundRect(x - 35 * s, y + 88 * s, 70 * s, 1 * s, 0);
+    line.fill({ color: 0x3b82f6, alpha: 0.4 });
     container.addChild(line);
 }
 // ─── Main Component ──────────────────────────────────────────────
