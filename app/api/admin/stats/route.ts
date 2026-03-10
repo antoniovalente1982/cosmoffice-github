@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { formatEurCents } from '../../../../lib/currency';
 
 export const dynamic = 'force-dynamic';
 async function getAdminClient(req: NextRequest) {
@@ -336,16 +337,16 @@ export async function GET(req: NextRequest) {
             },
             revenue: {
                 totalCents: revenueCents,
-                totalFormatted: `€${(revenueCents / 100).toFixed(2)}`,
+                totalFormatted: formatEurCents(revenueCents),
                 paidWorkspaces,
                 mrr,
-                mrrFormatted: `€${(mrr / 100).toFixed(2)}`,
+                mrrFormatted: formatEurCents(mrr),
                 arr,
-                arrFormatted: `€${(arr / 100).toFixed(2)}`,
+                arrFormatted: formatEurCents(arr),
                 thisMonth: revenueThisMonth,
-                thisMonthFormatted: `€${(revenueThisMonth / 100).toFixed(2)}`,
+                thisMonthFormatted: formatEurCents(revenueThisMonth),
                 lastMonth: revenueLastMonth,
-                lastMonthFormatted: `€${(revenueLastMonth / 100).toFixed(2)}`,
+                lastMonthFormatted: formatEurCents(revenueLastMonth),
                 totalPayments,
                 recentPayments,
             },

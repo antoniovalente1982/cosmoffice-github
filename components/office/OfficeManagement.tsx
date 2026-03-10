@@ -509,7 +509,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                             <div key={p.id} className="flex items-center justify-between text-xs py-2 px-3 rounded-lg bg-slate-800/40 border border-white/5">
                                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                                     <span className={`font-bold ${p.type === 'refund' ? 'text-red-400' : 'text-emerald-400'}`}>
-                                                        {p.type === 'refund' ? '−' : '+'}€{(Math.abs(p.amount_cents) / 100).toFixed(2)}
+                                                        {p.type === 'refund' ? '−' : '+'}€{new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(p.amount_cents) / 100)}
                                                     </span>
                                                     <span className="text-slate-500">{new Date(p.payment_date).toLocaleDateString('it-IT')}</span>
                                                 </div>

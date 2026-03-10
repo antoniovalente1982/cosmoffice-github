@@ -8,6 +8,10 @@ import {
     Headphones, CircleDot, Clock, CheckCircle2, XCircle, AlertCircleIcon,
     Server, Globe, CreditCard, Banknote, BarChart3, Target, Gauge,
 } from 'lucide-react';
+import { formatNumber, formatEurCents } from '../../lib/currency';
+
+const fmtN = (n: number) => formatNumber(n);
+const fmtC = (cents: number) => formatEurCents(cents);
 
 /* ═══════════════════════════════════════════════════════════════
  *  TYPES
@@ -145,7 +149,7 @@ function MiniStat({ icon: Icon, label, value, color = 'text-slate-300' }: {
                 </div>
                 <span className="text-[12px] text-slate-400">{label}</span>
             </div>
-            <span className={`text-[12px] font-bold tabular-nums ${color}`}>{value}</span>
+            <span className={`text-[12px] font-bold tabular-nums ${color}`}>{typeof value === 'number' ? fmtN(value) : value}</span>
         </div>
     );
 }
@@ -159,7 +163,7 @@ function ProgressBar({ value, max, color = 'bg-cyan-500', label }: {
             {label && (
                 <div className="flex items-center justify-between text-[10px]">
                     <span className="text-slate-500">{label}</span>
-                    <span className="text-white font-bold tabular-nums">{value}/{max}</span>
+                    <span className="text-white font-bold tabular-nums">{fmtN(value)}/{fmtN(max)}</span>
                 </div>
             )}
             <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
@@ -365,16 +369,16 @@ export default function AdminOverview() {
                     HERO KPIs — 6 cards
                 ═══════════════════════════════════════════ */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <HeroKPI icon={Users} label="Utenti" value={isFiltered ? s.users.registeredInPeriod : s.users.total}
-                        subtitle={isFiltered ? `registrati · ${s.users.total} totali` : `${s.users.unique} unici · ${s.users.activeInPeriod} attivi`}
+                    <HeroKPI icon={Users} label="Utenti" value={fmtN(isFiltered ? s.users.registeredInPeriod : s.users.total)}
+                        subtitle={isFiltered ? `registrati · ${fmtN(s.users.total)} totali` : `${fmtN(s.users.unique)} unici · ${fmtN(s.users.activeInPeriod)} attivi`}
                         color="text-cyan-400" accentBg="radial-gradient(circle,#06b6d4,transparent)" change={s.users.recentSignups} delay={0} />
 
-                    <HeroKPI icon={Building2} label="Workspace" value={isFiltered ? s.workspaces.recentNew : s.workspaces.active}
-                        subtitle={isFiltered ? `nuovi · ${s.workspaces.total} totali` : `${s.workspaces.total} totali · ${s.workspaces.totalSpaces} uffici`}
+                    <HeroKPI icon={Building2} label="Workspace" value={fmtN(isFiltered ? s.workspaces.recentNew : s.workspaces.active)}
+                        subtitle={isFiltered ? `nuovi · ${fmtN(s.workspaces.total)} totali` : `${fmtN(s.workspaces.total)} totali · ${fmtN(s.workspaces.totalSpaces)} uffici`}
                         color="text-purple-400" accentBg="radial-gradient(circle,#a855f7,transparent)" change={s.workspaces.recentNew} delay={50} />
 
-                    <HeroKPI icon={Crown} label="Owner" value={s.users.owners}
-                        subtitle={`${s.workspaces.paidWorkspaces} paganti · ${s.users.admins} admin`}
+                    <HeroKPI icon={Crown} label="Owner" value={fmtN(s.users.owners)}
+                        subtitle={`${fmtN(s.workspaces.paidWorkspaces)} paganti · ${fmtN(s.users.admins)} admin`}
                         color="text-amber-400" accentBg="radial-gradient(circle,#f59e0b,transparent)" delay={100} />
 
                     <HeroKPI icon={TrendingUp} label="MRR" value={s.revenue.mrrFormatted}
@@ -385,8 +389,8 @@ export default function AdminOverview() {
                         subtitle={`Mese prec: ${s.revenue.lastMonthFormatted}`}
                         color="text-green-400" accentBg="radial-gradient(circle,#22c55e,transparent)" change={revenueChange} delay={200} />
 
-                    <HeroKPI icon={Headphones} label="Ticket" value={ticketsActive}
-                        subtitle={`${s.tickets.open} aperti · ${s.tickets.in_progress} in corso`}
+                    <HeroKPI icon={Headphones} label="Ticket" value={fmtN(ticketsActive)}
+                        subtitle={`${fmtN(s.tickets.open)} aperti · ${fmtN(s.tickets.in_progress)} in corso`}
                         color={ticketsActive > 0 ? 'text-amber-400' : 'text-emerald-400'}
                         accentBg={ticketsActive > 0 ? 'radial-gradient(circle,#f59e0b,transparent)' : 'radial-gradient(circle,#10b981,transparent)'} delay={250} />
                 </div>
@@ -427,7 +431,7 @@ export default function AdminOverview() {
                                         })()}
                                     </svg>
                                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-2xl font-black text-white tabular-nums">{s.users.total}</span>
+                                        <span className="text-2xl font-black text-white tabular-nums">{fmtN(s.users.total)}</span>
                                         <span className="text-[8px] text-slate-500 uppercase tracking-widest">totali</span>
                                     </div>
                                 </div>
@@ -450,7 +454,7 @@ export default function AdminOverview() {
                                     <DollarSign className="w-4 h-4 text-emerald-400" />
                                     <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Financial Overview</h2>
                                 </div>
-                                <span className="text-[9px] text-slate-600 tabular-nums">{s.revenue.totalPayments} transazioni</span>
+                                <span className="text-[9px] text-slate-600 tabular-nums">{fmtN(s.revenue.totalPayments)} transazioni</span>
                             </div>
 
                             {/* Big MRR/ARR row */}
@@ -489,7 +493,7 @@ export default function AdminOverview() {
                                         </div>
                                         <span className="text-[10px] text-slate-600 tabular-nums">{new Date(p.payment_date).toLocaleDateString('it-IT')}</span>
                                         <span className={`text-[11px] font-bold tabular-nums ${p.type === 'refund' ? 'text-red-400' : 'text-emerald-400'}`}>
-                                            {p.type === 'refund' ? '−' : '+'}€{(Math.abs(p.amount_cents) / 100).toFixed(2)}
+                                            {p.type === 'refund' ? '−' : '+'}{fmtC(Math.abs(p.amount_cents))}
                                         </span>
                                     </div>
                                 ))}
@@ -508,11 +512,11 @@ export default function AdminOverview() {
                             {/* Workspace status grid */}
                             <div className="grid grid-cols-2 gap-2 mb-4">
                                 <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/15 text-center">
-                                    <p className="text-2xl font-black text-emerald-400 tabular-nums">{s.workspaces.active}</p>
+                                    <p className="text-2xl font-black text-emerald-400 tabular-nums">{fmtN(s.workspaces.active)}</p>
                                     <p className="text-[8px] text-emerald-400/60 uppercase tracking-widest font-bold">Attivi</p>
                                 </div>
                                 <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/15 text-center">
-                                    <p className="text-2xl font-black text-amber-400 tabular-nums">{s.workspaces.suspended}</p>
+                                    <p className="text-2xl font-black text-amber-400 tabular-nums">{fmtN(s.workspaces.suspended)}</p>
                                     <p className="text-[8px] text-amber-400/60 uppercase tracking-widest font-bold">Sospesi</p>
                                 </div>
                             </div>
@@ -546,7 +550,7 @@ export default function AdminOverview() {
                                     <Headphones className="w-4 h-4 text-amber-400" />
                                     <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Centro Assistenza</h2>
                                 </div>
-                                <span className="text-[9px] text-slate-600 tabular-nums">{s.tickets.total} totali</span>
+                                <span className="text-[9px] text-slate-600 tabular-nums">{fmtN(s.tickets.total)} totali</span>
                             </div>
 
                             {/* Ticket stats row */}
@@ -558,7 +562,7 @@ export default function AdminOverview() {
                                     { l: 'Chiusi', v: s.tickets.closed, c: 'text-slate-400', bg: 'bg-slate-500/10 border-slate-500/15' },
                                 ].map(t => (
                                     <div key={t.l} className={`p-2 rounded-xl border text-center ${t.bg}`}>
-                                        <p className={`text-lg font-black tabular-nums ${t.c}`}>{t.v}</p>
+                                        <p className={`text-lg font-black tabular-nums ${t.c}`}>{fmtN(t.v)}</p>
                                         <p className="text-[7px] text-slate-500 uppercase tracking-widest font-bold">{t.l}</p>
                                     </div>
                                 ))}
@@ -612,7 +616,7 @@ export default function AdminOverview() {
                                                     <span className={`w-2 h-2 rounded-full ${isPremium ? 'bg-amber-400' : 'bg-slate-400'}`} />
                                                     <span className={`text-xs font-bold uppercase tracking-wider ${isPremium ? 'text-amber-300' : 'text-slate-400'}`}>{plan}</span>
                                                 </div>
-                                                <span className="text-xs font-bold text-white tabular-nums">{count} <span className="text-slate-600">({pct}%)</span></span>
+                                                <span className="text-xs font-bold text-white tabular-nums">{fmtN(count)} <span className="text-slate-600">({pct}%)</span></span>
                                             </div>
                                             <div className="h-2 rounded-full bg-white/[0.04] overflow-hidden">
                                                 <div className={`h-full rounded-full ${isPremium ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-slate-500 to-slate-600'}`}

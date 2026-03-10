@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { sendNewCustomerEmail } from '../../../../lib/resend';
 
+const fmtIT = (n: number, dec = 2) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
+
 async function getAdminClient(req: NextRequest) {
     const res = NextResponse.next();
     const supabase = createServerClient(
@@ -1217,7 +1219,7 @@ export async function POST(req: NextRequest) {
                         type: 'payment',
                         amount_cents: totalCents,
                         plan_at_time: monthly_amount_cents > 0 ? 'premium' : 'demo',
-                        description: `Pagamento ${cycleLabels[cycle] || cycle} — ${wsInfo?.name || ''} (${max_members || '?'} accessi × €${((price_per_seat || 0) / 100).toFixed(2)} × ${months} mesi)`,
+                        description: `Pagamento ${cycleLabels[cycle] || cycle} — ${wsInfo?.name || ''} (${max_members || '?'} accessi × €${fmtIT((price_per_seat || 0) / 100)} × ${months} mesi)`,
                         payment_method: 'bank_transfer',
                         payment_date: today,
                         recorded_by: userId,
@@ -1341,7 +1343,7 @@ export async function POST(req: NextRequest) {
                     status: 'pending',
                     due_date: dueDate,
                     invoice_number: invoiceNum,
-                    description: `Ricevuta ${billingCycle === 'annual' ? 'annuale' : 'mensile'} — ${ws.name} (${seats} accessi × ${(ppsCents / 100).toFixed(2)}€)`,
+                    description: `Ricevuta ${billingCycle === 'annual' ? 'annuale' : 'mensile'} — ${ws.name} (${seats} accessi × ${fmtIT(ppsCents / 100)}€)`,
                     created_by: userId,
                     seller_snapshot: sellerSnapshot,
                     buyer_snapshot: buyerSnapshot,
@@ -1360,7 +1362,7 @@ export async function POST(req: NextRequest) {
                 const notifOwner = ownerIdForInv || (await getOwnerUserId(workspaceId));
                 if (notifOwner) {
                     await sendNotification(notifOwner, '📄 Nuova Ricevuta',
-                        `Ricevuta ${invoiceNum} di €${(total / 100).toFixed(2)} per "${ws.name}". Scadenza: ${dueDate}.`,
+                        `Ricevuta ${invoiceNum} di €${fmtIT(total / 100)} per "${ws.name}". Scadenza: ${dueDate}.`,
                         'workspace', workspaceId);
                 }
 
@@ -1399,7 +1401,7 @@ export async function POST(req: NextRequest) {
                 const ownerId2 = await getOwnerUserId(inv.workspace_id);
                 if (ownerId2) {
                     await sendNotification(ownerId2, '✅ Pagamento Confermato',
-                        `Il pagamento di €${(inv.total_cents / 100).toFixed(2)} per la ricevuta ${inv.invoice_number} è stato confermato.`,
+                        `Il pagamento di €${fmtIT(inv.total_cents / 100)} per la ricevuta ${inv.invoice_number} è stato confermato.`,
                         'workspace', inv.workspace_id);
                 }
 
@@ -1461,7 +1463,7 @@ export async function POST(req: NextRequest) {
                         due_date: today,
                         invoice_number: invoiceNum2,
                         is_upgrade: true,
-                        description: `Upgrade "${currWs.name}": ${oldSeats}→${newSeats} accessi, €${(oldPPS / 100).toFixed(2)}→€${(newPPS / 100).toFixed(2)}/utente`,
+                        description: `Upgrade "${currWs.name}": ${oldSeats}→${newSeats} accessi, €${fmtIT(oldPPS / 100)}→€${fmtIT(newPPS / 100)}/utente`,
                         created_by: userId,
                     }).select().single();
                     invoice = upgInv;
@@ -1471,8 +1473,8 @@ export async function POST(req: NextRequest) {
                 await supabase.from('billing_events').insert({
                     workspace_id: workspaceId,
                     event_type: newSeats > oldSeats || newPPS > oldPPS ? 'plan_upgrade' : 'plan_downgrade',
-                    plan_from: `${oldSeats} seats @ €${(oldPPS / 100).toFixed(2)}`,
-                    plan_to: `${newSeats} seats @ €${(newPPS / 100).toFixed(2)}`,
+                    plan_from: `${oldSeats} seats @ €${fmtIT(oldPPS / 100)}`,
+                    plan_to: `${newSeats} seats @ €${fmtIT(newPPS / 100)}`,
                     amount_cents: adjustmentCents,
                     currency: 'EUR',
                     metadata: { old_seats: oldSeats, new_seats: newSeats, old_pps: oldPPS, new_pps: newPPS },
@@ -1482,7 +1484,7 @@ export async function POST(req: NextRequest) {
                 const ownerId3 = await getOwnerUserId(workspaceId);
                 if (ownerId3) {
                     await sendNotification(ownerId3, '⚡ Upgrade Workspace',
-                        `"${currWs.name}" aggiornato: ${newSeats} accessi, €${(newPPS / 100).toFixed(2)}/utente (€${(newMonthly / 100).toFixed(2)}/mese).`,
+                        `"${currWs.name}" aggiornato: ${newSeats} accessi, €${fmtIT(newPPS / 100)}/utente (€${fmtIT(newMonthly / 100)}/mese).`,
                         'workspace', workspaceId);
                 }
 

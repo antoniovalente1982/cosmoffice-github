@@ -27,6 +27,7 @@ export function getCurrencyInfo(code: CurrencyCode) {
 
 /**
  * Format an amount (already in target currency units) to a display string.
+ * Uses Italian number formatting: 1.000.000,00
  * @param amount - Amount in minor units (cents/pence/etc)
  * @param currencyCode - Currency code
  * @param showSymbol - Whether to prepend the symbol
@@ -34,8 +35,32 @@ export function getCurrencyInfo(code: CurrencyCode) {
 export function formatAmount(amount: number, currencyCode: CurrencyCode = 'EUR', showSymbol = true): string {
     const symbol = getCurrencySymbol(currencyCode);
     const decimals = currencyCode === 'JPY' ? 0 : 2;
-    const formatted = (amount / 100).toFixed(decimals);
+    const num = amount / 100;
+    const formatted = new Intl.NumberFormat('it-IT', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    }).format(num);
     return showSymbol ? `${symbol}${formatted}` : formatted;
+}
+
+/**
+ * Format a plain number with Italian locale (1.000.000)
+ * @param n - The number to format
+ * @param decimals - Number of decimal places (default: 0)
+ */
+export function formatNumber(n: number, decimals = 0): string {
+    return new Intl.NumberFormat('it-IT', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    }).format(n);
+}
+
+/**
+ * Format EUR cents to Italian display string (e.g. "€1.440,00")
+ * Standalone function for use outside React hooks (APIs, server-side).
+ */
+export function formatEurCents(cents: number): string {
+    return formatAmount(cents, 'EUR', true);
 }
 
 /**

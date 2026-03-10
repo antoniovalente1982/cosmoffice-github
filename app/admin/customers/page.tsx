@@ -12,6 +12,9 @@ import {
 import { createClient } from '../../../utils/supabase/client';
 import ClientDetailDrawer from '../../../components/superadmin/ClientDetailDrawer';
 import { useCurrency, CURRENCIES, CurrencyCode } from '../../../hooks/useCurrency';
+import { formatNumber } from '../../../lib/currency';
+
+const fmtIT = (n: number, dec = 2) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
 
 interface Owner {
     id: string;
@@ -319,7 +322,7 @@ export default function CustomersPage() {
                     },
                 }),
             });
-            showFeedback('success', `Piano aggiornato: ${maxMembers} accessi × ${cs}${(ppsCents / 100).toFixed(2)} = ${cs}${(totalCents / 100).toFixed(2)}/mese ✅`);
+            showFeedback('success', `Piano aggiornato: ${maxMembers} accessi × ${cs}${fmtIT(ppsCents / 100)} = ${cs}${fmtIT(totalCents / 100)}/mese ✅`);
             setEditPlanWsId(null); fetchData();
         } catch (err: any) { showFeedback('error', err.message); }
         setSavingPlan(false);
@@ -549,7 +552,7 @@ export default function CustomersPage() {
             });
             if (!res.ok) throw new Error('Errore');
             const r = await res.json();
-            showFeedback('success', `Upgrade completato! ${r.adjustment_cents > 0 ? `Ricevuta proporzionale: €${(r.adjustment_cents / 100).toFixed(2)}` : 'Nessun costo aggiuntivo'}`);
+            showFeedback('success', `Upgrade completato! ${r.adjustment_cents > 0 ? `Ricevuta proporzionale: €${fmtIT(r.adjustment_cents / 100)}` : 'Nessun costo aggiuntivo'}`);
             setUpgradeWs(null);
             fetchData();
         } catch (err: any) { showFeedback('error', err.message); }
@@ -1176,7 +1179,7 @@ export default function CustomersPage() {
                                         </div>
                                         {addWsName && addWsSeats && addWsPPS && (
                                             <span className="text-xs text-emerald-400 font-bold">
-                                                = {cs}{(parseInt(addWsSeats) * parseFloat(addWsPPS)).toFixed(2)}/mese
+                                                = {cs}{fmtIT(parseInt(addWsSeats) * parseFloat(addWsPPS))}/mese
                                             </span>
                                         )}
                                         <button onClick={addWorkspaceToOwner} disabled={addingWs || !addWsName.trim()}
@@ -1387,7 +1390,7 @@ export default function CustomersPage() {
                                                                 </div>
                                                                 {editPlanMembers && editPlanPPS && (
                                                                     <span className="text-xs text-emerald-400 font-bold">
-                                                                        = {cs}{(parseInt(editPlanMembers) * parseFloat(editPlanPPS)).toFixed(2)}/mese
+                                                                        = {cs}{fmtIT(parseInt(editPlanMembers) * parseFloat(editPlanPPS))}/mese
                                                                     </span>
                                                                 )}
                                                                 <input type="date" value={editPlanExpiry} onChange={e => setEditPlanExpiry(e.target.value)}
@@ -1467,7 +1470,7 @@ export default function CustomersPage() {
                                                                                         }`}>{inv.status === 'paid' ? 'PAGATO' : inv.status === 'pending' ? 'IN ATTESA' : inv.status === 'overdue' ? 'SCADUTO' : inv.status.toUpperCase()}</span>
                                                                                 </div>
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <span className="text-sm font-bold text-white">€{(inv.total_cents / 100).toFixed(2)}</span>
+                                                                                    <span className="text-sm font-bold text-white">€{fmtIT(inv.total_cents / 100)}</span>
                                                                                     <button onClick={async (e) => {
                                                                                         e.stopPropagation();
                                                                                         if (!confirm(`Eliminare la ricevuta ${inv.invoice_number}?`)) return;
@@ -1486,7 +1489,7 @@ export default function CustomersPage() {
                                                                                 </div>
                                                                             </div>
                                                                             <div className="flex items-center gap-3 text-[10px] text-slate-500">
-                                                                                <span>{inv.seats} accessi × €{(inv.price_per_seat_cents / 100).toFixed(2)}</span>
+                                                                                <span>{inv.seats} accessi × €{fmtIT(inv.price_per_seat_cents / 100)}</span>
                                                                                 <span>•</span>
                                                                                 <span>{new Date(inv.period_start).toLocaleDateString('it-IT')} → {new Date(inv.period_end).toLocaleDateString('it-IT')}</span>
                                                                                 <span>•</span>
@@ -1855,9 +1858,9 @@ export default function CustomersPage() {
                                     <div className="flex items-center gap-4 text-sm">
                                         <span className="text-slate-400">{upgradeWs.maxMembers} accessi</span>
                                         <span className="text-slate-600">×</span>
-                                        <span className="text-slate-400">€{(upgradeWs.pricePerSeat / 100).toFixed(2)}/utente</span>
+                                        <span className="text-slate-400">€{fmtIT(upgradeWs.pricePerSeat / 100)}/utente</span>
                                         <span className="text-slate-600">=</span>
-                                        <span className="text-white font-bold">€{((upgradeWs.maxMembers * upgradeWs.pricePerSeat) / 100).toFixed(2)}/mese</span>
+                                        <span className="text-white font-bold">€{fmtIT((upgradeWs.maxMembers * upgradeWs.pricePerSeat) / 100)}/mese</span>
                                     </div>
                                 </div>
 
@@ -1878,8 +1881,8 @@ export default function CustomersPage() {
                                     <div className="p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/10">
                                         <p className="text-[10px] text-cyan-300 uppercase font-bold tracking-wider mb-1">Nuovo Piano</p>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-sm text-slate-300">{upgradeSeats} accessi × €{parseFloat(upgradePPS).toFixed(2)}</span>
-                                            <span className="text-lg font-bold text-cyan-300">€{(parseInt(upgradeSeats) * parseFloat(upgradePPS)).toFixed(2)}/mese</span>
+                                            <span className="text-sm text-slate-300">{upgradeSeats} accessi × €{fmtIT(parseFloat(upgradePPS))}</span>
+                                            <span className="text-lg font-bold text-cyan-300">€{fmtIT(parseInt(upgradeSeats) * parseFloat(upgradePPS))}/mese</span>
                                         </div>
                                         {upgradeWs.nextInvoiceDate && (() => {
                                             const now = new Date();
@@ -1890,7 +1893,7 @@ export default function CustomersPage() {
                                             const diff = Math.round((newDaily - oldDaily) * remainDays);
                                             return diff > 0 ? (
                                                 <p className="text-[10px] text-amber-400 mt-1">
-                                                    ⚡ Adeguamento proporzionale: €{(diff / 100).toFixed(2)} ({remainDays} giorni rimanenti)
+                                                    ⚡ Adeguamento proporzionale: €{fmtIT(diff / 100)} ({remainDays} giorni rimanenti)
                                                 </p>
                                             ) : null;
                                         })()}
@@ -1979,7 +1982,7 @@ export default function CustomersPage() {
                                 <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl flex items-center justify-between mt-2">
                                     <span className="text-xs text-emerald-400 uppercase tracking-wider font-semibold">Totale Mensile Piano:</span>
                                     <span className="text-lg font-bold text-emerald-300">
-                                        {cs}{((parseInt(newCustomerData.maxMembers) || 0) * (parseFloat(newCustomerData.pricePerSeat) || 0)).toFixed(2)}
+                                        {cs}{fmtIT((parseInt(newCustomerData.maxMembers) || 0) * (parseFloat(newCustomerData.pricePerSeat) || 0))}
                                     </span>
                                 </div>
                                 <p className="text-[10px] text-slate-500 leading-tight">Verrà generato l'Owner e il Workspace. La password dell'Owner sarà impostata di default a "Cambiami123!". Potrai registrare un pagamento manuale subito dopo.</p>

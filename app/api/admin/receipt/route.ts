@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     const rd = payment.receipt_data || {};
     const amt = Math.abs(payment.amount_cents || 0);
-    const amtFmt = (amt / 100).toFixed(2);
+    const amtFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amt / 100);
     const isRefund = payment.type === 'refund';
     const receiptNum = payment.receipt_number || 'N/A';
     const date = new Date(payment.payment_date || payment.created_at).toLocaleDateString('it-IT');

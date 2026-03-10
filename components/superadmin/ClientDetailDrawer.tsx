@@ -10,6 +10,9 @@ import {
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import { useCurrency } from '../../hooks/useCurrency';
+import { formatNumber } from '../../lib/currency';
+
+const fmtIT = (n: number, dec = 2) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
 
 type Tab = 'overview' | 'workspaces' | 'members' | 'payments';
 
@@ -497,11 +500,11 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                         return (
                                                             <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-1">
                                                                 <p className="text-xs text-emerald-300 font-bold">
-                                                                    💰 {editSeatsValue} accessi × {cs}{parseFloat(editPricePerSeat).toFixed(2)} = {cs}{monthlyTotal.toFixed(2)}/mese
+                                                                    💰 {editSeatsValue} accessi × {cs}{fmtIT(parseFloat(editPricePerSeat))} = {cs}{fmtIT(monthlyTotal)}/mese
                                                                 </p>
                                                                 {cycle.months > 1 && (
                                                                     <p className="text-[11px] text-emerald-400/80">
-                                                                        📄 Fatturazione: {cs}{periodTotal.toFixed(2)}/{cycle.label}
+                                                                        📄 Fatturazione: {cs}{fmtIT(periodTotal)}/{cycle.label}
                                                                     </p>
                                                                 )}
                                                             </div>
@@ -518,7 +521,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                                     className="mt-0.5 rounded border-blue-500/30 accent-blue-500" />
                                                                 <div>
                                                                     <p className="text-xs text-blue-200 font-semibold">💳 Registra pagamento oggi ({new Date().toLocaleDateString('it-IT')})</p>
-                                                                    <p className="text-[10px] text-blue-300/70 mt-0.5">Importo: {cs}{total.toFixed(2)} — Genera ricevuta automaticamente</p>
+                                                                    <p className="text-[10px] text-blue-300/70 mt-0.5">Importo: {cs}{fmtIT(total)} — Genera ricevuta automaticamente</p>
                                                                 </div>
                                                             </label>
                                                         );
@@ -613,7 +616,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                             </div>
                                             {addWsSeats && addWsPPS && (
                                                 <p className="text-[10px] text-emerald-300 font-bold">
-                                                    💰 Totale: {addWsSeats} × {cs}{parseFloat(addWsPPS).toFixed(2)} = {cs}{(parseInt(addWsSeats) * parseFloat(addWsPPS)).toFixed(2)}/mese
+                                                    💰 Totale: {addWsSeats} × {cs}{fmtIT(parseFloat(addWsPPS))} = {cs}{fmtIT(parseInt(addWsSeats) * parseFloat(addWsPPS))}/mese
                                                 </p>
                                             )}
                                             <div className="flex gap-2">
