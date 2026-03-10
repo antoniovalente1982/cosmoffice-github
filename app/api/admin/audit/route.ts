@@ -49,12 +49,12 @@ export async function GET(req: NextRequest) {
     const offset = (page - 1) * limit;
 
     try {
+        // Fetch audit logs with workspace name
         let query = supabase
             .from('workspace_audit_logs')
             .select(`
         id, workspace_id, user_id, action, entity_type, entity_id, metadata, ip_address, created_at,
-        workspaces:workspace_id(name),
-        actor:user_id(email, full_name, display_name)
+        workspaces:workspace_id(name)
       `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
@@ -62,11 +62,32 @@ export async function GET(req: NextRequest) {
         if (workspace) query = query.eq('workspace_id', workspace);
         if (action) query = query.ilike('action', `%${action}%`);
 
-        const { data, count, error } = await query;
+        const { data: logs, count, error } = await query;
         if (error) throw error;
 
+        // Fetch actor profiles separately (user_id FK is on auth.users, not profiles)
+        const userIds = [...new Set((logs || []).map((l: any) => l.user_id).filter(Boolean))];
+        let profilesMap: Record<string, { email: string; full_name: string; display_name: string }> = {};
+
+        if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, email, full_name, display_name')
+                .in('id', userIds);
+
+            (profiles || []).forEach((p: any) => {
+                profilesMap[p.id] = { email: p.email, full_name: p.full_name, display_name: p.display_name };
+            });
+        }
+
+        // Enrich logs with actor info
+        const enrichedLogs = (logs || []).map((log: any) => ({
+            ...log,
+            actor: log.user_id ? (profilesMap[log.user_id] || null) : null,
+        }));
+
         return NextResponse.json({
-            logs: data,
+            logs: enrichedLogs,
             total: count || 0,
             page,
             totalPages: Math.ceil((count || 0) / limit),

@@ -14,7 +14,7 @@ import ClientDetailDrawer from '../../../components/superadmin/ClientDetailDrawe
 import { useCurrency, CURRENCIES, CurrencyCode } from '../../../hooks/useCurrency';
 import { formatNumber } from '../../../lib/currency';
 
-const fmtIT = (n: number, dec = 2) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
+const fmtIT = (n: number, dec = 2) => formatNumber(n, dec);
 
 interface Owner {
     id: string;
@@ -84,7 +84,7 @@ function PaymentBadge({ status }: { status: string }) {
 
 function PlanCostBadge({ totalMonthlyCents, cs }: { totalMonthlyCents: number; cs: string }) {
     if (totalMonthlyCents > 0) {
-        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">{cs}{(totalMonthlyCents / 100).toFixed(0)}/mese</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">{cs}{formatNumber(totalMonthlyCents / 100, 2)}/mese</span>;
     }
     return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-slate-500/20 text-slate-400 border-slate-500/30">Demo</span>;
 }
