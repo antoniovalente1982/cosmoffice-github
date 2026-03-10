@@ -72,14 +72,15 @@ function drawCorporateLobby(container: Container, x: number, y: number, scale: n
     // Label
     const style = new PixiTextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 11 * s,
-        fontWeight: '700',
-        fill: 0x1e293b,
-        letterSpacing: 1,
+        fontSize: 12 * s,
+        fontWeight: '800',
+        fill: 0xffffff,
+        letterSpacing: 1.5,
+        dropShadow: { color: 0x000000, alpha: 0.5, blur: 4, distance: 0 },
     });
     const label = new PixiText({ text: 'RECEPTION', style, resolution: 2 });
     label.anchor.set(0.5, 0);
-    label.position.set(x, y + 60 * s);
+    label.position.set(x, y + 62 * s);
     container.addChild(label);
 }
 // ─── Main Component ──────────────────────────────────────────────
