@@ -856,6 +856,26 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
 
                                             schedule.sort((a, b) => a.date.localeCompare(b.date));
 
+                                            // Cross-reference with actual payments to mark entries as 'paid'
+                                            // Build a map of payments by workspace+month
+                                            const paymentsByWsMonth = new Map<string, number>();
+                                            payments.forEach((p: any) => {
+                                                if (p.type === 'refund') return;
+                                                const pDate = new Date(p.payment_date);
+                                                const pMonth = `${pDate.getFullYear()}-${String(pDate.getMonth() + 1).padStart(2, '0')}`;
+                                                const key = `${p.workspace_id || ''}_${pMonth}`;
+                                                paymentsByWsMonth.set(key, (paymentsByWsMonth.get(key) || 0) + (p.amount_cents || 0));
+                                            });
+
+                                            // Mark schedule entries as paid if a matching payment exists
+                                            schedule.forEach(entry => {
+                                                const key = `${entry.wsId}_${entry.month}`;
+                                                const paidAmount = paymentsByWsMonth.get(key) || 0;
+                                                if (paidAmount > 0 && paidAmount >= entry.amount * 0.8) {
+                                                    entry.status = 'paid';
+                                                }
+                                            });
+
                                             // Group by month
                                             const monthGroups: Record<string, { label: string; entries: typeof schedule; total: number }> = {};
                                             schedule.forEach(e => {
