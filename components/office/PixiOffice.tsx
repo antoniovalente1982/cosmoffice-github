@@ -33,156 +33,129 @@ import { Graphics as PixiGraphics, Text as PixiText, TextStyle as PixiTextStyle 
 function drawCorporateLobby(container: Container, x: number, y: number, scale: number = 1) {
     container.removeChildren();
     const s = scale;
+    const g = new PixiGraphics();
 
-    // ── Floor area ──────────────────────────────────────────
-    const floor = new PixiGraphics();
+    // ── Outer ambient ring ──────────────────────────────────
+    g.circle(x, y - 5 * s, 140 * s);
+    g.fill({ color: 0x1e3a8a, alpha: 0.025 });
 
-    // Outer ambient glow (large, soft)
-    floor.circle(x, y, 130 * s);
-    floor.fill({ color: 0x3b82f6, alpha: 0.03 });
+    // ── Marble floor ────────────────────────────────────────
+    // Main floor
+    g.roundRect(x - 120 * s, y - 90 * s, 240 * s, 180 * s, 16 * s);
+    g.fill({ color: 0x0f1729, alpha: 0.65 });
 
-    // Floor base — dark polished surface
-    floor.roundRect(x - 110 * s, y - 80 * s, 220 * s, 160 * s, 20 * s);
-    floor.fill({ color: 0x1e293b, alpha: 0.6 });
-    floor.roundRect(x - 110 * s, y - 80 * s, 220 * s, 160 * s, 20 * s);
-    floor.stroke({ color: 0x334155, width: 1.5, alpha: 0.4 });
+    // Floor border — thin elegant line
+    g.roundRect(x - 120 * s, y - 90 * s, 240 * s, 180 * s, 16 * s);
+    g.stroke({ color: 0x334155, width: 1, alpha: 0.35 });
 
-    // Floor inner accent line
-    floor.roundRect(x - 100 * s, y - 70 * s, 200 * s, 140 * s, 14 * s);
-    floor.stroke({ color: 0x3b82f6, width: 1, alpha: 0.15 });
+    // Inner floor — lighter center area
+    g.roundRect(x - 108 * s, y - 78 * s, 216 * s, 156 * s, 12 * s);
+    g.fill({ color: 0x1a2332, alpha: 0.3 });
 
-    // Floor tiles pattern (subtle grid)
-    for (let row = 0; row < 4; row++) {
-        for (let col = 0; col < 5; col++) {
-            const tx = x - 90 * s + col * 40 * s;
-            const ty = y - 60 * s + row * 35 * s;
-            floor.roundRect(tx, ty, 36 * s, 31 * s, 3 * s);
-            floor.fill({ color: 0x1e293b, alpha: (row + col) % 2 === 0 ? 0.2 : 0.1 });
-        }
-    }
-    container.addChild(floor);
+    // Center accent line (vertical, subtle)
+    g.roundRect(x - 0.5 * s, y - 70 * s, 1 * s, 140 * s, 0);
+    g.fill({ color: 0x3b82f6, alpha: 0.08 });
 
-    // ── Reception desk (curved) ─────────────────────────────
-    const desk = new PixiGraphics();
+    // ── Executive desk ──────────────────────────────────────
+    // Main desk body — walnut dark
+    g.roundRect(x - 48 * s, y - 28 * s, 96 * s, 30 * s, 4 * s);
+    g.fill({ color: 0x1c1917, alpha: 0.9 });
 
-    // Desk body — wide arc shape
-    desk.roundRect(x - 55 * s, y - 20 * s, 110 * s, 36 * s, 8 * s);
-    desk.fill({ color: 0x1e3a5f, alpha: 0.95 });
+    // Desk surface — slightly lighter
+    g.roundRect(x - 46 * s, y - 26 * s, 92 * s, 26 * s, 3 * s);
+    g.fill({ color: 0x292524, alpha: 0.85 });
 
-    // Desk top surface (lighter)
-    desk.roundRect(x - 52 * s, y - 18 * s, 104 * s, 32 * s, 6 * s);
-    desk.fill({ color: 0x234876, alpha: 0.8 });
+    // Subtle gold/bronze accent strip along desk front edge
+    g.roundRect(x - 44 * s, y + 0 * s, 88 * s, 1.5 * s, 1 * s);
+    g.fill({ color: 0xb45309, alpha: 0.35 });
 
-    // Blue accent strip on front
-    desk.roundRect(x - 50 * s, y + 10 * s, 100 * s, 4 * s, 2 * s);
-    desk.fill({ color: 0x3b82f6, alpha: 0.7 });
-
-    // Monitor on desk (left)
-    desk.roundRect(x - 30 * s, y - 14 * s, 18 * s, 12 * s, 2 * s);
-    desk.fill({ color: 0x0f172a, alpha: 0.95 });
-    desk.roundRect(x - 29 * s, y - 13 * s, 16 * s, 9 * s, 1.5 * s);
-    desk.fill({ color: 0x38bdf8, alpha: 0.25 }); // screen glow
-
-    // Monitor on desk (right)
-    desk.roundRect(x + 12 * s, y - 14 * s, 18 * s, 12 * s, 2 * s);
-    desk.fill({ color: 0x0f172a, alpha: 0.95 });
-    desk.roundRect(x + 13 * s, y - 13 * s, 16 * s, 9 * s, 1.5 * s);
-    desk.fill({ color: 0x38bdf8, alpha: 0.2 });
+    // Ultrawide monitor
+    g.roundRect(x - 20 * s, y - 22 * s, 40 * s, 16 * s, 2 * s);
+    g.fill({ color: 0x0a0a0a, alpha: 0.95 });
+    // Screen
+    g.roundRect(x - 18 * s, y - 20 * s, 36 * s, 12 * s, 1.5 * s);
+    g.fill({ color: 0x1e40af, alpha: 0.15 });
+    // Monitor stand
+    g.roundRect(x - 4 * s, y - 6 * s, 8 * s, 3 * s, 1 * s);
+    g.fill({ color: 0x1c1917, alpha: 0.8 });
 
     // Keyboard
-    desk.roundRect(x - 8 * s, y - 6 * s, 16 * s, 6 * s, 1.5 * s);
-    desk.fill({ color: 0x334155, alpha: 0.7 });
+    g.roundRect(x - 12 * s, y - 2 * s, 24 * s, 6 * s, 1.5 * s);
+    g.fill({ color: 0x1c1917, alpha: 0.5 });
 
-    container.addChild(desk);
+    // ── Desk chair (behind desk) ────────────────────────────
+    g.circle(x, y - 40 * s, 10 * s);
+    g.fill({ color: 0x1c1917, alpha: 0.5 });
+    g.circle(x, y - 40 * s, 7 * s);
+    g.fill({ color: 0x292524, alpha: 0.4 });
 
-    // ── Decorative plants (left & right) ────────────────────
-    const plants = new PixiGraphics();
+    // ── Visitor chairs ──────────────────────────────────────
+    // Slim designer chairs (slight rectangle with rounded)
+    // Left
+    g.roundRect(x - 35 * s, y + 30 * s, 16 * s, 14 * s, 5 * s);
+    g.fill({ color: 0x1e293b, alpha: 0.55 });
+    g.roundRect(x - 33 * s, y + 32 * s, 12 * s, 10 * s, 3 * s);
+    g.fill({ color: 0x334155, alpha: 0.35 });
 
-    // Left plant pot
-    plants.roundRect(x - 95 * s, y + 15 * s, 16 * s, 14 * s, 3 * s);
-    plants.fill({ color: 0x78350f, alpha: 0.6 }); // pot
-    plants.circle(x - 87 * s, y + 12 * s, 10 * s);
-    plants.fill({ color: 0x16a34a, alpha: 0.5 }); // foliage
-    plants.circle(x - 83 * s, y + 8 * s, 7 * s);
-    plants.fill({ color: 0x22c55e, alpha: 0.4 });
+    // Right
+    g.roundRect(x + 19 * s, y + 30 * s, 16 * s, 14 * s, 5 * s);
+    g.fill({ color: 0x1e293b, alpha: 0.55 });
+    g.roundRect(x + 21 * s, y + 32 * s, 12 * s, 10 * s, 3 * s);
+    g.fill({ color: 0x334155, alpha: 0.35 });
 
-    // Right plant pot
-    plants.roundRect(x + 79 * s, y + 15 * s, 16 * s, 14 * s, 3 * s);
-    plants.fill({ color: 0x78350f, alpha: 0.6 });
-    plants.circle(x + 87 * s, y + 12 * s, 10 * s);
-    plants.fill({ color: 0x16a34a, alpha: 0.5 });
-    plants.circle(x + 91 * s, y + 8 * s, 7 * s);
-    plants.fill({ color: 0x22c55e, alpha: 0.4 });
+    // ── Small side table between chairs ─────────────────────
+    g.circle(x, y + 37 * s, 5 * s);
+    g.fill({ color: 0x1c1917, alpha: 0.4 });
+    g.circle(x, y + 37 * s, 5 * s);
+    g.stroke({ color: 0x44403c, width: 0.5, alpha: 0.4 });
 
-    container.addChild(plants);
+    // ── Decorative elements ─────────────────────────────────
+    // Left — tall plant (vertical line + circle top)
+    g.roundRect(x - 100 * s, y + 20 * s, 3 * s, 18 * s, 1 * s);
+    g.fill({ color: 0x365314, alpha: 0.3 });
+    g.circle(x - 98.5 * s, y + 16 * s, 10 * s);
+    g.fill({ color: 0x166534, alpha: 0.2 });
+    g.circle(x - 96 * s, y + 12 * s, 7 * s);
+    g.fill({ color: 0x22c55e, alpha: 0.15 });
+    // Pot
+    g.roundRect(x - 105 * s, y + 38 * s, 14 * s, 10 * s, 2 * s);
+    g.fill({ color: 0x44403c, alpha: 0.3 });
 
-    // ── Chairs in front of desk ─────────────────────────────
-    const chairs = new PixiGraphics();
+    // Right — tall plant
+    g.roundRect(x + 97 * s, y + 20 * s, 3 * s, 18 * s, 1 * s);
+    g.fill({ color: 0x365314, alpha: 0.3 });
+    g.circle(x + 98.5 * s, y + 16 * s, 10 * s);
+    g.fill({ color: 0x166534, alpha: 0.2 });
+    g.circle(x + 101 * s, y + 12 * s, 7 * s);
+    g.fill({ color: 0x22c55e, alpha: 0.15 });
+    g.roundRect(x + 91 * s, y + 38 * s, 14 * s, 10 * s, 2 * s);
+    g.fill({ color: 0x44403c, alpha: 0.3 });
 
-    // Left chair
-    chairs.circle(x - 30 * s, y + 45 * s, 8 * s);
-    chairs.fill({ color: 0x334155, alpha: 0.6 });
-    chairs.circle(x - 30 * s, y + 45 * s, 5 * s);
-    chairs.fill({ color: 0x475569, alpha: 0.5 });
+    // ── Entry indicator — subtle floor light ────────────────
+    g.roundRect(x - 30 * s, y + 80 * s, 60 * s, 2 * s, 1 * s);
+    g.fill({ color: 0x3b82f6, alpha: 0.15 });
 
-    // Right chair
-    chairs.circle(x + 30 * s, y + 45 * s, 8 * s);
-    chairs.fill({ color: 0x334155, alpha: 0.6 });
-    chairs.circle(x + 30 * s, y + 45 * s, 5 * s);
-    chairs.fill({ color: 0x475569, alpha: 0.5 });
+    container.addChild(g);
 
-    container.addChild(chairs);
-
-    // ── Welcome mat / carpet ────────────────────────────────
-    const mat = new PixiGraphics();
-    mat.roundRect(x - 40 * s, y + 55 * s, 80 * s, 16 * s, 5 * s);
-    mat.fill({ color: 0x1e3a8a, alpha: 0.25 });
-    mat.roundRect(x - 40 * s, y + 55 * s, 80 * s, 16 * s, 5 * s);
-    mat.stroke({ color: 0x3b82f6, width: 1, alpha: 0.2 });
-    container.addChild(mat);
-
-    // ── Labels ───────────────────────────────────────────────
-
-    // "RECEPTION" label
+    // ── Typography ──────────────────────────────────────────
+    // RECEPTION — refined, spaced
     const titleStyle = new PixiTextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 13 * s,
-        fontWeight: '800',
-        fill: 0xe2e8f0,
-        letterSpacing: 3,
-        dropShadow: { color: 0x000000, alpha: 0.6, blur: 6, distance: 0 },
+        fontSize: 11 * s,
+        fontWeight: '600',
+        fill: 0x94a3b8,
+        letterSpacing: 5,
     });
     const title = new PixiText({ text: 'RECEPTION', style: titleStyle, resolution: 2 });
-    title.anchor.set(0.5, 0);
-    title.position.set(x, y - 95 * s);
+    title.anchor.set(0.5, 0.5);
+    title.position.set(x, y - 70 * s);
     container.addChild(title);
 
-    // "WELCOME" on the mat
-    const welcomeStyle = new PixiTextStyle({
-        fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 7 * s,
-        fontWeight: '700',
-        fill: 0x93c5fd,
-        letterSpacing: 2,
-    });
-    const welcome = new PixiText({ text: 'WELCOME', style: welcomeStyle, resolution: 2 });
-    welcome.anchor.set(0.5, 0.5);
-    welcome.position.set(x, y + 63 * s);
-    container.addChild(welcome);
-
-    // Pulsing entry indicator
-    const pulse = new PixiGraphics();
-    pulse.circle(x, y + 63 * s, 3 * s);
-    pulse.fill({ color: 0x22d3ee, alpha: 0.6 });
-    // Small dot
-    const dot = new PixiGraphics();
-    dot.circle(x - 35 * s, y + 63 * s, 2 * s);
-    dot.fill({ color: 0x3b82f6, alpha: 0.4 });
-    const dot2 = new PixiGraphics();
-    dot2.circle(x + 35 * s, y + 63 * s, 2 * s);
-    dot2.fill({ color: 0x3b82f6, alpha: 0.4 });
-    container.addChild(dot);
-    container.addChild(dot2);
+    // Thin line under title
+    const line = new PixiGraphics();
+    line.roundRect(x - 30 * s, y - 62 * s, 60 * s, 0.5 * s, 0);
+    line.fill({ color: 0x475569, alpha: 0.3 });
+    container.addChild(line);
 }
 // ─── Main Component ──────────────────────────────────────────────
 export function PixiOffice() {
