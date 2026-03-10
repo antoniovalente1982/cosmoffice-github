@@ -230,10 +230,38 @@ export function useOffice(spaceId?: string) {
             })
             .subscribe();
 
+        // ─── Delta updates for workspace settings (theme sync) ─────
+        // We need the workspace_id to subscribe to workspace changes
+        let workspaceChannel: ReturnType<typeof supabase.channel> | null = null;
+        (async () => {
+            const { data: spaceForWs } = await supabase
+                .from('spaces')
+                .select('workspace_id')
+                .eq('id', spaceId)
+                .single();
+            if (spaceForWs?.workspace_id) {
+                workspaceChannel = supabase
+                    .channel(`workspace_settings_${spaceForWs.workspace_id}`)
+                    .on('postgres_changes', {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'workspaces',
+                        filter: `id=eq.${spaceForWs.workspace_id}`
+                    }, (payload) => {
+                        const updated = payload.new as any;
+                        if (updated?.settings?.theme) {
+                            useWorkspaceStore.getState().setTheme(updated.settings.theme);
+                        }
+                    })
+                    .subscribe();
+            }
+        })();
+
         return () => {
             supabase.removeChannel(roomsChannel);
             supabase.removeChannel(connChannel);
             supabase.removeChannel(furnitureChannel);
+            if (workspaceChannel) supabase.removeChannel(workspaceChannel);
         };
     }, [spaceId, supabase, fetchOfficeData]);
 

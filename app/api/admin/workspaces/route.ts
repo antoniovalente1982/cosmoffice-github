@@ -897,6 +897,12 @@ export async function POST(req: NextRequest) {
                     const guestInvitesCount = guestInvitesByWs[w.id] || 0;
                     return {
                         ...w,
+                        // Explicit camelCase mappings for frontend compatibility
+                        maxMembers: w.max_members,
+                        maxSpaces: w.max_spaces,
+                        pricePerSeat: w.price_per_seat,
+                        billingCycle: w.billing_cycle,
+                        nextInvoiceDate: w.next_invoice_date,
                         members,
                         totalMembers: members.length,
                         nonGuestMembers: nonGuestMembersCount,

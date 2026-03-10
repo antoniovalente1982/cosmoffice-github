@@ -117,7 +117,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     // ─── Room name ────────────────────────────────────────
     const nameStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '700',
         fill: textColor,
         letterSpacing: 0.3,

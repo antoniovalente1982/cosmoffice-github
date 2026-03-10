@@ -82,6 +82,12 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 userName: myProfile?.display_name || myProfile?.full_name || 'User',
                 roomId,
             }));
+            // Play knock sound for the entrant too, if the room is occupied
+            const peers = useAvatarStore.getState().peers;
+            const occupants = Object.values(peers).filter((p: any) => p.roomId === roomId && p.id !== userId);
+            if (occupants.length > 0) {
+                playKnockSound();
+            }
         }
     }, [userId]);
 

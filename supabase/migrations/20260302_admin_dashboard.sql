@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS bug_reports (
   status TEXT NOT NULL DEFAULT 'open'
     CHECK (status IN ('open', 'in_progress', 'resolved', 'closed', 'wont_fix')),
   category TEXT DEFAULT 'bug'
-    CHECK (category IN ('bug', 'feature', 'performance', 'security', 'other')),
+    CHECK (category IN ('bug', 'feature', 'performance', 'security', 'other', 'general', 'ui', 'audio_video', 'chat')),
   screenshot_url TEXT,
   browser_info JSONB DEFAULT '{}',
   admin_notes TEXT,
