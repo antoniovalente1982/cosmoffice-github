@@ -249,6 +249,9 @@ export default function OfficePage() {
 
     // ─── Reset stores on workspace change to avoid cross-workspace bleed ───
     useEffect(() => {
+        // Close UI panels
+        useWhiteboardStore.getState().closeWhiteboard();
+        useChatStore.getState().closeChat();
         // Clear whiteboard data from previous workspace
         useWhiteboardStore.getState().clearRoomStrokes();
         useWhiteboardStore.getState().clearOfficeStrokes();
