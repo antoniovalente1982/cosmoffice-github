@@ -237,3 +237,35 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
+
+// DELETE: Hard-delete ticket(s) and their messages
+export async function DELETE(req: NextRequest) {
+    const auth = await getAdminClient(req);
+    if ('error' in auth) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    const { supabase } = auth;
+
+    try {
+        const body = await req.json();
+        const { id, deleteAll } = body;
+
+        if (deleteAll) {
+            // Delete ALL ticket messages first, then ALL tickets
+            await supabase.from('ticket_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('support_tickets').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            return NextResponse.json({ success: true, deleted: 'all' });
+        }
+
+        if (!id) return NextResponse.json({ error: 'Missing ticket id' }, { status: 400 });
+
+        // Delete messages for this ticket first, then the ticket itself
+        await supabase.from('ticket_messages').delete().eq('ticket_id', id);
+        const { error } = await supabase.from('support_tickets').delete().eq('id', id);
+        if (error) throw error;
+
+        return NextResponse.json({ success: true, deleted: id });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}

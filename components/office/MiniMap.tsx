@@ -7,15 +7,15 @@ import { useWorkspaceStore } from '../../stores/workspaceStore';
 
 // ─── Office size presets ──────────────────────────────────────────
 export const OFFICE_PRESETS = [
-    { id: 'small', label: 'Piccolo', capacity: '1–15', width: 2000, height: 1500, icon: '🏠' },
-    { id: 'medium', label: 'Medio', capacity: '15–50', width: 4000, height: 3000, icon: '🏢' },
-    { id: 'large', label: 'Grande', capacity: '50+', width: 6000, height: 4500, icon: '🏗️' },
+    { id: 'small', label: 'Piccolo', capacity: '1–20', width: 4000, height: 3000, icon: '🏠' },
+    { id: 'medium', label: 'Medio', capacity: '20–60', width: 6000, height: 4500, icon: '🏢' },
+    { id: 'large', label: 'Grande', capacity: '60+', width: 10000, height: 7500, icon: '🏗️' },
 ] as const;
 
 export function getPresetForSize(w: number, h: number) {
     const area = w * h;
-    if (area <= 2000 * 1500) return OFFICE_PRESETS[0];
-    if (area <= 4000 * 3000) return OFFICE_PRESETS[1];
+    if (area <= 4000 * 3000) return OFFICE_PRESETS[0];
+    if (area <= 6000 * 4500) return OFFICE_PRESETS[1];
     return OFFICE_PRESETS[2];
 }
 

@@ -105,13 +105,21 @@ export default function SupportPage() {
 
     useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
-    // Auto-poll for new messages every 30s
+    // Silent background poll — updates data without resetting UI/loading/input
     useEffect(() => {
-        const interval = setInterval(() => {
-            fetchTickets();
+        const interval = setInterval(async () => {
+            try {
+                const params = new URLSearchParams();
+                if (filter !== 'all') params.set('status', filter);
+                if (categoryFilter) params.set('category', categoryFilter);
+                const res = await fetch(`/api/admin/support-tickets?${params}`);
+                const data = await res.json();
+                if (data.tickets) setTickets(data.tickets);
+                if (data.statusCounts) setStatusCounts(data.statusCounts);
+            } catch { /* silent */ }
         }, 30000);
         return () => clearInterval(interval);
-    }, [fetchTickets]);
+    }, [filter, categoryFilter]);
 
     const updateTicket = async (id: string, updates: Record<string, any>) => {
         setProcessing(id);
@@ -260,6 +268,25 @@ export default function SupportPage() {
                             <option key={k} value={k}>{v.label}</option>
                         ))}
                     </select>
+                    {filter === 'all' && tickets.length > 0 && (
+                        <button
+                            onClick={async () => {
+                                if (!confirm(`⚠️ Eliminare definitivamente TUTTI i ${tickets.length} ticket? Questa azione non è reversibile!`)) return;
+                                if (!confirm(`Sei davvero sicuro? Verranno eliminati ${tickets.length} ticket con tutti i messaggi.`)) return;
+                                try {
+                                    await fetch('/api/admin/support-tickets', {
+                                        method: 'DELETE',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ deleteAll: true }),
+                                    });
+                                    fetchTickets();
+                                } catch { /* ignore */ }
+                            }}
+                            className="px-3 py-2 rounded-xl text-[10px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all whitespace-nowrap"
+                        >
+                            🗑️ Elimina Tutti ({tickets.length})
+                        </button>
+                    )}
                 </div>
 
                 {/* Tickets List */}
@@ -437,38 +464,65 @@ export default function SupportPage() {
                                                 />
                                             </div>
 
-                                            {/* Actions */}
-                                            <div className="flex flex-wrap gap-2">
-                                                {t.status === 'open' && (
-                                                    <button onClick={() => updateTicket(t.id, { status: 'in_progress', admin_notes: noteInputs[t.id] ?? t.admin_notes })}
-                                                        disabled={processing === t.id}
-                                                        className="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/25 transition-all disabled:opacity-50">
-                                                        {processing === t.id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : <ArrowRight className="w-3 h-3 inline mr-1" />}
-                                                        Prendi in Carico
+                                            {/* Actions — Trello-style status change */}
+                                            <div className="flex flex-wrap gap-2 items-center">
+                                                {/* Status selector */}
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Sposta in:</span>
+                                                    {t.status !== 'open' && (
+                                                        <button onClick={() => updateTicket(t.id, { status: 'open', admin_notes: noteInputs[t.id] ?? t.admin_notes })}
+                                                            disabled={processing === t.id}
+                                                            className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25 transition-all disabled:opacity-50">
+                                                            Aperto
+                                                        </button>
+                                                    )}
+                                                    {t.status !== 'in_progress' && (
+                                                        <button onClick={() => updateTicket(t.id, { status: 'in_progress', admin_notes: noteInputs[t.id] ?? t.admin_notes })}
+                                                            disabled={processing === t.id}
+                                                            className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/25 transition-all disabled:opacity-50">
+                                                            In Corso
+                                                        </button>
+                                                    )}
+                                                    {t.status !== 'resolved' && (
+                                                        <button onClick={() => updateTicket(t.id, { status: 'resolved', admin_notes: noteInputs[t.id] ?? t.admin_notes, resolution: resolutionInputs[t.id] ?? t.resolution })}
+                                                            disabled={processing === t.id}
+                                                            className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all disabled:opacity-50">
+                                                            Risolto
+                                                        </button>
+                                                    )}
+                                                    {t.status !== 'closed' && (
+                                                        <button onClick={() => updateTicket(t.id, { status: 'closed', admin_notes: noteInputs[t.id] ?? t.admin_notes })}
+                                                            disabled={processing === t.id}
+                                                            className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-slate-400 border border-white/10 hover:bg-white/5 transition-all disabled:opacity-50">
+                                                            Chiuso
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center gap-2 ml-auto">
+                                                    {(noteInputs[t.id] !== undefined) && (
+                                                        <button onClick={() => updateTicket(t.id, { admin_notes: noteInputs[t.id] ?? t.admin_notes })}
+                                                            disabled={processing === t.id}
+                                                            className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50">
+                                                            💾 Salva Note
+                                                        </button>
+                                                    )}
+                                                    {/* Hard delete single ticket */}
+                                                    <button onClick={async () => {
+                                                        if (!confirm(`Eliminare definitivamente il ticket "${t.subject}"? Questa azione non è reversibile.`)) return;
+                                                        try {
+                                                            await fetch('/api/admin/support-tickets', {
+                                                                method: 'DELETE',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ id: t.id }),
+                                                            });
+                                                            fetchTickets();
+                                                        } catch { /* ignore */ }
+                                                    }}
+                                                        className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-red-400 border border-red-500/20 hover:bg-red-500/15 transition-all">
+                                                        🗑️ Elimina
                                                     </button>
-                                                )}
-                                                {(t.status === 'open' || t.status === 'in_progress') && (
-                                                    <button onClick={() => updateTicket(t.id, { status: 'resolved', admin_notes: noteInputs[t.id] ?? t.admin_notes, resolution: resolutionInputs[t.id] ?? t.resolution })}
-                                                        disabled={processing === t.id}
-                                                        className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all disabled:opacity-50">
-                                                        {processing === t.id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : <CheckCircle className="w-3 h-3 inline mr-1" />}
-                                                        Risolvi
-                                                    </button>
-                                                )}
-                                                {t.status !== 'closed' && (
-                                                    <button onClick={() => updateTicket(t.id, { status: 'closed', admin_notes: noteInputs[t.id] ?? t.admin_notes })}
-                                                        disabled={processing === t.id}
-                                                        className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 border border-white/10 hover:bg-white/5 transition-all disabled:opacity-50">
-                                                        <XCircle className="w-3 h-3 inline mr-1" />Chiudi
-                                                    </button>
-                                                )}
-                                                {(noteInputs[t.id] !== undefined) && (
-                                                    <button onClick={() => updateTicket(t.id, { admin_notes: noteInputs[t.id] ?? t.admin_notes })}
-                                                        disabled={processing === t.id}
-                                                        className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50 ml-auto">
-                                                        💾 Salva Note
-                                                    </button>
-                                                )}
+                                                </div>
                                             </div>
                                         </div>
                                     )}
