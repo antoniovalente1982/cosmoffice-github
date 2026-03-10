@@ -69,12 +69,19 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ messages: messages || [] });
         }
 
-        // Otherwise get all user's tickets
-        const { data: tickets } = await supabase
+        // Otherwise get all user's tickets (optionally filtered by workspace)
+        const workspaceId = url.searchParams.get('workspaceId');
+        let ticketQuery = supabase
             .from('support_tickets')
-            .select('id, subject, category, priority, status, created_at, updated_at')
+            .select('id, subject, category, priority, status, created_at, updated_at, workspace_id')
             .eq('user_id', userId)
             .order('updated_at', { ascending: false });
+
+        if (workspaceId) {
+            ticketQuery = ticketQuery.eq('workspace_id', workspaceId);
+        }
+
+        const { data: tickets } = await ticketQuery;
 
         // Get unread message counts (admin messages after last user message)
         const ticketIds = (tickets || []).map((t: any) => t.id);

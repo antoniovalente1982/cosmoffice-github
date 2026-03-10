@@ -10,6 +10,7 @@ import {
 interface SupportTicketsProps {
     isOpen: boolean;
     onClose: () => void;
+    workspaceId?: string | null;
 }
 
 interface Ticket {
@@ -40,7 +41,7 @@ const STATUS_STYLES: Record<string, { label: string; icon: typeof Clock; color: 
     closed: { label: 'Chiuso', icon: XCircle, color: 'text-slate-500' },
 };
 
-export default function SupportTickets({ isOpen, onClose }: SupportTicketsProps) {
+export default function SupportTickets({ isOpen, onClose, workspaceId }: SupportTicketsProps) {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -52,12 +53,13 @@ export default function SupportTickets({ isOpen, onClose }: SupportTicketsProps)
 
     const fetchTickets = useCallback(async () => {
         try {
-            const res = await fetch('/api/support/messages');
+            const params = workspaceId ? `?workspaceId=${workspaceId}` : '';
+            const res = await fetch(`/api/support/messages${params}`);
             const data = await res.json();
             setTickets(data.tickets || []);
         } catch { /* ignore */ }
         setLoading(false);
-    }, []);
+    }, [workspaceId]);
 
     useEffect(() => {
         if (isOpen) {

@@ -357,9 +357,12 @@ export default function SupportPage() {
                                                                         : 'bg-white/5 border border-white/10'
                                                                         }`}>
                                                                         <div className="flex items-center gap-2 mb-1">
-                                                                            <span className={`text-[10px] font-bold ${msg.is_admin ? 'text-emerald-400' : 'text-slate-300'}`}>
+                                                                            <span className={`text-[10px] font-bold ${msg.is_admin ? 'text-emerald-400' : 'text-amber-300'}`}>
                                                                                 {msg.is_admin ? '🛡️ ' : '👤 '}{msg.sender_name || 'Utente'}
                                                                             </span>
+                                                                            {!msg.is_admin && msg.sender_email && (
+                                                                                <span className="text-[9px] text-slate-500">({msg.sender_email})</span>
+                                                                            )}
                                                                             <span className="text-[9px] text-slate-600">{formatTime(msg.created_at)}</span>
                                                                         </div>
                                                                         <p className="text-xs text-slate-200 whitespace-pre-wrap">{msg.message}</p>

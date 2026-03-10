@@ -249,9 +249,10 @@ export default function OfficePage() {
 
     // Poll for unread ticket messages
     useEffect(() => {
+        if (!workspaceId) return;
         const fetchUnread = async () => {
             try {
-                const res = await fetch('/api/support/messages');
+                const res = await fetch(`/api/support/messages?workspaceId=${workspaceId}`);
                 if (!res.ok) return;
                 const data = await res.json();
                 const total = (data.tickets || []).reduce((sum: number, t: any) => sum + (t.unreadCount || 0), 0);
@@ -261,7 +262,7 @@ export default function OfficePage() {
         fetchUnread();
         const interval = setInterval(fetchUnread, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [workspaceId]);
 
 
     // Avatar sync via PartyKit
@@ -867,6 +868,7 @@ export default function OfficePage() {
                 <SupportTickets
                     isOpen={isTicketsOpen}
                     onClose={() => setIsTicketsOpen(false)}
+                    workspaceId={workspaceId}
                 />
 
                 {/* Fullscreen Video Grid */}
