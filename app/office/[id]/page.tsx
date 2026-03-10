@@ -245,6 +245,23 @@ export default function OfficePage() {
     const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
     const [showInitialSetup, setShowInitialSetup] = useState(false);
     const [isTicketsOpen, setIsTicketsOpen] = useState(false);
+    const [ticketUnread, setTicketUnread] = useState(0);
+
+    // Poll for unread ticket messages
+    useEffect(() => {
+        const fetchUnread = async () => {
+            try {
+                const res = await fetch('/api/support/messages');
+                if (!res.ok) return;
+                const data = await res.json();
+                const total = (data.tickets || []).reduce((sum: number, t: any) => sum + (t.unreadCount || 0), 0);
+                setTicketUnread(total);
+            } catch { /* ignore */ }
+        };
+        fetchUnread();
+        const interval = setInterval(fetchUnread, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
 
     // Avatar sync via PartyKit
@@ -526,11 +543,16 @@ export default function OfficePage() {
                     </Button>
                     <Button
                         variant="ghost"
-                        onClick={() => setIsTicketsOpen(true)}
-                        className="w-full justify-start gap-3 transition-all duration-300 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300"
+                        onClick={() => { setIsTicketsOpen(true); setTicketUnread(0); }}
+                        className="w-full justify-start gap-3 transition-all duration-300 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 relative"
                     >
                         <MessageSquare className="w-5 h-5 flex-shrink-0" />
                         <span className="whitespace-nowrap">I miei Ticket</span>
+                        {ticketUnread > 0 && (
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[20px] h-5 flex items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white px-1.5 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse">
+                                {ticketUnread}
+                            </span>
+                        )}
                     </Button>
 
                     <div
