@@ -112,45 +112,46 @@ const SPACE_THEME: OfficeThemeConfig = {
     hudTextColor: 0xffffff,
 };
 
-// ─── Corporate Theme (professional look) ────────────────────────
+// ─── Corporate Theme (dark professional look) ──────────────────
 const CORPORATE_THEME: OfficeThemeConfig = {
     id: 'corporate',
     label: 'Aziendale',
     icon: '🏢',
-    description: 'Design pulito e professionale con toni chiari e moderni',
+    description: 'Design elegante e professionale con toni scuri e accenti raffinati',
 
-    canvasBg: 0xf0f4f8,
+    canvasBg: 0x0c1222,
 
     bgGradientCSS: `
-        radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
-        linear-gradient(145deg, #f8fafc 0%, #f0f4f8 40%, #e8eef5 100%)
+        radial-gradient(circle at 15% 25%, rgba(30, 58, 138, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 85% 75%, rgba(51, 65, 85, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 0.08) 0%, transparent 60%),
+        linear-gradient(145deg, #0c1222 0%, #111827 40%, #0f172a 100%)
     `,
     gridCSS: `
-        radial-gradient(circle, rgba(148, 163, 184, 0.3) 1px, transparent 1px)
+        radial-gradient(circle, rgba(100, 116, 139, 0.15) 1px, transparent 1px)
     `,
-    gridOpacity: 0.4,
+    gridOpacity: 0.3,
 
-    platformFill: 0x3b82f6,
-    platformFillAlpha: 0.03,
-    platformInnerFill: 0xffffff,
-    platformInnerAlpha: 0.4,
-    platformBorder: 0x93c5fd,
-    platformBorderAlpha: 0.2,
+    platformFill: 0x1e3a8a,
+    platformFillAlpha: 0.04,
+    platformInnerFill: 0x111827,
+    platformInnerAlpha: 0.7,
+    platformBorder: 0x3b82f6,
+    platformBorderAlpha: 0.12,
 
-    roomBg: 0xffffff,
-    roomBgAlpha: 0.92,
-    roomGlowAlpha: 0.06,
-    roomGlowHoverAlpha: 0.12,
-    roomTextColor: 0x1e293b,
-    roomStatusTextColor: 0x059669,
+    roomBg: 0x111827,
+    roomBgAlpha: 0.9,
+    roomGlowAlpha: 0.08,
+    roomGlowHoverAlpha: 0.16,
+    roomTextColor: 0xe2e8f0,
+    roomStatusTextColor: 0x22d3ee,
 
-    connectionColor: 0x94a3b8,
+    connectionColor: 0x475569,
     connectionAlpha: 0.5,
-    proximityLineColor: 0x94a3b8,
+    proximityLineColor: 0x475569,
 
-    particleColors: [0x94a3b8, 0xbfdbfe, 0xc7d2fe],
-    particleAlpha: 0.3,
+    particleColors: [0x475569],
+    particleAlpha: 0.2,
 
     showSpaceship: false,
     showStars: false,
@@ -159,9 +160,9 @@ const CORPORATE_THEME: OfficeThemeConfig = {
     landingPadLabel: 'Reception',
 
     hudBadgeText: 'Office',
-    hudBadgeColor: 'text-blue-500',
+    hudBadgeColor: 'text-blue-400',
     hudBgAlpha: 0.85,
-    hudTextColor: 0x1e293b,
+    hudTextColor: 0xe2e8f0,
 };
 
 // ─── Theme Registry ─────────────────────────────────────────────

@@ -68,10 +68,10 @@ export function DayNightCycle() {
             )}
 
             {/* Time indicator — bottom right */}
-            <div className={`absolute bottom-4 right-4 z-[2] flex items-center gap-2 px-4 py-2 rounded-2xl border ${themeConfig.id === 'corporate' ? 'border-slate-200' : 'border-white/10'} pointer-events-none`}
-                style={{ background: themeConfig.id === 'corporate' ? 'rgba(255,255,255,0.9)' : 'rgba(15, 23, 42, 0.85)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+            <div className="absolute bottom-4 right-4 z-[2] flex items-center gap-2 px-4 py-2 rounded-2xl border border-white/10 pointer-events-none"
+                style={{ background: 'rgba(15, 23, 42, 0.85)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
                 <span className="text-lg leading-none">{emoji}</span>
-                <span className={`text-sm font-semibold tabular-nums tracking-wide ${themeConfig.id === 'corporate' ? 'text-slate-700' : 'text-white/80'}`}>{timeStr}</span>
+                <span className="text-sm font-semibold text-white/80 tabular-nums tracking-wide">{timeStr}</span>
             </div>
 
             {themeConfig.showStars && (
