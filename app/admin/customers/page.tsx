@@ -867,7 +867,6 @@ export default function CustomersPage() {
                         { value: '', label: 'Tutti' },
                         { value: 'active', label: '🟢 Attivi' },
                         { value: 'suspended', label: '🟡 Sospesi' },
-                        { value: 'deleted', label: '🔴 Eliminati' },
                     ].map(s => (
                         <button key={s.value} onClick={() => { setStatusFilter(s.value); setPage(1); }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${statusFilter === s.value
