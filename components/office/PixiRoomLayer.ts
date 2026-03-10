@@ -117,12 +117,13 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     // ─── Room name ────────────────────────────────────────
     const nameStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 16,
-        fontWeight: '700',
+        fontSize: 28,
+        fontWeight: '800',
         fill: textColor,
-        letterSpacing: 0.3,
+        letterSpacing: 1,
+        dropShadow: { color: 0x000000, alpha: 0.6, blur: 6, distance: 0 },
     });
-    const nameText = new Text({ text: room.name, style: nameStyle, resolution: 2 });
+    const nameText = new Text({ text: room.name.toUpperCase(), style: nameStyle, resolution: 2 });
     if (isCircle) {
         nameText.anchor.set(0.5, 1);
         nameText.position.set(room.x + room.width / 2, room.y - 58);
@@ -137,10 +138,11 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
 
         const subStyle = new TextStyle({
             fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 10,
-            fontWeight: '600',
+            fontSize: 16,
+            fontWeight: '700',
             fill: hexColor(color),
-            letterSpacing: 1.2,
+            letterSpacing: 1.5,
+            dropShadow: { color: 0x000000, alpha: 0.4, blur: 4, distance: 0 },
         });
         const subText = new Text({ text: subtitleStr, style: subStyle, resolution: 2 });
         if (isCircle) {
@@ -159,10 +161,11 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     if (occupants > 0) {
         const statusStyle = new TextStyle({
             fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 12,
+            fontSize: 18,
             fontWeight: '700',
             fill: statusColor,
-            letterSpacing: 0.3,
+            letterSpacing: 0.5,
+            dropShadow: { color: 0x000000, alpha: 0.4, blur: 4, distance: 0 },
         });
         const statusText = `${occupants} online`;
         const status = new Text({ text: statusText, style: statusStyle, resolution: 2 });
