@@ -227,6 +227,8 @@ export default function CashflowPage() {
         .reduce((s: number, w: any) => s + (w.monthlyAmountCents || 0), 0);
     const activeClients = clientSummaries.length;
     const activeWorkspaces = workspaces.filter((w: any) => w.status === 'active' && w.monthlyAmountCents > 0).length;
+    const totalActiveWorkspaces = workspaces.filter((w: any) => w.status === 'active').length;
+    const totalUniqueOwners = new Set(workspaces.filter((w: any) => w.status === 'active').map((w: any) => w.owner?.id)).size;
 
     const uniqueOwners = useMemo(() => {
         const m = new Map<string, string>();
@@ -380,8 +382,8 @@ export default function CashflowPage() {
                             <Users className="w-4 h-4 text-purple-400" />
                             <span className="text-[9px] text-purple-400 uppercase font-bold tracking-wider">Clienti</span>
                         </div>
-                        <p className="text-xl font-black text-purple-300">{activeClients}</p>
-                        <p className="text-[10px] text-slate-600 mt-1">{activeWorkspaces} workspace attivi</p>
+                        <p className="text-xl font-black text-purple-300">{totalUniqueOwners}</p>
+                        <p className="text-[10px] text-slate-600 mt-1">{totalActiveWorkspaces} workspace attivi</p>
                     </div>
                     <div className={card + ' col-span-1'} style={cardBg}>
                         <div className="flex items-center gap-2 mb-2">
