@@ -591,41 +591,54 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                         <div key={ws.id} className={card} style={cardBg}>
                                             <h3 className="text-xs font-bold text-slate-300 mb-3 flex items-center gap-2">
                                                 <Building2 className="w-3.5 h-3.5 text-cyan-400" />{ws.name}
-                                                <span className="text-slate-600 font-normal">({ws.members?.length || 0} membri)</span>
+                                                <span className="text-slate-600 font-normal">
+                                                    ({(ws.members || []).filter((m: any) => m.role !== 'guest').length} membri
+                                                    {(ws.members || []).filter((m: any) => m.role === 'guest').length > 0 && (
+                                                        <> + {(ws.members || []).filter((m: any) => m.role === 'guest').length} guest</>
+                                                    )})
+                                                </span>
                                             </h3>
                                             <div className="space-y-1">
-                                                {(ws.members || []).map((m: any) => (
-                                                    <div key={m.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/[0.02]">
-                                                        {m.avatarUrl ? (
-                                                            <img src={m.avatarUrl} alt="" className="w-7 h-7 rounded-full" />
-                                                        ) : (
-                                                            <div className="w-7 h-7 rounded-full bg-slate-700/50 flex items-center justify-center text-[10px] text-slate-400 font-bold">
-                                                                {m.name?.[0]?.toUpperCase() || '?'}
+                                                {(ws.members || []).map((m: any) => {
+                                                    const isGuest = m.role === 'guest';
+                                                    return (
+                                                        <div key={m.id} className={`flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/[0.02] ${isGuest ? 'opacity-70 border-l-2 border-orange-500/30 pl-3' : ''}`}>
+                                                            {m.avatarUrl ? (
+                                                                <img src={m.avatarUrl} alt="" className="w-7 h-7 rounded-full" />
+                                                            ) : (
+                                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${isGuest ? 'bg-orange-500/20 text-orange-300' : 'bg-slate-700/50 text-slate-400'}`}>
+                                                                    {isGuest ? '👤' : (m.name?.[0]?.toUpperCase() || '?')}
+                                                                </div>
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-xs font-medium text-white truncate">{m.name}</p>
+                                                                <p className="text-[10px] text-slate-500 truncate">{m.email}</p>
                                                             </div>
-                                                        )}
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-xs font-medium text-white truncate">{m.name}</p>
-                                                            <p className="text-[10px] text-slate-500 truncate">{m.email}</p>
+                                                            {isGuest ? (
+                                                                <span className="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase bg-orange-500/15 text-orange-300 border border-orange-500/20">
+                                                                    Guest
+                                                                </span>
+                                                            ) : (
+                                                                <select
+                                                                    value={m.role}
+                                                                    onChange={e => changeRole(m.id, e.target.value)}
+                                                                    disabled={changingRole === m.id}
+                                                                    className="px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-[11px] text-white outline-none"
+                                                                >
+                                                                    <option value="owner" style={{ background: '#0f172a' }}>👑 Owner</option>
+                                                                    <option value="admin" style={{ background: '#0f172a' }}>🛡️ Admin</option>
+                                                                    <option value="member" style={{ background: '#0f172a' }}>👤 Membro</option>
+                                                                </select>
+                                                            )}
+                                                            {m.role !== 'owner' && (
+                                                                <button onClick={() => removeMember(m.id, m.name)}
+                                                                    className="p-1 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                                                                    <UserMinus className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
                                                         </div>
-                                                        {/* Role selector */}
-                                                        <select
-                                                            value={m.role}
-                                                            onChange={e => changeRole(m.id, e.target.value)}
-                                                            disabled={changingRole === m.id}
-                                                            className="px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-[11px] text-white outline-none"
-                                                        >
-                                                            <option value="owner" style={{ background: '#0f172a' }}>👑 Owner</option>
-                                                            <option value="admin" style={{ background: '#0f172a' }}>🛡️ Admin</option>
-                                                            <option value="member" style={{ background: '#0f172a' }}>👤 Membro</option>
-                                                        </select>
-                                                        {m.role !== 'owner' && (
-                                                            <button onClick={() => removeMember(m.id, m.name)}
-                                                                className="p-1 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                                                                <UserMinus className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                                 {(!ws.members || ws.members.length === 0) && <p className="text-xs text-slate-600 italic">Nessun membro</p>}
                                             </div>
                                         </div>
