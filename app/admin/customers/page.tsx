@@ -916,29 +916,30 @@ export default function CustomersPage() {
 
             {/* Summary Stats Cards */}
             {summary && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-purple-500/10 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Crown className="w-4 h-4 text-purple-400" />
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Owner</span>
+                        </div>
+                        <p className="text-2xl font-bold text-purple-300">{summary.totalOwners}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">proprietari attivi</p>
+                    </div>
                     <div className="rounded-xl border border-white/5 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                         <div className="flex items-center gap-2 mb-1">
                             <Users className="w-4 h-4 text-cyan-400" />
                             <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Utenti Unici</span>
                         </div>
                         <p className="text-2xl font-bold text-white">{summary.uniqueUsers}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">{summary.totalOwners} proprietari</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">membri totali</p>
                     </div>
                     <div className="rounded-xl border border-emerald-500/10 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                         <div className="flex items-center gap-2 mb-1">
                             <Building2 className="w-4 h-4 text-emerald-400" />
-                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Workspace Attivi</span>
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Workspace</span>
                         </div>
                         <p className="text-2xl font-bold text-emerald-300">{summary.workspacesActive}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">su {total} totali</p>
-                    </div>
-                    <div className="rounded-xl border border-amber-500/10 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
-                        <div className="flex items-center gap-2 mb-1">
-                            <Pause className="w-4 h-4 text-amber-400" />
-                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Workspace Sospesi</span>
-                        </div>
-                        <p className="text-2xl font-bold text-amber-300">{summary.workspacesSuspended}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{summary.workspacesSuspended > 0 ? `+ ${summary.workspacesSuspended} sospesi` : 'attivi'}</p>
                     </div>
                 </div>
             )}
