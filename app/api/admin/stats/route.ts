@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
         if (hasRange) {
             activeUsers = await safeCount(() =>
                 supabase.from('profiles').select('id', { count: 'exact', head: true })
-                    .gte('last_seen_at', rangeFrom).lte('last_seen_at', rangeTo)
+                    .gte('last_seen', rangeFrom).lte('last_seen', rangeTo)
             );
             if (activeUsers === 0 && allMembers.length > 0) {
                 const activeSet = new Set(
@@ -137,7 +137,7 @@ export async function GET(req: NextRequest) {
         } else {
             activeUsers = await safeCount(() =>
                 supabase.from('profiles').select('id', { count: 'exact', head: true })
-                    .gte('last_seen_at', new Date(now - day).toISOString())
+                    .gte('last_seen', new Date(now - day).toISOString())
             );
             if (activeUsers === 0 && allMembers.length > 0) {
                 const cutoff = new Date(now - day).toISOString();

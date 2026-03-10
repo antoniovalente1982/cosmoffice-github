@@ -27,6 +27,11 @@ interface Stats {
     dateRange: { from: string; to: string } | null;
 }
 
+interface GrowthPoint {
+    month: string; label: string; clients: number; newClients: number;
+    workspaces: number; mrr: number; revenue: number;
+}
+
 type PresetKey = 'today' | '7d' | '30d' | '90d' | 'year' | 'all';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -249,6 +254,9 @@ export default function AdminOverview() {
     const [customTo, setCustomTo] = useState(() => toISODate(new Date()));
     const [isCustom, setIsCustom] = useState(false);
     const [clock, setClock] = useState(new Date());
+    const [growthData, setGrowthData] = useState<GrowthPoint[]>([]);
+    const [growthView, setGrowthView] = useState<'both' | 'clients' | 'mrr'>('both');
+    const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
 
     // Live clock
     useEffect(() => {
@@ -272,6 +280,14 @@ export default function AdminOverview() {
     }, [activePreset, isCustom, customFrom, customTo]);
 
     useEffect(() => { loadStats(); }, [loadStats]);
+
+    // Load growth data
+    useEffect(() => {
+        fetch(`/api/admin/stats/growth?t=${Date.now()}`, { cache: 'no-store' })
+            .then(r => r.ok ? r.json() : { data: [] })
+            .then(d => setGrowthData(d.data || []))
+            .catch(() => setGrowthData([]));
+    }, []);
 
     const isFiltered = activePreset !== 'all' || isCustom;
 
@@ -536,6 +552,199 @@ export default function AdminOverview() {
                         </div>
                     </GlassCard>
                 </div>
+
+                {/* ═══════════════════════════════════════════
+                    GROWTH CHART
+                ═══════════════════════════════════════════ */}
+                {growthData.length > 1 && (() => {
+                    const gd = growthData;
+                    const maxClients = Math.max(...gd.map(d => d.clients), 1);
+                    const maxMrr = Math.max(...gd.map(d => d.mrr), 1);
+
+                    const W = 800, H = 280, PL = 55, PR = 65, PT = 20, PB = 50;
+                    const cW = W - PL - PR, cH = H - PT - PB;
+
+                    const xScale = (i: number) => PL + (i / (gd.length - 1)) * cW;
+                    const yClients = (v: number) => PT + cH - (v / maxClients) * cH;
+                    const yMrr = (v: number) => PT + cH - (v / maxMrr) * cH;
+
+                    const clientPath = gd.map((d, i) => `${i === 0 ? 'M' : 'L'}${xScale(i)},${yClients(d.clients)}`).join(' ');
+                    const mrrPath = gd.map((d, i) => `${i === 0 ? 'M' : 'L'}${xScale(i)},${yMrr(d.mrr)}`).join(' ');
+                    const clientArea = `${clientPath} L${xScale(gd.length - 1)},${PT + cH} L${xScale(0)},${PT + cH} Z`;
+                    const mrrArea = `${mrrPath} L${xScale(gd.length - 1)},${PT + cH} L${xScale(0)},${PT + cH} Z`;
+
+                    const clientTicks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(maxClients * f));
+                    const mrrTicks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(maxMrr * f));
+                    const step = Math.max(1, Math.floor(gd.length / 8));
+
+                    return (
+                        <GlassCard className="" glow="radial-gradient(circle,#06b6d4 0%,transparent 70%)" delay={420}>
+                            <div className="p-5">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp className="w-4 h-4 text-cyan-400" />
+                                        <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Crescita Piattaforma</h2>
+                                    </div>
+                                    <div className="flex items-center gap-1 p-1 rounded-xl border border-white/[0.06]" style={{ background: 'rgba(8,12,28,0.6)' }}>
+                                        {(['both', 'clients', 'mrr'] as const).map(v => (
+                                            <button key={v} onClick={() => setGrowthView(v)}
+                                                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${growthView === v
+                                                        ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25'
+                                                        : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                                                    }`}>
+                                                {v === 'both' ? 'Tutto' : v === 'clients' ? 'Clienti' : 'MRR'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Legend */}
+                                <div className="flex items-center gap-4 mb-3">
+                                    {(growthView === 'both' || growthView === 'clients') && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-3 h-0.5 rounded-full bg-cyan-400" />
+                                            <span className="text-[10px] text-cyan-400 font-medium">Clienti (cumulativo)</span>
+                                        </div>
+                                    )}
+                                    {(growthView === 'both' || growthView === 'mrr') && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-3 h-0.5 rounded-full bg-emerald-400" />
+                                            <span className="text-[10px] text-emerald-400 font-medium">MRR (€)</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* SVG Chart */}
+                                <div className="w-full overflow-x-auto">
+                                    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 500 }} preserveAspectRatio="xMidYMid meet">
+                                        <defs>
+                                            <linearGradient id="clientGrad" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.25" />
+                                                <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+                                            </linearGradient>
+                                            <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
+                                                <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                                            </linearGradient>
+                                        </defs>
+
+                                        {/* Grid lines */}
+                                        {[0, 0.25, 0.5, 0.75, 1].map((f, i) => (
+                                            <line key={i} x1={PL} y1={PT + cH * (1 - f)} x2={W - PR} y2={PT + cH * (1 - f)}
+                                                stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+                                        ))}
+
+                                        {/* Client area + line */}
+                                        {(growthView === 'both' || growthView === 'clients') && (
+                                            <>
+                                                <path d={clientArea} fill="url(#clientGrad)" />
+                                                <path d={clientPath} fill="none" stroke="#06b6d4" strokeWidth="2" strokeLinejoin="round" />
+                                            </>
+                                        )}
+
+                                        {/* MRR area + line */}
+                                        {(growthView === 'both' || growthView === 'mrr') && (
+                                            <>
+                                                <path d={mrrArea} fill="url(#mrrGrad)" />
+                                                <path d={mrrPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinejoin="round" />
+                                            </>
+                                        )}
+
+                                        {/* Left Y-axis labels (Clients) */}
+                                        {(growthView === 'both' || growthView === 'clients') && clientTicks.map((v, i) => (
+                                            <text key={`cl${i}`} x={PL - 8} y={yClients(v) + 3}
+                                                fill="#06b6d4" fontSize="9" textAnchor="end" opacity="0.6">{v}</text>
+                                        ))}
+
+                                        {/* Right Y-axis labels (MRR) */}
+                                        {(growthView === 'both' || growthView === 'mrr') && mrrTicks.map((v, i) => (
+                                            <text key={`mr${i}`} x={W - PR + 8} y={yMrr(v) + 3}
+                                                fill="#10b981" fontSize="9" textAnchor="start" opacity="0.6">{fmtC(v)}</text>
+                                        ))}
+
+                                        {/* X-axis labels */}
+                                        {gd.map((d, i) => i % step === 0 || i === gd.length - 1 ? (
+                                            <text key={`x${i}`} x={xScale(i)} y={H - 10}
+                                                fill="rgba(148,163,184,0.6)" fontSize="9" textAnchor="middle">{d.label}</text>
+                                        ) : null)}
+
+                                        {/* Data points & hover areas */}
+                                        {gd.map((d, i) => (
+                                            <g key={i}
+                                                onMouseEnter={() => setHoveredPoint(i)}
+                                                onMouseLeave={() => setHoveredPoint(null)}
+                                                style={{ cursor: 'pointer' }}>
+                                                <rect x={xScale(i) - (cW / gd.length) / 2} y={PT} width={cW / gd.length} height={cH}
+                                                    fill="transparent" />
+                                                {hoveredPoint === i && (
+                                                    <line x1={xScale(i)} y1={PT} x2={xScale(i)} y2={PT + cH}
+                                                        stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="3,3" />
+                                                )}
+                                                {(growthView === 'both' || growthView === 'clients') && (
+                                                    <circle cx={xScale(i)} cy={yClients(d.clients)} r={hoveredPoint === i ? 5 : 2.5}
+                                                        fill="#06b6d4" stroke="#080c1c" strokeWidth="1.5"
+                                                        style={{ transition: 'r 0.15s' }} />
+                                                )}
+                                                {(growthView === 'both' || growthView === 'mrr') && (
+                                                    <circle cx={xScale(i)} cy={yMrr(d.mrr)} r={hoveredPoint === i ? 5 : 2.5}
+                                                        fill="#10b981" stroke="#080c1c" strokeWidth="1.5"
+                                                        style={{ transition: 'r 0.15s' }} />
+                                                )}
+                                                {hoveredPoint === i && (
+                                                    <g>
+                                                        <rect x={xScale(i) - 70} y={PT - 5} width={140} height={52} rx={8}
+                                                            fill="rgba(8,12,28,0.95)" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                                                        <text x={xScale(i)} y={PT + 10} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">{d.label}</text>
+                                                        {(growthView === 'both' || growthView === 'clients') && (
+                                                            <text x={xScale(i)} y={PT + 24} textAnchor="middle" fill="#06b6d4" fontSize="10" fontWeight="bold">
+                                                                {fmtN(d.clients)} clienti (+{fmtN(d.newClients)})
+                                                            </text>
+                                                        )}
+                                                        {(growthView === 'both' || growthView === 'mrr') && (
+                                                            <text x={xScale(i)} y={PT + 38} textAnchor="middle" fill="#10b981" fontSize="10" fontWeight="bold">
+                                                                MRR: {fmtC(d.mrr)}
+                                                            </text>
+                                                        )}
+                                                    </g>
+                                                )}
+                                            </g>
+                                        ))}
+
+                                        {/* Axis labels */}
+                                        {(growthView === 'both' || growthView === 'clients') && (
+                                            <text x={12} y={PT + cH / 2} fill="#06b6d4" fontSize="9" fontWeight="bold"
+                                                textAnchor="middle" transform={`rotate(-90, 12, ${PT + cH / 2})`} opacity="0.5">CLIENTI</text>
+                                        )}
+                                        {(growthView === 'both' || growthView === 'mrr') && (
+                                            <text x={W - 12} y={PT + cH / 2} fill="#10b981" fontSize="9" fontWeight="bold"
+                                                textAnchor="middle" transform={`rotate(90, ${W - 12}, ${PT + cH / 2})`} opacity="0.5">MRR €</text>
+                                        )}
+                                    </svg>
+                                </div>
+
+                                {/* Summary row */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-3 border-t border-white/[0.05]">
+                                    <div className="text-center">
+                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">Clienti Totali</p>
+                                        <p className="text-lg font-black text-cyan-400 tabular-nums">{fmtN(gd[gd.length - 1]?.clients || 0)}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">Nuovi (ultimo mese)</p>
+                                        <p className="text-lg font-black text-cyan-300 tabular-nums">+{fmtN(gd[gd.length - 1]?.newClients || 0)}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">MRR Attuale</p>
+                                        <p className="text-lg font-black text-emerald-400 tabular-nums">{fmtC(gd[gd.length - 1]?.mrr || 0)}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">Workspace Attivi</p>
+                                        <p className="text-lg font-black text-purple-400 tabular-nums">{fmtN(gd[gd.length - 1]?.workspaces || 0)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </GlassCard>
+                    );
+                })()}
 
                 {/* ═══════════════════════════════════════════
                     BOTTOM ROW — Support + Plans + Monitor
