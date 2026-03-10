@@ -915,6 +915,8 @@ export function PixiOffice() {
             <div className="absolute inset-0 pointer-events-none overflow-hidden z-[2]">
                 {/* Peers — with viewport culling & LOD */}
                 {Object.values(peers).map((peer: any) => {
+                    // Skip peers that haven't broadcast their position yet
+                    if (!peer.position || peer.position.x <= 0 || peer.position.y <= 0) return null;
                     const screenPos = getScreenPos(peer.position);
                     if (!isInViewport(screenPos)) return null;
                     return (

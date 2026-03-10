@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '../../utils/supabase/client';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -60,6 +60,7 @@ interface TeamListProps {
 
 export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles }: TeamListProps) {
     const peers = useAvatarStore(s => s.peers);
+    const peerCount = Object.keys(peers).length; // reactive trigger for online detection
     const myProfile = useAvatarStore(s => s.myProfile);
     const myStatus = useAvatarStore(s => s.myStatus);
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
@@ -188,7 +189,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
     const isOnline = (m: WorkspaceMember) => {
         if (m.user_id === currentUserId) return true;
         const peer = peers[m.user_id];
-        return !!peer && peer.position && peer.position.x !== -9999;
+        return !!peer && peer.position && peer.position.x > 0 && peer.position.y > 0;
     };
     const getMemberStatus = (m: WorkspaceMember) => {
         if (m.user_id === currentUserId) return myStatus || 'online';
