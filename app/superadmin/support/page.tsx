@@ -88,6 +88,7 @@ export default function SupportPage() {
     const [loadingMessages, setLoadingMessages] = useState<string | null>(null);
     const chatEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const [statusCounts, setStatusCounts] = useState({ open: 0, in_progress: 0, resolved: 0, closed: 0, total: 0 });
+    const [unreadByStatus, setUnreadByStatus] = useState({ open: 0, in_progress: 0, resolved: 0, closed: 0, total: 0 });
 
     const fetchTickets = useCallback(async () => {
         setLoading(true);
@@ -99,6 +100,7 @@ export default function SupportPage() {
             const data = await res.json();
             setTickets(data.tickets || []);
             if (data.statusCounts) setStatusCounts(data.statusCounts);
+            if (data.unreadByStatus) setUnreadByStatus(data.unreadByStatus);
         } catch { /* ignore */ }
         setLoading(false);
     }, [filter, categoryFilter]);
@@ -116,6 +118,7 @@ export default function SupportPage() {
                 const data = await res.json();
                 if (data.tickets) setTickets(data.tickets);
                 if (data.statusCounts) setStatusCounts(data.statusCounts);
+                if (data.unreadByStatus) setUnreadByStatus(data.unreadByStatus);
             } catch { /* silent */ }
         }, 30000);
         return () => clearInterval(interval);
@@ -251,15 +254,32 @@ export default function SupportPage() {
                         />
                     </div>
                     <div className="flex gap-2">
-                        {(['open', 'in_progress', 'all', 'resolved', 'closed'] as const).map(f => (
-                            <button key={f} onClick={() => setFilter(f)}
-                                className={`px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${filter === f
-                                    ? 'bg-white/10 text-white border border-white/20'
-                                    : 'text-slate-500 hover:text-slate-300 border border-transparent'
-                                    }`}>
-                                {f === 'open' ? `Aperti (${openCount})` : f === 'in_progress' ? `In Corso (${inProgressCount})` : f === 'all' ? `Tutti (${totalCount})` : f === 'resolved' ? `Risolti (${resolvedCount})` : `Chiusi (${closedCount})`}
-                            </button>
-                        ))}
+                        {(['open', 'in_progress', 'all', 'resolved', 'closed'] as const).map(f => {
+                            const unreadForTab = f === 'all' ? unreadByStatus.total
+                                : f === 'open' ? unreadByStatus.open
+                                    : f === 'in_progress' ? unreadByStatus.in_progress
+                                        : f === 'resolved' ? unreadByStatus.resolved
+                                            : unreadByStatus.closed;
+                            const hasUnread = unreadForTab > 0;
+                            const label = f === 'open' ? `Aperti (${openCount})` : f === 'in_progress' ? `In Corso (${inProgressCount})` : f === 'all' ? `Tutti (${totalCount})` : f === 'resolved' ? `Risolti (${resolvedCount})` : `Chiusi (${closedCount})`;
+                            return (
+                                <button key={f} onClick={() => setFilter(f)}
+                                    className={`relative px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${filter === f
+                                        ? hasUnread
+                                            ? 'bg-red-500/15 text-red-300 border border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
+                                            : 'bg-white/10 text-white border border-white/20'
+                                        : hasUnread
+                                            ? 'text-red-400 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10'
+                                            : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                                        }`}>
+                                    {hasUnread && (
+                                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
+                                    )}
+                                    {label}
+                                    {hasUnread && <span className="ml-1 text-red-400">🔴{unreadForTab}</span>}
+                                </button>
+                            );
+                        })}
                     </div>
                     <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
                         className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-300 focus:outline-none">

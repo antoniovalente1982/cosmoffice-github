@@ -122,10 +122,20 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                 .in('status', ['open', 'pending', 'new'])
                 .eq('category', 'upgrade');
 
+            // Fetch unread reply count from API
+            let unreadReplies = 0;
+            try {
+                const res = await fetch('/api/admin/support-tickets?limit=1');
+                const apiData = await res.json();
+                unreadReplies = apiData.unreadByStatus?.total || 0;
+            } catch { /* silent */ }
+
+            const supportBadge = Math.max(supportCount || 0, unreadReplies);
+
             setPendingCounts({
-                support: supportCount || 0,
+                support: supportBadge,
                 upgrades: upgradeCount || 0,
-                total: (supportCount || 0) + (upgradeCount || 0),
+                total: supportBadge + (upgradeCount || 0),
             });
 
             // Fetch recent pending items for the notification panel

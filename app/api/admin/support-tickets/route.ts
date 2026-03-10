@@ -58,21 +58,49 @@ export async function GET(req: NextRequest) {
     const offset = (page - 1) * limit;
 
     try {
-        // 1. Get global status counts (unfiltered) for the tabs
+        // 1. Get global status counts AND unread reply counts per status
         const { data: allTickets } = await supabase
             .from('support_tickets')
-            .select('status');
+            .select('id, status');
 
         const statusCounts = {
             open: 0, in_progress: 0, resolved: 0, closed: 0, total: 0,
         };
+        const allTicketIds = (allTickets || []).map((t: any) => t.id);
+        const ticketStatusMap: Record<string, string> = {};
         (allTickets || []).forEach((t: any) => {
             statusCounts.total++;
             if (t.status === 'open') statusCounts.open++;
             else if (t.status === 'in_progress') statusCounts.in_progress++;
             else if (t.status === 'resolved') statusCounts.resolved++;
             else if (t.status === 'closed') statusCounts.closed++;
+            ticketStatusMap[t.id] = t.status;
         });
+
+        // Compute global unread reply counts per status
+        const unreadByStatus = { open: 0, in_progress: 0, resolved: 0, closed: 0, total: 0 };
+        if (allTicketIds.length > 0) {
+            const { data: allMsgs } = await supabase
+                .from('ticket_messages')
+                .select('ticket_id, is_admin, created_at')
+                .in('ticket_id', allTicketIds)
+                .order('created_at', { ascending: false });
+
+            allTicketIds.forEach((tid: string) => {
+                const ticketMsgs = (allMsgs || []).filter((m: any) => m.ticket_id === tid);
+                const lastAdminMsg = ticketMsgs.find((m: any) => m.is_admin);
+                const lastAdminTime = lastAdminMsg?.created_at || '1970-01-01';
+                const unread = ticketMsgs.filter((m: any) => !m.is_admin && m.created_at > lastAdminTime).length;
+                if (unread > 0) {
+                    const st = ticketStatusMap[tid];
+                    if (st === 'open') unreadByStatus.open += unread;
+                    else if (st === 'in_progress') unreadByStatus.in_progress += unread;
+                    else if (st === 'resolved') unreadByStatus.resolved += unread;
+                    else if (st === 'closed') unreadByStatus.closed += unread;
+                    unreadByStatus.total += unread;
+                }
+            });
+        }
 
         // 2. Get filtered tickets for the list
         let query = supabase
@@ -118,6 +146,7 @@ export async function GET(req: NextRequest) {
                 unreadUserCount: unreadCounts[t.id] || 0,
             })),
             statusCounts,
+            unreadByStatus,
             total: count || 0,
             page,
             totalPages: Math.ceil((count || 0) / limit),
