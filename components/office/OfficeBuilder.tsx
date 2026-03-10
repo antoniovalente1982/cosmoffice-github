@@ -39,6 +39,7 @@ export function OfficeBuilder() {
         isBuilderMode, rooms, selectedRoomId, selectedRoomIds, roomTemplates, roomConnections, layoutMode,
         activeSpaceId, stagePos, zoom, addRoom, setSelectedRoom, setSelectedRoomIds, removeRoom,
         setRooms, setRoomConnections, toggleBuilderMode, setLayoutMode,
+        officeWidth, officeHeight,
     } = useWorkspaceStore();
 
     const [saving, setSaving] = useState(false);
@@ -1065,6 +1066,66 @@ export function OfficeBuilder() {
                                             {rooms.length === 0 && (
                                                 <p className="text-sm text-slate-500 text-center py-6">Nessuna stanza. Crea la prima o usa un template!</p>
                                             )}
+                                        </div>
+
+                                        {/* ═══ Dimensione Spazio ═══ */}
+                                        <div className="w-full space-y-3 mt-4 mb-2">
+                                            <div className="h-px w-full bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Map className="w-3.5 h-3.5 text-emerald-400" />
+                                                <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Dimensione Spazio</p>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {OFFICE_PRESETS.map(preset => {
+                                                    const isActive = officeWidth === preset.width && officeHeight === preset.height;
+                                                    return (
+                                                        <button
+                                                            key={preset.id}
+                                                            onClick={async () => {
+                                                                const s = useWorkspaceStore.getState();
+                                                                // Check rooms fit
+                                                                const outOfBounds = s.rooms.some(r =>
+                                                                    r.x + r.width > preset.width || r.y + r.height > preset.height
+                                                                );
+                                                                if (outOfBounds) {
+                                                                    setToast({ msg: '❌ Sposta o riduci le stanze prima di rimpicciolire!', type: 'err' });
+                                                                    return;
+                                                                }
+                                                                s.setOfficeDimensions(preset.width, preset.height);
+                                                                // Save to DB
+                                                                if (activeSpaceId) {
+                                                                    const layout_data = {
+                                                                        officeWidth: preset.width,
+                                                                        officeHeight: preset.height,
+                                                                        bgOpacity: s.bgOpacity,
+                                                                        landingPadX: s.landingPad.x,
+                                                                        landingPadY: s.landingPad.y,
+                                                                        landingPadScale: s.landingPadScale,
+                                                                        layoutMode: s.layoutMode,
+                                                                    };
+                                                                    await supabase.from('spaces').update({ layout_data }).eq('id', activeSpaceId);
+                                                                }
+                                                                setToast({ msg: `✅ Spazio impostato: ${preset.label}`, type: 'ok' });
+                                                            }}
+                                                            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${isActive
+                                                                ? 'bg-emerald-500/20 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                                                                : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-white/20'
+                                                                }`}
+                                                        >
+                                                            <span className="text-lg">{preset.icon}</span>
+                                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-emerald-300' : 'text-slate-400'}`}>
+                                                                {preset.label}
+                                                            </span>
+                                                            <span className={`text-[9px] ${isActive ? 'text-emerald-400/70' : 'text-slate-600'}`}>
+                                                                {preset.capacity} utenti
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <p className="text-[9px] text-slate-600 text-center italic">
+                                                {officeWidth}×{officeHeight} px
+                                            </p>
                                         </div>
 
                                         {/* ═══ Rami / Connessioni ═══ */}
