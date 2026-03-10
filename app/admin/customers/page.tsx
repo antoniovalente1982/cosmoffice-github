@@ -849,13 +849,13 @@ export default function CustomersPage() {
                         <KeyRound className="w-4 h-4" />
                         Link Owner
                     </button>
-                    {['', 'active', 'demo'].map(p => (
+                    {['', 'premium', 'demo'].map(p => (
                         <button key={p} onClick={() => { setPlanFilter(p); setPage(1); }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${planFilter === p
                                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
                                 : 'bg-black/20 text-slate-400 border-white/5 hover:bg-white/5'
                                 }`}>
-                            {p === '' ? 'Tutti' : p === 'active' ? '🟢 Con Piano' : '🔵 Demo'}
+                            {p === '' ? 'Tutti' : p === 'premium' ? '🟢 Premium' : '🔵 Demo'}
                         </button>
                     ))}
                 </div>
@@ -904,7 +904,7 @@ export default function CustomersPage() {
                             ? 'bg-violet-500/20 text-violet-300 border-violet-500/30'
                             : 'bg-black/20 text-slate-400 border-white/5 hover:bg-white/5'
                             }`}>
-                        <Building2 className="w-3 h-3" /> WS
+                        <Building2 className="w-3 h-3" /> N° Uffici
                     </button>
                 </div>
             </div>

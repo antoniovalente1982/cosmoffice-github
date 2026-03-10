@@ -127,14 +127,14 @@ export async function GET(req: NextRequest) {
             let profiles: any[] | null = null;
             const { data: extProfiles, error: extError } = await supabase
                 .from('profiles')
-                .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, deleted_at, created_at')
+                .select('id, email, full_name, display_name, avatar_url, is_super_admin, suspended_at, created_at')
                 .in('id', Array.from(ownerUserIds));
 
             if (extError) {
-                // Fallback: suspended_at/deleted_at columns may not exist yet
+                // Fallback: suspended_at column may not exist yet
                 const { data: basicProfiles } = await supabase
                     .from('profiles')
-                    .select('id, email, full_name, display_name, avatar_url, is_super_admin')
+                    .select('id, email, full_name, display_name, avatar_url, is_super_admin, created_at')
                     .in('id', Array.from(ownerUserIds));
                 profiles = basicProfiles;
             } else {
@@ -221,7 +221,7 @@ export async function GET(req: NextRequest) {
                     avatarUrl: ownerProfile.avatar_url,
                     isSuperAdmin: !!ownerProfile.is_super_admin,
                     suspended: !!ownerProfile.suspended_at,
-                    deleted: !!ownerProfile.deleted_at,
+                    deleted: false,
                     createdAt: ownerProfile.created_at || null,
                 } : null,
             };
