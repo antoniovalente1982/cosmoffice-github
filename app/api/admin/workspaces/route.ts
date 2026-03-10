@@ -295,6 +295,45 @@ export async function POST(req: NextRequest) {
             return members?.[0]?.user_id || null;
         };
 
+        // Auto hard-delete owner if they have no remaining workspaces (non-SuperAdmin only)
+        const autoCleanupOrphanOwner = async (ownerUserId: string | null) => {
+            if (!ownerUserId || ownerUserId === userId) return; // Don't delete yourself
+            try {
+                // Check if owner is super admin
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('is_super_admin')
+                    .eq('id', ownerUserId)
+                    .single();
+                if (profile?.is_super_admin) return; // Never auto-delete super admins
+
+                // Check if they still own any workspaces
+                const { count } = await supabase
+                    .from('workspaces')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('created_by', ownerUserId);
+
+                if ((count || 0) > 0) return; // Still has workspaces, keep them
+
+                console.log(`[autoCleanup] Owner ${ownerUserId} has 0 workspaces — hard deleting...`);
+
+                // Clean up any remaining data
+                await supabase.from('workspace_members').delete().eq('user_id', ownerUserId);
+                // Delete orphan spaces created by this user
+                const { data: orphanSpaces } = await supabase.from('spaces').select('id').eq('created_by', ownerUserId);
+                if (orphanSpaces && orphanSpaces.length > 0) {
+                    const spaceIds = orphanSpaces.map((s: any) => s.id);
+                    await supabase.from('rooms').delete().in('space_id', spaceIds);
+                    await supabase.from('spaces').delete().eq('created_by', ownerUserId);
+                }
+                await supabase.from('profiles').delete().eq('id', ownerUserId);
+                await supabase.auth.admin.deleteUser(ownerUserId);
+                console.log(`[autoCleanup] Owner ${ownerUserId} hard deleted successfully`);
+            } catch (err: any) {
+                console.error(`[autoCleanup] Error cleaning up owner ${ownerUserId}:`, err.message);
+            }
+        };
+
         switch (action) {
             case 'create_customer_manual': {
                 const { email, fullName, workspaceName, plan, maxMembers, pricePerSeat, monthlyAmountCents } = actionData;
@@ -491,7 +530,7 @@ export async function POST(req: NextRequest) {
             case 'delete_workspace': {
                 // Notify owner BEFORE deleting
                 const ownerId = await getOwnerUserId(workspaceId);
-                const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single();
+                const { data: ws } = await supabase.from('workspaces').select('name, created_by').eq('id', workspaceId).single();
                 const wsName = ws?.name || '';
 
                 // Clean up related tables that may not have ON DELETE CASCADE in production
@@ -512,6 +551,9 @@ export async function POST(req: NextRequest) {
                         'workspace', workspaceId
                     );
                 }
+
+                // Auto hard-delete owner if this was their last workspace
+                await autoCleanupOrphanOwner(ownerId || ws?.created_by);
 
                 return NextResponse.json({ success: true });
             }
@@ -623,10 +665,10 @@ export async function POST(req: NextRequest) {
                 if (delErr) throw delErr;
 
                 // Try to notify owners (non-blocking, don't fail if notifications table doesn't exist)
+                const affectedOwnerIds = new Set<string>();
                 try {
-                    const ownerIds = new Set<string>();
-                    (wsInfos || []).forEach((ws: any) => { if (ws.created_by) ownerIds.add(ws.created_by); });
-                    for (const oid of Array.from(ownerIds)) {
+                    (wsInfos || []).forEach((ws: any) => { if (ws.created_by) affectedOwnerIds.add(ws.created_by); });
+                    for (const oid of Array.from(affectedOwnerIds)) {
                         const count = (wsInfos || []).filter((ws: any) => ws.created_by === oid).length;
                         await sendNotification(
                             oid,
@@ -636,6 +678,11 @@ export async function POST(req: NextRequest) {
                         );
                     }
                 } catch { /* notifications are optional */ }
+
+                // Auto hard-delete any owners who now have 0 workspaces
+                for (const oid of Array.from(affectedOwnerIds)) {
+                    await autoCleanupOrphanOwner(oid);
+                }
 
                 return NextResponse.json({ success: true, deleted: ids.length });
             }
