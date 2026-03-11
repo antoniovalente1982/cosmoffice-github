@@ -429,7 +429,7 @@ export default function DashboardPage() {
                                 key={space.id}
                                 className="transition-transform duration-150 hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <Card className="p-6 h-full flex flex-col justify-between group hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/10 transition-all duration-200 border-white/5 bg-slate-900/90 relative overflow-hidden">
+                                <Card className="p-6 h-full flex flex-col justify-between group hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/10 transition-all duration-200 border-white/5 bg-[#0c1222] relative overflow-hidden">
                                     {/* Glow effect on hover */}
                                     <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 

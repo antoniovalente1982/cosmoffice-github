@@ -17,6 +17,9 @@ import { MemberList } from './MemberList';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
 import { useWorkspaceRole } from '../../hooks/useWorkspaceRole';
 import { createClient } from '../../utils/supabase/client';
+import { useT } from '../../lib/i18n';
+import { OFFICE_THEMES, OfficeThemeId } from '../../lib/officeThemes';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 
 interface WorkspaceSettingsProps {
     workspaceId: string;
@@ -41,6 +44,10 @@ export function WorkspaceSettings({
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [theme, setThemeLocal] = useState<OfficeThemeId>('space');
+    const [savingTheme, setSavingTheme] = useState(false);
+    const setThemeStore = useWorkspaceStore(s => s.setTheme);
+    const { t } = useT();
 
     const { role, isAdmin, loading: roleLoading } = useWorkspaceRole(workspaceId);
     const {
@@ -56,9 +63,10 @@ export function WorkspaceSettings({
     // Fetch workspace plan from DB
     useEffect(() => {
         const supabase = createClient();
-        supabase.from('workspaces').select('plan').eq('id', workspaceId).single()
+        supabase.from('workspaces').select('plan, settings').eq('id', workspaceId).single()
             .then(({ data }) => {
                 if (data?.plan) setWsPlan(data.plan);
+                if (data?.settings?.theme) setThemeLocal(data.settings.theme);
             });
     }, [workspaceId]);
 
@@ -102,7 +110,7 @@ export function WorkspaceSettings({
                 {/* Modal */}
                 <div
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-2xl max-h-[85vh] bg-slate-900/98 border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
+                    className="w-full max-w-2xl max-h-[85vh] bg-[#0c1222] border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
                     style={{ animation: 'fadeIn 0.2s ease-out' }}
                 >
                     {/* Header */}
@@ -200,6 +208,54 @@ export function WorkspaceSettings({
                                                     </p>
                                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider">Piano</p>
                                                 </div>
+                                            </div>
+
+                                            {/* Theme Selector */}
+                                            <div className="space-y-2">
+                                                <label className="block text-xs font-medium text-slate-400 flex items-center gap-1.5">
+                                                    <Building2 className="w-3 h-3" /> {t('settings.themeLabel')}
+                                                </label>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {(Object.values(OFFICE_THEMES) as any[]).map((thm: any) => (
+                                                        <button
+                                                            key={thm.id}
+                                                            disabled={savingTheme || !isAdmin}
+                                                            onClick={async () => {
+                                                                if (thm.id === theme) return;
+                                                                setSavingTheme(true);
+                                                                setThemeLocal(thm.id);
+                                                                setThemeStore(thm.id);
+                                                                const supabase = createClient();
+                                                                const { data: ws } = await supabase
+                                                                    .from('workspaces')
+                                                                    .select('settings')
+                                                                    .eq('id', workspaceId)
+                                                                    .single();
+                                                                const currentSettings = ws?.settings || {};
+                                                                await supabase
+                                                                    .from('workspaces')
+                                                                    .update({ settings: { ...currentSettings, theme: thm.id } })
+                                                                    .eq('id', workspaceId);
+                                                                setSavingTheme(false);
+                                                            }}
+                                                            className={`relative p-4 rounded-xl border-2 transition-all text-left group ${
+                                                                theme === thm.id
+                                                                    ? 'border-cyan-400 bg-cyan-500/10 ring-1 ring-cyan-400/30'
+                                                                    : 'border-white/10 bg-slate-800/40 hover:border-white/20 hover:bg-slate-800/60'
+                                                            }`}
+                                                        >
+                                                            <div className="text-2xl mb-2">{thm.icon}</div>
+                                                            <div className="text-sm font-bold text-slate-100">{t(`settings.theme.${thm.id}` as any)}</div>
+                                                            <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{t(`settings.theme.${thm.id}Desc` as any)}</div>
+                                                            {theme === thm.id && (
+                                                                <div className="absolute top-2 right-2">
+                                                                    <Check className="w-4 h-4 text-cyan-400" />
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <p className="text-[10px] text-slate-600 ml-1">{t('settings.themeHint')}</p>
                                             </div>
 
                                             {/* Save button */}

@@ -68,7 +68,7 @@ export function LanguageSelector({ className = '', compact = false }: LanguageSe
             openDirection === 'up'
               ? 'bottom-full mb-2'
               : 'top-full mt-2'
-          } right-0 min-w-[160px] bg-slate-900/95 border border-white/10 rounded-xl shadow-xl z-50 py-1 backdrop-blur-xl overflow-hidden`}
+          } right-0 min-w-[160px] bg-[#0c1222] border border-white/10 rounded-xl shadow-xl z-50 py-1 backdrop-blur-xl overflow-hidden`}
           style={{ animation: 'fadeIn 0.15s ease-out' }}
         >
           {locales.map((loc) => (

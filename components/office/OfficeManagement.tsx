@@ -445,55 +445,6 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                 </button>
                             </div>
 
-                            {/* Theme Selector — Owner/Admin only */}
-                            {(userRole === 'owner' || userRole === 'admin') && (
-                                <div className="space-y-1.5">
-                                    <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                        <Building2 className="w-3 h-3" /> {t('settings.themeLabel')}
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {(Object.values(OFFICE_THEMES) as any[]).map((thm: any) => (
-                                            <button
-                                                key={thm.id}
-                                                disabled={savingTheme}
-                                                onClick={async () => {
-                                                    if (thm.id === theme) return;
-                                                    setSavingTheme(true);
-                                                    setTheme(thm.id);
-                                                    // Save to workspace settings
-                                                    if (workspaceId) {
-                                                        const { data: ws } = await supabase
-                                                            .from('workspaces')
-                                                            .select('settings')
-                                                            .eq('id', workspaceId)
-                                                            .single();
-                                                        const currentSettings = ws?.settings || {};
-                                                        await supabase
-                                                            .from('workspaces')
-                                                            .update({ settings: { ...currentSettings, theme: thm.id } })
-                                                            .eq('id', workspaceId);
-                                                    }
-                                                    setSavingTheme(false);
-                                                }}
-                                                className={`relative p-4 rounded-xl border-2 transition-all text-left group ${theme === thm.id
-                                                        ? 'border-cyan-400 bg-cyan-500/10 ring-1 ring-cyan-400/30'
-                                                        : 'border-white/10 bg-slate-800/40 hover:border-white/20 hover:bg-slate-800/60'
-                                                    }`}
-                                            >
-                                                <div className="text-2xl mb-2">{thm.icon}</div>
-                                                <div className="text-sm font-bold text-slate-100">{t(`settings.theme.${thm.id}` as any)}</div>
-                                                <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{t(`settings.theme.${thm.id}Desc` as any)}</div>
-                                                {theme === thm.id && (
-                                                    <div className="absolute top-2 right-2">
-                                                        <Check className="w-4 h-4 text-cyan-400" />
-                                                    </div>
-                                                )}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <p className="text-[10px] text-slate-600 ml-1">{t('settings.themeHint')}</p>
-                                </div>
-                            )}
 
                             {/* Save button */}
                             <Button
