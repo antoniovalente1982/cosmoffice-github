@@ -94,10 +94,20 @@ export default class AvatarServer {
     private users = new Map<string, UserState>();
     private connectionToUser = new Map<string, string>(); // connection.id → userId
     private userToConnection = new Map<string, string>(); // userId → connection.id
+    private pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>(); // userId → delayed leave timer
 
     constructor(public party: any) {
-        // Start periodic heartbeat alarm
-        this.party.storage?.setAlarm?.(Date.now() + HEARTBEAT_INTERVAL_MS);
+        // Start periodic heartbeat alarm — with fallback if storage.setAlarm fails
+        // (storage is wiped every 24h on free plan, so setAlarm may silently fail)
+        this.scheduleAlarm();
+    }
+
+    private scheduleAlarm() {
+        try {
+            this.party.storage?.setAlarm?.(Date.now() + HEARTBEAT_INTERVAL_MS);
+        } catch (e) {
+            console.warn('[PartyKit] setAlarm failed (free plan storage wipe?), using fallback');
+        }
     }
 
     // ─── Periodic cleanup of stale/ghost users ──────────────
@@ -105,10 +115,20 @@ export default class AvatarServer {
         const now = Date.now();
         const toRemove: string[] = [];
 
+        // 1. Clean orphaned connection→user entries (connection no longer exists)
+        for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+            const conn = this.party.getConnection(connId);
+            if (!conn) {
+                this.connectionToUser.delete(connId);
+                if (this.userToConnection.get(uid) === connId) {
+                    this.userToConnection.delete(uid);
+                }
+            }
+        }
+
+        // 2. Remove stale users (no active connection AND no recent heartbeat)
         this.users.forEach((state, userId) => {
-            // Check if user is stale (no ping received recently)
             if (now - state.lastSeen > STALE_THRESHOLD_MS) {
-                // Also verify the connection is truly dead
                 const connId = this.userToConnection.get(userId);
                 const conn = connId ? this.party.getConnection(connId) : null;
                 if (!conn) {
@@ -122,24 +142,41 @@ export default class AvatarServer {
             if (connId) this.connectionToUser.delete(connId);
             this.userToConnection.delete(userId);
             this.users.delete(userId);
+            // Cancel any pending leave timer
+            const timer = this.pendingLeaves.get(userId);
+            if (timer) { clearTimeout(timer); this.pendingLeaves.delete(userId); }
             const leaveMsg: OutgoingMessage = { type: "leave", userId };
             this.party.broadcast(JSON.stringify(leaveMsg));
             console.log(`[PartyKit] Purged stale user: ${userId.slice(0, 8)}`);
         }
 
         // Schedule next alarm
-        this.party.storage?.setAlarm?.(Date.now() + HEARTBEAT_INTERVAL_MS);
+        this.scheduleAlarm();
     }
 
     onConnect(connection: any) {
+        // Re-schedule alarm on every new connection to ensure heartbeat stays alive
+        // (critical after free-plan storage wipe which kills the alarm)
+        this.scheduleAlarm();
+
+        // Clean up orphaned connection mappings first
+        for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+            const conn = this.party.getConnection(connId);
+            if (!conn) {
+                this.connectionToUser.delete(connId);
+                if (this.userToConnection.get(uid) === connId) {
+                    this.userToConnection.delete(uid);
+                }
+            }
+        }
+
         // Send current state of all LIVE users to new connection
-        // Filter out ghost users with invalid positions or dead connections
         const usersObj: Record<string, UserState> = {};
         const now = Date.now();
         this.users.forEach((state, id) => {
             // Skip ghosts: no recent activity and invalid position
             if (state.x === -9999 && state.y === -9999) return;
-            // Skip stale users with no connection
+            // Skip stale users with no active connection
             const connId = this.userToConnection.get(id);
             if (!connId) return;
             const conn = this.party.getConnection(connId);
@@ -191,6 +228,13 @@ export default class AvatarServer {
         switch (parsed.type) {
             case "identify": {
                 const userId = parsed.userId;
+
+                // Cancel any pending leave timer — user is reconnecting
+                const pendingLeave = this.pendingLeaves.get(userId);
+                if (pendingLeave) {
+                    clearTimeout(pendingLeave);
+                    this.pendingLeaves.delete(userId);
+                }
 
                 // If this userId already has an active connection, close the old one
                 const existingConnId = this.userToConnection.get(userId);
@@ -680,17 +724,38 @@ export default class AvatarServer {
         if (userId) {
             this.connectionToUser.delete(connection.id);
 
-            // Only remove user state if this connection was the ACTIVE one for this userId
-            // (prevents a stale connection from removing a reconnected user)
+            // Only process leave if this connection was the ACTIVE one for this userId
             const activeConnId = this.userToConnection.get(userId);
             if (activeConnId === connection.id) {
-                this.users.delete(userId);
-                this.userToConnection.delete(userId);
-                const leaveMsg: OutgoingMessage = { type: "leave", userId };
-                this.party.broadcast(JSON.stringify(leaveMsg));
+                // Cancel any existing pending leave for this user
+                const existingTimer = this.pendingLeaves.get(userId);
+                if (existingTimer) clearTimeout(existingTimer);
+
+                // Grace period: wait 3 seconds before broadcasting leave.
+                // If the user reconnects quickly (room switch, page navigation, network hiccup),
+                // the identify message will cancel this timer and prevent ghost flicker.
+                const timer = setTimeout(() => {
+                    this.pendingLeaves.delete(userId);
+                    // Re-check: has the user reconnected during the grace period?
+                    const currentConnId = this.userToConnection.get(userId);
+                    if (currentConnId) {
+                        const conn = this.party.getConnection(currentConnId);
+                        if (conn) {
+                            // User reconnected — do NOT broadcast leave
+                            return;
+                        }
+                    }
+                    // User truly left — clean up and broadcast
+                    this.users.delete(userId);
+                    this.userToConnection.delete(userId);
+                    const leaveMsg: OutgoingMessage = { type: "leave", userId };
+                    this.party.broadcast(JSON.stringify(leaveMsg));
+                    console.log(`[PartyKit] User left after grace period: ${userId.slice(0, 8)}`);
+                }, 3000);
+                this.pendingLeaves.set(userId, timer);
             }
 
-            // Clean up any OTHER orphaned connectionToUser entries for this userId
+            // Clean up orphaned connectionToUser entries for this userId
             for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
                 if (uid === userId && !this.party.getConnection(connId)) {
                     this.connectionToUser.delete(connId);
