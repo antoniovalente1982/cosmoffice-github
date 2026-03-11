@@ -116,13 +116,25 @@ export default function OfficePage() {
     // Smart toggle with proximity check
     // Check if there are other people in my room or in proximity
     const hasPeopleNearby = useCallback(() => {
-        const { myProximityGroupId, myRoomId, peers } = useAvatarStore.getState();
+        const { myProximityGroupId, myRoomId, peers, myPosition } = useAvatarStore.getState();
         // Proximity aura detected someone
         if (myProximityGroupId) return true;
         // In a room with other people
         if (myRoomId) {
             const peersInRoom = Object.values(peers).filter((p: any) => p.roomId === myRoomId);
             return peersInRoom.length > 0;
+        }
+        // Fallback: direct distance check for any peer within range
+        // This handles cases where the proximity engine hasn't updated yet
+        const NEARBY_THRESHOLD = 600;
+        const peerList = Object.values(peers) as any[];
+        for (const peer of peerList) {
+            if (!peer.position || peer.isDnd || peer.isAway || peer.status === 'away') continue;
+            if (peer.roomId) continue; // peer is in a room, skip
+            const dx = myPosition.x - peer.position.x;
+            const dy = myPosition.y - peer.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < NEARBY_THRESHOLD) return true;
         }
         return false;
     }, []);
