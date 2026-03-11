@@ -62,8 +62,8 @@ function MiniMapInner() {
     const vpW = (cw / zoom) * scale;
     const vpH = (ch / zoom) * scale;
 
-    // Filter out peers with unknown/off-screen positions
-    const visiblePeers = Object.values(peers).filter((p: any) => p.position && p.position.x >= 0 && p.position.y >= 0);
+    // Filter out peers with sentinel off-screen positions (not yet positioned)
+    const visiblePeers = Object.values(peers).filter((p: any) => p.position && !(p.position.x < -9000 && p.position.y < -9000));
 
     // Count peers per room
     const peerCountByRoom: Record<string, number> = {};

@@ -156,12 +156,19 @@ export default class AvatarServer {
                     } catch { }
                 }
 
+                // Clean up any OTHER stale connectionToUser entries pointing to this userId
+                for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+                    if (uid === userId && connId !== sender.id) {
+                        this.connectionToUser.delete(connId);
+                    }
+                }
+
                 this.connectionToUser.set(sender.id, userId);
                 this.userToConnection.set(userId, sender.id);
                 const existing = this.users.get(userId);
                 this.users.set(userId, {
-                    x: existing?.x ?? 500,
-                    y: existing?.y ?? 500,
+                    x: existing?.x ?? -9999,
+                    y: existing?.y ?? -9999,
                     name: parsed.name,
                     roomId: existing?.roomId ?? null,
                     status: parsed.status,
@@ -613,6 +620,13 @@ export default class AvatarServer {
                 this.userToConnection.delete(userId);
                 const leaveMsg: OutgoingMessage = { type: "leave", userId };
                 this.party.broadcast(JSON.stringify(leaveMsg));
+            }
+
+            // Clean up any OTHER orphaned connectionToUser entries for this userId
+            for (const [connId, uid] of Array.from(this.connectionToUser.entries())) {
+                if (uid === userId && !this.party.getConnection(connId)) {
+                    this.connectionToUser.delete(connId);
+                }
             }
         }
     }
