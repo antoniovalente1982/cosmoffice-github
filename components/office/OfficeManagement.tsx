@@ -273,7 +273,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
             <div
-                className="w-full max-w-2xl bg-slate-900/98 border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+                className="w-full max-w-2xl bg-[#0c1222] border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
                 style={{ animation: 'fadeIn 0.2s ease-out' }}
                 onClick={(e) => e.stopPropagation()}
             >
@@ -481,8 +481,8 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                                     }`}
                                             >
                                                 <div className="text-2xl mb-2">{thm.icon}</div>
-                                                <div className="text-sm font-bold text-slate-100">{thm.label}</div>
-                                                <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{thm.description}</div>
+                                                <div className="text-sm font-bold text-slate-100">{t(`settings.theme.${thm.id}` as any)}</div>
+                                                <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{t(`settings.theme.${thm.id}Desc` as any)}</div>
                                                 {theme === thm.id && (
                                                     <div className="absolute top-2 right-2">
                                                         <Check className="w-4 h-4 text-cyan-400" />
