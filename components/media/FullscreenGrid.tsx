@@ -126,8 +126,11 @@ export function FullscreenGrid() {
     const isVideoEnabled = useDailyStore(s => s.isVideoOn);
     const isSpeaking = useDailyStore(s => s.isSpeaking);
     const toggleVideo = useDailyStore(s => s.toggleVideo);
+    const isScreenSharing = useDailyStore(s => s.isScreenSharing);
     const peers = useAvatarStore(s => s.peers);
     const myProfile = useAvatarStore(s => s.myProfile);
+    const myRoomId = useAvatarStore(s => s.myRoomId);
+    const myProximityGroupId = useAvatarStore(s => s.myProximityGroupId);
 
     const participants = useMemo(() => {
         const list: GridParticipant[] = [];
@@ -148,8 +151,13 @@ export function FullscreenGrid() {
             status: 'online',
         });
 
-        // Add ALL peers (not just those with video)
+        // Add peers FILTERED by room/proximity — only show people in the same room or proximity group
         Object.values(peers).forEach((peer: any) => {
+            // Room isolation: only show peers in the same room or proximity group
+            const sameRoom = myRoomId && peer.roomId === myRoomId;
+            const sameProximity = myProximityGroupId && peer.proximityGroupId === myProximityGroupId;
+            if (!sameRoom && !sameProximity) return;
+
             const peerName = peer.full_name || peer.email || 'User';
             const peerInitials = peerName.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?';
             list.push({
@@ -167,7 +175,7 @@ export function FullscreenGrid() {
         });
 
         return list;
-    }, [peers, localStream, isMicEnabled, isVideoEnabled, isSpeaking, myProfile]);
+    }, [peers, localStream, isMicEnabled, isVideoEnabled, isSpeaking, myProfile, myRoomId, myProximityGroupId]);
 
     // Check if anyone has active video
     const anyVideoActive = useMemo(() => {

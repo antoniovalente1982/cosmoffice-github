@@ -246,6 +246,7 @@ export const it = {
   'office.toast.proximityMic': '⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per usare il microfono',
   'office.toast.proximityVideo': '⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per usare la webcam',
   'office.toast.proximityScreen': '⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per condividere lo schermo',
+  'office.toast.gridBlockedWhileSharing': '⚠️ Non puoi aprire la griglia mentre condividi lo schermo',
   'office.toast.screenFailed': '⚠️ Screen share fallito, riprova',
   'office.toast.livekitUnavailable': '⚠️ Connessione LiveKit non disponibile — attiva prima il microfono',
   'office.toast.kickedFromWorkspace': 'Sei stato rimosso da questo workspace.',

@@ -130,6 +130,8 @@ export function VideoGrid() {
     const dailyParticipants = useDailyStore(s => s.participants); // REACTIVE — re-renders on track changes
     const peers = useAvatarStore(s => s.peers);
     const myProfile = useAvatarStore(s => s.myProfile);
+    const myRoomId = useAvatarStore(s => s.myRoomId);
+    const myProximityGroupId = useAvatarStore(s => s.myProximityGroupId);
     const isPerformanceMode = useWorkspaceStore(s => s.isPerformanceMode);
 
     // Build participants — only include users with active video
@@ -152,9 +154,14 @@ export function VideoGrid() {
         });
     }
 
-    // Add peers with video enabled (from avatarStore — populated by DailyManager track events)
+    // Add peers with video enabled — FILTERED by room/proximity
     const seenIds = new Set<string>();
     Object.values(peers).forEach((peer: any) => {
+        // Room isolation: only show peers in the same room or proximity group
+        const sameRoom = myRoomId && peer.roomId === myRoomId;
+        const sameProximity = myProximityGroupId && peer.proximityGroupId === myProximityGroupId;
+        if (!sameRoom && !sameProximity) return;
+
         if (peer.videoEnabled && peer.stream) {
             seenIds.add(peer.id);
             participants.push({
@@ -174,6 +181,15 @@ export function VideoGrid() {
         if (!info.videoEnabled || !info.videoStream) return;
         const supabaseId = info.supabaseId || id;
         if (seenIds.has(supabaseId) || seenIds.has(id)) return; // Already shown
+
+        // Room isolation check for dailyStore participants too
+        const peer = peers[supabaseId] || peers[id];
+        if (peer) {
+            const sameRoom = myRoomId && peer.roomId === myRoomId;
+            const sameProximity = myProximityGroupId && peer.proximityGroupId === myProximityGroupId;
+            if (!sameRoom && !sameProximity) return;
+        }
+
         participants.push({
             id: supabaseId,
             fullName: info.userName || 'Peer',

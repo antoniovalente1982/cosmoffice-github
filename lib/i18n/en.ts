@@ -248,6 +248,7 @@ export const en: Record<TranslationKey, string> = {
   'office.toast.proximityMic': '⚠️ Get closer to someone or enter a room with others to use the microphone',
   'office.toast.proximityVideo': '⚠️ Get closer to someone or enter a room with others to use the webcam',
   'office.toast.proximityScreen': '⚠️ Get closer to someone or enter a room with others to share your screen',
+  'office.toast.gridBlockedWhileSharing': '⚠️ You cannot open the grid while sharing your screen',
   'office.toast.screenFailed': '⚠️ Screen share failed, try again',
   'office.toast.livekitUnavailable': '⚠️ LiveKit connection unavailable — enable microphone first',
   'office.toast.kickedFromWorkspace': 'You have been removed from this workspace.',

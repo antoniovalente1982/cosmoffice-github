@@ -785,13 +785,19 @@ export default function OfficePage() {
                                 {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                             </Button>
 
-                            {/* Grid View Toggle */}
+                            {/* Grid View Toggle — blocked when screen sharing */}
                             <Button
                                 variant={isGridViewOpen ? "default" : "secondary"}
                                 size="icon"
-                                className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isGridViewOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
-                                onClick={toggleGridView}
-                                title={isGridViewOpen ? t('office.toolbar.gridViewOpen') : t('office.toolbar.gridViewClose')}
+                                className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isScreenSharing ? 'opacity-50 cursor-not-allowed bg-slate-700/50 text-slate-400' : isGridViewOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                onClick={() => {
+                                    if (isScreenSharing) {
+                                        showMediaToast(t('office.toast.gridBlockedWhileSharing'));
+                                        return;
+                                    }
+                                    toggleGridView();
+                                }}
+                                title={isScreenSharing ? t('office.toast.gridBlockedWhileSharing') : isGridViewOpen ? t('office.toolbar.gridViewOpen') : t('office.toolbar.gridViewClose')}
                             >
                                 <Grid3X3 className="w-5 h-5" />
                             </Button>

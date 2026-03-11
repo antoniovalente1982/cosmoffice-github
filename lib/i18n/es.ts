@@ -248,6 +248,7 @@ export const es: Record<TranslationKey, string> = {
   'office.toast.proximityMic': '⚠️ Acércate a alguien o entra en una sala con otras personas para usar el micrófono',
   'office.toast.proximityVideo': '⚠️ Acércate a alguien o entra en una sala con otras personas para usar la cámara',
   'office.toast.proximityScreen': '⚠️ Acércate a alguien o entra en una sala con otras personas para compartir pantalla',
+  'office.toast.gridBlockedWhileSharing': '⚠️ No puedes abrir la cuadrícula mientras compartes pantalla',
   'office.toast.screenFailed': '⚠️ Error al compartir pantalla, inténtalo de nuevo',
   'office.toast.livekitUnavailable': '⚠️ Conexión LiveKit no disponible — activa primero el micrófono',
   'office.toast.kickedFromWorkspace': 'Has sido eliminado de este workspace.',
