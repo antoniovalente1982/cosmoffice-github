@@ -335,16 +335,16 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-transparent text-slate-100 p-8">
-            <div className="max-w-7xl mx-auto space-y-8">
+        <div className="min-h-screen bg-transparent text-slate-100 p-4 sm:p-6 lg:p-8">
+            <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <Logo size="md" showText={false} variant="glow" />
-                        <h1 className="text-2xl font-bold text-gradient">{t('dashboard.title')}</h1>
+                        <h1 className="text-xl sm:text-2xl font-bold text-gradient">{t('dashboard.title')}</h1>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <LanguageSelector compact className="mr-2" />
+                    <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+                        <LanguageSelector compact className="mr-1 sm:mr-2" />
                         <Button variant="outline" className="gap-2" onClick={() => {
                             if (ownedWorkspaceCount >= maxOwnedWorkspaces) {
                                 setError(t('dashboard.limitReachedError', { max: String(maxOwnedWorkspaces) }));
@@ -352,12 +352,13 @@ export default function DashboardPage() {
                             }
                             setIsCreatingWorkspace(true);
                         }}>
-                            <Plus className="w-4 h-4" /> {t('dashboard.newWorkspace')}
+                            <Plus className="w-4 h-4" />
+                            <span className="hidden sm:inline">{t('dashboard.newWorkspace')}</span>
                         </Button>
                         {/* SuperAdmin access is now at /superadmin/login */}
-                        <div className="w-px h-6 bg-white/10 mx-2"></div>
+                        <div className="hidden sm:block w-px h-6 bg-white/10 mx-2"></div>
                         <div className="flex items-center gap-3">
-                            <div className="text-right">
+                            <div className="text-right hidden sm:block">
                                 <p className="text-sm font-medium">{user?.user_metadata?.full_name || 'User'}</p>
                                 <p className="text-xs text-slate-500">{user?.email}</p>
                             </div>

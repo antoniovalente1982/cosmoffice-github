@@ -27,6 +27,7 @@ import {
     MessageSquare,
     PenTool,
     AlertTriangle,
+    Menu,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
@@ -246,6 +247,7 @@ export default function OfficePage() {
     const [isSupportOpen, setIsSupportOpen] = useState(false);
     const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
     const [isManagementOpen, setIsManagementOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
     const [showInitialSetup, setShowInitialSetup] = useState(false);
     const [isTicketsOpen, setIsTicketsOpen] = useState(false);
@@ -518,15 +520,25 @@ export default function OfficePage() {
     }
 
     return (
-        <div className="flex h-screen bg-transparent overflow-hidden text-slate-100 p-4 gap-4">
+        <div className="flex h-screen bg-transparent overflow-hidden text-slate-100 p-2 sm:p-4 gap-2 sm:gap-4">
             {/* LiveKitManager singleton — manages WebRTC call lifecycle */}
             <LiveKitManager spaceId={spaceId} />
-            {/* Sidebar */}
+
+            {/* Mobile sidebar overlay backdrop */}
+            {isSidebarOpen && (
+                <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsSidebarOpen(false)} />
+            )}
+
+            {/* Sidebar — hidden on mobile, toggled via hamburger */}
             <motion.aside
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
-                className="w-64 shrink-0 flex flex-col glass z-20 overflow-hidden shadow-2xl"
+                className={`w-64 shrink-0 flex flex-col glass z-40 overflow-hidden shadow-2xl
+                    fixed md:relative inset-y-0 left-0
+                    transition-transform duration-300 md:translate-x-0
+                    ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+                `}
             >
                 <div className="p-6 border-b border-white/5">
                     <Link href="/office" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -627,10 +639,17 @@ export default function OfficePage() {
                     transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
                     className="h-16 flex items-center justify-between px-6 glass-dark z-10 shrink-0"
                 >
-                    <div className="flex items-center gap-3 relative">
+                    <div className="flex items-center gap-2 sm:gap-3 relative">
+                        {/* Mobile hamburger toggle */}
+                        <button
+                            className="md:hidden p-1.5 rounded-lg hover:bg-white/10 text-slate-300 transition-colors"
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        >
+                            <Menu className="w-5 h-5" />
+                        </button>
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-sm font-bold text-slate-100">{workspaceName || t('office.officeName')}</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-100 truncate max-w-[120px] sm:max-w-none">{workspaceName || t('office.officeName')}</span>
                         </div>
                         {canInvite && (
                             <>
@@ -727,13 +746,13 @@ export default function OfficePage() {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
-                            className="pointer-events-auto flex items-center gap-3 px-6 py-3 rounded-full glass border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
+                            className="pointer-events-auto flex items-center gap-1.5 sm:gap-3 px-3 sm:px-6 py-2 sm:py-3 rounded-full glass border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] max-w-[calc(100vw-2rem)] overflow-x-auto"
                         >
                             {/* Toggle Remote Audio - hear others or focus mode */}
                             <Button
                                 variant={isRemoteAudioEnabled ? "secondary" : "default"}
                                 size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
+                                className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
                                 onClick={toggleRemoteAudio}
                                 title={isRemoteAudioEnabled ? t('office.toolbar.remoteAudioOn') : t('office.toolbar.remoteAudioOff')}
                             >
@@ -743,7 +762,7 @@ export default function OfficePage() {
                             <Button
                                 variant={isMicEnabled ? "secondary" : "default"}
                                 size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isMicEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
+                                className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isMicEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
                                 onClick={smartToggleMic}
                             >
                                 {isMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
@@ -751,7 +770,7 @@ export default function OfficePage() {
                             <Button
                                 variant={isVideoEnabled ? "secondary" : "default"}
                                 size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isVideoEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
+                                className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isVideoEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
                                 onClick={smartToggleVideo}
                             >
                                 {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
@@ -759,7 +778,7 @@ export default function OfficePage() {
                             <Button
                                 variant={isScreenSharing ? "default" : "secondary"}
                                 size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                 onClick={isScreenSharing ? stopAllScreens : smartStartScreenShare}
                                 title={isScreenSharing ? t('office.toolbar.screenShareStop') : t('office.toolbar.screenShareStart')}
                             >
@@ -770,7 +789,7 @@ export default function OfficePage() {
                             <Button
                                 variant={isGridViewOpen ? "default" : "secondary"}
                                 size="icon"
-                                className={`rounded-full w-12 h-12 transition-all glow-button ${isGridViewOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isGridViewOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                 onClick={toggleGridView}
                                 title={isGridViewOpen ? t('office.toolbar.gridViewOpen') : t('office.toolbar.gridViewClose')}
                             >
@@ -787,14 +806,14 @@ export default function OfficePage() {
                                     const next = states[(idx + 1) % states.length];
                                     setMyStatus(next);
                                 }}
-                                className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-all text-xs font-medium min-w-[100px] justify-center"
+                                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-all text-xs font-medium min-w-0 sm:min-w-[100px] justify-center"
                                 title={t('office.status.changeStatus')}
                             >
                                 <Circle className={`w-3 h-3 fill-current ${myStatus === 'online' ? 'text-emerald-400' :
                                     myStatus === 'away' ? 'text-amber-400' :
                                         'text-red-400'
                                     }`} />
-                                <span className="text-slate-300 w-[60px] text-center">
+                                <span className="text-slate-300 hidden sm:inline w-[60px] text-center">
                                     {myStatus === 'online' ? t('office.status.online') : myStatus === 'away' ? t('office.status.away') : t('office.status.busy')}
                                 </span>
                             </button>
@@ -806,7 +825,7 @@ export default function OfficePage() {
                                 <Button
                                     variant={isBuilderMode ? "default" : "secondary"}
                                     size="icon"
-                                    className={`rounded-full w-12 h-12 transition-all glow-button ${isBuilderMode ? 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                    className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isBuilderMode ? 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                     onClick={toggleBuilderMode}
                                     title={isBuilderMode ? t('office.toolbar.builderOn') : t('office.toolbar.builderOff')}
                                 >
@@ -830,7 +849,7 @@ export default function OfficePage() {
                                     <Button
                                         variant={isWhiteboardOpen ? "default" : "secondary"}
                                         size="icon"
-                                        className={`rounded-full w-12 h-12 transition-all glow-button ${isWhiteboardOpen ? 'bg-cyan-500/80 hover:bg-cyan-500 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                        className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isWhiteboardOpen ? 'bg-cyan-500/80 hover:bg-cyan-500 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                         onClick={toggleWhiteboard}
                                         title={isWhiteboardOpen ? t('office.toolbar.whiteboardOpen') : t('office.toolbar.whiteboardClose')}
                                     >
@@ -850,7 +869,7 @@ export default function OfficePage() {
                                     <Button
                                         variant={isChatOpen ? "default" : "secondary"}
                                         size="icon"
-                                        className={`rounded-full w-12 h-12 transition-all glow-button ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
+                                        className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all glow-button ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                         onClick={toggleChat}
                                         title={isChatOpen ? t('office.toolbar.chatOpen') : t('office.toolbar.chatClose')}
                                     >
@@ -867,13 +886,17 @@ export default function OfficePage() {
 
 
                             {(role === 'owner' || isSuperAdmin) ? (
-                                <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>{t('office.leaveSpace')}</Button>
+                                <Button className="rounded-full px-3 sm:px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>
+                                    <LogOut className="w-4 h-4 sm:hidden" />
+                                    <span className="hidden sm:inline">{t('office.leaveSpace')}</span>
+                                </Button>
                             ) : (
                                 <Button
-                                    className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button"
+                                    className="rounded-full px-3 sm:px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button"
                                     onClick={() => window.location.href = 'https://www.cosmoffice.io'}
                                 >
-                                    Exit
+                                    <LogOut className="w-4 h-4 sm:hidden" />
+                                    <span className="hidden sm:inline">Exit</span>
                                 </Button>
                             )}
                         </motion.div>

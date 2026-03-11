@@ -939,10 +939,160 @@
     }
 
     .landing-hero {
-        padding: 120px 16px 60px;
+        padding: 100px 16px 48px;
     }
 
     .landing-section {
-        padding: 60px 16px;
+        padding: 48px 16px;
+    }
+
+    /* Nav actions: wrap nicely */
+    .landing-nav__inner {
+        padding: 0 12px;
+        height: 60px;
+    }
+
+    .landing-nav__actions {
+        gap: 4px;
+    }
+
+    .landing-nav__actions .landing-btn-ghost {
+        display: none;
+    }
+
+    .landing-nav__logo span {
+        font-size: 1rem;
+    }
+
+    /* CTA buttons: full width, stacked */
+    .landing-hero__cta {
+        flex-direction: column;
+        width: 100%;
+        max-width: 340px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .landing-btn-lg {
+        font-size: 0.95rem !important;
+        padding: 0 24px !important;
+        height: 48px !important;
+        width: 100%;
+    }
+
+    /* Preview: scale rooms, hide text labels */
+    .landing-preview__room {
+        padding: 8px 12px;
+        font-size: 0.65rem;
+        border-radius: 8px;
+    }
+
+    .landing-preview__room--pink {
+        padding: 8px 16px;
+    }
+
+    .landing-preview__avatar-circle {
+        width: 24px;
+        height: 24px;
+        font-size: 0.6rem;
+    }
+
+    .landing-preview__avatar-name {
+        font-size: 0.55rem;
+    }
+
+    /* Stats: smaller values */
+    .landing-stat__value {
+        font-size: 1.6rem;
+    }
+
+    .landing-stat__icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+    }
+
+    /* Features: smaller padding */
+    .landing-feature {
+        padding: 20px;
+    }
+
+    /* Steps: icon smaller */
+    .landing-step__icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+    }
+
+    .landing-step__number {
+        font-size: 2rem;
+    }
+
+    /* Pricing: tighter */
+    .landing-plan {
+        padding: 20px;
+    }
+
+    .landing-plan__price span {
+        font-size: 2rem;
+    }
+
+    /* Section header */
+    .landing-section-header {
+        margin-bottom: 40px;
+    }
+
+    .landing-section-header p {
+        font-size: 1rem;
+    }
+
+    /* Footer */
+    .landing-footer {
+        padding: 40px 16px;
+    }
+
+    .landing-footer__bottom {
+        text-align: center;
+    }
+
+    .landing-footer__bottom div {
+        justify-content: center;
+    }
+
+    /* CTA section */
+    .landing-cta__sub {
+        font-size: 1rem;
+        margin-bottom: 24px;
+    }
+}
+
+/* ─── Very Small Phones (≤380px) ─── */
+@media (max-width: 380px) {
+    .landing-nav__inner {
+        padding: 0 8px;
+    }
+
+    .landing-hero__title {
+        font-size: 2.2rem;
+    }
+
+    .landing-hero__subtitle {
+        font-size: 0.95rem;
+    }
+
+    .landing-btn-lg {
+        font-size: 0.85rem !important;
+        padding: 0 16px !important;
+        height: 44px !important;
+    }
+
+    .landing-preview__room {
+        padding: 6px 8px;
+        font-size: 0.55rem;
+    }
+
+    .landing-preview__room svg {
+        width: 10px;
+        height: 10px;
     }
 }
