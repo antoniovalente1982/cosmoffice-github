@@ -13,6 +13,7 @@ export function LanguageSelector({ className = '', compact = false }: LanguageSe
   const { locale, setLocale } = useT();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const [openDirection, setOpenDirection] = useState<'down' | 'up'>('down');
 
   // Close on click outside
   useEffect(() => {
@@ -27,12 +28,24 @@ export function LanguageSelector({ className = '', compact = false }: LanguageSe
     }
   }, [isOpen]);
 
+  // Determine if dropdown should open up or down based on available space
+  const handleToggle = () => {
+    if (!isOpen && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const dropdownHeight = 160; // approximate height of 3 items
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenDirection(spaceBelow < dropdownHeight && spaceAbove > dropdownHeight ? 'up' : 'down');
+    }
+    setIsOpen(!isOpen);
+  };
+
   const locales: Locale[] = ['it', 'en', 'es'];
 
   return (
     <div ref={ref} className={`relative ${className}`}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className={`flex items-center gap-1.5 rounded-xl transition-all duration-200 ${
           compact
             ? 'p-2 hover:bg-white/10'
@@ -50,7 +63,12 @@ export function LanguageSelector({ className = '', compact = false }: LanguageSe
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full mb-2 left-0 min-w-[160px] bg-slate-900/95 border border-white/10 rounded-xl shadow-xl z-50 py-1 backdrop-blur-xl overflow-hidden"
+        <div
+          className={`absolute ${
+            openDirection === 'up'
+              ? 'bottom-full mb-2'
+              : 'top-full mt-2'
+          } right-0 min-w-[160px] bg-slate-900/95 border border-white/10 rounded-xl shadow-xl z-50 py-1 backdrop-blur-xl overflow-hidden`}
           style={{ animation: 'fadeIn 0.15s ease-out' }}
         >
           {locales.map((loc) => (

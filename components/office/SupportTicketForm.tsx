@@ -6,21 +6,7 @@ import {
     X, Headphones, Send, Loader2, CheckCircle,
     AlertTriangle, HelpCircle, Wrench, CreditCard, Lightbulb, ArrowUpCircle,
 } from 'lucide-react';
-
-const CATEGORIES = [
-    { value: 'general', label: 'Generale', icon: HelpCircle, color: 'text-cyan-400' },
-    { value: 'technical', label: 'Problema Tecnico', icon: Wrench, color: 'text-amber-400' },
-    { value: 'billing', label: 'Fatturazione', icon: CreditCard, color: 'text-emerald-400' },
-    { value: 'feature_request', label: 'Richiesta Funzionalità', icon: Lightbulb, color: 'text-purple-400' },
-    { value: 'upgrade', label: 'Richiedi Upgrade', icon: ArrowUpCircle, color: 'text-orange-400' },
-];
-
-const PRIORITIES = [
-    { value: 'low', label: 'Bassa', color: 'text-slate-400 bg-slate-500/15 border-slate-500/20' },
-    { value: 'normal', label: 'Normale', color: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/20' },
-    { value: 'high', label: 'Alta', color: 'text-amber-400 bg-amber-500/15 border-amber-500/20' },
-    { value: 'urgent', label: 'Urgente', color: 'text-red-400 bg-red-500/15 border-red-500/20' },
-];
+import { useT } from '../../lib/i18n';
 
 interface SupportTicketFormProps {
     workspaceId: string | null;
@@ -29,6 +15,7 @@ interface SupportTicketFormProps {
 }
 
 export default function SupportTicketForm({ workspaceId, isOpen, onClose }: SupportTicketFormProps) {
+    const { t } = useT();
     const [category, setCategory] = useState('general');
     const [priority, setPriority] = useState('normal');
     const [subject, setSubject] = useState('');
@@ -36,6 +23,21 @@ export default function SupportTicketForm({ workspaceId, isOpen, onClose }: Supp
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
+
+    const CATEGORIES = [
+        { value: 'general', label: t('support.catGeneral'), icon: HelpCircle, color: 'text-cyan-400' },
+        { value: 'technical', label: t('support.catTechnical'), icon: Wrench, color: 'text-amber-400' },
+        { value: 'billing', label: t('support.catBilling'), icon: CreditCard, color: 'text-emerald-400' },
+        { value: 'feature_request', label: t('support.catFeature'), icon: Lightbulb, color: 'text-purple-400' },
+        { value: 'upgrade', label: t('support.catUpgrade'), icon: ArrowUpCircle, color: 'text-orange-400' },
+    ];
+
+    const PRIORITIES = [
+        { value: 'low', label: t('support.priLow'), color: 'text-slate-400 bg-slate-500/15 border-slate-500/20' },
+        { value: 'normal', label: t('support.priNormal'), color: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/20' },
+        { value: 'high', label: t('support.priHigh'), color: 'text-amber-400 bg-amber-500/15 border-amber-500/20' },
+        { value: 'urgent', label: t('support.priUrgent'), color: 'text-red-400 bg-red-500/15 border-red-500/20' },
+    ];
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -69,10 +71,10 @@ export default function SupportTicketForm({ workspaceId, isOpen, onClose }: Supp
                 }, 2000);
             } else {
                 const data = await res.json();
-                setError(data.error || 'Errore nell\'invio');
+                setError(data.error || t('support.sendError'));
             }
         } catch {
-            setError('Errore di rete');
+            setError(t('support.networkError'));
         }
         setLoading(false);
     };
@@ -106,8 +108,8 @@ export default function SupportTicketForm({ workspaceId, isOpen, onClose }: Supp
                                 <Headphones className="w-5 h-5 text-emerald-400" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-white">Assistenza</h2>
-                                <p className="text-xs text-slate-500">Invia una richiesta al nostro team</p>
+                                <h2 className="text-lg font-bold text-white">{t('support.title')}</h2>
+                                <p className="text-xs text-slate-500">{t('support.subtitle')}</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
@@ -124,15 +126,15 @@ export default function SupportTicketForm({ workspaceId, isOpen, onClose }: Supp
                             >
                                 <CheckCircle className="w-16 h-16 text-emerald-400 mb-4" />
                             </motion.div>
-                            <p className="text-lg font-bold text-white">Richiesta Inviata!</p>
-                            <p className="text-sm text-slate-500 mt-1">Ti risponderemo al più presto.</p>
+                            <p className="text-lg font-bold text-white">{t('support.sent')}</p>
+                            <p className="text-sm text-slate-500 mt-1">{t('support.sentDesc')}</p>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
                             <div className="p-6 space-y-4">
                                 {/* Category */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Categoria</label>
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('support.category')}</label>
                                     <div className="grid grid-cols-2 gap-2">
                                         {CATEGORIES.map((cat) => {
                                             const Icon = cat.icon;
@@ -157,7 +159,7 @@ export default function SupportTicketForm({ workspaceId, isOpen, onClose }: Supp
 
                                 {/* Priority */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Priorità</label>
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('support.priority')}</label>
                                     <div className="flex gap-2">
                                         {PRIORITIES.map((p) => (
                                             <button
@@ -175,12 +177,12 @@ export default function SupportTicketForm({ workspaceId, isOpen, onClose }: Supp
 
                                 {/* Subject */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Oggetto *</label>
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('support.subject')}</label>
                                     <input
                                         type="text"
                                         value={subject}
                                         onChange={(e) => setSubject(e.target.value)}
-                                        placeholder="Descrivi brevemente il problema..."
+                                        placeholder={t('support.subjectPlaceholder')}
                                         required
                                         className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/30 transition-colors"
                                     />
@@ -188,11 +190,11 @@ export default function SupportTicketForm({ workspaceId, isOpen, onClose }: Supp
 
                                 {/* Description */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Descrizione *</label>
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('support.description')}</label>
                                     <textarea
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
-                                        placeholder="Fornisci tutti i dettagli utili..."
+                                        placeholder={t('support.descPlaceholder')}
                                         required
                                         rows={5}
                                         className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/30 transition-colors resize-none"
@@ -219,7 +221,7 @@ export default function SupportTicketForm({ workspaceId, isOpen, onClose }: Supp
                                     ) : (
                                         <>
                                             <Send className="w-4 h-4" />
-                                            Invia Richiesta
+                                            {t('support.submit')}
                                         </>
                                     )}
                                 </button>

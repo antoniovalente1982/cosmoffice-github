@@ -6,21 +6,7 @@ import {
     X, Bug, Send, Loader2, CheckCircle,
     AlertTriangle, Monitor, Zap, Layout, MessageSquare,
 } from 'lucide-react';
-
-const CATEGORIES = [
-    { value: 'general', label: 'Generale', icon: Bug, color: 'text-cyan-400' },
-    { value: 'ui', label: 'Interfaccia', icon: Layout, color: 'text-purple-400' },
-    { value: 'audio_video', label: 'Audio/Video', icon: Monitor, color: 'text-amber-400' },
-    { value: 'performance', label: 'Performance', icon: Zap, color: 'text-emerald-400' },
-    { value: 'chat', label: 'Chat/Messaggi', icon: MessageSquare, color: 'text-blue-400' },
-];
-
-const SEVERITIES = [
-    { value: 'low', label: 'Bassa', color: 'text-slate-400 bg-slate-500/15 border-slate-500/20' },
-    { value: 'medium', label: 'Media', color: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/20' },
-    { value: 'high', label: 'Alta', color: 'text-amber-400 bg-amber-500/15 border-amber-500/20' },
-    { value: 'critical', label: 'Critico', color: 'text-red-400 bg-red-500/15 border-red-500/20' },
-];
+import { useT } from '../../lib/i18n';
 
 interface BugReportFormProps {
     workspaceId: string | null;
@@ -29,6 +15,7 @@ interface BugReportFormProps {
 }
 
 export default function BugReportForm({ workspaceId, isOpen, onClose }: BugReportFormProps) {
+    const { t } = useT();
     const [category, setCategory] = useState('general');
     const [severity, setSeverity] = useState('medium');
     const [title, setTitle] = useState('');
@@ -36,6 +23,21 @@ export default function BugReportForm({ workspaceId, isOpen, onClose }: BugRepor
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
+
+    const CATEGORIES = [
+        { value: 'general', label: t('bugReport.catGeneral'), icon: Bug, color: 'text-cyan-400' },
+        { value: 'ui', label: t('bugReport.catUI'), icon: Layout, color: 'text-purple-400' },
+        { value: 'audio_video', label: t('bugReport.catAV'), icon: Monitor, color: 'text-amber-400' },
+        { value: 'performance', label: t('bugReport.catPerf'), icon: Zap, color: 'text-emerald-400' },
+        { value: 'chat', label: t('bugReport.catChat'), icon: MessageSquare, color: 'text-blue-400' },
+    ];
+
+    const SEVERITIES = [
+        { value: 'low', label: t('bugReport.sevLow'), color: 'text-slate-400 bg-slate-500/15 border-slate-500/20' },
+        { value: 'medium', label: t('bugReport.sevMedium'), color: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/20' },
+        { value: 'high', label: t('bugReport.sevHigh'), color: 'text-amber-400 bg-amber-500/15 border-amber-500/20' },
+        { value: 'critical', label: t('bugReport.sevCritical'), color: 'text-red-400 bg-red-500/15 border-red-500/20' },
+    ];
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -69,10 +71,10 @@ export default function BugReportForm({ workspaceId, isOpen, onClose }: BugRepor
                 }, 2000);
             } else {
                 const data = await res.json();
-                setError(data.error || 'Errore nell\'invio');
+                setError(data.error || t('bugReport.sendError'));
             }
         } catch {
-            setError('Errore di rete');
+            setError(t('bugReport.networkError'));
         }
         setLoading(false);
     };
@@ -106,8 +108,8 @@ export default function BugReportForm({ workspaceId, isOpen, onClose }: BugRepor
                                 <Bug className="w-5 h-5 text-red-400" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-white">Segnala un Bug</h2>
-                                <p className="text-xs text-slate-500">Aiutaci a migliorare la piattaforma</p>
+                                <h2 className="text-lg font-bold text-white">{t('bugReport.title')}</h2>
+                                <p className="text-xs text-slate-500">{t('bugReport.subtitle')}</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
@@ -124,15 +126,15 @@ export default function BugReportForm({ workspaceId, isOpen, onClose }: BugRepor
                             >
                                 <CheckCircle className="w-16 h-16 text-emerald-400 mb-4" />
                             </motion.div>
-                            <p className="text-lg font-bold text-white">Bug Segnalato!</p>
-                            <p className="text-sm text-slate-500 mt-1">Grazie per la segnalazione. Lo analizzeremo al più presto.</p>
+                            <p className="text-lg font-bold text-white">{t('bugReport.sent')}</p>
+                            <p className="text-sm text-slate-500 mt-1">{t('bugReport.sentDesc')}</p>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
                             <div className="p-6 space-y-4">
                                 {/* Category */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Categoria</label>
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('bugReport.category')}</label>
                                     <div className="grid grid-cols-2 gap-2">
                                         {CATEGORIES.map((cat) => {
                                             const Icon = cat.icon;
@@ -157,7 +159,7 @@ export default function BugReportForm({ workspaceId, isOpen, onClose }: BugRepor
 
                                 {/* Severity */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Gravità</label>
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('bugReport.severity')}</label>
                                     <div className="flex gap-2">
                                         {SEVERITIES.map((s) => (
                                             <button
@@ -175,12 +177,12 @@ export default function BugReportForm({ workspaceId, isOpen, onClose }: BugRepor
 
                                 {/* Title */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Titolo *</label>
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('bugReport.titleLabel')}</label>
                                     <input
                                         type="text"
                                         value={title}
                                         onChange={(e) => setTitle(e.target.value)}
-                                        placeholder="Es: Il video si blocca quando entro in una stanza..."
+                                        placeholder={t('bugReport.titlePlaceholder')}
                                         required
                                         className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-red-500/30 transition-colors"
                                     />
@@ -188,11 +190,11 @@ export default function BugReportForm({ workspaceId, isOpen, onClose }: BugRepor
 
                                 {/* Description */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Descrizione *</label>
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('bugReport.description')}</label>
                                     <textarea
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
-                                        placeholder="Spiega cosa stavi facendo, cosa ti aspettavi e cosa è successo..."
+                                        placeholder={t('bugReport.descPlaceholder')}
                                         required
                                         rows={5}
                                         className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-red-500/30 transition-colors resize-none"
@@ -219,7 +221,7 @@ export default function BugReportForm({ workspaceId, isOpen, onClose }: BugRepor
                                     ) : (
                                         <>
                                             <Send className="w-4 h-4" />
-                                            Invia Segnalazione
+                                            {t('bugReport.submit')}
                                         </>
                                     )}
                                 </button>
