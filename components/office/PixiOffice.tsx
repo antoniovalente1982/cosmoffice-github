@@ -16,6 +16,7 @@ import { RoomEditor } from './RoomEditor';
 import { createClient } from '../../utils/supabase/client';
 import { useCallStore } from '../../stores/callStore';
 import { playCallRingSound } from '../../utils/sounds';
+import { useT } from '../../lib/i18n';
 
 // ─── Extracted modules ──────────────────────────────────────────
 import { drawSpaceship } from './PixiSpaceship';
@@ -153,6 +154,7 @@ export function PixiOffice() {
     const myRole = useAvatarStore(s => s.myRole);
     const myStatus = useAvatarStore(s => s.myStatus);
     const setMyRoom = useAvatarStore(s => s.setMyRoom);
+    const { t } = useT();
 
     // Workspace store (rooms, view, builder)
     const rooms = useWorkspaceStore(s => s.rooms);
@@ -931,12 +933,12 @@ export function PixiOffice() {
                         <span className={`text-[10px] font-bold ${themeConfig.hudBadgeColor} uppercase tracking-widest`}>{themeConfig.hudBadgeText}</span>
                     </div>
                     <p className="text-xs font-medium text-slate-300">
-                        Trascina il tuo avatar per muoverti • Trascina la mappa • Scroll per zoomare
+                        {t('office.hudInstructions')}
                     </p>
                     <div className="flex items-center gap-2 border-l border-white/10 pl-3">
                         <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.8)]" />
                         <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">
-                            {Object.keys(peers).length + 1} Online
+                            {Object.keys(peers).length + 1} {t('office.hudOnline')}
                         </span>
                     </div>
                 </div>

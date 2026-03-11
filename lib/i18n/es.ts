@@ -215,6 +215,8 @@ export const es: Record<TranslationKey, string> = {
   'office.officeName': 'Oficina',
   'office.guest': 'Invitado',
   'office.inviteTooltip': 'Generar enlace de invitación',
+  'office.hudInstructions': 'Arrastra tu avatar para moverte • Arrastra el mapa • Scroll para hacer zoom',
+  'office.hudOnline': 'En línea',
 
   // Office - Status
   'office.status.online': 'En línea',

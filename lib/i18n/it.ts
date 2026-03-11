@@ -213,6 +213,8 @@ export const it = {
   'office.officeName': 'Ufficio',
   'office.guest': 'Ospite',
   'office.inviteTooltip': 'Genera link di invito',
+  'office.hudInstructions': 'Trascina il tuo avatar per muoverti • Trascina la mappa • Scroll per zoomare',
+  'office.hudOnline': 'Online',
 
   // Office - Status
   'office.status.online': 'Online',

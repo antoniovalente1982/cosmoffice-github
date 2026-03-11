@@ -195,14 +195,20 @@ export default function OfficePage() {
                 });
 
                 if (actuallySharing) {
-                    // Stop sharing
+                    // Stop sharing — clear store + force DOM cleanup
                     await room.localParticipant.setScreenShareEnabled(false);
                     useDailyStore.getState().clearAllScreenStreams();
+                    // Force-remove any orphaned DOM containers from MediaManager
+                    document.querySelectorAll('[id^="screen-share-container-"]').forEach(el => el.remove());
                 } else {
                     // If store thinks we're sharing but LiveKit doesn't, clear stale state first
                     if (useDailyStore.getState().isScreenSharing) {
                         useDailyStore.getState().clearAllScreenStreams();
                     }
+                    // Force-remove any orphaned DOM containers before starting
+                    document.querySelectorAll('[id^="screen-share-container-"]').forEach(el => el.remove());
+                    // Small delay to let LiveKit fully clean up any previous track
+                    await new Promise(r => setTimeout(r, 300));
                     // Start sharing
                     await room.localParticipant.setScreenShareEnabled(true);
                 }
@@ -212,6 +218,7 @@ export default function OfficePage() {
                 console.error('Screen share failed:', err);
                 // Reset state on error so next attempt works
                 useDailyStore.getState().clearAllScreenStreams();
+                document.querySelectorAll('[id^="screen-share-container-"]').forEach(el => el.remove());
                 showMediaToast(t('office.toast.screenFailed'));
             }
         } else {
@@ -394,6 +401,8 @@ export default function OfficePage() {
             try { room.localParticipant.setScreenShareEnabled(false); } catch { }
         }
         clearAllScreenStreams();
+        // Force-remove any orphaned DOM containers
+        document.querySelectorAll('[id^="screen-share-container-"]').forEach(el => el.remove());
     }, [clearAllScreenStreams]);
 
 

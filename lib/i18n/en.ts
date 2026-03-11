@@ -215,6 +215,8 @@ export const en: Record<TranslationKey, string> = {
   'office.officeName': 'Office',
   'office.guest': 'Guest',
   'office.inviteTooltip': 'Generate invite link',
+  'office.hudInstructions': 'Drag your avatar to move • Drag the map • Scroll to zoom',
+  'office.hudOnline': 'Online',
 
   // Office - Status
   'office.status.online': 'Online',
