@@ -27,6 +27,7 @@ import {
     Headphones,
     Bell,
     X,
+    BarChart3,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import CurrencySelector from '../../components/CurrencySelector';
@@ -58,6 +59,7 @@ const navSections: NavSection[] = [
     {
         label: 'Monitoraggio',
         items: [
+            { href: '/superadmin/analytics', label: 'Analytics', icon: BarChart3 },
             { href: '/superadmin/security', label: 'Sicurezza', icon: Shield },
             { href: '/superadmin/bugs', label: 'Bug Reports', icon: Bug },
             { href: '/superadmin/audit', label: 'Audit Log', icon: ScrollText },

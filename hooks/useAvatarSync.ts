@@ -733,5 +733,36 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         return () => unsubAvatar();
     }, [sendStatusChange]);
 
+    // ─── Presence Analytics logger (30s interval) ────────────
+    useEffect(() => {
+        if (!workspaceId || !userId) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const { myPosition, myRoomId } = useAvatarStore.getState();
+                // Don't log if not positioned
+                if (myPosition.x < -9000 || myPosition.y < -9000) return;
+
+                await fetch('/api/admin/presence-analytics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        events: [{
+                            workspace_id: workspaceId,
+                            user_id: userId,
+                            room_id: myRoomId || null,
+                            x: myPosition.x,
+                            y: myPosition.y,
+                        }],
+                    }),
+                });
+            } catch {
+                // Silent — analytics should never break the app
+            }
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [workspaceId, userId]);
+
     return { sendPosition, sendJoinRoom, sendLeaveRoom, sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendStateUpdate, sendMediaState, sendStatusChange };
 }

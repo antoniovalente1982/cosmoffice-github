@@ -9,6 +9,7 @@ import { usePresence } from '../../hooks/usePresence';
 import { useProximityAndRooms } from '../../hooks/useProximityAndRooms';
 import { KnockNotification } from './KnockNotification';
 import { ProximityAura, type AuraVisualState } from './ProximityAura';
+import { AISetupWizard } from './AISetupWizard';
 import { UserAvatar } from './UserAvatar';
 import { MiniMap } from './MiniMap';
 import { RoomEditor } from './RoomEditor';
@@ -208,6 +209,20 @@ export function PixiOffice() {
     const isSpeaking = useDailyStore(s => s.isSpeaking);
     const localStream = useDailyStore(s => s.localStream);
     const isRemoteAudioEnabled = useDailyStore(s => s.isRemoteAudioEnabled);
+
+    const activeSpaceId = useWorkspaceStore(s => s.activeSpaceId);
+    const [showWizard, setShowWizard] = useState(false);
+    const [wizardDismissed, setWizardDismissed] = useState(false);
+
+    // Show AI Setup Wizard for empty workspaces
+    useEffect(() => {
+        if (rooms.length === 0 && activeSpaceId && !wizardDismissed && (myRole === 'owner' || myRole === 'admin')) {
+            const timer = setTimeout(() => setShowWizard(true), 1500);
+            return () => clearTimeout(timer);
+        } else {
+            setShowWizard(false);
+        }
+    }, [rooms.length, activeSpaceId, wizardDismissed, myRole]);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -882,6 +897,15 @@ export function PixiOffice() {
 
             {/* Mini Map */}
             <MiniMap />
+
+            {/* AI Setup Wizard — shown for empty workspaces */}
+            {showWizard && activeSpaceId && (
+                <AISetupWizard
+                    spaceId={activeSpaceId}
+                    onComplete={() => { setShowWizard(false); setWizardDismissed(true); }}
+                    onDismiss={() => { setShowWizard(false); setWizardDismissed(true); }}
+                />
+            )}
 
             {/* Knock-to-enter notifications */}
             <KnockNotification />
