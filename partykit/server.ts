@@ -18,7 +18,11 @@ interface UserState {
     isAway: boolean;
     audioEnabled: boolean;
     videoEnabled: boolean;
+    lastSeen: number; // timestamp ms — for heartbeat cleanup
 }
+
+const HEARTBEAT_INTERVAL_MS = 20_000; // purge check every 20s
+const STALE_THRESHOLD_MS = 45_000;     // user is ghost if no ping for 45s
 
 interface ChatMessage {
     id: string;
@@ -60,6 +64,7 @@ type IncomingMessage =
     | { type: "speaking"; userId: string; isSpeaking: boolean }
     | { type: "media_state"; userId: string; audioEnabled: boolean; videoEnabled: boolean; remoteAudioEnabled: boolean }
     | { type: "status_change"; userId: string; status: string }
+    | { type: "ping"; userId: string }
     | { type: "call_request"; id: string; fromUserId: string; fromName: string; fromAvatarUrl?: string; toUserId: string }
     | { type: "call_response"; id: string; fromUserId: string; fromName: string; toUserId: string; response: string }
     | { type: "wb_stroke"; scope: string; roomId: string | null; stroke: any }
@@ -90,12 +95,55 @@ export default class AvatarServer {
     private connectionToUser = new Map<string, string>(); // connection.id → userId
     private userToConnection = new Map<string, string>(); // userId → connection.id
 
-    constructor(public party: any) { }
+    constructor(public party: any) {
+        // Start periodic heartbeat alarm
+        this.party.storage?.setAlarm?.(Date.now() + HEARTBEAT_INTERVAL_MS);
+    }
+
+    // ─── Periodic cleanup of stale/ghost users ──────────────
+    async onAlarm() {
+        const now = Date.now();
+        const toRemove: string[] = [];
+
+        this.users.forEach((state, userId) => {
+            // Check if user is stale (no ping received recently)
+            if (now - state.lastSeen > STALE_THRESHOLD_MS) {
+                // Also verify the connection is truly dead
+                const connId = this.userToConnection.get(userId);
+                const conn = connId ? this.party.getConnection(connId) : null;
+                if (!conn) {
+                    toRemove.push(userId);
+                }
+            }
+        });
+
+        for (const userId of toRemove) {
+            const connId = this.userToConnection.get(userId);
+            if (connId) this.connectionToUser.delete(connId);
+            this.userToConnection.delete(userId);
+            this.users.delete(userId);
+            const leaveMsg: OutgoingMessage = { type: "leave", userId };
+            this.party.broadcast(JSON.stringify(leaveMsg));
+            console.log(`[PartyKit] Purged stale user: ${userId.slice(0, 8)}`);
+        }
+
+        // Schedule next alarm
+        this.party.storage?.setAlarm?.(Date.now() + HEARTBEAT_INTERVAL_MS);
+    }
 
     onConnect(connection: any) {
-        // Send current state of all users to new connection
+        // Send current state of all LIVE users to new connection
+        // Filter out ghost users with invalid positions or dead connections
         const usersObj: Record<string, UserState> = {};
+        const now = Date.now();
         this.users.forEach((state, id) => {
+            // Skip ghosts: no recent activity and invalid position
+            if (state.x === -9999 && state.y === -9999) return;
+            // Skip stale users with no connection
+            const connId = this.userToConnection.get(id);
+            if (!connId) return;
+            const conn = this.party.getConnection(connId);
+            if (!conn && (now - state.lastSeen > STALE_THRESHOLD_MS)) return;
             usersObj[id] = state;
         });
         const initMsg: OutgoingMessage = { type: "init", users: usersObj };
@@ -179,6 +227,7 @@ export default class AvatarServer {
                     isAway: parsed.isAway || false,
                     audioEnabled: existing?.audioEnabled ?? false,
                     videoEnabled: existing?.videoEnabled ?? false,
+                    lastSeen: Date.now(),
                 });
                 // Broadcast updated user info (including position)
                 const state = this.users.get(userId)!;
@@ -209,6 +258,7 @@ export default class AvatarServer {
                     user.x = parsed.x;
                     user.y = parsed.y;
                     user.roomId = parsed.roomId;
+                    user.lastSeen = Date.now();
                 } else {
                     this.users.set(userId, {
                         x: parsed.x,
@@ -223,6 +273,7 @@ export default class AvatarServer {
                         isAway: false,
                         audioEnabled: false,
                         videoEnabled: false,
+                        lastSeen: Date.now(),
                     });
                     this.connectionToUser.set(sender.id, userId);
                     this.userToConnection.set(userId, sender.id);
@@ -235,6 +286,23 @@ export default class AvatarServer {
                     roomId: parsed.roomId,
                 };
                 this.party.broadcast(JSON.stringify(moveMsg), [sender.id]);
+                break;
+            }
+
+            case "ping": {
+                // Heartbeat: update lastSeen timestamp
+                const userId = parsed.userId;
+                const user = this.users.get(userId);
+                if (user) {
+                    user.lastSeen = Date.now();
+                }
+                // Also update connection mapping in case of reconnect
+                if (userId) {
+                    this.connectionToUser.set(sender.id, userId);
+                    this.userToConnection.set(userId, sender.id);
+                }
+                // Respond with pong so client knows connection is alive
+                sender.send(JSON.stringify({ type: "pong" }));
                 break;
             }
 

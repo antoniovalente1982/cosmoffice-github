@@ -491,6 +491,9 @@ export function PixiOffice() {
             const avatarState = useAvatarStore.getState();
             const counts: Record<string, number> = {};
             Object.values(avatarState.peers).forEach((p: any) => {
+                // Skip ghost peers with invalid positions
+                if (p.position?.x === -9999 && p.position?.y === -9999) return;
+                if (!p.position || (p.position.x < -9000 && p.position.y < -9000)) return;
                 if (p.roomId) counts[p.roomId] = (counts[p.roomId] || 0) + 1;
             });
             if (avatarState.myRoomId) counts[avatarState.myRoomId] = (counts[avatarState.myRoomId] || 0) + 1;
@@ -938,7 +941,7 @@ export function PixiOffice() {
                     <div className="flex items-center gap-2 border-l border-white/10 pl-3">
                         <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.8)]" />
                         <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">
-                            {Object.keys(peers).length + 1} {t('office.hudOnline')}
+                            {Object.values(peers).filter((p: any) => p.position && p.position.x > -9000).length + 1} {t('office.hudOnline')}
                         </span>
                     </div>
                 </div>

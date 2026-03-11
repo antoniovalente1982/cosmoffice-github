@@ -8,7 +8,7 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useChatStore } from '../stores/chatStore';
 import { useCallStore } from '../stores/callStore';
 import { useNotificationStore } from '../stores/notificationStore';
-import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound, playWelcomeSound, playChatPingSound, playCallRingSound } from '../utils/sounds';
+import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound, playWelcomeSound, playChatPingSound, playCallRingSound, playRoomEnterSound, playRoomLeaveSound, playJoinOfficeSound } from '../utils/sounds';
 
 // ============================================
 // useAvatarSync — PartyKit client for avatar sync + room chat + office chat
@@ -290,10 +290,12 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
 
             switch (msg.type) {
                 case 'init': {
-                    // Bulk set all peers
+                    // Bulk set all peers — filter out ghosts
                     const users = msg.users as Record<string, any>;
                     Object.entries(users).forEach(([id, state]) => {
                         if (id === userId) return; // Skip self
+                        // Skip ghost users with invalid position
+                        if (state.x === -9999 && state.y === -9999) return;
                         useAvatarStore.getState().updatePeer(id, {
                             id,
                             email: state.email || '',
@@ -313,6 +315,11 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     break;
                 }
 
+                case 'pong': {
+                    // Server confirmed heartbeat — connection is alive
+                    break;
+                }
+
                 case 'move': {
                     if (msg.userId === userId) return;
                     useAvatarStore.getState().updatePeer(msg.userId, {
@@ -329,6 +336,11 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                         id: msg.userId,
                         roomId: msg.roomId,
                     });
+                    // Play sound if someone entered OUR room
+                    const myRoom = useAvatarStore.getState().myRoomId;
+                    if (myRoom && msg.roomId === myRoom) {
+                        playRoomEnterSound();
+                    }
                     break;
                 }
 
@@ -360,6 +372,12 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
 
                 case 'leave': {
                     if (msg.userId === userId) return;
+                    // Play leave sound if they were in our room
+                    const leavingPeer = useAvatarStore.getState().peers[msg.userId];
+                    const myRoomOnLeave = useAvatarStore.getState().myRoomId;
+                    if (myRoomOnLeave && leavingPeer?.roomId === myRoomOnLeave) {
+                        playRoomLeaveSound();
+                    }
                     useAvatarStore.getState().removePeer(msg.userId);
                     break;
                 }
@@ -546,6 +564,12 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
 
                 case 'leave_room': {
                     if (msg.userId === userId) return;
+                    // Play sound if they left OUR room
+                    const myRoomOnExit = useAvatarStore.getState().myRoomId;
+                    const exitingPeer = useAvatarStore.getState().peers[msg.userId];
+                    if (myRoomOnExit && exitingPeer?.roomId === myRoomOnExit) {
+                        playRoomLeaveSound();
+                    }
                     useAvatarStore.getState().updatePeer(msg.userId, {
                         id: msg.userId,
                         roomId: undefined,
@@ -658,8 +682,16 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             connectedRef.current = false;
         };
 
+        // ─── Heartbeat ping interval (15s) ─────────────────────
+        const heartbeatInterval = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN && userId) {
+                socket.send(JSON.stringify({ type: 'ping', userId }));
+            }
+        }, 15000);
+
         return () => {
             connectedRef.current = false;
+            clearInterval(heartbeatInterval);
             socket.close();
             socketRef.current = null;
             delete (window as any).__partykitSocket;

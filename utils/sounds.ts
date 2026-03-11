@@ -234,3 +234,83 @@ export function playChatPingSound() {
         }
     } catch { }
 }
+
+/**
+ * Play a subtle "someone entered the room" chime — ascending two-note
+ */
+export function playRoomEnterSound() {
+    try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        // Two quick ascending notes: D5 → A5
+        const notes = [587.33, 880];
+        for (let i = 0; i < notes.length; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.frequency.value = notes[i];
+            osc.type = 'sine';
+
+            const t = now + i * 0.12;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.08, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+            osc.start(t);
+            osc.stop(t + 0.25);
+        }
+    } catch { }
+}
+
+/**
+ * Play a subtle "someone left the room" chime — descending note
+ */
+export function playRoomLeaveSound() {
+    try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.frequency.setValueAtTime(660, now);
+        osc.frequency.linearRampToValueAtTime(440, now + 0.2);
+        osc.type = 'sine';
+
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+        osc.start(now);
+        osc.stop(now + 0.35);
+    } catch { }
+}
+
+/**
+ * Play a soft "someone joined the office" sound — very subtle pop
+ */
+export function playJoinOfficeSound() {
+    try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.frequency.value = 700;
+        osc.type = 'sine';
+
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.05, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        osc.start(now);
+        osc.stop(now + 0.2);
+    } catch { }
+}
