@@ -480,6 +480,8 @@ export const es: Record<TranslationKey, string> = {
   'settings.saveProfile': 'Guardar perfil',
   'settings.saved': '¡Guardado!',
   'settings.saveError': 'Error al guardar',
+  'settings.languageLabel': 'Idioma de la app',
+  'settings.languageHint': 'Cambia el idioma de toda la aplicación y los emails',
   'settings.notAuthenticated': 'No autenticado',
 
   // ─── Billing ───

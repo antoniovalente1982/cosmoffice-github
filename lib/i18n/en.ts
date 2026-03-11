@@ -480,6 +480,8 @@ export const en: Record<TranslationKey, string> = {
   'settings.saveProfile': 'Save profile',
   'settings.saved': 'Saved!',
   'settings.saveError': 'Error saving',
+  'settings.languageLabel': 'App Language',
+  'settings.languageHint': 'Change the language of the entire application and emails',
   'settings.notAuthenticated': 'Not authenticated',
 
   // ─── Billing ───

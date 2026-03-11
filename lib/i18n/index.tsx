@@ -21,40 +21,111 @@ export const LOCALE_FLAGS: Record<Locale, string> = {
   es: '🇪🇸',
 };
 
+/**
+ * Detect the best locale from browser settings.
+ * Italian browser → IT, Spanish browser → ES, everything else → EN (English).
+ */
+function detectBrowserLocale(): Locale {
+  if (typeof navigator === 'undefined') return 'en';
+  const langs = navigator.languages || [navigator.language];
+  for (const lang of langs) {
+    const code = lang.split('-')[0].toLowerCase();
+    if (code === 'it') return 'it';
+    if (code === 'es') return 'es';
+  }
+  return 'en';
+}
+
 interface LanguageContextType {
   locale: Locale;
   setLocale: (locale: Locale) => void;
   t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
+  /** Call after login to sync the locale from the user's DB profile */
+  syncFromProfile: () => Promise<void>;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
   locale: 'it',
   setLocale: () => {},
   t: (key) => key,
+  syncFromProfile: async () => {},
 });
 
 const STORAGE_KEY = 'cosmoffice_locale';
 
 export function LanguageProvider({ children, initialLocale }: { children: React.ReactNode; initialLocale?: Locale }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
-    // Priority: prop > localStorage > default Italian
-    // NOTE: We default to Italian for all users. No browser detection.
+    // Priority: prop > localStorage > browser detection
     if (initialLocale) return initialLocale;
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(STORAGE_KEY) as Locale | null;
       if (stored && dictionaries[stored]) return stored;
     }
-    return 'it';
+    return detectBrowserLocale();
   });
+
+  /**
+   * Save locale to DB (profiles.language).
+   * Called automatically when an authenticated user changes language.
+   */
+  const saveLocaleToProfile = useCallback(async (newLocale: Locale) => {
+    try {
+      // Dynamic import to avoid SSR issues and circular deps
+      const { createClient } = await import('../../utils/supabase/client');
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ language: newLocale })
+          .eq('id', user.id);
+      }
+    } catch {
+      // Silently fail — not critical for UX
+    }
+  }, []);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, newLocale);
     }
-    // Update html lang attribute
     if (typeof document !== 'undefined') {
       document.documentElement.lang = newLocale;
+    }
+    // Also persist to DB for authenticated users (fire-and-forget)
+    saveLocaleToProfile(newLocale);
+  }, [saveLocaleToProfile]);
+
+  /**
+   * Sync locale from the user's DB profile.
+   * Should be called once after authentication is confirmed.
+   */
+  const syncFromProfile = useCallback(async () => {
+    try {
+      const { createClient } = await import('../../utils/supabase/client');
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('language')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.language && dictionaries[profile.language as Locale]) {
+        const dbLocale = profile.language as Locale;
+        setLocaleState(dbLocale);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, dbLocale);
+        }
+        if (typeof document !== 'undefined') {
+          document.documentElement.lang = dbLocale;
+        }
+      }
+    } catch {
+      // Silently fail
     }
   }, []);
 
@@ -75,7 +146,7 @@ export function LanguageProvider({ children, initialLocale }: { children: React.
     return text;
   }, [locale]);
 
-  const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
+  const value = useMemo(() => ({ locale, setLocale, t, syncFromProfile }), [locale, setLocale, t, syncFromProfile]);
 
   return (
     <LanguageContext.Provider value={value}>

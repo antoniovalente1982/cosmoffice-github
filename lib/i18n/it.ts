@@ -478,6 +478,8 @@ export const it = {
   'settings.saveProfile': 'Salva profilo',
   'settings.saved': 'Salvato!',
   'settings.saveError': 'Errore nel salvataggio',
+  'settings.languageLabel': 'Lingua dell\'app',
+  'settings.languageHint': 'Cambia la lingua di tutta l\'applicazione e delle email',
   'settings.notAuthenticated': 'Non autenticato',
 
   // ─── Billing ───

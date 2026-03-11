@@ -17,13 +17,14 @@ import {
     ChevronDown,
     FileText,
     CreditCard,
-    History
+    History,
+    Globe
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { OFFICE_THEMES, getThemeConfig, type OfficeThemeId } from '../../lib/officeThemes';
-import { useT } from '../../lib/i18n';
+import { useT, LOCALE_FLAGS, LOCALE_NAMES, type Locale } from '../../lib/i18n';
 
 
 const supabase = createClient();
@@ -48,7 +49,7 @@ const TIMEZONES = [
 ];
 
 export function OfficeManagement({ spaceId, onClose }: Props) {
-    const { t } = useT();
+    const { t, locale, setLocale } = useT();
     const setMyProfile = useAvatarStore(s => s.setMyProfile);
     const myProfile = useAvatarStore(s => s.myProfile);
     const isPerformanceMode = useWorkspaceStore(s => s.isPerformanceMode);
@@ -381,6 +382,30 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                         <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
                                     ))}
                                 </select>
+                            </div>
+
+                            {/* Language Selector */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
+                                    <Globe className="w-3 h-3" /> {t('settings.languageLabel')}
+                                </label>
+                                <p className="text-[10px] text-slate-600 ml-1 mb-1.5">{t('settings.languageHint')}</p>
+                                <div className="flex gap-2">
+                                    {(['it', 'en', 'es'] as Locale[]).map((loc) => (
+                                        <button
+                                            key={loc}
+                                            onClick={() => setLocale(loc)}
+                                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-semibold transition-all border ${
+                                                locale === loc
+                                                    ? 'bg-primary-500/15 border-primary-500/30 text-primary-300 shadow-[0_0_10px_rgba(34,211,238,0.1)]'
+                                                    : 'bg-slate-800/60 border-white/10 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200'
+                                            }`}
+                                        >
+                                            <span className="text-lg">{LOCALE_FLAGS[loc]}</span>
+                                            <span className="hidden sm:inline">{LOCALE_NAMES[loc]}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             {/* Performance Mode Toggle */}
