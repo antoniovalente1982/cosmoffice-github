@@ -161,33 +161,12 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         fontWeight: '800',
         fill: textColor,
         letterSpacing: 1,
-        dropShadow: { color: 0x000000, alpha: 0.7, blur: 8, distance: 0 },
+        dropShadow: { color: 0x000000, alpha: 0.9, blur: 12, distance: 0 },
     });
     const nameText = new Text({ text: nameStr, style: nameStyle, resolution: 2 });
 
-    // Position label above room
-    const labelGap = Math.max(58, adaptiveNameSize * 2.2);
-    if (isCircle) {
-        nameText.anchor.set(0.5, 1);
-        nameText.position.set(room.x + room.width / 2, room.y - labelGap);
-    } else {
-        nameText.position.set(room.x + 2, room.y - labelGap);
-    }
-
-    // Background pill behind room name for contrast
-    const nameBg = new Graphics();
-    const nmW = nameText.width + 16;
-    const nmH = nameText.height + 6;
-    if (isCircle) {
-        nameBg.roundRect(room.x + room.width / 2 - nmW / 2, room.y - labelGap - nmH + nameText.height, nmW, nmH, 8);
-    } else {
-        nameBg.roundRect(room.x + 2 - 8, room.y - labelGap - 3, nmW, nmH, 8);
-    }
-    nameBg.fill({ color: 0x000000, alpha: 0.45 });
-    container.addChild(nameBg);
-    container.addChild(nameText);
-
-    // ─── Subtitle line: DEPARTMENT ──────────────────
+    // ─── Subtitle line: DEPARTMENT (positioned first to calculate total height) ──
+    let subText: Text | null = null;
     if (department) {
         const subtitleStr = department.toUpperCase();
         const subStyle = new TextStyle({
@@ -196,16 +175,39 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
             fontWeight: '700',
             fill: hexColor(color),
             letterSpacing: 1.5,
-            dropShadow: { color: 0x000000, alpha: 0.5, blur: 6, distance: 0 },
+            dropShadow: { color: 0x000000, alpha: 0.8, blur: 10, distance: 0 },
         });
-        const subText = new Text({ text: subtitleStr, style: subStyle, resolution: 2 });
+        subText = new Text({ text: subtitleStr, style: subStyle, resolution: 2 });
+    }
 
-        const subGap = Math.max(32, adaptiveSubSize * 2.2);
+    // Calculate total label block height: name + gap + department
+    const nameH = nameText.height;
+    const subH = subText ? subText.height : 0;
+    const labelSpacing = subText ? Math.max(4, adaptiveSubSize * 0.3) : 0; // gap between name & dept
+    const totalLabelH = nameH + labelSpacing + subH;
+    const labelMargin = Math.max(12, adaptiveNameSize * 0.4); // gap between bottom label and room top
+
+    // Position name label above room — anchored from bottom of label block
+    if (isCircle) {
+        nameText.anchor.set(0.5, 0);
+        nameText.position.set(room.x + room.width / 2, room.y - labelMargin - totalLabelH);
+    } else {
+        nameText.anchor.set(0, 0);
+        nameText.position.set(room.x + 2, room.y - labelMargin - totalLabelH);
+    }
+    container.addChild(nameText);
+
+    // Position department directly below the name — never overlaps
+    if (subText) {
+        const subY = (isCircle
+            ? room.y - labelMargin - totalLabelH + nameH + labelSpacing
+            : room.y - labelMargin - totalLabelH + nameH + labelSpacing);
         if (isCircle) {
-            subText.anchor.set(0.5, 1);
-            subText.position.set(room.x + room.width / 2, room.y - subGap);
+            subText.anchor.set(0.5, 0);
+            subText.position.set(room.x + room.width / 2, subY);
         } else {
-            subText.position.set(room.x + 2, room.y - subGap);
+            subText.anchor.set(0, 0);
+            subText.position.set(room.x + 2, subY);
         }
         container.addChild(subText);
     }
