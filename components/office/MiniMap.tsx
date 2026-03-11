@@ -204,17 +204,6 @@ function MiniMapInner() {
                                                 rx={3 * scale} stroke={roomFill(room.type)}
                                                 strokeWidth={0.8} strokeOpacity={0.5}
                                             />
-                                            {/* Room name abbreviation */}
-                                            {rw > 18 && (
-                                                <text
-                                                    x={rx + rw / 2} y={ry + rh / 2}
-                                                    textAnchor="middle" dominantBaseline="central"
-                                                    fontSize={Math.min(6, rw * 0.35)}
-                                                    fill="white" fontWeight="600" opacity={0.6}
-                                                >
-                                                    {room.name?.slice(0, 4).toUpperCase()}
-                                                </text>
-                                            )}
                                             {/* Peer count badge */}
                                             {count > 0 && (
                                                 <>
@@ -245,8 +234,8 @@ function MiniMapInner() {
                                     onMouseDown={handleViewportDragStart as any}
                                 />
 
-                                {/* Peer positions with hover tooltip */}
-                                {visiblePeers.map((peer: any) => (
+                                {/* Peer positions — only show peers NOT inside a room (avoid double dots) */}
+                                {visiblePeers.filter((p: any) => !p.roomId).map((peer: any) => (
                                     <g key={peer.id}
                                         onMouseEnter={() => setHoveredPeer(peer.id)}
                                         onMouseLeave={() => setHoveredPeer(null)}
