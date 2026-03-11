@@ -232,7 +232,14 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             const id = participant.identity;
             const supabaseId = gLivekitToSupabase.get(id) || id;
 
-            if (track.source === Track.Source.ScreenShare) return;
+            if (track.source === Track.Source.ScreenShare) {
+                // Clean up screen share — clear ALL screen streams from this participant
+                // This is critical for re-share to work: without cleanup, stale streams
+                // block the new screen share from being displayed
+                useDailyStore.getState().clearAllScreenStreams();
+                console.log('[LiveKit] Screen share track unsubscribed — state cleaned for:', supabaseId.slice(0, 8));
+                return;
+            }
 
             if (track.kind === Track.Kind.Audio) {
                 const el = document.getElementById(`daily-audio-${supabaseId}`);
