@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useT } from '../../lib/i18n';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
 import {
     Plus,
     Settings,
@@ -31,6 +33,7 @@ import { OFFICE_PRESETS } from '../../lib/officePresets';
 // max_workspaces is now dynamic, fetched from profiles table
 
 export default function DashboardPage() {
+    const { t } = useT();
     const supabase = createClient();
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
@@ -258,11 +261,11 @@ export default function DashboardPage() {
             setNewWorkspaceName('');
         } catch (err: any) {
             console.error('Error creating workspace:', err);
-            let message = err.message || 'An unexpected error occurred';
+            let message = err.message || t('common.error');
             if (err.code === '23505') {
                 message = 'A workspace with this slug already exists. Please try a different name.';
             }
-            setError(`Creation failed: ${message}`);
+            setError(`${t('common.error')}: ${message}`);
         } finally {
             setIsSubmitting(false);
         }
@@ -274,7 +277,7 @@ export default function DashboardPage() {
     };
 
     const handleDeleteSpace = async (spaceId: string) => {
-        if (!confirm('Sei sicuro di voler eliminare definitivamente questo ufficio? Questa azione non può essere annullata.')) {
+        if (!confirm(t('dashboard.deleteConfirm'))) {
             return;
         }
 
@@ -292,7 +295,7 @@ export default function DashboardPage() {
             setSpaceMenuOpen(null);
         } catch (err: any) {
             console.error('Error deleting space:', err);
-            alert('Errore durante la cancellazione: ' + err.message);
+            alert(t('dashboard.deleteError') + err.message);
         }
     };
 
@@ -313,7 +316,7 @@ export default function DashboardPage() {
             setEditName('');
         } catch (err: any) {
             console.error('Error updating space:', err);
-            alert('Errore durante l\'aggiornamento: ' + err.message);
+            alert(t('dashboard.updateError') + err.message);
         }
     };
 
@@ -338,17 +341,18 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Logo size="md" showText={false} variant="glow" />
-                        <h1 className="text-2xl font-bold text-gradient">My Workspaces</h1>
+                        <h1 className="text-2xl font-bold text-gradient">{t('dashboard.title')}</h1>
                     </div>
                     <div className="flex items-center gap-4">
+                        <LanguageSelector compact className="mr-2" />
                         <Button variant="outline" className="gap-2" onClick={() => {
                             if (ownedWorkspaceCount >= maxOwnedWorkspaces) {
-                                setError(`Hai raggiunto il limite massimo di ${maxOwnedWorkspaces} workspace. Contatta cosmoffice.io per richiederne di più.`);
+                                setError(t('dashboard.limitReachedError', { max: String(maxOwnedWorkspaces) }));
                                 return;
                             }
                             setIsCreatingWorkspace(true);
                         }}>
-                            <Plus className="w-4 h-4" /> New Workspace
+                            <Plus className="w-4 h-4" /> {t('dashboard.newWorkspace')}
                         </Button>
                         {/* SuperAdmin access is now at /superadmin/login */}
                         <div className="w-px h-6 bg-white/10 mx-2"></div>
@@ -366,17 +370,17 @@ export default function DashboardPage() {
 
                 {isCreatingWorkspace && (
                     <div className="glass p-6 rounded-2xl border border-primary-500/20 max-w-lg mx-auto" style={{ animation: 'fadeIn 0.3s ease-out' }}>
-                        <h2 className="text-lg font-semibold mb-4">Crea Nuovo Ufficio</h2>
+                        <h2 className="text-lg font-semibold mb-4">{t('dashboard.createOffice')}</h2>
                         <input
                             type="text"
-                            placeholder="Nome dell'ufficio (es. Acme Corp)"
+                            placeholder={t('dashboard.officeName')}
                             className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2 mb-4 focus:border-primary-500 outline-none"
                             value={newWorkspaceName}
                             onChange={(e) => setNewWorkspaceName(e.target.value)}
                         />
 
                         {/* Office Size Preset Selection */}
-                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Dimensione Ufficio</label>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">{t('dashboard.officeSize')}</label>
                         <div className="grid grid-cols-2 gap-3 mb-5">
                             {OFFICE_PRESETS.map((preset) => (
                                 <button
@@ -392,7 +396,7 @@ export default function DashboardPage() {
                                     <span className={`text-sm font-bold uppercase tracking-wider ${selectedPreset === preset.id ? 'text-primary-400' : 'text-slate-200'}`}>
                                         {preset.label}
                                     </span>
-                                    <span className={`text-xs font-medium ${selectedPreset === preset.id ? 'text-primary-300/70' : 'text-slate-400'}`}>{preset.capacity} utenti</span>
+                                    <span className={`text-xs font-medium ${selectedPreset === preset.id ? 'text-primary-300/70' : 'text-slate-400'}`}>{preset.capacity} {t('dashboard.users')}</span>
                                 </button>
                             ))}
                         </div>
@@ -404,9 +408,9 @@ export default function DashboardPage() {
                         )}
                         <div className="flex gap-2">
                             <Button className="flex-1" onClick={handleCreateWorkspace} disabled={isSubmitting}>
-                                {isSubmitting ? 'Creazione...' : 'Crea Ufficio'}
+                                {isSubmitting ? t('dashboard.creating') : t('dashboard.createButton')}
                             </Button>
-                            <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingWorkspace(false)} disabled={isSubmitting}>Annulla</Button>
+                            <Button variant="ghost" className="flex-1" onClick={() => setIsCreatingWorkspace(false)} disabled={isSubmitting}>{t('common.cancel')}</Button>
                         </div>
                     </div>
                 )}
@@ -477,7 +481,7 @@ export default function DashboardPage() {
                                                                     }}
                                                                     className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/5 flex items-center gap-2"
                                                                 >
-                                                                    <Edit2 className="w-4 h-4" /> Modifica nome
+                                                                    <Edit2 className="w-4 h-4" /> {t('dashboard.editName')}
                                                                 </button>
                                                                 <button
                                                                     onClick={(e) => {
@@ -486,7 +490,7 @@ export default function DashboardPage() {
                                                                     }}
                                                                     className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/5 flex items-center gap-2"
                                                                 >
-                                                                    <Trash2 className="w-4 h-4" /> Elimina Ufficio
+                                                                    <Trash2 className="w-4 h-4" /> {t('dashboard.deleteOffice')}
                                                                 </button>
                                                             </div>
                                                         )}
@@ -560,11 +564,11 @@ export default function DashboardPage() {
                                                         <div className="flex items-center justify-between mb-1.5">
                                                             <span className={`text-xs font-bold ${textColor} flex items-center gap-1.5`}>
                                                                 <Users className="w-3.5 h-3.5" />
-                                                                {used}/{max} accessi
+                                                                {used}/{max} {t('dashboard.seats')}
                                                             </span>
                                                             {atLimit && (
                                                                 <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
-                                                                    LIMITE
+                                                                    {t('dashboard.limit')}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -586,14 +590,14 @@ export default function DashboardPage() {
                                                                             body: JSON.stringify({
                                                                                 workspace_id: workspace.id,
                                                                                 request_type: 'seats',
-                                                                                message: `Richiesta più accessi per "${workspace.name}" (attuale: ${max})`,
+                                                                                message: `Request more seats for "${workspace.name}" (current: ${max})`,
                                                                             }),
                                                                         });
                                                                         const data = await res.json();
                                                                         if (data.alreadyPending) {
-                                                                            setUpgradeSuccess('📨 Richiesta già inviata, in attesa di risposta');
+                                                                            setUpgradeSuccess(t('dashboard.requestPending'));
                                                                         } else if (data.success) {
-                                                                            setUpgradeSuccess('✅ Richiesta inviata! Ti contatteremo a breve');
+                                                                            setUpgradeSuccess(t('dashboard.requestSent'));
                                                                         }
                                                                     } catch { /* ignore */ }
                                                                     setUpgradeSending(false);
@@ -603,7 +607,7 @@ export default function DashboardPage() {
                                                                 className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all disabled:opacity-50"
                                                             >
                                                                 <ArrowUpCircle className="w-3.5 h-3.5" />
-                                                                {upgradeSending ? 'Invio...' : 'Richiedi più accessi'}
+                                                                {upgradeSending ? t('dashboard.sending') : t('dashboard.requestMoreSeats')}
                                                             </button>
                                                         )}
                                                         {upgradeSuccess && (
@@ -623,7 +627,7 @@ export default function DashboardPage() {
                                                 onClick={() => router.push(`/office/${space.id}`)}
                                             >
                                                 <DoorOpen className="w-4 h-4" />
-                                                Entra
+                                                {t('dashboard.enter')}
                                                 <ArrowRight className="w-4 h-4 ml-auto" />
                                             </Button>
                                         </div>
@@ -639,8 +643,8 @@ export default function DashboardPage() {
                                 <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
                                     <AlertTriangle className="w-6 h-6 text-amber-400" />
                                 </div>
-                                <p className="text-sm font-semibold text-amber-300 text-center mb-2">Limite raggiunto</p>
-                                <p className="text-xs text-slate-400 text-center mb-4">Hai raggiunto il massimo di {maxOwnedWorkspaces} workspace</p>
+                                <p className="text-sm font-semibold text-amber-300 text-center mb-2">{t('dashboard.limitReached')}</p>
+                                <p className="text-xs text-slate-400 text-center mb-4">{t('dashboard.limitReachedDesc', { max: String(maxOwnedWorkspaces) })}</p>
                                 <button
                                     onClick={async () => {
                                         setUpgradeSending(true);
@@ -648,13 +652,13 @@ export default function DashboardPage() {
                                             const res = await fetch('/api/upgrade-request', {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ request_type: 'workspace', message: 'Richiesta nuovo workspace aggiuntivo' }),
+                                                body: JSON.stringify({ request_type: 'workspace', message: 'Request additional workspace' }),
                                             });
                                             const data = await res.json();
                                             if (data.alreadyPending) {
-                                                setUpgradeSuccess('📨 Richiesta già inviata, in attesa');
+                                                setUpgradeSuccess(t('dashboard.requestPending'));
                                             } else if (data.success) {
-                                                setUpgradeSuccess('✅ Richiesta inviata!');
+                                                setUpgradeSuccess(t('dashboard.requestSent'));
                                             }
                                         } catch { /* ignore */ }
                                         setUpgradeSending(false);
@@ -664,7 +668,7 @@ export default function DashboardPage() {
                                     className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
                                 >
                                     <ArrowUpCircle className="w-4 h-4" />
-                                    {upgradeSending ? 'Invio...' : 'Richiedi upgrade'}
+                                    {upgradeSending ? t('dashboard.sending') : t('dashboard.requestUpgrade')}
                                 </button>
                                 {upgradeSuccess && (
                                     <p className="text-[11px] text-emerald-400 mt-3 text-center">{upgradeSuccess}</p>
@@ -675,7 +679,7 @@ export default function DashboardPage() {
                         <div className="transition-transform duration-150 hover:scale-[1.02]">
                             <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-white/10 bg-white/5 hover:bg-white/10 transition-all min-h-[220px] group cursor-pointer" onClick={() => setIsCreatingWorkspace(true)}>
                                 <PlusCircle className="w-12 h-12 text-slate-500 group-hover:text-primary-400 transition-colors mb-4" />
-                                <p className="text-slate-400 font-medium group-hover:text-slate-200">New Space</p>
+                                <p className="text-slate-400 font-medium group-hover:text-slate-200">{t('dashboard.newSpace')}</p>
                             </Card>
                         </div>
                     )}
@@ -684,9 +688,9 @@ export default function DashboardPage() {
                 {workspaces.length === 0 && !loading && (
                     <div className="text-center py-20 glass rounded-3xl border-white/5">
                         <Building2 className="w-16 h-16 text-slate-700 mx-auto mb-4" />
-                        <h2 className="text-xl font-bold text-slate-200">No workspaces found</h2>
-                        <p className="text-slate-500 mb-8">Create your first workspace to start your virtual office</p>
-                        <Button size="lg" onClick={() => setIsCreatingWorkspace(true)}>Get Started</Button>
+                        <h2 className="text-xl font-bold text-slate-200">{t('dashboard.noWorkspaces')}</h2>
+                        <p className="text-slate-500 mb-8">{t('dashboard.noWorkspacesDesc')}</p>
+                        <Button size="lg" onClick={() => setIsCreatingWorkspace(true)}>{t('dashboard.getStarted')}</Button>
                     </div>
                 )}
             </div>

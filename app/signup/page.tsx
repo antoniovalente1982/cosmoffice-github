@@ -7,9 +7,12 @@ import { Button } from '../../components/ui/button';
 import { Mail, Lock, User, ArrowLeft, AlertCircle, Building2, Phone, Hash } from 'lucide-react';
 import { Logo } from '../../components/ui/logo';
 import { signup } from './actions';
+import { useT } from '../../lib/i18n';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
 import '../auth.css';
 
 function SignupForm() {
+  const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState('');
   const searchParams = useSearchParams();
@@ -32,76 +35,72 @@ function SignupForm() {
       <div className="auth-card__inner">
         <div className="auth-header">
           <Logo size="lg" showText={false} variant="glow" />
-          <h1>{isInvite ? 'Registrati per entrare' : 'Crea il tuo account'}</h1>
-          <p>{isInvite ? 'Crea il tuo account per accettare l\'invito' : 'Unisciti a Cosmoffice'}</p>
+          <h1>{isInvite ? t('signup.inviteTitle') : t('auth.signupTitle')}</h1>
+          <p>{isInvite ? t('signup.inviteSubtitle') : t('signup.joinCosmoffice')}</p>
         </div>
 
         {isInvite && (
           <div className="auth-invite-badge">
             <span className="auth-invite-badge__dot" />
-            🔗 Hai un invito! Registrati per entrare nel workspace.
+            🔗 {t('signup.inviteBadge')}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="auth-form">
           {redirectTo && <input type="hidden" name="redirect" value={redirectTo} />}
 
-          {/* Nome — always required */}
           <div className="auth-field">
-            <label>Nome Completo *</label>
+            <label>{t('auth.fullName')} *</label>
             <div className="auth-input-wrap">
               <User className="auth-input-icon" />
-              <input type="text" name="full_name" placeholder="Mario Rossi" required />
+              <input type="text" name="full_name" placeholder={t('auth.fullNamePlaceholder')} required />
             </div>
           </div>
 
-          {/* Email — always required */}
           <div className="auth-field">
-            <label>Email *</label>
+            <label>{t('auth.email')} *</label>
             <div className="auth-input-wrap">
               <Mail className="auth-input-icon" />
-              <input type="email" name="email" placeholder="mario@azienda.it" required />
+              <input type="email" name="email" placeholder={t('auth.emailPlaceholder')} required />
             </div>
           </div>
 
-          {/* Company fields — only for non-invite registration */}
           {!isInvite && (
             <>
               <div className="auth-field">
-                <label>Telefono *</label>
+                <label>{t('signup.phone')} *</label>
                 <div className="auth-input-wrap">
                   <Phone className="auth-input-icon" />
-                  <input type="tel" name="phone" placeholder="+39 333 1234567" required />
+                  <input type="tel" name="phone" placeholder={t('signup.phonePlaceholder')} required />
                 </div>
               </div>
 
               <div style={{ marginTop: '0.5rem', marginBottom: '0.25rem' }}>
                 <p style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(148,163,184,0.6)', paddingLeft: 4 }}>
-                  Dati Aziendali
+                  {t('signup.companySection')}
                 </p>
               </div>
 
               <div className="auth-field">
-                <label>Nome Azienda *</label>
+                <label>{t('signup.companyName')} *</label>
                 <div className="auth-input-wrap">
                   <Building2 className="auth-input-icon" />
-                  <input type="text" name="company_name" placeholder="La Mia Azienda S.r.l." required />
+                  <input type="text" name="company_name" placeholder={t('signup.companyPlaceholder')} required />
                 </div>
               </div>
 
               <div className="auth-field">
-                <label>Partita IVA</label>
+                <label>{t('signup.vatNumber')}</label>
                 <div className="auth-input-wrap">
                   <Hash className="auth-input-icon" />
-                  <input type="text" name="vat_number" placeholder="IT12345678901" />
+                  <input type="text" name="vat_number" placeholder={t('signup.vatPlaceholder')} />
                 </div>
               </div>
             </>
           )}
 
-          {/* Password — always required */}
           <div className="auth-field">
-            <label>Password *</label>
+            <label>{t('auth.password')} *</label>
             <div className="auth-input-wrap">
               <Lock className="auth-input-icon" />
               <input type="password" name="password" placeholder="••••••••" required minLength={6} />
@@ -116,14 +115,14 @@ function SignupForm() {
           )}
 
           <button type="submit" disabled={isPending} className="auth-submit">
-            <span>{isPending ? 'Registrazione...' : isInvite ? 'Registrati e entra' : 'Registrati'}</span>
+            <span>{isPending ? t('signup.submitting') : isInvite ? t('signup.submitInvite') : t('auth.signupButton')}</span>
           </button>
         </form>
 
         <div className="auth-footer">
-          Hai già un account?{' '}
+          {t('auth.hasAccount')}{' '}
           <Link href={redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login'}>
-            Accedi
+            {t('auth.login')}
           </Link>
         </div>
       </div>
@@ -132,6 +131,7 @@ function SignupForm() {
 }
 
 export default function SignupPage() {
+  const { t } = useT();
   return (
     <div className="auth-page">
       <div className="auth-bg" aria-hidden>
@@ -141,10 +141,13 @@ export default function SignupPage() {
       </div>
 
       <div className="auth-container fade-up">
-        <Link href="/" className="auth-back">
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Torna alla Home
-        </Link>
+        <div className="flex items-center justify-between w-full max-w-md mx-auto mb-4">
+          <Link href="/" className="auth-back">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t('auth.backToHome')}
+          </Link>
+          <LanguageSelector compact />
+        </div>
 
         <Suspense fallback={
           <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

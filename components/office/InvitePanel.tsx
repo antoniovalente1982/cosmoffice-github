@@ -18,16 +18,11 @@ import {
 import { Button } from '../ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import UpgradeBanner from '../ui/UpgradeBanner';
+import { useT } from '../../lib/i18n';
 
 const supabase = createClient();
 
 type InviteRole = 'admin' | 'member' | 'guest';
-
-const ROLE_LABELS: Record<InviteRole, { emoji: string; label: string; description: string }> = {
-    admin: { emoji: '🛡️', label: 'Admin', description: 'Gestisce spazi, stanze e membri' },
-    member: { emoji: '👤', label: 'Membro', description: 'Accesso completo all\'ufficio' },
-    guest: { emoji: '🎫', label: 'Ospite', description: 'Accesso illimitato finché invito è attivo (1 seat)' },
-};
 
 interface InvitePanelProps {
     spaceId: string;
@@ -38,6 +33,12 @@ interface InvitePanelProps {
 }
 
 export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: InvitePanelProps) {
+    const { t } = useT();
+    const ROLE_LABELS: Record<InviteRole, { emoji: string; label: string; description: string }> = {
+        admin: { emoji: '🛡️', label: t('invitePanel.roleAdmin'), description: t('invitePanel.roleAdminDesc') },
+        member: { emoji: '👤', label: t('invitePanel.roleMember'), description: t('invitePanel.roleMemberDesc') },
+        guest: { emoji: '🎫', label: t('invitePanel.roleGuest'), description: t('invitePanel.roleGuestDesc') },
+    };
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
     const [inviteRole, setInviteRole] = useState<InviteRole>('member');
@@ -135,7 +136,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
 
         if (error) {
             console.error('Invite error:', error);
-            setInviteError('Errore nella creazione del link');
+            setInviteError(t('invitePanel.linkError'));
             setInviteResult('error');
         } else {
             setInviteResult('success');
@@ -226,8 +227,8 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                             <Link2 className="w-4 h-4 text-primary-400" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-100">Genera link di invito</h3>
-                            <p className="text-[10px] text-slate-500">Condividi il link per invitare nel workspace</p>
+                            <h3 className="text-sm font-bold text-slate-100">{t('invitePanel.title')}</h3>
+                            <p className="text-[10px] text-slate-500">{t('invitePanel.subtitle')}</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors">
@@ -239,7 +240,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                     {/* Role selection */}
                     <div className="space-y-2">
                         <label className="text-xs text-slate-400 font-medium ml-0.5 flex items-center gap-1.5">
-                            <Shield className="w-3 h-3" /> Ruolo dell&apos;invitato
+                            <Shield className="w-3 h-3" /> {t('invitePanel.roleLabel')}
                         </label>
                         <div className="grid gap-2">
                             {availableRoles.map(role => {
@@ -272,19 +273,19 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                     {/* Destination Room Selector — available for all roles */}
                     <div className="space-y-1.5 mt-2">
                         <label className="text-[10px] text-slate-500 font-medium ml-0.5 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> Stanza di atterraggio
+                            <MapPin className="w-3 h-3" /> {t('invitePanel.destinationLabel')}
                         </label>
                         <select
                             value={destinationRoomId}
                             onChange={(e) => setDestinationRoomId(e.target.value)}
                             className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-primary-500/50 transition-all appearance-none cursor-pointer"
                         >
-                            <option value="">Ingresso principale (Mappa globale)</option>
+                            <option value="">{t('invitePanel.mainEntrance')}</option>
                             {rooms.map(room => (
                                 <option key={room.id} value={room.id}>{room.name}</option>
                             ))}
                         </select>
-                        <p className="text-[9px] text-slate-600 ml-0.5">Link permanente — attivo fino a cancellazione manuale</p>
+                        <p className="text-[9px] text-slate-600 ml-0.5">{t('invitePanel.permanentNote')}</p>
                     </div>
 
                     {/* Generated link */}
@@ -296,7 +297,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                         >
                             <div className="flex items-center gap-2">
                                 <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                                <span className="text-xs text-emerald-300 font-medium">Link creato e copiato negli appunti!</span>
+                                <span className="text-xs text-emerald-300 font-medium">{t('invitePanel.linkCreated')}</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <input
@@ -338,9 +339,9 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                         {inviting ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                         ) : inviteResult === 'error' ? (
-                            inviteError || 'Errore'
+                            inviteError || t('invitePanel.error')
                         ) : (
-                            <><Link2 className="w-4 h-4" /> Genera link di invito</>
+                            <><Link2 className="w-4 h-4" /> {t('invitePanel.generateButton')}</>
                         )}
                     </Button>
 
@@ -348,7 +349,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                     {activeInvites.length > 0 && (
                         <div className="space-y-2 pt-2 border-t border-white/5">
                             <div className="flex items-center justify-between">
-                                <h4 className="text-xs text-slate-400 font-medium">Inviti attivi</h4>
+                                <h4 className="text-xs text-slate-400 font-medium">{t('invitePanel.activeInvites')}</h4>
                                 <span className="text-[10px] text-slate-600 bg-slate-800/50 px-2 py-0.5 rounded-full">{activeInvites.length}</span>
                             </div>
                             <div className="space-y-1.5 max-h-36 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
@@ -362,7 +363,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[11px] text-slate-200 truncate">
-                                                    {inv.label || 'Link invito'}
+                                                    {inv.label || t('invitePanel.inviteLabel')}
                                                 </span>
                                                 <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${inv.role === 'admin' ? 'bg-primary-500/15 text-primary-300'
                                                     : inv.role === 'guest' ? 'bg-purple-500/15 text-purple-300'
@@ -372,9 +373,9 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-[9px] text-emerald-500/70">∞ Permanente</span>
+                                                <span className="text-[9px] text-emerald-500/70">{t('invitePanel.permanent')}</span>
                                                 <span className="text-[9px] text-slate-600">
-                                                    {inv.use_count || 0} accessi
+                                                    {inv.use_count || 0} {t('invitePanel.accesses')}
                                                 </span>
                                             </div>
                                         </div>
@@ -382,14 +383,14 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                                             <button
                                                 onClick={() => copyLink(inv.token)}
                                                 className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
-                                                title="Copia link"
+                                                title={t('invitePanel.copyLink')}
                                             >
                                                 <Copy className="w-3 h-3" />
                                             </button>
                                             <button
                                                 onClick={() => revokeInvite(inv.id)}
                                                 className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
-                                                title="Elimina link"
+                                                title={t('invitePanel.deleteLink')}
                                             >
                                                 <Trash2 className="w-3 h-3" />
                                             </button>

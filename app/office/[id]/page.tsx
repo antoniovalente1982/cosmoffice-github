@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { createClient } from '../../../utils/supabase/client';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useT } from '../../../lib/i18n';
 import { motion } from 'framer-motion';
 import {
     Users,
@@ -64,6 +65,7 @@ import { useAvatarSync } from '../../../hooks/useAvatarSync';
 const LiveKitManager = dynamic(() => import('../../../components/media/LiveKitManager').then(mod => ({ default: mod.LiveKitManager })), { ssr: false });
 
 export default function OfficePage() {
+    const { t } = useT();
     const supabase = createClient();
     const router = useRouter();
 
@@ -136,7 +138,7 @@ export default function OfficePage() {
             if (ds.isVideoOn) {
                 toggleVideo();
             }
-            showMediaToast('🔴 Sei in modalità Occupato — microfono e webcam disattivati');
+            showMediaToast(t('office.toast.busyMode'));
         }
     }, [myStatus, toggleMic, toggleVideo, showMediaToast]);
 
@@ -149,11 +151,11 @@ export default function OfficePage() {
         }
         // Block if busy
         if (myStatus === 'busy') {
-            showMediaToast('🔴 Cambia stato da "Occupato" per riattivare il microfono');
+            showMediaToast(t('office.toast.busyMic'));
             return;
         }
         if (!hasPeopleNearby()) {
-            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per usare il microfono');
+            showMediaToast(t('office.toast.proximityMic'));
             return;
         }
         await toggleMic();
@@ -167,11 +169,11 @@ export default function OfficePage() {
         }
         // Block if busy
         if (myStatus === 'busy') {
-            showMediaToast('🔴 Cambia stato da "Occupato" per riattivare la webcam');
+            showMediaToast(t('office.toast.busyVideo'));
             return;
         }
         if (!hasPeopleNearby()) {
-            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per usare la webcam');
+            showMediaToast(t('office.toast.proximityVideo'));
             return;
         }
         await toggleVideo();
@@ -179,7 +181,7 @@ export default function OfficePage() {
 
     const smartStartScreenShare = useCallback(async () => {
         if (!hasPeopleNearby()) {
-            showMediaToast('⚠️ Avvicinati a qualcuno o entra in una stanza con altre persone per condividere lo schermo');
+            showMediaToast(t('office.toast.proximityScreen'));
             return;
         }
         const room = (window as any).__livekitRoom;
@@ -211,10 +213,10 @@ export default function OfficePage() {
                 console.error('Screen share failed:', err);
                 // Reset state on error so next attempt works
                 useDailyStore.getState().clearAllScreenStreams();
-                showMediaToast('⚠️ Screen share fallito, riprova');
+                showMediaToast(t('office.toast.screenFailed'));
             }
         } else {
-            showMediaToast('⚠️ Connessione LiveKit non disponibile — attiva prima il microfono');
+            showMediaToast(t('office.toast.livekitUnavailable'));
         }
     }, [showMediaToast, hasPeopleNearby]);
 
@@ -286,7 +288,7 @@ export default function OfficePage() {
     const { sendPosition, sendJoinRoom } = useAvatarSync({
         workspaceId: spaceId,
         userId: user?.id || '',
-        userName: myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.display_name || 'Ospite',
+        userName: myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.display_name || t('office.guest'),
         email: user?.email || '',
         avatarUrl: myProfile?.avatar_url || null,
         status: myStatus,
@@ -362,7 +364,7 @@ export default function OfficePage() {
 
             if (!membership || membership.removed_at) {
                 clearInterval(interval);
-                alert('Sei stato rimosso da questo workspace.');
+                alert(t('office.toast.kickedFromWorkspace'));
                 router.push('/');
             }
         }, 10000); // check every 10 seconds
@@ -556,7 +558,7 @@ export default function OfficePage() {
                         className="w-full justify-start gap-3 transition-all duration-300 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-300"
                     >
                         <Headphones className="w-5 h-5 flex-shrink-0" />
-                        <span className="whitespace-nowrap">Assistenza</span>
+                        <span className="whitespace-nowrap">{t('office.support')}</span>
                     </Button>
                     {/* Segnala Bug */}
                     <Button
@@ -565,7 +567,7 @@ export default function OfficePage() {
                         className="w-full justify-start gap-3 transition-all duration-300 hover:bg-red-500/10 text-slate-400 hover:text-red-300"
                     >
                         <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                        <span className="whitespace-nowrap">Segnala Bug</span>
+                        <span className="whitespace-nowrap">{t('office.bugReport')}</span>
                     </Button>
                     <Button
                         variant="ghost"
@@ -573,7 +575,7 @@ export default function OfficePage() {
                         className="w-full justify-start gap-3 transition-all duration-300 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 relative"
                     >
                         <MessageSquare className="w-5 h-5 flex-shrink-0" />
-                        <span className="whitespace-nowrap">I miei Ticket</span>
+                        <span className="whitespace-nowrap">{t('office.myTickets')}</span>
                         {ticketUnread > 0 && (
                             <span className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[20px] h-5 flex items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white px-1.5 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse">
                                 {ticketUnread}
@@ -584,7 +586,7 @@ export default function OfficePage() {
                     <div
                         className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer"
                         onClick={() => setIsManagementOpen(true)}
-                        title="Apri impostazioni profilo"
+                        title={t('office.toolbar.openProfile')}
                     >
                         <div className="relative">
                             {useAvatarStore.getState().myProfile?.avatar_url ? (
@@ -605,7 +607,7 @@ export default function OfficePage() {
                         </div>
                         <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-medium truncate text-slate-200">
-                                {useAvatarStore.getState().myProfile?.display_name || useAvatarStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || 'Ospite'}
+                                {useAvatarStore.getState().myProfile?.display_name || useAvatarStore.getState().myProfile?.full_name || user?.user_metadata?.full_name || t('office.guest')}
                             </p>
                             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
                         </div>
@@ -628,7 +630,7 @@ export default function OfficePage() {
                     <div className="flex items-center gap-3 relative">
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-sm font-bold text-slate-100">{workspaceName || 'Ufficio'}</span>
+                            <span className="text-sm font-bold text-slate-100">{workspaceName || t('office.officeName')}</span>
                         </div>
                         {canInvite && (
                             <>
@@ -638,10 +640,9 @@ export default function OfficePage() {
                                         ? 'bg-primary-500/30 text-primary-200 shadow-primary-500/20'
                                         : 'bg-gradient-to-r from-primary-500/20 to-indigo-500/20 text-primary-300 hover:from-primary-500/30 hover:to-indigo-500/30 hover:shadow-primary-500/15 border border-primary-500/20 hover:border-primary-500/40'
                                         }`}
-                                    title="Genera link di invito"
-                                >
+                                    title={t('office.inviteTooltip')}                                >
                                     <UserPlus className="w-3.5 h-3.5" />
-                                    <span>Invita</span>
+                                    <span>{t('office.invite')}</span>
                                 </button>
                                 <InvitePanel
                                     spaceId={spaceId}
@@ -661,7 +662,7 @@ export default function OfficePage() {
                             const ratio = onlineCount / maxCapacity;
                             const colorClass = ratio >= 0.9 ? 'text-red-400' : ratio >= 0.7 ? 'text-amber-400' : 'text-emerald-400';
                             const dotColor = ratio >= 0.9 ? 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]' : ratio >= 0.7 ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]';
-                            const label = ratio >= 0.9 ? 'Quasi pieno' : ratio >= 0.7 ? 'Affluenza alta' : 'Disponibile';
+                            const label = ratio >= 0.9 ? t('office.capacity.almostFull') : ratio >= 0.7 ? t('office.capacity.high') : t('office.capacity.available');
                             return (
                                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10" style={{ background: 'rgba(15, 23, 42, 0.6)' }} title={`${onlineCount} di ${maxCapacity} posti occupati — ${label}`}>
                                     <div className={`w-2 h-2 rounded-full ${dotColor} ${ratio >= 0.9 ? 'animate-pulse' : ''}`} />
@@ -734,7 +735,7 @@ export default function OfficePage() {
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isRemoteAudioEnabled ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200' : 'bg-red-500/80 hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'}`}
                                 onClick={toggleRemoteAudio}
-                                title={isRemoteAudioEnabled ? 'Audio in entrata attivo - Clicca per silenziare gli altri' : 'Modalità Focus - Audio degli altri disattivato'}
+                                title={isRemoteAudioEnabled ? t('office.toolbar.remoteAudioOn') : t('office.toolbar.remoteAudioOff')}
                             >
                                 {isRemoteAudioEnabled ? <Headphones className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
                             </Button>
@@ -760,7 +761,7 @@ export default function OfficePage() {
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isScreenSharing ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                 onClick={isScreenSharing ? stopAllScreens : smartStartScreenShare}
-                                title={isScreenSharing ? `Stop tutti gli schermi (${screenStreams.length})` : 'Condividi schermo'}
+                                title={isScreenSharing ? t('office.toolbar.screenShareStop') : t('office.toolbar.screenShareStart')}
                             >
                                 {isScreenSharing ? <MonitorStop className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                             </Button>
@@ -771,7 +772,7 @@ export default function OfficePage() {
                                 size="icon"
                                 className={`rounded-full w-12 h-12 transition-all glow-button ${isGridViewOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                 onClick={toggleGridView}
-                                title={isGridViewOpen ? 'Chiudi vista griglia' : 'Apri vista griglia videocall'}
+                                title={isGridViewOpen ? t('office.toolbar.gridViewOpen') : t('office.toolbar.gridViewClose')}
                             >
                                 <Grid3X3 className="w-5 h-5" />
                             </Button>
@@ -787,14 +788,14 @@ export default function OfficePage() {
                                     setMyStatus(next);
                                 }}
                                 className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-all text-xs font-medium min-w-[100px] justify-center"
-                                title="Cambia stato"
+                                title={t('office.status.changeStatus')}
                             >
                                 <Circle className={`w-3 h-3 fill-current ${myStatus === 'online' ? 'text-emerald-400' :
                                     myStatus === 'away' ? 'text-amber-400' :
                                         'text-red-400'
                                     }`} />
                                 <span className="text-slate-300 w-[60px] text-center">
-                                    {myStatus === 'online' ? 'Online' : myStatus === 'away' ? 'Assente' : 'Occupato'}
+                                    {myStatus === 'online' ? t('office.status.online') : myStatus === 'away' ? t('office.status.away') : t('office.status.busy')}
                                 </span>
                             </button>
 
@@ -807,7 +808,7 @@ export default function OfficePage() {
                                     size="icon"
                                     className={`rounded-full w-12 h-12 transition-all glow-button ${isBuilderMode ? 'bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                     onClick={toggleBuilderMode}
-                                    title={isBuilderMode ? 'Esci dal Builder' : 'Modifica Ufficio'}
+                                    title={isBuilderMode ? t('office.toolbar.builderOn') : t('office.toolbar.builderOff')}
                                 >
                                     <Wrench className="w-5 h-5" />
                                 </Button>
@@ -819,7 +820,7 @@ export default function OfficePage() {
                                 size="icon"
                                 className="rounded-full w-12 h-12 bg-slate-700/50 hover:bg-indigo-500/50 text-slate-200 hover:text-white transition-all glow-button"
                                 onClick={() => setIsDeviceSettingsOpen(true)}
-                                title="Cabina di Regia - Cambia dispositivi"
+                                title={t('office.toolbar.deviceSettings')}
                             >
                                 <SlidersHorizontal className="w-5 h-5" />
                             </Button>
@@ -831,7 +832,7 @@ export default function OfficePage() {
                                         size="icon"
                                         className={`rounded-full w-12 h-12 transition-all glow-button ${isWhiteboardOpen ? 'bg-cyan-500/80 hover:bg-cyan-500 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                         onClick={toggleWhiteboard}
-                                        title={isWhiteboardOpen ? 'Chiudi Lavagna' : 'Apri Lavagna'}
+                                        title={isWhiteboardOpen ? t('office.toolbar.whiteboardOpen') : t('office.toolbar.whiteboardClose')}
                                     >
                                         <PenTool className="w-5 h-5" />
                                     </Button>
@@ -851,7 +852,7 @@ export default function OfficePage() {
                                         size="icon"
                                         className={`rounded-full w-12 h-12 transition-all glow-button ${isChatOpen ? 'bg-primary-500/80 hover:bg-primary-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-200'}`}
                                         onClick={toggleChat}
-                                        title={isChatOpen ? 'Chiudi Chat' : 'Apri Chat'}
+                                        title={isChatOpen ? t('office.toolbar.chatOpen') : t('office.toolbar.chatClose')}
                                     >
                                         <MessageCircle className="w-5 h-5" />
                                     </Button>
@@ -866,7 +867,7 @@ export default function OfficePage() {
 
 
                             {(role === 'owner' || isSuperAdmin) ? (
-                                <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>Leave Space</Button>
+                                <Button className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button" onClick={handleLeaveOffice}>{t('office.leaveSpace')}</Button>
                             ) : (
                                 <Button
                                     className="rounded-full px-6 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all glow-button"
@@ -924,7 +925,7 @@ export default function OfficePage() {
                     <RoomChat
                         workspaceId={workspaceId}
                         userId={user.id}
-                        userName={myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.display_name || 'Ospite'}
+                        userName={myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.display_name || t('office.guest')}
                         userAvatarUrl={myProfile?.avatar_url || null}
                         isAdmin={isAdmin}
                     />
@@ -935,7 +936,7 @@ export default function OfficePage() {
                     <Whiteboard
                         workspaceId={workspaceId}
                         userId={user.id}
-                        userName={myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.display_name || 'Ospite'}
+                        userName={myProfile?.display_name || myProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.display_name || t('office.guest')}
                         isAdmin={isAdmin}
                     />
                 )}

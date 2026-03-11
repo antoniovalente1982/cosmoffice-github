@@ -7,22 +7,24 @@ import { Loader2, CheckCircle2, XCircle, LogIn, UserPlus, Rocket, Shield, Crown,
 import { Button } from '../../../components/ui/button';
 import { Logo } from '../../../components/ui/logo';
 import Link from 'next/link';
+import { useT } from '../../../lib/i18n';
 
 const supabase = createClient();
 
 type InviteState = 'loading' | 'needs_auth' | 'guest_name' | 'accepting' | 'success' | 'error' | 'already_member';
 
-const ROLE_INFO: Record<string, { icon: React.ReactNode; label: string; color: string; description: string }> = {
-    owner: { icon: <Crown className="w-5 h-5" />, label: 'Owner', color: 'text-amber-400', description: 'Controllo totale del workspace' },
-    admin: { icon: <Shield className="w-5 h-5" />, label: 'Admin', color: 'text-primary-400', description: 'Gestione workspace e membri' },
-    member: { icon: <User className="w-5 h-5" />, label: 'Membro', color: 'text-emerald-400', description: 'Accesso completo alle funzionalità' },
-    guest: { icon: <Star className="w-5 h-5" />, label: 'Ospite', color: 'text-purple-400', description: 'Accesso base al workspace' },
-};
-
 export default function InvitePage() {
+    const { t } = useT();
     const params = useParams();
     const router = useRouter();
     const token = params.token as string;
+
+    const ROLE_INFO: Record<string, { icon: React.ReactNode; label: string; color: string; description: string }> = {
+        owner: { icon: <Crown className="w-5 h-5" />, label: 'Owner', color: 'text-amber-400', description: t('invitePage.roleOwnerDesc') },
+        admin: { icon: <Shield className="w-5 h-5" />, label: 'Admin', color: 'text-primary-400', description: t('invitePage.roleAdminDesc') },
+        member: { icon: <User className="w-5 h-5" />, label: t('role.member'), color: 'text-emerald-400', description: t('invitePage.roleMemberDesc') },
+        guest: { icon: <Star className="w-5 h-5" />, label: t('role.guest'), color: 'text-purple-400', description: t('invitePage.roleGuestDesc') },
+    };
 
     const [state, setState] = useState<InviteState>('loading');
     const [error, setError] = useState('');
@@ -43,7 +45,7 @@ export default function InvitePage() {
 
             if (infoError || !info || !(info as any).found) {
                 setState('error');
-                setError('Invito non trovato o non valido.');
+                setError(t('invitePage.notFound'));
                 return;
             }
 
@@ -53,12 +55,12 @@ export default function InvitePage() {
 
             if (inviteInfo.is_revoked) {
                 setState('error');
-                setError('Questo invito è stato revocato.');
+                setError(t('invitePage.revoked'));
                 return;
             }
             if (inviteInfo.is_exhausted) {
                 setState('error');
-                setError('Questo link di invito ha raggiunto il numero massimo di utilizzi.');
+                setError(t('invitePage.exhausted'));
                 return;
             }
 
@@ -86,7 +88,7 @@ export default function InvitePage() {
 
         if (acceptError) {
             setState('error');
-            setError(acceptError.message || 'Errore nell\'accettazione dell\'invito.');
+            setError(acceptError.message || t('invitePage.acceptError'));
             return;
         }
 
@@ -117,7 +119,7 @@ export default function InvitePage() {
             return;
         } else {
             setState('error');
-            setError(res.error || 'Errore sconosciuto.');
+            setError(res.error || t('invitePage.unknownError'));
         }
     };
 
@@ -145,8 +147,7 @@ export default function InvitePage() {
                 console.error('Anonymous sign-in failed:', anonError);
                 setState('error');
                 setError(
-                    `Accesso ospite non disponibile (${anonError.message}). ` +
-                    'Verifica che "Allow anonymous sign-ins" sia abilitato nelle impostazioni di Supabase Authentication.'
+                    `${t('invitePage.guestUnavailable')} (${anonError.message}). `
                 );
                 setIsSubmittingGuest(false);
                 return;
@@ -154,7 +155,7 @@ export default function InvitePage() {
 
             if (!anonData?.user) {
                 setState('error');
-                setError('Errore nella creazione della sessione ospite.');
+                setError(t('invitePage.guestSessionError'));
                 setIsSubmittingGuest(false);
                 return;
             }
@@ -183,7 +184,7 @@ export default function InvitePage() {
         } catch (err: any) {
             console.error('Guest entry error:', err);
             setState('error');
-            setError('Errore durante l\'accesso ospite: ' + (err.message || 'Errore sconosciuto'));
+            setError(t('invitePage.guestAccessError') + (err.message || t('invitePage.unknownError')));
         }
 
         setIsSubmittingGuest(false);
@@ -233,12 +234,12 @@ export default function InvitePage() {
                             <Logo size="lg" showText={false} variant="glow" />
                         </div>
                         <h1 className="text-xl font-bold text-slate-100">
-                            {state === 'loading' || state === 'accepting' ? 'Caricamento invito...' :
-                                state === 'needs_auth' ? 'Sei stato invitato!' :
-                                    state === 'guest_name' ? 'Sei stato invitato!' :
-                                        state === 'success' ? 'Benvenuto! 🎉' :
-                                            state === 'already_member' ? 'Già nel team! 👋' :
-                                                'Invito non valido'}
+                            {state === 'loading' || state === 'accepting' ? t('invitePage.loadingInvite') :
+                                state === 'needs_auth' ? t('invitePage.youAreInvited') :
+                                    state === 'guest_name' ? t('invitePage.youAreInvited') :
+                                        state === 'success' ? t('invitePage.welcome') :
+                                            state === 'already_member' ? t('invitePage.alreadyInTeam') :
+                                                t('invitePage.invalidInvite')}
                         </h1>
                         {workspace && (
                             <p className="text-sm text-slate-400 mt-2">
@@ -258,7 +259,7 @@ export default function InvitePage() {
                                     </div>
                                 </div>
                                 <p className="text-sm text-slate-400">
-                                    {state === 'loading' ? 'Verifico l\'invito...' : 'Accetto l\'invito...'}
+                                    {state === 'loading' ? t('invitePage.verifying') : t('invitePage.accepting')}
                                 </p>
                             </div>
                         )}
@@ -274,17 +275,17 @@ export default function InvitePage() {
                                 </div>
 
                                 <p className="text-center text-sm text-slate-400">
-                                    Entra come ospite — inserisci il tuo nome per continuare.
+                                    {t('invitePage.guestEnterDesc')}
                                 </p>
 
                                 <div className="space-y-3">
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Il tuo nome</label>
+                                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('invitePage.yourName')}</label>
                                         <input
                                             type="text"
                                             value={guestName}
                                             onChange={(e) => setGuestName(e.target.value)}
-                                            placeholder="Come vuoi essere chiamato?"
+                                            placeholder={t('invitePage.namePlaceholder')}
                                             className="w-full px-4 py-3 bg-slate-800/80 border border-white/10 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/30 transition-all"
                                             autoFocus
                                             onKeyDown={(e) => {
@@ -299,23 +300,23 @@ export default function InvitePage() {
                                         className="w-full gap-2 bg-gradient-to-r from-purple-500 to-primary-500 hover:from-purple-400 hover:to-primary-400 rounded-xl py-3 font-semibold shadow-lg shadow-purple-500/20 disabled:opacity-50"
                                     >
                                         {isSubmittingGuest ? (
-                                            <><Loader2 className="w-4 h-4 animate-spin" /> Accesso in corso...</>
+                                            <><Loader2 className="w-4 h-4 animate-spin" /> {t('invitePage.accessingGuest')}</>
                                         ) : (
-                                            <><Rocket className="w-4 h-4" /> Entra come Ospite</>
+                                            <><Rocket className="w-4 h-4" /> {t('invitePage.enterAsGuest')}</>
                                         )}
                                     </Button>
                                 </div>
 
                                 <div className="relative">
                                     <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5" /></div>
-                                    <div className="relative flex justify-center"><span className="px-3 text-[10px] text-slate-600 bg-slate-900 uppercase tracking-wider">oppure</span></div>
+                                    <div className="relative flex justify-center"><span className="px-3 text-[10px] text-slate-600 bg-slate-900 uppercase tracking-wider">{t('invitePage.or')}</span></div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <Link href={`/login?redirect=/invite/${token}`} className="block">
                                         <Button variant="outline" className="w-full gap-2 border-white/10 hover:bg-white/5 rounded-xl py-2.5 font-medium text-slate-400 text-sm">
                                             <LogIn className="w-3.5 h-3.5" />
-                                            Accedi con account
+                                            {t('invitePage.loginWithAccount')}
                                         </Button>
                                     </Link>
                                 </div>
@@ -333,20 +334,20 @@ export default function InvitePage() {
                                 </div>
 
                                 <p className="text-center text-sm text-slate-400">
-                                    {roleInfo.description}. Accedi o registrati per entrare nel workspace.
+                                    {roleInfo.description}. {t('invitePage.authDesc')}
                                 </p>
 
                                 <div className="space-y-3">
                                     <Link href={`/login?redirect=/invite/${token}`} className="block">
                                         <Button className="w-full gap-2 bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20 rounded-xl py-3 font-semibold">
                                             <LogIn className="w-4 h-4" />
-                                            Accedi
+                                            {t('invitePage.login')}
                                         </Button>
                                     </Link>
                                     <Link href={`/signup?redirect=/invite/${token}`} className="block">
                                         <Button variant="outline" className="w-full gap-2 border-white/10 hover:bg-white/5 rounded-xl py-3 font-semibold text-slate-300">
                                             <UserPlus className="w-4 h-4" />
-                                            Registrati
+                                            {t('invitePage.register')}
                                         </Button>
                                     </Link>
                                 </div>
@@ -362,15 +363,15 @@ export default function InvitePage() {
                                     </div>
                                     <div className="text-center">
                                         <p className="text-slate-200 font-medium">
-                                            Sei entrato come <span className={roleInfo.color}>{roleInfo.label}</span>
+                                            {t('invitePage.joinedAs')} <span className={roleInfo.color}>{roleInfo.label}</span>
                                         </p>
-                                        <p className="text-xs text-slate-500 mt-1">in {workspace?.name || 'il workspace'}</p>
+                                        <p className="text-xs text-slate-500 mt-1">{t('invitePage.inWorkspace', { name: workspace?.name || 'workspace' })}</p>
                                     </div>
                                 </div>
 
                                 <Button onClick={goToOffice} className="w-full gap-2 bg-gradient-to-r from-primary-500 to-purple-500 hover:from-primary-400 hover:to-purple-400 rounded-xl py-3 font-semibold shadow-lg">
                                     <Rocket className="w-4 h-4" />
-                                    Entra nell&apos;ufficio
+                                    {t('invitePage.enterOffice')}
                                 </Button>
                             </div>
                         )}
@@ -383,13 +384,13 @@ export default function InvitePage() {
                                         <CheckCircle2 className="w-8 h-8 text-primary-400" />
                                     </div>
                                     <p className="text-sm text-slate-400 text-center">
-                                        Fai già parte di questo workspace!
+                                        {t('invitePage.alreadyMemberDesc')}
                                     </p>
                                 </div>
 
                                 <Button onClick={goToOffice} className="w-full gap-2 bg-primary-500 hover:bg-primary-400 rounded-xl py-3 font-semibold shadow-lg shadow-primary-500/20">
                                     <Rocket className="w-4 h-4" />
-                                    Vai all&apos;ufficio
+                                    {t('invitePage.goToOffice')}
                                 </Button>
                             </div>
                         )}
@@ -408,7 +409,7 @@ export default function InvitePage() {
 
                                 <Link href="/office" className="block">
                                     <Button className="w-full rounded-xl py-3 font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200">
-                                        Torna alla home
+                                        {t('invitePage.backToHome')}
                                     </Button>
                                 </Link>
                             </div>
@@ -418,7 +419,7 @@ export default function InvitePage() {
                     {/* Footer */}
                     <div className="px-6 pb-5 pt-2 text-center">
                         <p className="text-[10px] text-slate-600 uppercase tracking-wider">
-                            Powered by Cosmoffice
+                            {t('invitePage.poweredBy')}
                         </p>
                     </div>
                 </div>

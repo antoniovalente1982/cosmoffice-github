@@ -23,6 +23,7 @@ import { Button } from '../ui/button';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { OFFICE_THEMES, getThemeConfig, type OfficeThemeId } from '../../lib/officeThemes';
+import { useT } from '../../lib/i18n';
 
 
 const supabase = createClient();
@@ -47,6 +48,7 @@ const TIMEZONES = [
 ];
 
 export function OfficeManagement({ spaceId, onClose }: Props) {
+    const { t } = useT();
     const setMyProfile = useAvatarStore(s => s.setMyProfile);
     const myProfile = useAvatarStore(s => s.myProfile);
     const isPerformanceMode = useWorkspaceStore(s => s.isPerformanceMode);
@@ -161,7 +163,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
 
             const file = event.target.files[0];
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Non autenticato');
+            if (!user) throw new Error(t('settings.notAuthenticated'));
 
             // Compress/resize if needed (max 500x500)
             const compressed = await compressImage(file, 500, 500);
@@ -276,7 +278,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
             >
                 {/* Header */}
                 <div className="p-5 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-slate-800/50 to-transparent">
-                    <h2 className="text-lg font-bold text-slate-100">User Settings</h2>
+                    <h2 className="text-lg font-bold text-slate-100">{t('settings.title')}</h2>
                     <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full text-slate-400 hover:text-white hover:bg-white/10">
                         <X className="w-5 h-5" />
                     </Button>
@@ -289,13 +291,13 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                             onClick={() => setActiveTab('profile')}
                             className={`flex-1 px-4 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'profile' ? 'text-cyan-300 border-b-2 border-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            <User className="w-3.5 h-3.5" /> Profilo
+                            <User className="w-3.5 h-3.5" /> {t('settings.profileTab')}
                         </button>
                         <button
                             onClick={() => setActiveTab('billing')}
                             className={`flex-1 px-4 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'billing' ? 'text-cyan-300 border-b-2 border-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            <Receipt className="w-3.5 h-3.5" /> Fatturazione
+                            <Receipt className="w-3.5 h-3.5" /> {t('settings.billingTab')}
                         </button>
                     </div>
                 )}
@@ -337,7 +339,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                 </div>
                                 <div className="flex-1 space-y-1">
                                     <div className="flex items-center gap-2">
-                                        <h3 className="text-base font-semibold text-slate-100">{name || 'Il tuo profilo'}</h3>
+                                        <h3 className="text-base font-semibold text-slate-100">{name || t('settings.yourProfile')}</h3>
                                         {userRole && ROLE_DISPLAY[userRole] && (() => {
                                             const rd = ROLE_DISPLAY[userRole];
                                             const RIcon = rd.icon;
@@ -350,17 +352,17 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                         })()}
                                     </div>
                                     <p className="text-sm text-slate-500">{userEmail}</p>
-                                    <p className="text-xs text-slate-600">Clicca sull&apos;avatar per cambiarlo • Max 5MB</p>
+                                    <p className="text-xs text-slate-600">{t('settings.avatarHint')}</p>
                                 </div>
                             </div>
 
                             {/* Name field */}
                             <div className="space-y-1.5">
-                                <label className="text-xs text-slate-400 font-medium ml-1">Nome</label>
+                                <label className="text-xs text-slate-400 font-medium ml-1">{t('settings.nameLabel')}</label>
                                 <input
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    placeholder="Il tuo nome"
+                                    placeholder={t('settings.namePlaceholder')}
                                     className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30 transition-all"
                                 />
                             </div>
@@ -368,7 +370,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                             {/* Timezone */}
                             <div className="space-y-1.5">
                                 <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                    <Clock className="w-3 h-3" /> Fuso orario
+                                    <Clock className="w-3 h-3" /> {t('settings.timezoneLabel')}
                                 </label>
                                 <select
                                     value={timezone}
@@ -384,7 +386,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                             {/* Performance Mode Toggle */}
                             <div className="space-y-1.5">
                                 <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                    <Shield className="w-3 h-3" /> Qualità Grafica
+                                    <Shield className="w-3 h-3" /> {t('settings.graphicsLabel')}
                                 </label>
                                 <button
                                     onClick={() => {
@@ -402,13 +404,13 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                         </div>
                                         <div className="text-left">
                                             <div className="text-sm font-medium flex items-center gap-2">
-                                                {isPerformanceMode ? 'Risparmio Energetico' : 'Alta Qualità'}
+                                                {isPerformanceMode ? t('settings.powerSaving') : t('settings.highQuality')}
                                                 <span className={`w-2 h-2 rounded-full ${isPerformanceMode ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                                             </div>
                                             <div className="text-[10px] sm:text-xs opacity-70 mt-0.5">
                                                 {isPerformanceMode
-                                                    ? 'Particelle, ombre e glow disabilitati. Ideale per PC datati.'
-                                                    : 'Effetti grafici completi attivi. Clicca per ridurre.'}
+                                                    ? t('settings.powerSavingDesc')
+                                                    : t('settings.highQualityDesc')}
                                             </div>
                                         </div>
                                     </div>
@@ -422,17 +424,17 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                             {(userRole === 'owner' || userRole === 'admin') && (
                                 <div className="space-y-1.5">
                                     <label className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                                        <Building2 className="w-3 h-3" /> Tema Ufficio Virtuale
+                                        <Building2 className="w-3 h-3" /> {t('settings.themeLabel')}
                                     </label>
                                     <div className="grid grid-cols-2 gap-3">
-                                        {(Object.values(OFFICE_THEMES) as any[]).map((t: any) => (
+                                        {(Object.values(OFFICE_THEMES) as any[]).map((thm: any) => (
                                             <button
-                                                key={t.id}
+                                                key={thm.id}
                                                 disabled={savingTheme}
                                                 onClick={async () => {
-                                                    if (t.id === theme) return;
+                                                    if (thm.id === theme) return;
                                                     setSavingTheme(true);
-                                                    setTheme(t.id);
+                                                    setTheme(thm.id);
                                                     // Save to workspace settings
                                                     if (workspaceId) {
                                                         const { data: ws } = await supabase
@@ -443,20 +445,20 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                                         const currentSettings = ws?.settings || {};
                                                         await supabase
                                                             .from('workspaces')
-                                                            .update({ settings: { ...currentSettings, theme: t.id } })
+                                                            .update({ settings: { ...currentSettings, theme: thm.id } })
                                                             .eq('id', workspaceId);
                                                     }
                                                     setSavingTheme(false);
                                                 }}
-                                                className={`relative p-4 rounded-xl border-2 transition-all text-left group ${theme === t.id
+                                                className={`relative p-4 rounded-xl border-2 transition-all text-left group ${theme === thm.id
                                                         ? 'border-cyan-400 bg-cyan-500/10 ring-1 ring-cyan-400/30'
                                                         : 'border-white/10 bg-slate-800/40 hover:border-white/20 hover:bg-slate-800/60'
                                                     }`}
                                             >
-                                                <div className="text-2xl mb-2">{t.icon}</div>
-                                                <div className="text-sm font-bold text-slate-100">{t.label}</div>
-                                                <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{t.description}</div>
-                                                {theme === t.id && (
+                                                <div className="text-2xl mb-2">{thm.icon}</div>
+                                                <div className="text-sm font-bold text-slate-100">{thm.label}</div>
+                                                <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{thm.description}</div>
+                                                {theme === thm.id && (
                                                     <div className="absolute top-2 right-2">
                                                         <Check className="w-4 h-4 text-cyan-400" />
                                                     </div>
@@ -464,7 +466,7 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                             </button>
                                         ))}
                                     </div>
-                                    <p className="text-[10px] text-slate-600 ml-1">Il tema si applica a tutti gli utenti del workspace</p>
+                                    <p className="text-[10px] text-slate-600 ml-1">{t('settings.themeHint')}</p>
                                 </div>
                             )}
 
@@ -482,11 +484,11 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                 {saving ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : saveResult === 'success' ? (
-                                    <><Check className="w-4 h-4" /> Salvato!</>
+                                    <><Check className="w-4 h-4" /> {t('settings.saved')}</>
                                 ) : saveResult === 'error' ? (
-                                    'Errore nel salvataggio'
+                                    t('settings.saveError')
                                 ) : (
-                                    'Salva profilo'
+                                    t('settings.saveProfile')
                                 )}
                             </Button>
                         </div>
@@ -497,45 +499,45 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                         <div className="space-y-5 animate-[fadeIn_0.15s_ease-out]">
                             {/* Billing data */}
                             <div className="space-y-3">
-                                <h3 className="text-xs font-bold text-slate-300 flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-cyan-400" /> Dati di Fatturazione</h3>
+                                <h3 className="text-xs font-bold text-slate-300 flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-cyan-400" /> {t('billing.title')}</h3>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="col-span-2">
-                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Ragione Sociale</label>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">{t('billing.companyName')}</label>
                                         <input value={bilCompany} onChange={e => setBilCompany(e.target.value)}
                                             className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Partita IVA</label>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">{t('billing.vatNumber')}</label>
                                         <input value={bilVat} onChange={e => setBilVat(e.target.value)}
                                             className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Codice Fiscale</label>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">{t('billing.fiscalCode')}</label>
                                         <input value={bilFiscal} onChange={e => setBilFiscal(e.target.value)}
                                             className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Codice SDI</label>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">{t('billing.sdiCode')}</label>
                                         <input value={bilSdi} onChange={e => setBilSdi(e.target.value)}
                                             className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">PEC</label>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">{t('billing.pec')}</label>
                                         <input value={bilPec} onChange={e => setBilPec(e.target.value)}
                                             className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
                                     </div>
                                     <div className="col-span-2">
-                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Indirizzo</label>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">{t('billing.address')}</label>
                                         <input value={bilAddress} onChange={e => setBilAddress(e.target.value)}
                                             className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">Città</label>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">{t('billing.city')}</label>
                                         <input value={bilCity} onChange={e => setBilCity(e.target.value)}
                                             className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">CAP</label>
+                                        <label className="text-[10px] text-slate-500 font-semibold uppercase">{t('billing.zip')}</label>
                                         <input value={bilZip} onChange={e => setBilZip(e.target.value)}
                                             className="w-full mt-1 bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
                                     </div>
@@ -548,15 +550,15 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                         : 'bg-primary-500 hover:bg-primary-400 shadow-lg shadow-primary-500/20'
                                         }`}
                                 >
-                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveResult === 'success' ? <><Check className="w-4 h-4" /> Salvato!</> : 'Salva dati fatturazione'}
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveResult === 'success' ? <><Check className="w-4 h-4" /> {t('settings.saved')}</> : t('billing.saveBilling')}
                                 </Button>
                             </div>
 
                             {/* Payment History */}
                             <div className="space-y-3">
-                                <h3 className="text-xs font-bold text-slate-300 flex items-center gap-2"><History className="w-3.5 h-3.5 text-purple-400" /> Storico Pagamenti</h3>
+                                <h3 className="text-xs font-bold text-slate-300 flex items-center gap-2"><History className="w-3.5 h-3.5 text-purple-400" /> {t('billing.paymentHistory')}</h3>
                                 {payments.length === 0 ? (
-                                    <p className="text-xs text-slate-600 italic">Nessun pagamento registrato</p>
+                                    <p className="text-xs text-slate-600 italic">{t('billing.noPayments')}</p>
                                 ) : (
                                     <div className="space-y-1 max-h-60 overflow-y-auto">
                                         {payments.map((p: any) => (
@@ -573,11 +575,11 @@ export function OfficeManagement({ spaceId, onClose }: Props) {
                                                             onClick={() => window.open(`/api/admin/receipt?id=${p.id}`, '_blank')}
                                                             className="px-1.5 py-0.5 rounded text-[9px] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
                                                         >
-                                                            📄 Ricevuta
+                                                            {t('billing.receipt')}
                                                         </button>
                                                     )}
                                                     <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${p.type === 'refund' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
-                                                        {p.type === 'refund' ? 'Rimborso' : 'Pagato'}
+                                                        {p.type === 'refund' ? t('billing.refund') : t('billing.paid')}
                                                     </span>
                                                 </div>
                                             </div>

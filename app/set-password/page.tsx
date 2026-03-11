@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Lock, Shield, Check, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Logo } from '../../components/ui/logo';
 import { createClient } from '../../utils/supabase/client';
+import { useT } from '../../lib/i18n';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
 import '../auth.css';
 
 export default function SetPasswordPage() {
+    const { t } = useT();
     const router = useRouter();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -18,7 +21,6 @@ export default function SetPasswordPage() {
     const [userName, setUserName] = useState('');
 
     useEffect(() => {
-        // Get current user info
         const supabase = createClient();
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (!user) {
@@ -37,10 +39,10 @@ export default function SetPasswordPage() {
         if (/[0-9]/.test(pw)) score++;
         if (/[^A-Za-z0-9]/.test(pw)) score++;
 
-        if (score <= 1) return { score, label: 'Debole', color: '#ef4444' };
-        if (score <= 2) return { score, label: 'Discreta', color: '#f59e0b' };
-        if (score <= 3) return { score, label: 'Buona', color: '#06b6d4' };
-        return { score, label: 'Forte', color: '#10b981' };
+        if (score <= 1) return { score, label: t('setPassword.weak'), color: '#ef4444' };
+        if (score <= 2) return { score, label: t('setPassword.fair'), color: '#f59e0b' };
+        if (score <= 3) return { score, label: t('setPassword.good'), color: '#06b6d4' };
+        return { score, label: t('setPassword.strong'), color: '#10b981' };
     };
 
     const strength = passwordStrength(password);
@@ -50,11 +52,11 @@ export default function SetPasswordPage() {
         setErrorMsg('');
 
         if (password.length < 8) {
-            setErrorMsg('La password deve essere di almeno 8 caratteri');
+            setErrorMsg(t('setPassword.tooShort'));
             return;
         }
         if (password !== confirmPassword) {
-            setErrorMsg('Le password non corrispondono');
+            setErrorMsg(t('setPassword.noMatch'));
             return;
         }
 
@@ -73,7 +75,7 @@ export default function SetPasswordPage() {
                     router.replace('/office');
                 }, 2000);
             } catch (err: any) {
-                setErrorMsg(err.message || 'Errore imprevisto');
+                setErrorMsg(err.message || t('setPassword.unexpectedError'));
             }
         });
     };
@@ -87,16 +89,19 @@ export default function SetPasswordPage() {
             </div>
 
             <div className="auth-container fade-up">
+                <div className="flex justify-end w-full max-w-md mx-auto mb-4">
+                    <LanguageSelector compact />
+                </div>
                 <div className="auth-card">
                     <div className="auth-card__glow" />
                     <div className="auth-card__inner">
                         <div className="auth-header">
                             <Logo size="lg" showText={false} variant="glow" />
-                            <h1>{success ? 'Tutto pronto!' : 'Imposta la tua Password'}</h1>
+                            <h1>{success ? t('setPassword.successTitle') : t('setPassword.title')}</h1>
                             <p>
                                 {success
-                                    ? 'La password è stata impostata con successo. Reindirizzamento...'
-                                    : `Ciao ${userName}, scegli una password sicura per il tuo account`
+                                    ? t('setPassword.successMsg')
+                                    : t('setPassword.greeting', { name: userName })
                                 }
                             </p>
                         </div>
@@ -120,18 +125,18 @@ export default function SetPasswordPage() {
                                     <Check className="w-8 h-8 text-white" />
                                 </div>
                                 <p style={{ color: '#94a3b8', fontSize: 14 }}>
-                                    Verrai reindirizzato al tuo ufficio virtuale...
+                                    {t('setPassword.redirecting')}
                                 </p>
                             </div>
                         ) : (
                             <form onSubmit={handleSubmit} className="auth-form">
                                 <div className="auth-field">
-                                    <label>Nuova Password</label>
+                                    <label>{t('setPassword.newPassword')}</label>
                                     <div className="auth-input-wrap">
                                         <Lock className="auth-input-icon" />
                                         <input
                                             type={showPassword ? 'text' : 'password'}
-                                            placeholder="Almeno 8 caratteri"
+                                            placeholder={t('setPassword.placeholder')}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             required
@@ -183,12 +188,12 @@ export default function SetPasswordPage() {
                                 </div>
 
                                 <div className="auth-field">
-                                    <label>Conferma Password</label>
+                                    <label>{t('setPassword.confirmPassword')}</label>
                                     <div className="auth-input-wrap">
                                         <Shield className="auth-input-icon" />
                                         <input
                                             type={showPassword ? 'text' : 'password'}
-                                            placeholder="Ripeti la password"
+                                            placeholder={t('setPassword.confirmPlaceholder')}
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
                                             required
@@ -199,11 +204,11 @@ export default function SetPasswordPage() {
                                         <div style={{ marginTop: 4 }}>
                                             {password === confirmPassword ? (
                                                 <span style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                    <Check className="w-3 h-3" /> Le password corrispondono
+                                                    <Check className="w-3 h-3" /> {t('setPassword.match')}
                                                 </span>
                                             ) : (
                                                 <span style={{ fontSize: 11, color: '#ef4444' }}>
-                                                    Le password non corrispondono
+                                                    {t('setPassword.noMatch')}
                                                 </span>
                                             )}
                                         </div>
@@ -222,7 +227,7 @@ export default function SetPasswordPage() {
                                     disabled={isPending || !password || !confirmPassword}
                                     className="auth-submit"
                                 >
-                                    <span>{isPending ? 'Salvataggio...' : 'Imposta Password e Accedi'}</span>
+                                    <span>{isPending ? t('setPassword.saving') : t('setPassword.submit')}</span>
                                 </button>
 
                                 <p style={{
@@ -231,7 +236,7 @@ export default function SetPasswordPage() {
                                     color: '#64748b',
                                     marginTop: 8,
                                 }}>
-                                    🔒 La tua password è crittografata e protetta
+                                    {t('setPassword.encrypted')}
                                 </p>
                             </form>
                         )}

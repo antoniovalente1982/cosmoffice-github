@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDailyStore } from '../../stores/dailyStore';
+import { useT } from '../../lib/i18n';
 
 interface DeviceSettingsProps {
     isOpen: boolean;
@@ -37,6 +38,7 @@ interface DeviceInfo {
 }
 
 export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: DeviceSettingsProps) {
+    const { t } = useT();
     const {
         selectedAudioInput,
         selectedAudioOutput,
@@ -76,15 +78,15 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
     // Filtra i dispositivi per tipo e aggiungi opzione "Default"
     const audioInputs = [
-        { deviceId: 'default', label: 'Default di sistema', kind: 'audioinput' as MediaDeviceKind },
+        { deviceId: 'default', label: t('device.systemDefault'), kind: 'audioinput' as MediaDeviceKind },
         ...devices.filter(d => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications')
     ];
     const audioOutputs = [
-        { deviceId: 'default', label: 'Default di sistema', kind: 'audiooutput' as MediaDeviceKind },
+        { deviceId: 'default', label: t('device.systemDefault'), kind: 'audiooutput' as MediaDeviceKind },
         ...devices.filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications')
     ];
     const videoInputs = [
-        { deviceId: 'default', label: 'Default di sistema', kind: 'videoinput' as MediaDeviceKind },
+        { deviceId: 'default', label: t('device.systemDefault'), kind: 'videoinput' as MediaDeviceKind },
         ...devices.filter(d => d.kind === 'videoinput' && d.deviceId !== 'default')
     ];
 
@@ -133,7 +135,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
         } catch (err: any) {
             console.error('Permission denied:', err);
-            setError('Permessi negati. Per favore consenti l\'accesso a microfono e webcam.');
+            setError(t('device.permissionDenied'));
             setPermissionGranted(false);
         } finally {
             setIsRequestingPermission(false);
@@ -216,13 +218,13 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
         switch (device.kind) {
             case 'audioinput':
-                return `Microfono ${index}`;
+                return `${t('device.microphone')} ${index}`;
             case 'videoinput':
                 return `Camera ${index}`;
             case 'audiooutput':
-                return `Altoparlanti ${index}`;
+                return `${t('device.audioOutput')} ${index}`;
             default:
-                return `Dispositivo ${index}`;
+                return `${t('device.deviceLabel', { index: String(index) })}`;
         }
     };
 
@@ -272,7 +274,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
                     // Se il track è muted, potrebbe essere in uso da un'altra app
                     if (videoTrack.muted) {
-                        setError('La telecamera potrebbe essere in uso da un\'altra applicazione. Chiudi altre app e riprova.');
+                        setError(t('device.cameraInUse'));
                     }
                 }
 
@@ -283,16 +285,16 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
             } catch (err: any) {
                 console.error('Preview error:', err);
-                let errorMsg = `Errore nell'accesso al dispositivo: ${err.message}`;
+                let errorMsg = `${t('common.error')}: ${err.message}`;
 
                 if (err.name === 'NotAllowedError') {
-                    errorMsg = 'Permesso negato. Verifica che il browser possa accedere alla telecamera.';
+                    errorMsg = t('device.permissionDenied');
                 } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-                    errorMsg = 'La telecamera è in uso da un\'altra applicazione. Chiudi Skype, Zoom, Teams, o altre app che usano la webcam.';
+                    errorMsg = t('device.cameraInUse');
                 } else if (err.name === 'OverconstrainedError') {
-                    errorMsg = 'La telecamera non supporta le impostazioni richieste. Prova a selezionare "Default di sistema".';
+                    errorMsg = t('device.permissionDenied');
                 } else if (err.name === 'NotFoundError') {
-                    errorMsg = 'Telecamera non trovata. Verifica che sia collegata correttamente.';
+                    errorMsg = t('device.noWebcamFound');
                 }
 
                 setError(errorMsg);
@@ -331,7 +333,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
             } catch (err: any) {
                 console.error('Preview error:', err);
-                setError(`Errore nell'accesso al dispositivo: ${err.message}`);
+                setError(`${t('common.error')}: ${err.message}`);
             } finally {
                 setIsLoading(false);
             }
@@ -424,15 +426,15 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
         const videoTrack = previewStream.getVideoTracks()[0];
         if (!videoTrack) {
-            setVideoWarning('Nessun video track trovato');
+            setVideoWarning(t('device.noVideoTrack'));
             return;
         }
 
         const checkVideoState = () => {
             if (videoTrack.muted) {
-                setVideoWarning('La telecamera potrebbe essere in uso da un\'altra applicazione');
+                setVideoWarning(t('device.cameraInUseShort'));
             } else if (videoTrack.readyState !== 'live') {
-                setVideoWarning('La telecamera non è attiva');
+                setVideoWarning(t('device.cameraNotActive'));
             } else {
                 setVideoWarning(null);
             }
@@ -737,9 +739,9 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(34,211,238,0.4)]">
                             <Settings className="w-8 h-8 text-white" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2 tracking-wide">Configura i tuoi dispositivi</h2>
+                        <h2 className="text-2xl font-bold text-white mb-2 tracking-wide">{t('device.configureTitle')}</h2>
                         <p className="text-slate-400 mb-6">
-                            Per accedere all&apos;ufficio virtuale, abbiamo bisogno del tuo permesso per utilizzare microfono e webcam.
+                            {t('device.permissionNeeded')}
                         </p>
 
                         {error && (
@@ -759,7 +761,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             onClick={requestPermissionsAndGetDevices}
                             className="w-full px-6 py-3.5 bg-gradient-to-r from-cyan-400 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 text-slate-950 font-bold tracking-wide rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)]"
                         >
-                            Consenti Accesso Dispositivi
+                            {t('device.allowAccess')}
                         </button>
                     </motion.div>
                 </motion.div>
@@ -790,9 +792,9 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             <div className="absolute inset-2 rounded-full border-t-2 border-purple-400 animate-[spin_1.5s_linear_infinite_reverse]" />
                             <Settings className="w-8 h-8 text-white relative z-10" />
                         </div>
-                        <h2 className="text-xl font-bold text-white mb-2 tracking-wide">Accesso ai dispositivi...</h2>
+                        <h2 className="text-xl font-bold text-white mb-2 tracking-wide">{t('device.accessingDevices')}</h2>
                         <p className="text-cyan-200/60 font-medium">
-                            Attendi mentre richiediamo l&apos;accesso a microfono e webcam
+                            {t('device.waitingPermission')}
                         </p>
                     </motion.div>
                 </motion.div>
@@ -824,10 +826,10 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             </div>
                             <div>
                                 <h2 className="text-base font-bold text-white tracking-wide">
-                                    {isInitialSetup ? 'Configura i tuoi dispositivi' : 'Cabina di Regia'}
+                                    {isInitialSetup ? t('device.configureTitle') : t('device.controlRoom')}
                                 </h2>
                                 <p className="text-xs text-cyan-200/60 font-medium">
-                                    Seleziona e testa i dispositivi che vuoi usare
+                                    {t('device.selectAndTest')}
                                 </p>
                             </div>
                         </div>
@@ -853,11 +855,11 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             >
                                 <Mic className="w-4 h-4" />
                                 <div className="flex-1 text-left">
-                                    <span className="font-semibold text-sm">Microfono</span>
+                                    <span className="font-semibold text-sm">{t('device.microphone')}</span>
                                     <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[100px]">
                                         {selectedAudioInput === 'default'
-                                            ? 'Default di sistema'
-                                            : audioInputs.find(d => d.deviceId === selectedAudioInput)?.label || 'Non selezionato'}
+                                            ? t('device.systemDefault')
+                                            : audioInputs.find(d => d.deviceId === selectedAudioInput)?.label || t('device.notSelected')}
                                     </p>
                                 </div>
                                 {selectedAudioInput && <Check className={`w-4 h-4 ${activeTab === 'input' ? 'text-cyan-400' : 'text-slate-500'}`} />}
@@ -872,11 +874,11 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             >
                                 <Headphones className="w-4 h-4" />
                                 <div className="flex-1 text-left">
-                                    <span className="font-semibold text-sm">Audio Uscita</span>
+                                    <span className="font-semibold text-sm">{t('device.audioOutput')}</span>
                                     <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[100px]">
                                         {selectedAudioOutput === 'default'
-                                            ? 'Default di sistema'
-                                            : audioOutputs.find(d => d.deviceId === selectedAudioOutput)?.label || 'Default di sistema'}
+                                            ? t('device.systemDefault')
+                                            : audioOutputs.find(d => d.deviceId === selectedAudioOutput)?.label || t('device.systemDefault')}
                                     </p>
                                 </div>
                                 {selectedAudioOutput && <Check className={`w-4 h-4 ${activeTab === 'output' ? 'text-cyan-400' : 'text-slate-500'}`} />}
@@ -891,11 +893,11 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             >
                                 <Video className="w-4 h-4" />
                                 <div className="flex-1 text-left">
-                                    <span className="font-semibold text-sm">Webcam</span>
+                                    <span className="font-semibold text-sm">{t('device.webcam')}</span>
                                     <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[100px]">
                                         {selectedVideoInput === 'default'
-                                            ? 'Default di sistema'
-                                            : videoInputs.find(d => d.deviceId === selectedVideoInput)?.label || 'Non selezionata'}
+                                            ? t('device.systemDefault')
+                                            : videoInputs.find(d => d.deviceId === selectedVideoInput)?.label || t('device.notSelectedF')}
                                     </p>
                                 </div>
                                 {selectedVideoInput && <Check className={`w-4 h-4 ${activeTab === 'video' ? 'text-cyan-400' : 'text-slate-500'}`} />}
@@ -907,7 +909,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                     className="w-full flex items-center justify-center gap-2 p-3 text-xs font-semibold uppercase tracking-wider text-slate-400 bg-white/5 rounded-xl hover:bg-white/10 hover:text-slate-200 transition-all border border-white/5"
                                 >
                                     <RefreshCw className="w-3.5 h-3.5" />
-                                    Aggiorna Info
+                                    {t('device.refreshInfo')}
                                 </button>
                             </div>
                         </div>
@@ -925,7 +927,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             {activeTab === 'input' && (
                                 <div className="space-y-6">
                                     <div>
-                                        <h3 className="text-lg font-semibold text-white mb-4">Seleziona Microfono</h3>
+                                        <h3 className="text-lg font-semibold text-white mb-4">{t('device.selectMic')}</h3>
                                     </div>
 
                                     <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
@@ -950,7 +952,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                                         {device.label}
                                                     </p>
                                                     <p className="text-xs text-slate-500 mt-0.5">
-                                                        {device.deviceId === 'default' ? 'Usa il microfono predefinito di sistema' : 'Dispositivo audio'}
+                                                        {device.deviceId === 'default' ? t('device.defaultMicDesc') : t('device.audioDevice')}
                                                     </p>
                                                 </div>
                                                 {selectedAudioInput === device.deviceId && (
@@ -961,7 +963,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
                                         {audioInputs.length === 0 && (
                                             <p className="text-slate-500 text-center py-8">
-                                                Nessun microfono trovato
+                                                {t('device.noMicFound')}
                                             </p>
                                         )}
                                     </div>
@@ -972,10 +974,10 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                         <div className="relative z-10">
                                             <div className="flex items-center justify-between mb-4">
                                                 <span className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                                                    <Mic className="w-4 h-4" /> Livello Audio
+                                                    <Mic className="w-4 h-4" /> {t('device.audioLevel')}
                                                 </span>
                                                 <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-md ${testAudioLevel.value > 5 ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-white/5 text-slate-500 border border-white/10'}`}>
-                                                    {testAudioLevel.value > 5 ? 'Rilevato!' : 'Parla per testare'}
+                                                    {testAudioLevel.value > 5 ? t('device.detected') : t('device.speakToTest')}
                                                 </span>
                                             </div>
                                             <div className="h-2 bg-slate-900 border border-white/5 rounded-full overflow-hidden">
@@ -999,9 +1001,9 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             {activeTab === 'output' && (
                                 <div className="space-y-6">
                                     <div>
-                                        <h3 className="text-lg font-semibold text-white mb-2">Seleziona Dispositivo Uscita</h3>
+                                        <h3 className="text-lg font-semibold text-white mb-2">{t('device.selectOutput')}</h3>
                                         <p className="text-sm text-slate-400 mb-4">
-                                            Scegli dove vuoi ascoltare l&apos;audio. Il test emetterà un suono dal dispositivo selezionato.
+                                            {t('device.outputDesc')}
                                         </p>
                                     </div>
 
@@ -1035,7 +1037,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                                         {device.label}
                                                     </p>
                                                     <p className="text-xs text-slate-500 mt-0.5">
-                                                        {device.deviceId === 'default' ? 'Usa l\'output audio predefinito di sistema' : 'Dispositivo audio'}
+                                                        {device.deviceId === 'default' ? t('device.defaultOutputDesc') : t('device.audioDevice')}
                                                     </p>
                                                 </div>
                                                 {selectedAudioOutput === device.deviceId && (
@@ -1047,7 +1049,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                         {audioOutputs.length === 0 && (
                                             <div className="p-4 bg-black/20 border border-white/5 rounded-xl text-center">
                                                 <p className="text-slate-400">
-                                                    Verrà usato il dispositivo di default del sistema
+                                                    {t('device.defaultOutputFallback')}
                                                 </p>
                                             </div>
                                         )}
@@ -1059,11 +1061,11 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                         className="w-full mt-4 p-4 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] rounded-xl text-purple-300 font-bold tracking-wide transition-all flex items-center justify-center gap-2 group"
                                     >
                                         <Volume2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                        Test Suono
+                                        {t('device.testSound')}
                                     </button>
 
                                     <p className="text-xs text-slate-500 text-center">
-                                        Nota: Chrome/Edge supportano la selezione audio. Altri browser useranno il default.
+                                        {t('device.browserNote')}
                                     </p>
                                 </div>
                             )}
@@ -1072,7 +1074,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                             {activeTab === 'video' && (
                                 <div className="space-y-6">
                                     <div>
-                                        <h3 className="text-lg font-semibold text-white mb-4">Seleziona Webcam</h3>
+                                        <h3 className="text-lg font-semibold text-white mb-4">{t('device.selectWebcam')}</h3>
                                     </div>
 
                                     {/* Preview Video */}
@@ -1094,14 +1096,14 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                                 <VideoOff className="w-12 h-12 text-slate-600 mb-2" />
                                                 <p className="text-slate-500">
-                                                    {selectedVideoInput ? 'Caricamento preview...' : 'Seleziona una webcam'}
+                                                    {selectedVideoInput ? t('device.loadingPreview') : t('device.selectAWebcam')}
                                                 </p>
                                             </div>
                                         )}
 
                                         {previewStream && previewStream.getVideoTracks().length > 0 && (
                                             <div className={`absolute top-3 left-3 px-2 py-1 rounded text-xs text-white font-medium ${videoWarning ? 'bg-amber-500/80' : 'bg-emerald-500/80'}`}>
-                                                {videoWarning ? '⚠️ Problema rilevato' : 'Preview attiva'}
+                                                {videoWarning ? t('device.problemDetected') : t('device.previewActive')}
                                             </div>
                                         )}
 
@@ -1138,7 +1140,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                                         {device.label}
                                                     </p>
                                                     <p className="text-xs text-slate-500 mt-0.5">
-                                                        {device.deviceId === 'default' ? 'Usa la webcam predefinita di sistema' : 'Camera USB'}
+                                                        {device.deviceId === 'default' ? t('device.defaultCamDesc') : t('device.usbCamera')}
                                                     </p>
                                                 </div>
                                                 {selectedVideoInput === device.deviceId && (
@@ -1149,7 +1151,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
 
                                         {videoInputs.length === 0 && (
                                             <p className="text-slate-500 text-center py-8">
-                                                Nessuna webcam trovata
+                                                {t('device.noWebcamFound')}
                                             </p>
                                         )}
                                     </div>
@@ -1185,14 +1187,14 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
                                     onClick={onClose}
                                     className="px-6 py-2.5 text-sm font-bold text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-transparent hover:border-white/10"
                                 >
-                                    Annulla
+                                    {t('device.cancel')}
                                 </button>
                             )}
                             <button
                                 onClick={applySettings}
                                 className="px-8 py-2.5 text-sm bg-gradient-to-r from-cyan-400 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 text-slate-950 font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)]"
                             >
-                                {isInitialSetup ? 'Entra nell\'Office' : 'Applica Modifiche'}
+                                {isInitialSetup ? t('device.enterOffice') : t('device.applyChanges')}
                             </button>
                         </div>
                     </div>

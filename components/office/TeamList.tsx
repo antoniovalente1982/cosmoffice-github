@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useCallStore } from '../../stores/callStore';
+import { useT } from '../../lib/i18n';
 
 const supabase = createClient();
 
@@ -37,13 +38,6 @@ interface GuestInvite {
     invited_at: string;
 }
 
-const ROLE_CONFIG: Record<WorkspaceRole, { icon: typeof Crown; label: string; color: string; dotColor: string; bgColor: string }> = {
-    owner: { icon: Crown, label: 'Owner', color: 'text-amber-400', dotColor: 'bg-amber-400', bgColor: 'bg-amber-500/15' },
-    admin: { icon: Shield, label: 'Admin', color: 'text-cyan-400', dotColor: 'bg-cyan-400', bgColor: 'bg-cyan-500/15' },
-    member: { icon: User, label: 'Membri', color: 'text-slate-300', dotColor: 'bg-slate-400', bgColor: 'bg-slate-500/15' },
-    guest: { icon: Star, label: 'Ospiti', color: 'text-purple-400', dotColor: 'bg-purple-400', bgColor: 'bg-purple-500/15' },
-};
-
 const ROLE_HIERARCHY: Record<WorkspaceRole, number> = { owner: 3, admin: 2, member: 1, guest: 0 };
 const ROLE_ORDER: WorkspaceRole[] = ['owner', 'admin', 'member', 'guest'];
 const STATUS_DOT: Record<string, string> = {
@@ -59,6 +53,13 @@ interface TeamListProps {
 }
 
 export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles }: TeamListProps) {
+    const { t } = useT();
+    const ROLE_CONFIG: Record<WorkspaceRole, { icon: typeof Crown; label: string; color: string; dotColor: string; bgColor: string }> = {
+        owner: { icon: Crown, label: t('role.owner'), color: 'text-amber-400', dotColor: 'bg-amber-400', bgColor: 'bg-amber-500/15' },
+        admin: { icon: Shield, label: t('role.admin'), color: 'text-cyan-400', dotColor: 'bg-cyan-400', bgColor: 'bg-cyan-500/15' },
+        member: { icon: User, label: t('role.member'), color: 'text-slate-300', dotColor: 'bg-slate-400', bgColor: 'bg-slate-500/15' },
+        guest: { icon: Star, label: t('role.guest'), color: 'text-purple-400', dotColor: 'bg-purple-400', bgColor: 'bg-purple-500/15' },
+    };
     const peers = useAvatarStore(s => s.peers);
     const peerCount = Object.keys(peers).length; // reactive trigger for online detection
     const myProfile = useAvatarStore(s => s.myProfile);
@@ -137,19 +138,19 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
     // ─── Actions ───
     const handleKick = async (userId: string, userName: string) => {
         if (!workspaceId) return;
-        if (!confirm(`Sei sicuro di voler rimuovere ${userName} dal workspace?`)) return;
+        if (!confirm(t('team.kickConfirm', { name: userName }))) return;
         setKickingUserId(userId);
         try {
             const { data, error } = await supabase.rpc('kick_workspace_member', {
                 p_workspace_id: workspaceId, p_target_user_id: userId,
             });
-            if (error) alert('Errore: ' + error.message);
+            if (error) alert(t('team.kickError') + error.message);
             else {
                 const result = data as any;
                 if (result?.success) setMembers(prev => prev.filter(m => m.user_id !== userId));
-                else alert(result?.error || 'Errore sconosciuto');
+                else alert(result?.error || t('team.unknownError'));
             }
-        } catch (err: any) { alert('Errore: ' + err.message); }
+        } catch (err: any) { alert(t('team.kickError') + err.message); }
         setKickingUserId(null);
     };
 
@@ -162,14 +163,14 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ workspaceId, type: 'seats' }),
             });
-            if (res.ok) alert('✅ Richiesta di upgrade inviata!');
-            else { const d = await res.json(); alert(d.error || 'Errore.'); }
-        } catch { alert('Errore di rete.'); }
+            if (res.ok) alert(t('team.upgradeRequest'));
+            else { const d = await res.json(); alert(d.error || t('team.upgradeError')); }
+        } catch { alert(t('team.networkError')); }
         setUpgradeLoading(false);
     };
 
     const revokeGuestInvite = async (inviteId: string) => {
-        if (!confirm('Revocare questo invito guest? L\'ospite non potrà più accedere.')) return;
+        if (!confirm(t('team.revokeConfirm'))) return;
         await supabase.from('workspace_invitations').delete().eq('id', inviteId);
         setGuestInvites(prev => prev.filter(g => g.id !== inviteId));
     };
@@ -182,8 +183,8 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
 
     // ─── Helpers ───
     const getName = (m: WorkspaceMember) => {
-        if (m.user_id === currentUserId && myProfile) return myProfile.display_name || myProfile.full_name || m.profile?.email || 'Ospite';
-        return m.profile?.display_name || m.profile?.full_name || m.profile?.email || 'Ospite';
+        if (m.user_id === currentUserId && myProfile) return myProfile.display_name || myProfile.full_name || m.profile?.email || t('office.guest');
+        return m.profile?.display_name || m.profile?.full_name || m.profile?.email || t('office.guest');
     };
     const getInitials = (m: WorkspaceMember) => getName(m).split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
     const isOnline = (m: WorkspaceMember) => {
@@ -230,7 +231,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[status] || STATUS_DOT.offline}`} />
                 <div className="flex-1 min-w-0">
                     <p className={`text-[11px] font-medium truncate ${online ? 'text-slate-200' : 'text-slate-500'}`}>
-                        {isMe ? `${getName(m)} (Tu)` : getName(m)}
+                        {isMe ? `${getName(m)} (${t('team.you')})` : getName(m)}
                     </p>
                 </div>
                 {showRole && <RIcon className={`w-3 h-3 ${roleConfig.color} opacity-40 flex-shrink-0`} />}
@@ -258,7 +259,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                             }
                         }}
                         className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-md hover:bg-primary-500/20 text-slate-500 hover:text-primary-400 transition-all"
-                        title={`Chiedi di parlare con ${getName(m)}`}
+                        title={t('team.callTooltip', { name: getName(m) })}
                     >
                         <Phone className="w-3 h-3" />
                     </button>
@@ -268,7 +269,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                         onClick={(e) => { e.stopPropagation(); handleKick(m.user_id, getName(m)); }}
                         disabled={isKicking}
                         className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-md hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-all"
-                        title={`Rimuovi ${getName(m)}`}
+                        title={t('team.removeTooltip', { name: getName(m) })}
                     >
                         {isKicking ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserX className="w-3 h-3" />}
                     </button>
@@ -286,7 +287,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                 className="w-full justify-start gap-3 transition-all duration-300 bg-primary-500/20 text-primary-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]"
             >
                 <Users className="w-5 h-5 flex-shrink-0" />
-                <span className="whitespace-nowrap">Team</span>
+                <span className="whitespace-nowrap">{t('team.title')}</span>
                 <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isAtLimit ? 'bg-red-500/20 text-red-400' : isNearLimit ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-slate-400'}`}>
                     {usedSeats}/{maxMembers}
                 </span>
@@ -305,7 +306,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                         {/* Seat Progress Bar */}
                         <div className="px-3 py-2">
                             <div className="flex items-center justify-between mb-1">
-                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Accessi</span>
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{t('team.seats')}</span>
                                 <span className={`text-[10px] font-bold ${isAtLimit ? 'text-red-400' : isNearLimit ? 'text-amber-400' : 'text-cyan-400'}`}>
                                     {usedSeats} / {maxMembers}
                                 </span>
@@ -321,16 +322,16 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                             {/* Breakdown: members + guests */}
                             <div className="flex items-center gap-3 mt-1">
                                 <span className="text-[9px] text-slate-600">
-                                    👤 {nonGuestMembers.length} membri
+                                    👤 {nonGuestMembers.length} {t('team.members')}
                                 </span>
                                 <span className="text-[9px] text-slate-600">
-                                    🎫 {guestInvites.length} ospiti
+                                    🎫 {guestInvites.length} {t('team.guests')}
                                 </span>
                             </div>
                             {isAtLimit && (
                                 <div className="mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20">
                                     <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
-                                    <span className="text-[9px] text-red-300 flex-1">Limite raggiunto</span>
+                                    <span className="text-[9px] text-red-300 flex-1">{t('team.limitReached')}</span>
                                     {myRole === 'owner' && (
                                         <button onClick={handleUpgradeRequest} disabled={upgradeLoading}
                                             className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-500 shrink-0">
@@ -346,7 +347,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                             <div className="px-3 pb-1">
                                 <div className="relative">
                                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600" />
-                                    <input type="text" placeholder="Cerca..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                                    <input type="text" placeholder={t('team.search')} value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                                         className="w-full pl-7 pr-2 py-1 bg-white/5 border border-white/5 rounded-lg text-[10px] text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/20" />
                                 </div>
                             </div>
@@ -357,7 +358,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                             <div className="pb-1">
                                 <div className="flex items-center gap-2 px-2 py-1">
                                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    <span className="text-[10px] font-bold text-emerald-400/80 uppercase tracking-widest">Online ({onlineMembers.length})</span>
+                                    <span className="text-[10px] font-bold text-emerald-400/80 uppercase tracking-widest">{t('team.online')} ({onlineMembers.length})</span>
                                 </div>
                                 <div className="space-y-0.5">
                                     {onlineMembers.map(m => <MemberRow key={`online-${m.user_id}`} m={m} showRole compact />)}
@@ -386,7 +387,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                                 <div className="pt-1 border-t border-white/5">
                                     <div className="flex items-center gap-1.5 px-2 py-1">
                                         <Link2 className="w-3 h-3 text-purple-400" />
-                                        <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Inviti Guest</span>
+                                        <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">{t('team.guestInvites')}</span>
                                         <span className="text-[10px] text-slate-600 ml-auto">{guestInvites.length}</span>
                                     </div>
                                     <div className="space-y-0.5">
@@ -394,8 +395,8 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                                             <div key={inv.id} className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
                                                 <Star className="w-3 h-3 text-purple-400 opacity-50 shrink-0" />
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[10px] text-slate-300 truncate">{inv.label || 'Invito guest'}</p>
-                                                    <p className="text-[9px] text-slate-600">{inv.use_count} accessi</p>
+                                                    <p className="text-[10px] text-slate-300 truncate">{inv.label || t('team.guestInviteLabel')}</p>
+                                                    <p className="text-[9px] text-slate-600">{inv.use_count} {t('team.accesses')}</p>
                                                 </div>
                                                 <button onClick={() => copyInviteLink(inv.token)}
                                                     className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-all">

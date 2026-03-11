@@ -8,9 +8,12 @@ import { Mail, Lock, ArrowLeft, AlertCircle, Check } from 'lucide-react';
 import { Logo } from '../../components/ui/logo';
 import { login } from './actions';
 import { forgotPassword } from './forgot-password';
+import { useT } from '../../lib/i18n';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
 import '../auth.css';
 
 function LoginForm() {
+  const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState('');
   const [showForgot, setShowForgot] = useState(false);
@@ -48,12 +51,8 @@ function LoginForm() {
         <div className="auth-card__inner">
           <div className="auth-header">
             <Logo size="lg" showText={false} variant="glow" />
-            <h1>{forgotSent ? 'Email Inviata!' : 'Recupera Password'}</h1>
-            <p>
-              {forgotSent
-                ? 'Se l\'email esiste, riceverai un link per reimpostare la password.'
-                : 'Inserisci la tua email per ricevere un link di recupero'}
-            </p>
+            <h1>{forgotSent ? t('auth.forgotSuccess') : t('auth.forgotTitle')}</h1>
+            <p>{forgotSent ? t('auth.forgotSuccess') : t('auth.forgotSubtitle')}</p>
           </div>
 
           {forgotSent ? (
@@ -67,25 +66,25 @@ function LoginForm() {
                 <Check className="w-7 h-7 text-white" />
               </div>
               <p style={{ color: '#94a3b8', fontSize: 13, marginBottom: 16 }}>
-                Controlla la tua casella di posta (anche lo spam).
+                {t('auth.forgotSuccess')}
               </p>
               <button
                 onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail(''); }}
                 className="auth-submit"
                 style={{ marginTop: 8 }}
               >
-                <span>Torna al Login</span>
+                <span>{t('auth.forgotBack')}</span>
               </button>
             </div>
           ) : (
             <div className="auth-form">
               <div className="auth-field">
-                <label>Email</label>
+                <label>{t('auth.email')}</label>
                 <div className="auth-input-wrap">
                   <Mail className="auth-input-icon" />
                   <input
                     type="email"
-                    placeholder="nome@azienda.it"
+                    placeholder={t('auth.emailPlaceholder')}
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleForgotPassword()}
@@ -100,7 +99,7 @@ function LoginForm() {
                 onClick={handleForgotPassword}
                 className="auth-submit"
               >
-                <span>{forgotPending ? 'Invio...' : 'Invia Link di Recupero'}</span>
+                <span>{forgotPending ? t('auth.forgotSending') : t('auth.forgotButton')}</span>
               </button>
 
               <div className="auth-footer">
@@ -109,7 +108,7 @@ function LoginForm() {
                   onClick={() => setShowForgot(false)}
                   style={{ background: 'none', border: 'none', color: '#06b6d4', cursor: 'pointer', fontSize: 14 }}
                 >
-                  ← Torna al Login
+                  ← {t('auth.forgotBack')}
                 </button>
               </div>
             </div>
@@ -125,14 +124,14 @@ function LoginForm() {
       <div className="auth-card__inner">
         <div className="auth-header">
           <Logo size="lg" showText={false} variant="glow" />
-          <h1>{isInvite ? 'Accedi per Entrare' : 'Bentornato'}</h1>
-          <p>{isInvite ? 'Accedi per accettare il tuo invito' : 'Inserisci le tue credenziali per accedere al tuo ufficio'}</p>
+          <h1>{t('auth.loginTitle')}</h1>
+          <p>{t('auth.loginSubtitle')}</p>
         </div>
 
         {isInvite && (
           <div className="auth-invite-badge">
             <span className="auth-invite-badge__dot" />
-            🔗 Invito in attesa — accedi per entrare nel workspace
+            🔗 {t('invite.youAreInvited')}
           </div>
         )}
 
@@ -140,22 +139,22 @@ function LoginForm() {
           {redirectTo && <input type="hidden" name="redirect" value={redirectTo} />}
 
           <div className="auth-field">
-            <label>Email</label>
+            <label>{t('auth.email')}</label>
             <div className="auth-input-wrap">
               <Mail className="auth-input-icon" />
-              <input type="email" name="email" placeholder="nome@azienda.it" required />
+              <input type="email" name="email" placeholder={t('auth.emailPlaceholder')} required />
             </div>
           </div>
 
           <div className="auth-field">
             <div className="auth-field__head">
-              <label>Password</label>
+              <label>{t('auth.password')}</label>
               <button
                 type="button"
                 onClick={() => setShowForgot(true)}
                 className="auth-forgot"
               >
-                Password dimenticata?
+                {t('auth.forgotPassword')}
               </button>
             </div>
             <div className="auth-input-wrap">
@@ -172,15 +171,15 @@ function LoginForm() {
           )}
 
           <button type="submit" disabled={isPending} className="auth-submit">
-            <span>{isPending ? 'Autenticazione...' : isInvite ? 'Accedi e Entra' : 'Accedi'}</span>
+            <span>{isPending ? t('auth.loggingIn') : t('auth.loginButton')}</span>
             {!isPending && <ArrowLeft className="w-4 h-4 rotate-180" />}
           </button>
         </form>
 
         <div className="auth-footer">
-          Non hai un account?{' '}
+          {t('auth.noAccount')}{' '}
           <Link href={redirectTo ? `/signup?redirect=${encodeURIComponent(redirectTo)}` : '/signup'}>
-            Registrati ora
+            {t('auth.signup')}
           </Link>
         </div>
       </div>
@@ -189,6 +188,7 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const { t } = useT();
   return (
     <div className="auth-page">
       <div className="auth-bg" aria-hidden>
@@ -198,10 +198,13 @@ export default function LoginPage() {
       </div>
 
       <div className="auth-container fade-up">
-        <Link href="/" className="auth-back">
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Torna alla Home
-        </Link>
+        <div className="flex items-center justify-between w-full max-w-md mx-auto mb-4">
+          <Link href="/" className="auth-back">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t('auth.backToHome')}
+          </Link>
+          <LanguageSelector compact />
+        </div>
 
         <Suspense fallback={
           <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

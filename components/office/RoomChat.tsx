@@ -6,6 +6,7 @@ import { useChatStore, ChatMessage } from '../../stores/chatStore';
 import { useRoomChat } from '../../hooks/useRoomChat';
 import { useOfficeChat } from '../../hooks/useOfficeChat';
 import { useAvatarStore } from '../../stores/avatarStore';
+import { useT } from '../../lib/i18n';
 
 // ============================================
 // RoomChat — Unified chat: Room + Office tabs
@@ -17,15 +18,16 @@ function formatTime(timestamp: string): string {
     return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDateSeparator(timestamp: string): string {
+function formatDateSeparator(timestamp: string, t: any, lang: string): string {
     const d = new Date(timestamp);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    if (d.toDateString() === today.toDateString()) return 'Oggi';
-    if (d.toDateString() === yesterday.toDateString()) return 'Ieri';
-    return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    if (d.toDateString() === today.toDateString()) return t('chat.today');
+    if (d.toDateString() === yesterday.toDateString()) return t('chat.yesterday');
+    const locale = lang === 'it' ? 'it-IT' : lang === 'es' ? 'es-ES' : 'en-US';
+    return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 // ─── Simple Emoji Picker ────────────────────────────────
@@ -80,12 +82,13 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (emoji: string) => void;
 
 // ─── Confirm Dialog ─────────────────────────────────────
 function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+    const { t } = useT();
     return (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl">
             <div className="bg-slate-900 border border-white/10 rounded-xl p-5 max-w-[280px] shadow-2xl">
                 <div className="flex items-center gap-2 mb-3">
                     <AlertTriangle className="w-5 h-5 text-amber-400" />
-                    <h4 className="text-sm font-bold text-white">Conferma</h4>
+                    <h4 className="text-sm font-bold text-white">{t('chat.confirm')}</h4>
                 </div>
                 <p className="text-xs text-slate-300 mb-4 leading-relaxed">{message}</p>
                 <div className="flex gap-2">
@@ -93,13 +96,13 @@ function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onCo
                         onClick={onCancel}
                         className="flex-1 px-3 py-2 rounded-lg text-xs font-medium bg-white/5 text-slate-300 hover:bg-white/10 transition-colors"
                     >
-                        Annulla
+                        {t('chat.cancel')}
                     </button>
                     <button
                         onClick={onConfirm}
                         className="flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-red-500/80 text-white hover:bg-red-500 transition-colors"
                     >
-                        Elimina
+                        {t('chat.delete')}
                     </button>
                 </div>
             </div>
@@ -118,6 +121,7 @@ interface RoomChatProps {
 }
 
 function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }: RoomChatProps) {
+    const { t, locale } = useT();
     const { isOpen, unreadCount, officeUnreadCount, activeChannel, toggleChat, closeChat, clearUnread, setActiveChannel } = useChatStore();
     const myRoomId = useAvatarStore(s => s.myRoomId);
     const [inputText, setInputText] = useState('');
@@ -237,7 +241,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                     >
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-                            <h3 className="text-sm font-bold text-white tracking-wide">Chat</h3>
+                            <h3 className="text-sm font-bold text-white tracking-wide">{t('chat.title')}</h3>
                             {currentLoading && <Loader2 className="w-3 h-3 text-slate-500 animate-spin" />}
                         </div>
 
@@ -247,17 +251,17 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                                 <button
                                     onClick={() => setConfirmClear(true)}
                                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-red-400/80 hover:text-red-300 hover:bg-red-500/10 transition-all"
-                                    title="Pulisci tutta la chat"
+                                    title={t('chat.clearTitle')}
                                 >
                                     <Trash2 className="w-3 h-3" />
-                                    Pulisci
+                                    {t('chat.clear')}
                                 </button>
                             )}
                             {/* Close button */}
                             <button
                                 onClick={closeChat}
                                 className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                                title="Chiudi chat"
+                                title={t('chat.closeTitle')}
                             >
                                 <X className="w-4 h-4" />
                             </button>
@@ -274,7 +278,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                                 }`}
                         >
                             <DoorOpen className="w-3.5 h-3.5" />
-                            Stanza
+                            {t('chat.room')}
                             {unreadCount > 0 && !isRoomChannel && (
                                 <span className="ml-1 min-w-[16px] h-4 rounded-full bg-red-500/80 text-white text-[9px] font-bold flex items-center justify-center px-1">
                                     {unreadCount > 99 ? '99+' : unreadCount}
@@ -292,7 +296,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                                 }`}
                         >
                             <Globe className="w-3.5 h-3.5" />
-                            Ufficio
+                            {t('chat.office')}
                             {officeUnreadCount > 0 && isRoomChannel && (
                                 <span className="ml-1 min-w-[16px] h-4 rounded-full bg-red-500/80 text-white text-[9px] font-bold flex items-center justify-center px-1">
                                     {officeUnreadCount > 99 ? '99+' : officeUnreadCount}
@@ -315,22 +319,22 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                                 <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                                     <MessageCircle className="w-7 h-7 text-slate-600" />
                                 </div>
-                                <p className="text-sm text-slate-400 font-medium">Entra in una stanza</p>
-                                <p className="text-xs text-slate-600 mt-1">Trascina il tuo avatar in una stanza per chattare</p>
+                                <p className="text-sm text-slate-400 font-medium">{t('chat.enterRoom')}</p>
+                                <p className="text-xs text-slate-600 mt-1">{t('chat.enterRoomDesc')}</p>
                             </div>
                         ) : currentLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center py-12">
                                 <Loader2 className="w-8 h-8 text-slate-500 animate-spin mb-3" />
-                                <p className="text-sm text-slate-500">Caricamento messaggi...</p>
+                                <p className="text-sm text-slate-500">{t('chat.loadingMessages')}</p>
                             </div>
                         ) : currentMessages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-center py-12">
                                 <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                                     <MessageCircle className="w-7 h-7 text-slate-600" />
                                 </div>
-                                <p className="text-sm text-slate-500 font-medium">Nessun messaggio</p>
+                                <p className="text-sm text-slate-500 font-medium">{t('chat.noMessages')}</p>
                                 <p className="text-xs text-slate-600 mt-1">
-                                    {isRoomChannel ? 'Inizia una conversazione!' : 'Scrivi a tutto l\'ufficio!'}
+                                    {isRoomChannel ? t('chat.startConversation') : t('chat.writeToOffice')}
                                 </p>
                             </div>
                         ) : (
@@ -344,7 +348,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                                         <div className="flex items-center gap-3 py-3" key={`date-${dateKey}`}>
                                             <div className="flex-1 h-px bg-white/5" />
                                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                                {formatDateSeparator(msg.timestamp)}
+                                                {formatDateSeparator(msg.timestamp, t, locale)}
                                             </span>
                                             <div className="flex-1 h-px bg-white/5" />
                                         </div>
@@ -376,7 +380,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                                                 {/* Name + Time header — shown for ALL messages */}
                                                 <div className={`flex items-center gap-1.5 mb-0.5 ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}`}>
                                                     <p className="text-[10px] font-semibold text-slate-400 truncate max-w-[120px]">
-                                                        {isMe ? 'Tu' : msg.userName}
+                                                        {isMe ? t('team.you') : msg.userName}
                                                     </p>
                                                     <span className="text-[9px] text-slate-600">
                                                         {formatTime(msg.timestamp)}
@@ -400,7 +404,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                                                     onClick={() => currentDelete(msg.id)}
                                                     className="absolute top-0 right-0 w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition-all transform hover:scale-110 z-10"
                                                     style={{ animation: 'chatSlideUp 0.1s ease-out forwards' }}
-                                                    title="Elimina messaggio"
+                                                    title={t('chat.deleteMsg')}
                                                 >
                                                     <Trash2 className="w-3 h-3" />
                                                 </button>
@@ -454,7 +458,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                                     value={inputText}
                                     onChange={(e) => setInputText(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="Scrivi un messaggio..."
+                                    placeholder={t('chat.placeholder')}
                                     className="flex-1 bg-white/[0.04] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/30 transition-all"
                                     maxLength={2000}
                                 />
@@ -468,7 +472,7 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                             </div>
                         ) : (
                             <p className="text-xs text-slate-600 text-center py-1">
-                                Entra in una stanza per inviare messaggi
+                                {t('chat.enterRoomToSend')}
                             </p>
                         )}
                     </div>
@@ -477,8 +481,8 @@ function RoomChatInner({ workspaceId, userId, userName, userAvatarUrl, isAdmin }
                     {confirmClear && (
                         <ConfirmDialog
                             message={isRoomChannel
-                                ? 'Eliminare tutti i messaggi di questa stanza? L\'azione è irreversibile.'
-                                : 'Eliminare tutti i messaggi dell\'ufficio? L\'azione è irreversibile.'
+                                ? t('chat.confirmClearRoom')
+                                : t('chat.confirmClearOffice')
                             }
                             onConfirm={handleConfirmClear}
                             onCancel={() => setConfirmClear(false)}
