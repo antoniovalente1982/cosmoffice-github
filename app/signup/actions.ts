@@ -15,10 +15,16 @@ export async function signup(formData: FormData) {
     const company_name = (formData.get('company_name') as string) || ''
     const vat_number = (formData.get('vat_number') as string) || ''
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.cosmoffice.io'
+    const redirectTo = formData.get('redirect') as string
+
     const { data: signUpData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+            emailRedirectTo: redirectTo
+                ? `${siteUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}`
+                : `${siteUrl}/auth/callback?next=/office`,
             data: {
                 full_name,
                 ...(phone && { phone }),
@@ -50,7 +56,6 @@ export async function signup(formData: FormData) {
     revalidatePath('/', 'layout')
 
     // Redirect to the invite page or office
-    const redirectTo = formData.get('redirect') as string
     if (redirectTo && redirectTo.startsWith('/invite/')) {
         redirect(redirectTo)
     }
