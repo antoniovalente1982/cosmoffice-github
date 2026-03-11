@@ -173,7 +173,7 @@ function UserAvatarInner({
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     position: 'relative', overflow: 'hidden',
                     background: 'linear-gradient(to bottom right, #334155, #0f172a)',
-                    boxShadow: `${perimeterShadow}, 0 6px 20px rgba(0,0,0,0.3)`,
+                    boxShadow: `${perimeterShadow}, 0 6px 20px rgba(0,0,0,0.3)${status === 'online' ? ', 0 0 24px rgba(16,185,129,0.15)' : ''}`,
                     transform: isSpeaking && audioEnabled ? 'scale(1.05)' : undefined,
                     transition: 'transform 0.3s ease, box-shadow 0.4s ease',
                     zIndex: 2,
@@ -290,7 +290,8 @@ function UserAvatarInner({
                         borderRadius: 40,
                         padding: '4px 16px',
                         display: 'inline-block',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.2) inset',
+                        textShadow: '0 1px 0 rgba(0,0,0,0.05)',
                     }}>
                         {fullName || 'User'}
                     </span>

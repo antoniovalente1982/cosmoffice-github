@@ -6,6 +6,27 @@ import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { getRoomColor } from './OfficeBuilder';
 import type { OfficeThemeConfig } from '../../lib/officeThemes';
 
+// ─── Zoom-Adaptive Font Size ─────────────────────────────────────
+// Counter-scales font size so labels remain readable at any zoom.
+// At zoom=1 → returns basePx. At zoom=0.38 → returns ~basePx*2.1
+// Capped at basePx*2.5 to avoid oversized labels.
+function getAdaptiveFontSize(basePx: number, zoom: number): number {
+    const scale = Math.max(1, 1.2 / Math.max(zoom, 0.2));
+    return Math.min(basePx * scale, basePx * 2.5);
+}
+
+// ─── Room Type Emoji ─────────────────────────────────────────────
+function getRoomTypeIcon(type: string): string {
+    switch (type) {
+        case 'focus': return '🎯';
+        case 'meeting': return '🤝';
+        case 'break': return '☕';
+        case 'open': return '🚀';
+        case 'reception': return '🏛️';
+        default: return '◆';
+    }
+}
+
 
 function hexColor(hex: string): number {
     return parseInt(hex.replace('#', ''), 16);
@@ -42,7 +63,7 @@ export function getRoomEdge(room: any, targetX: number, targetY: number): { x: n
  * Draw a single room card onto its container
  * Supports shape: 'rect' (default) and 'circle'
  */
-export function drawRoom(container: Container, room: any, isHovered: boolean, occupants: number = 0, theme?: OfficeThemeConfig) {
+export function drawRoom(container: Container, room: any, isHovered: boolean, occupants: number = 0, theme?: OfficeThemeConfig, zoom: number = 1) {
     container.removeChildren();
 
     const color = getRoomColor(room);
@@ -110,62 +131,121 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
 
     container.addChild(body);
 
+    // ─── Accent Strip (top edge, colored by room type) ────
+    const accentGfx = new Graphics();
+    if (isCircle) {
+        const cx = room.x + room.width / 2;
+        const topY = room.y + room.height / 2 - Math.min(room.width, room.height) / 2;
+        accentGfx.roundRect(cx - 20, topY - 1, 40, 3, 1.5);
+    } else {
+        accentGfx.roundRect(room.x + 12, room.y, room.width - 24, 3, 1.5);
+    }
+    accentGfx.fill({ color: colorNum, alpha: 0.7 });
+    container.addChild(accentGfx);
+
     // ═══════════════════════════════════════════════════════
-    // LABELS — OUTSIDE the room, above
+    // LABELS — OUTSIDE the room, above (ZOOM-ADAPTIVE)
     // ═══════════════════════════════════════════════════════
 
-    // ─── Room name ────────────────────────────────────────
+    const adaptiveNameSize = getAdaptiveFontSize(28, zoom);
+    const adaptiveSubSize = getAdaptiveFontSize(16, zoom);
+    const adaptiveStatusSize = getAdaptiveFontSize(18, zoom);
+
+    // ─── Room type icon + Room name ───────────────────────
+    const icon = getRoomTypeIcon(room.type);
+    const nameStr = `${icon} ${room.name.toUpperCase()}`;
+
     const nameStyle = new TextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 28,
+        fontSize: adaptiveNameSize,
         fontWeight: '800',
         fill: textColor,
         letterSpacing: 1,
-        dropShadow: { color: 0x000000, alpha: 0.6, blur: 6, distance: 0 },
+        dropShadow: { color: 0x000000, alpha: 0.7, blur: 8, distance: 0 },
     });
-    const nameText = new Text({ text: room.name.toUpperCase(), style: nameStyle, resolution: 2 });
+    const nameText = new Text({ text: nameStr, style: nameStyle, resolution: 2 });
+
+    // Position label above room
+    const labelGap = Math.max(58, adaptiveNameSize * 2.2);
     if (isCircle) {
         nameText.anchor.set(0.5, 1);
-        nameText.position.set(room.x + room.width / 2, room.y - 58);
+        nameText.position.set(room.x + room.width / 2, room.y - labelGap);
     } else {
-        nameText.position.set(room.x + 2, room.y - 58);
+        nameText.position.set(room.x + 2, room.y - labelGap);
     }
+
+    // Background pill behind room name for contrast
+    const nameBg = new Graphics();
+    const nmW = nameText.width + 16;
+    const nmH = nameText.height + 6;
+    if (isCircle) {
+        nameBg.roundRect(room.x + room.width / 2 - nmW / 2, room.y - labelGap - nmH + nameText.height, nmW, nmH, 8);
+    } else {
+        nameBg.roundRect(room.x + 2 - 8, room.y - labelGap - 3, nmW, nmH, 8);
+    }
+    nameBg.fill({ color: 0x000000, alpha: 0.45 });
+    container.addChild(nameBg);
     container.addChild(nameText);
 
     // ─── Subtitle line: DEPARTMENT ──────────────────
     if (department) {
         const subtitleStr = department.toUpperCase();
-
         const subStyle = new TextStyle({
             fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 16,
+            fontSize: adaptiveSubSize,
             fontWeight: '700',
             fill: hexColor(color),
             letterSpacing: 1.5,
-            dropShadow: { color: 0x000000, alpha: 0.4, blur: 4, distance: 0 },
+            dropShadow: { color: 0x000000, alpha: 0.5, blur: 6, distance: 0 },
         });
         const subText = new Text({ text: subtitleStr, style: subStyle, resolution: 2 });
+
+        const subGap = Math.max(32, adaptiveSubSize * 2.2);
         if (isCircle) {
             subText.anchor.set(0.5, 1);
-            subText.position.set(room.x + room.width / 2, room.y - 32);
+            subText.position.set(room.x + room.width / 2, room.y - subGap);
         } else {
-            subText.position.set(room.x + 2, room.y - 32);
+            subText.position.set(room.x + 2, room.y - subGap);
         }
         container.addChild(subText);
     }
 
     // ═══════════════════════════════════════════════════════
-    // INSIDE — occupant status
+    // INSIDE — occupant status + capacity bar
     // ═══════════════════════════════════════════════════════
+
+    // ─── Capacity Progress Bar (bottom of room) ─────────
+    const capacity = room.capacity || room.settings?.capacity || 0;
+    if (capacity > 0) {
+        const barWidth = isCircle ? Math.min(room.width, room.height) * 0.6 : room.width - 32;
+        const barHeight = 3;
+        const barX = isCircle ? room.x + room.width / 2 - barWidth / 2 : room.x + 16;
+        const barY = isCircle
+            ? room.y + room.height / 2 + Math.min(room.width, room.height) / 2 - 12
+            : room.y + room.height - 8;
+        const fillRatio = Math.min(1, occupants / capacity);
+        const barColor = fillRatio > 0.8 ? 0xef4444 : fillRatio > 0.5 ? 0xf59e0b : statusColor;
+
+        const barGfx = new Graphics();
+        // Track
+        barGfx.roundRect(barX, barY, barWidth, barHeight, 1.5);
+        barGfx.fill({ color: 0xffffff, alpha: 0.08 });
+        // Fill
+        if (fillRatio > 0) {
+            barGfx.roundRect(barX, barY, barWidth * fillRatio, barHeight, 1.5);
+            barGfx.fill({ color: barColor, alpha: 0.7 });
+        }
+        container.addChild(barGfx);
+    }
 
     if (occupants > 0) {
         const statusStyle = new TextStyle({
             fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 18,
+            fontSize: adaptiveStatusSize,
             fontWeight: '700',
             fill: statusColor,
             letterSpacing: 0.5,
-            dropShadow: { color: 0x000000, alpha: 0.4, blur: 4, distance: 0 },
+            dropShadow: { color: 0x000000, alpha: 0.5, blur: 6, distance: 0 },
         });
         const statusText = `${occupants} online`;
         const status = new Text({ text: statusText, style: statusStyle, resolution: 2 });
@@ -173,24 +253,28 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         if (isCircle) {
             const cy = room.y + room.height / 2;
             const r = Math.min(room.width, room.height) / 2;
-            // Inside circle, near bottom
-            const statusY = cy + r - 22;
+            const statusY = cy + r - 28;
             status.anchor.set(0.5, 0.5);
             status.position.set(room.x + room.width / 2, statusY);
-            // Green dot
+            // Pulsing green dot
             const statusDot = new Graphics();
-            statusDot.circle(room.x + room.width / 2 - status.width / 2 - 10, statusY, 3.5);
+            const dotX = room.x + room.width / 2 - status.width / 2 - 12;
+            statusDot.circle(dotX, statusY, 4.5);
             statusDot.fill({ color: statusColor, alpha: 1 });
+            statusDot.circle(dotX, statusY, 7);
+            statusDot.fill({ color: statusColor, alpha: 0.2 });
             container.addChild(statusDot);
             container.addChild(status);
         } else {
-            const statusY = room.y + room.height - 14;
+            const statusY = room.y + room.height - 20;
             status.anchor.set(0, 0.5);
-            status.position.set(room.x + 24, statusY);
-            // Green dot
+            status.position.set(room.x + 28, statusY);
+            // Pulsing green dot with glow ring
             const statusDot = new Graphics();
-            statusDot.circle(room.x + 14, statusY, 3.5);
+            statusDot.circle(room.x + 16, statusY, 4.5);
             statusDot.fill({ color: statusColor, alpha: 1 });
+            statusDot.circle(room.x + 16, statusY, 7);
+            statusDot.fill({ color: statusColor, alpha: 0.2 });
             container.addChild(statusDot);
             container.addChild(status);
         }
@@ -281,12 +365,23 @@ export function drawRoomConnections(
                 const midX = (edgeA.x + edgeB.x) / 2 + cpOffsetX;
                 const midY = (edgeA.y + edgeB.y) / 2 + cpOffsetY;
 
+                // Glow line (wider, transparent — underneath)
+                gfx.moveTo(edgeA.x, edgeA.y);
+                gfx.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
+                gfx.stroke({ color: connColor, width: 8, alpha: 0.12 });
+
+                // Main line (sharp, on top)
                 gfx.moveTo(edgeA.x, edgeA.y);
                 gfx.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
                 gfx.stroke({ color: connColor, width: 3, alpha: 0.7 });
 
+                // Endpoint dots with glow
+                gfx.circle(edgeA.x, edgeA.y, 6);
+                gfx.fill({ color: connColor, alpha: 0.15 });
                 gfx.circle(edgeA.x, edgeA.y, 4);
                 gfx.fill({ color: connColor, alpha: 0.9 });
+                gfx.circle(edgeB.x, edgeB.y, 6);
+                gfx.fill({ color: connColor, alpha: 0.15 });
                 gfx.circle(edgeB.x, edgeB.y, 4);
                 gfx.fill({ color: connColor, alpha: 0.9 });
 

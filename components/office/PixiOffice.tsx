@@ -120,10 +120,11 @@ function drawCorporateLobby(container: Container, x: number, y: number, scale: n
 
     container.addChild(g);
 
-    // ── RECEPTION text — below the lobby ─────────────────────
+    // ── RECEPTION text — below the lobby (zoom-adaptive) ──
+    const receptionFontSize = Math.max(16, 16 * s * Math.max(1, 1.2 / Math.max(s, 0.2)));
     const titleStyle = new PixiTextStyle({
         fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 16 * s,
+        fontSize: receptionFontSize,
         fontWeight: '700',
         fill: 0xffffff,
         letterSpacing: 2,
@@ -369,7 +370,7 @@ export function PixiOffice() {
             }
 
             // Initialize particles
-            particlesRef.current = createParticles(20, oW, oH);
+            particlesRef.current = createParticles(40, oW, oH);
 
             // Draw platform ONCE (static) — only in free mode
             if (platformGfxRef.current) {
@@ -460,6 +461,9 @@ export function PixiOffice() {
         };
     }, []);
 
+    // ─── Track last-drawn zoom for threshold-based redraw ───
+    const lastDrawnZoomRef = useRef(1);
+
     // ─── Draw rooms when they change ─────────────────────
     const peersByRoomRef = useRef<Record<string, number>>({});
 
@@ -484,7 +488,7 @@ export function PixiOffice() {
                 const tc = getThemeConfig(useWorkspaceStore.getState().theme);
                 useWorkspaceStore.getState().rooms.forEach((room: any) => {
                     const rc = existingContainers.get(room.id);
-                    if (rc) drawRoom(rc, room, false, counts[room.id] || 0, tc);
+                    if (rc) drawRoom(rc, room, false, counts[room.id] || 0, tc, useWorkspaceStore.getState().zoom);
                 });
             }
         };
@@ -522,8 +526,11 @@ export function PixiOffice() {
                 existingContainers.set(room.id, rc);
             }
             const isHovered = hoveredRoomId === room.id;
-            drawRoom(rc, room, isHovered, peersByRoom[room.id] || 0, themeConfig);
+            drawRoom(rc, room, isHovered, peersByRoom[room.id] || 0, themeConfig, zoom);
         });
+
+        // Track the zoom we last drew at
+        lastDrawnZoomRef.current = zoom;
 
         // Draw room connections
         if (connectionGfxRef.current) {
@@ -537,7 +544,7 @@ export function PixiOffice() {
                 useWorkspaceStore.getState().isBuilderMode
             );
         }
-    }, [rooms, roomConnections, hoveredRoomId, appReady, layoutMode]);
+    }, [rooms, roomConnections, hoveredRoomId, appReady, layoutMode, zoom]);
 
     // ─── Resize observer ─────────────────────────────────────
     useEffect(() => {

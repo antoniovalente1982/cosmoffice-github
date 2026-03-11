@@ -204,6 +204,17 @@ function MiniMapInner() {
                                                 rx={3 * scale} stroke={roomFill(room.type)}
                                                 strokeWidth={0.8} strokeOpacity={0.5}
                                             />
+                                            {/* Room name abbreviation */}
+                                            {rw > 18 && (
+                                                <text
+                                                    x={rx + rw / 2} y={ry + rh / 2}
+                                                    textAnchor="middle" dominantBaseline="central"
+                                                    fontSize={Math.min(6, rw * 0.35)}
+                                                    fill="white" fontWeight="600" opacity={0.6}
+                                                >
+                                                    {room.name?.slice(0, 4).toUpperCase()}
+                                                </text>
+                                            )}
                                             {/* Peer count badge */}
                                             {count > 0 && (
                                                 <>
@@ -302,9 +313,9 @@ function MiniMapInner() {
                                 }}
                             >
                                 <div className="relative">
-                                    <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-blue-300 shadow-[0_0_8px_rgba(59,130,246,0.8)]"
+                                    <div className="w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-blue-300 shadow-[0_0_12px_rgba(59,130,246,0.9),0_0_24px_rgba(59,130,246,0.4)]"
                                         style={{ animation: 'pulse 2s ease-in-out infinite' }} />
-                                    <div className="absolute -inset-1 rounded-full bg-blue-500/30 animate-ping" style={{ animationDuration: '2s' }} />
+                                    <div className="absolute -inset-1.5 rounded-full bg-blue-500/25 animate-ping" style={{ animationDuration: '2s' }} />
                                 </div>
                             </div>
                         </div>
