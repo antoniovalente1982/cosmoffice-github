@@ -208,6 +208,8 @@ export const it = {
   'office.support': 'Assistenza',
   'office.bugReport': 'Segnala Bug',
   'office.myTickets': 'I miei Ticket',
+  'supportCenter.title': 'Centro Supporto',
+  'supportCenter.subtitle': 'Assistenza, segnalazioni e ticket',
   'office.officeName': 'Ufficio',
   'office.guest': 'Ospite',
   'office.inviteTooltip': 'Genera link di invito',

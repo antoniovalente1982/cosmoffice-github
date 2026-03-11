@@ -210,6 +210,8 @@ export const es: Record<TranslationKey, string> = {
   'office.support': 'Soporte',
   'office.bugReport': 'Reportar Bug',
   'office.myTickets': 'Mis Tickets',
+  'supportCenter.title': 'Centro de Soporte',
+  'supportCenter.subtitle': 'Asistencia, reportes y tickets',
   'office.officeName': 'Oficina',
   'office.guest': 'Invitado',
   'office.inviteTooltip': 'Generar enlace de invitación',

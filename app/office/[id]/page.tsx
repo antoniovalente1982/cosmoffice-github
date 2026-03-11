@@ -49,9 +49,7 @@ const Whiteboard = dynamic(() => import('../../../components/office/Whiteboard')
 const DayNightCycle = dynamic(() => import('../../../components/office/DayNightCycle').then(mod => mod.DayNightCycle), { ssr: false });
 const NotificationBell = dynamic(() => import('../../../components/office/NotificationBell'), { ssr: false });
 const UserManagement = null; // Integrated into TeamList
-const SupportTicketForm = dynamic(() => import('../../../components/office/SupportTicketForm'), { ssr: false });
-const SupportTickets = dynamic(() => import('../../../components/office/SupportTickets'), { ssr: false });
-const BugReportForm = dynamic(() => import('../../../components/office/BugReportForm'), { ssr: false });
+const SupportCenter = dynamic(() => import('../../../components/office/SupportCenter'), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useDailyStore } from '../../../stores/dailyStore';
@@ -244,14 +242,12 @@ export default function OfficePage() {
     const [workspaceLogoUrl, setWorkspaceLogoUrl] = useState<string | null>(null);
     const [maxCapacity, setMaxCapacity] = useState<number | null>(null);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-    const [isSupportOpen, setIsSupportOpen] = useState(false);
+    const [isSupportCenterOpen, setIsSupportCenterOpen] = useState(false);
     const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
     const [isManagementOpen, setIsManagementOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
     const [showInitialSetup, setShowInitialSetup] = useState(false);
-    const [isTicketsOpen, setIsTicketsOpen] = useState(false);
-    const [isBugReportOpen, setIsBugReportOpen] = useState(false);
     const [ticketUnread, setTicketUnread] = useState(0);
 
     // ─── Reset stores on workspace change to avoid cross-workspace bleed ───
@@ -563,31 +559,14 @@ export default function OfficePage() {
                 </nav>
 
                 <div className="p-4 border-t border-white/5 bg-black/10 flex flex-col gap-2">
-                    {/* Assistenza — visible to everyone */}
+                    {/* Supporto — unified support center */}
                     <Button
                         variant="ghost"
-                        onClick={() => setIsSupportOpen(true)}
-                        className="w-full justify-start gap-3 transition-all duration-300 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-300"
+                        onClick={() => { setIsSupportCenterOpen(true); setTicketUnread(0); }}
+                        className="w-full justify-start gap-3 transition-all duration-300 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-300 relative"
                     >
                         <Headphones className="w-5 h-5 flex-shrink-0" />
-                        <span className="whitespace-nowrap">{t('office.support')}</span>
-                    </Button>
-                    {/* Segnala Bug */}
-                    <Button
-                        variant="ghost"
-                        onClick={() => setIsBugReportOpen(true)}
-                        className="w-full justify-start gap-3 transition-all duration-300 hover:bg-red-500/10 text-slate-400 hover:text-red-300"
-                    >
-                        <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                        <span className="whitespace-nowrap">{t('office.bugReport')}</span>
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        onClick={() => { setIsTicketsOpen(true); setTicketUnread(0); }}
-                        className="w-full justify-start gap-3 transition-all duration-300 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 relative"
-                    >
-                        <MessageSquare className="w-5 h-5 flex-shrink-0" />
-                        <span className="whitespace-nowrap">{t('office.myTickets')}</span>
+                        <span className="whitespace-nowrap">{t('supportCenter.title')}</span>
                         {ticketUnread > 0 && (
                             <span className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[20px] h-5 flex items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white px-1.5 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse">
                                 {ticketUnread}
@@ -912,25 +891,12 @@ export default function OfficePage() {
 
 
 
-                {/* Support Ticket Form — visible to everyone */}
-                <SupportTicketForm
+                {/* Support Center — unified modal with tabs */}
+                <SupportCenter
+                    isOpen={isSupportCenterOpen}
+                    onClose={() => setIsSupportCenterOpen(false)}
                     workspaceId={workspaceId}
-                    isOpen={isSupportOpen}
-                    onClose={() => setIsSupportOpen(false)}
-                />
-
-                {/* Bug Report Form */}
-                <BugReportForm
-                    workspaceId={workspaceId}
-                    isOpen={isBugReportOpen}
-                    onClose={() => setIsBugReportOpen(false)}
-                />
-
-                {/* Support Tickets Chat — view & reply to tickets */}
-                <SupportTickets
-                    isOpen={isTicketsOpen}
-                    onClose={() => setIsTicketsOpen(false)}
-                    workspaceId={workspaceId}
+                    ticketUnread={ticketUnread}
                 />
 
                 {/* Fullscreen Video Grid */}
