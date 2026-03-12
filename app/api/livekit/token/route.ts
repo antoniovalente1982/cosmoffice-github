@@ -27,8 +27,24 @@ export async function POST(request: NextRequest) {
 
         if (spaceId) {
             const adminClient = createAdminClient();
-            const { data: space } = await adminClient.from('spaces').select('workspace_id, max_capacity').eq('id', spaceId).single();
+            
+            // 1. Fetch space info AND workspace plan
+            const { data: space } = await adminClient
+                .from('spaces')
+                .select('workspace_id, max_capacity')
+                .eq('id', spaceId)
+                .single();
+
             if (space && process.env.NEXT_PUBLIC_LIVEKIT_URL) {
+                const { data: workspace } = await adminClient
+                    .from('workspaces')
+                    .select('plan')
+                    .eq('id', space.workspace_id)
+                    .single();
+
+                const isDemo = workspace?.plan === 'demo';
+                const effectiveCapacity = isDemo ? 5 : (space.max_capacity || 50);
+
                 const { data: membership } = await adminClient
                     .from('workspace_members')
                     .select('role, invitation_id')
@@ -70,44 +86,45 @@ export async function POST(request: NextRequest) {
                     }
                 }
 
-                // *** CAPACITY CHECK — enforce max_capacity for the office ***
-                if (space.max_capacity) {
-                    try {
-                        const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL;
-                        const roomService = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
-                        const rooms = await roomService.listRooms();
-                        const spacePrefix = `co-${spaceId.substring(0, 8)}`;
-                        const spaceRooms = rooms.filter(r => r.name.startsWith(spacePrefix));
+                // *** CAPACITY CHECK — enforce DEMO (5 limit) or standard max_capacity ***
+                try {
+                    const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+                    const roomService = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+                    const rooms = await roomService.listRooms();
+                    const spacePrefix = `co-${spaceId.substring(0, 8)}`;
+                    const spaceRooms = rooms.filter(r => r.name.startsWith(spacePrefix));
 
-                        let totalParticipants = 0;
-                        const seenIdentities = new Set<string>();
+                    let totalParticipants = 0;
+                    const seenIdentities = new Set<string>();
 
-                        for (const r of spaceRooms) {
-                            const participants = await roomService.listParticipants(r.name);
-                            for (const p of participants) {
-                                // Count unique identities (same user in multiple rooms = 1 person)
-                                if (!seenIdentities.has(p.identity)) {
-                                    seenIdentities.add(p.identity);
-                                    totalParticipants++;
-                                }
+                    for (const r of spaceRooms) {
+                        const participants = await roomService.listParticipants(r.name);
+                        for (const p of participants) {
+                            // Count unique identities (same user in multiple rooms = 1 person)
+                            if (!seenIdentities.has(p.identity)) {
+                                seenIdentities.add(p.identity);
+                                totalParticipants++;
                             }
                         }
-
-                        // Don't count the requesting user (they may be reconnecting)
-                        if (seenIdentities.has(participantId)) {
-                            totalParticipants--;
-                        }
-
-                        if (totalParticipants >= space.max_capacity) {
-                            return NextResponse.json(
-                                { error: 'Ufficio pieno — capienza massima raggiunta. Contatta l\'amministratore per richiedere un upgrade.' },
-                                { status: 403 }
-                            );
-                        }
-                    } catch (capErr) {
-                        console.error('[LiveKit API] Capacity check error:', capErr);
-                        // Don't block entry if capacity check fails
                     }
+
+                    // Don't count the requesting user (they may be reconnecting)
+                    if (seenIdentities.has(participantId)) {
+                        totalParticipants--;
+                    }
+
+                    if (totalParticipants >= effectiveCapacity) {
+                        return NextResponse.json(
+                            { error: isDemo 
+                                ? 'Ufficio pieno (Capienza Demo raggiunta: max 5 utenti). Fai l\'upgrade per rimuovere i limiti!' 
+                                : 'Ufficio pieno — capienza massima raggiunta. Contatta l\'amministratore per richiedere un upgrade.' 
+                            },
+                            { status: 403 }
+                        );
+                    }
+                } catch (capErr) {
+                    console.error('[LiveKit API] Capacity check error:', capErr);
+                    // Don't block entry if capacity check fails
                 }
             }
         }

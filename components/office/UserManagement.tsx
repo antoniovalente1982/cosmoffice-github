@@ -51,31 +51,18 @@ interface UserManagementProps {
 
 export default function UserManagement({ workspaceId, isOpen, onClose }: UserManagementProps) {
     const [members, setMembers] = useState<Member[]>([]);
-    const [maxMembers, setMaxMembers] = useState(10);
     const [loading, setLoading] = useState(true);
     const [myRole, setMyRole] = useState<WorkspaceRole | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [removingUserId, setRemovingUserId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedRole, setExpandedRole] = useState<WorkspaceRole | null>(null);
-    const [upgradeLoading, setUpgradeLoading] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         setCurrentUserId(user.id);
-
-        // Fetch workspace to get max_members
-        const { data: ws } = await supabase
-            .from('workspaces')
-            .select('max_members, plan')
-            .eq('id', workspaceId)
-            .single();
-
-        if (ws) {
-            setMaxMembers(ws.max_members || 10);
-        }
 
         // Fetch members with profiles
         const { data: membersData } = await supabase
@@ -167,26 +154,6 @@ export default function UserManagement({ workspaceId, isOpen, onClose }: UserMan
         setRemovingUserId(null);
     };
 
-    const handleUpgradeRequest = async () => {
-        setUpgradeLoading(true);
-        try {
-            const res = await fetch('/api/upgrade-request', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ workspaceId, type: 'seats' }),
-            });
-            if (res.ok) {
-                alert('✅ Richiesta di upgrade inviata! Il team ti contatterà presto.');
-            } else {
-                const data = await res.json();
-                alert(data.error || 'Errore nell\'invio della richiesta.');
-            }
-        } catch {
-            alert('Errore di rete.');
-        }
-        setUpgradeLoading(false);
-    };
-
     // Filter members
     const filteredMembers = members.filter(m => {
         if (!searchQuery) return true;
@@ -204,9 +171,6 @@ export default function UserManagement({ workspaceId, isOpen, onClose }: UserMan
     })).filter(g => g.members.length > 0);
 
     const usedSeats = members.length;
-    const usagePercent = maxMembers > 0 ? Math.min((usedSeats / maxMembers) * 100, 100) : 0;
-    const isAtLimit = usedSeats >= maxMembers;
-    const isNearLimit = usagePercent >= 80;
 
     if (!isOpen) return null;
 
@@ -251,69 +215,14 @@ export default function UserManagement({ workspaceId, isOpen, onClose }: UserMan
                         </button>
                     </div>
 
-                    {/* Seat Counter */}
+                    {/* Totale Utenti */}
                     <div className="px-6 py-4 border-b border-white/5 shrink-0">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Utenti</span>
-                            <span className={`text-sm font-bold ${isAtLimit ? 'text-red-400' : isNearLimit ? 'text-amber-400' : 'text-cyan-400'}`}>
-                                {usedSeats} / {maxMembers}
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Utenti Registrati</span>
+                            <span className="text-sm font-bold text-cyan-400">
+                                {usedSeats}
                             </span>
                         </div>
-                        <div className="h-2.5 rounded-full bg-white/5 overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${usagePercent}%` }}
-                                transition={{ duration: 0.8, ease: 'easeOut' }}
-                                className={`h-full rounded-full ${isAtLimit
-                                    ? 'bg-gradient-to-r from-red-500 to-red-400 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
-                                    : isNearLimit
-                                        ? 'bg-gradient-to-r from-amber-500 to-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
-                                        : 'bg-gradient-to-r from-cyan-500 to-blue-500 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
-                                    }`}
-                            />
-                        </div>
-
-                        {/* Limit Warning */}
-                        {isAtLimit && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -5 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="mt-3 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20"
-                            >
-                                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                                <div className="flex-1">
-                                    <p className="text-xs font-semibold text-red-300">Hai raggiunto il limite di utenti</p>
-                                    <p className="text-[10px] text-red-400/70 mt-0.5">
-                                        Per invitare altri utenti, richiedi un upgrade al tuo piano.
-                                    </p>
-                                </div>
-                                {myRole === 'owner' && (
-                                    <button
-                                        onClick={handleUpgradeRequest}
-                                        disabled={upgradeLoading}
-                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 transition-all shadow-lg shrink-0"
-                                    >
-                                        {upgradeLoading ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                            <>
-                                                <ArrowUpRight className="w-3 h-3" />
-                                                Upgrade
-                                            </>
-                                        )}
-                                    </button>
-                                )}
-                            </motion.div>
-                        )}
-
-                        {isNearLimit && !isAtLimit && (
-                            <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                                <p className="text-[10px] text-amber-300">
-                                    Stai raggiungendo il limite di utenti ({usedSeats}/{maxMembers}).
-                                </p>
-                            </div>
-                        )}
                     </div>
 
                     {/* Search */}
@@ -444,15 +353,15 @@ export default function UserManagement({ workspaceId, isOpen, onClose }: UserMan
                     {/* Footer */}
                     <div className="px-6 py-4 border-t border-white/5 shrink-0 flex items-center justify-between">
                         <p className="text-[10px] text-slate-600">
-                            Piano: €30 + IVA / utente / mese
+                            Nessun limite membri registrati.
                         </p>
-                        {(myRole === 'owner' || myRole === 'admin') && !isAtLimit && (
+                        {(myRole === 'owner' || myRole === 'admin') && (
                             <button
                                 onClick={onClose}
                                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
                             >
                                 <MailPlus className="w-3.5 h-3.5" />
-                                Invita Utenti
+                                Chiudi per Invitare
                             </button>
                         )}
                     </div>

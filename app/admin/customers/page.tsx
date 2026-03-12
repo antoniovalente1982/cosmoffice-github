@@ -322,7 +322,7 @@ export default function CustomersPage() {
                     },
                 }),
             });
-            showFeedback('success', `Piano aggiornato: ${maxMembers} accessi × ${cs}${fmtIT(ppsCents / 100)} = ${cs}${fmtIT(totalCents / 100)}/mese ✅`);
+            showFeedback('success', `Capienza aggiornata: ${maxMembers} online simultanei × ${cs}${fmtIT(ppsCents / 100)} = ${cs}${fmtIT(totalCents / 100)}/mese ✅`);
             setEditPlanWsId(null); fetchData();
         } catch (err: any) { showFeedback('error', err.message); }
         setSavingPlan(false);

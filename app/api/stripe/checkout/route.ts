@@ -31,10 +31,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Solo il proprietario può gestire il piano' }, { status: 403 });
         }
 
-        // Get workspace with current member count
+        // Get workspace to check it exists
         const { data: workspace } = await supabase
             .from('workspaces')
-            .select('id, name, stripe_customer_id, max_members')
+            .select('id, name, stripe_customer_id')
             .eq('id', workspaceId)
             .single();
 
@@ -42,14 +42,15 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Workspace non trovato' }, { status: 404 });
         }
 
-        // Count current members for initial quantity
-        const { count: memberCount } = await supabase
-            .from('workspace_members')
-            .select('*', { count: 'exact', head: true })
+        // Get space capacity for initial quantity
+        const { data: space } = await supabase
+            .from('spaces')
+            .select('max_capacity')
             .eq('workspace_id', workspaceId)
-            .is('removed_at', null);
+            .limit(1)
+            .single();
 
-        const quantity = memberCount || 1;
+        const quantity = space?.max_capacity || 5;
 
         // Get or create Stripe customer
         let stripeCustomerId = workspace.stripe_customer_id;
@@ -90,12 +91,12 @@ export async function POST(req: NextRequest) {
             subscription_data: {
                 metadata: {
                     workspace_id: workspaceId,
-                    plan_key: 'active',
+                    plan_key: 'premium',
                 },
             },
             metadata: {
                 workspace_id: workspaceId,
-                plan_key: 'active',
+                plan_key: 'premium',
             },
             allow_promotion_codes: true,
         });

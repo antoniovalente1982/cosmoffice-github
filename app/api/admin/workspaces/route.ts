@@ -406,6 +406,7 @@ export async function POST(req: NextRequest) {
                     slug: 'ufficio-principale',
                     created_by: targetUserId,
                     layout_data: defaultLayoutData,
+                    max_capacity: maxMembers,
                 }).select().single();
 
                 // 5b. Create default rooms if space was created
@@ -1121,6 +1122,7 @@ export async function POST(req: NextRequest) {
                     name: 'Ufficio Principale',
                     layout: 'office',
                     owner_id: ownerId,
+                    max_capacity: seats,
                 });
 
                 // Notify owner
@@ -1162,6 +1164,13 @@ export async function POST(req: NextRequest) {
                     .eq('id', workspaceId);
 
                 if (seatsError) return NextResponse.json({ error: seatsError.message }, { status: 500 });
+
+                // Also update max_capacity on spaces
+                if (max_members !== undefined) {
+                    await supabase.from('spaces')
+                        .update({ max_capacity: max_members })
+                        .eq('workspace_id', workspaceId);
+                }
 
                 // Auto-register payment for today if requested (plan change = payment now)
                 if (register_payment && monthly_amount_cents && monthly_amount_cents > 0) {
@@ -1446,7 +1455,13 @@ export async function POST(req: NextRequest) {
                     max_members: newSeats,
                     price_per_seat: newPPS,
                     monthly_amount_cents: newMonthly,
+                    plan: 'premium',
                 }).eq('id', workspaceId);
+
+                // Update max capacity on spaces
+                await supabase.from('spaces').update({
+                    max_capacity: newSeats,
+                }).eq('workspace_id', workspaceId);
 
                 // Generate upgrade invoice if there's a positive difference
                 let invoice = null;

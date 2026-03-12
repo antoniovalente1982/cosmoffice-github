@@ -47,10 +47,10 @@ export async function POST(req: NextRequest) {
                     await supabaseAdmin.from('workspaces').update({
                         stripe_subscription_id: session.subscription as string,
                         stripe_subscription_status: 'active',
-                        plan: 'active',
+                        plan: 'premium',
                     }).eq('id', workspaceId);
 
-                    await logBillingEvent(workspaceId, 'plan_upgrade', 'demo', 'active', session.amount_total || 0, event.id);
+                    await logBillingEvent(workspaceId, 'plan_upgrade', 'demo', 'premium', session.amount_total || 0, event.id);
                 }
                 break;
             }
@@ -65,9 +65,9 @@ export async function POST(req: NextRequest) {
                         stripe_subscription_status: subscription.status,
                     };
 
-                    // Keep plan active if subscription is active
+                    // Keep plan premium if subscription is active
                     if (subscription.status === 'active') {
-                        updateData.plan = 'active';
+                        updateData.plan = 'premium';
                         updateData.suspended_at = null;
                     }
 
@@ -87,10 +87,9 @@ export async function POST(req: NextRequest) {
                         plan: 'demo',
                         stripe_subscription_status: 'canceled',
                         stripe_subscription_id: null,
-                        max_members: PLAN_CONFIG.demo.maxMembers,
                     }).eq('id', workspaceId);
 
-                    await logBillingEvent(workspaceId, 'cancellation', 'active', 'demo', 0, event.id);
+                    await logBillingEvent(workspaceId, 'cancellation', 'premium', 'demo', 0, event.id);
                 }
                 break;
             }

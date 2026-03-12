@@ -65,14 +65,12 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
     const myProfile = useAvatarStore(s => s.myProfile);
     const myStatus = useAvatarStore(s => s.myStatus);
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
-    const [maxMembers, setMaxMembers] = useState(10);
     const [guestInvites, setGuestInvites] = useState<GuestInvite[]>([]);
     const [showPanel, setShowPanel] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [myRole, setMyRole] = useState<WorkspaceRole | null>(null);
     const [kickingUserId, setKickingUserId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [upgradeLoading, setUpgradeLoading] = useState(false);
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
     const peerList = Object.values(peers);
@@ -85,10 +83,6 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
 
         const effectiveWsId = workspaceId || await supabase.from('spaces').select('workspace_id').eq('id', spaceId).single().then(r => r.data?.workspace_id);
         if (!effectiveWsId) return;
-
-        // Fetch workspace limits
-        const { data: ws } = await supabase.from('workspaces').select('max_members').eq('id', effectiveWsId).single();
-        if (ws) setMaxMembers(ws.max_members || 10);
 
         // Fetch members (non-guest only for seat counting, but show all)
         const { data: membersData } = await supabase
@@ -156,19 +150,6 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
 
     const canKickMember = (targetRole: WorkspaceRole) => myRole ? ROLE_HIERARCHY[myRole] > ROLE_HIERARCHY[targetRole] : false;
 
-    const handleUpgradeRequest = async () => {
-        setUpgradeLoading(true);
-        try {
-            const res = await fetch('/api/upgrade-request', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ workspaceId, type: 'seats' }),
-            });
-            if (res.ok) alert(t('team.upgradeRequest'));
-            else { const d = await res.json(); alert(d.error || t('team.upgradeError')); }
-        } catch { alert(t('team.networkError')); }
-        setUpgradeLoading(false);
-    };
-
     const revokeGuestInvite = async (inviteId: string) => {
         if (!confirm(t('team.revokeConfirm'))) return;
         await supabase.from('workspace_invitations').delete().eq('id', inviteId);
@@ -201,9 +182,6 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
     // Seat counter: non-guest members + active guest invites
     const nonGuestMembers = members.filter(m => m.role !== 'guest');
     const usedSeats = nonGuestMembers.length + guestInvites.length;
-    const usagePercent = maxMembers > 0 ? Math.min((usedSeats / maxMembers) * 100, 100) : 0;
-    const isAtLimit = usedSeats >= maxMembers;
-    const isNearLimit = usagePercent >= 80;
 
     // Online members
     const onlineMembers = members.filter(m => isOnline(m));
@@ -288,8 +266,8 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
             >
                 <Users className="w-5 h-5 flex-shrink-0" />
                 <span className="whitespace-nowrap">{t('team.title')}</span>
-                <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isAtLimit ? 'bg-red-500/20 text-red-400' : isNearLimit ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-slate-400'}`}>
-                    {usedSeats}/{maxMembers}
+                <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-slate-400">
+                    {usedSeats}
                 </span>
                 <ChevronDown className={`w-3 h-3 flex-shrink-0 opacity-50 transition-transform ${showPanel ? '' : '-rotate-90'}`} />
             </Button>
@@ -303,24 +281,9 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                     >
-                        {/* Seat Progress Bar */}
-                        <div className="px-3 py-2">
-                            <div className="flex items-center justify-between mb-1">
-                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{t('team.seats')}</span>
-                                <span className={`text-[10px] font-bold ${isAtLimit ? 'text-red-400' : isNearLimit ? 'text-amber-400' : 'text-cyan-400'}`}>
-                                    {usedSeats} / {maxMembers}
-                                </span>
-                            </div>
-                            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${usagePercent}%` }}
-                                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                                    className={`h-full rounded-full ${isAtLimit ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : isNearLimit ? 'bg-amber-500' : 'bg-cyan-500'}`}
-                                />
-                            </div>
-                            {/* Breakdown: members + guests */}
-                            <div className="flex items-center gap-3 mt-1">
+                        {/* Recap Utenti (no progressBar) */}
+                        <div className="px-3 py-2 border-b border-white/5">
+                            <div className="flex items-center gap-3">
                                 <span className="text-[9px] text-slate-600">
                                     👤 {nonGuestMembers.length} {t('team.members')}
                                 </span>
@@ -328,18 +291,6 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                                     🎫 {guestInvites.length} {t('team.guests')}
                                 </span>
                             </div>
-                            {isAtLimit && (
-                                <div className="mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20">
-                                    <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
-                                    <span className="text-[9px] text-red-300 flex-1">{t('team.limitReached')}</span>
-                                    {myRole === 'owner' && (
-                                        <button onClick={handleUpgradeRequest} disabled={upgradeLoading}
-                                            className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-500 shrink-0">
-                                            {upgradeLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <><ArrowUpRight className="w-2.5 h-2.5" /> Upgrade</>}
-                                        </button>
-                                    )}
-                                </div>
-                            )}
                         </div>
 
                         {/* Search (managers only) */}

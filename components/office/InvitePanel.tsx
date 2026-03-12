@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
-import UpgradeBanner from '../ui/UpgradeBanner';
 import { useT } from '../../lib/i18n';
 
 const supabase = createClient();
@@ -50,10 +49,8 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
     const [copiedLink, setCopiedLink] = useState(false);
     const [activeInvites, setActiveInvites] = useState<any[]>([]);
     const [loadingInvites, setLoadingInvites] = useState(false);
-    const [limitInfo, setLimitInfo] = useState<{ current: number; max: number; plan: string } | null>(null);
     const [rooms, setRooms] = useState<any[]>([]);
     const [destinationRoomId, setDestinationRoomId] = useState<string>('');
-    const isAtLimit = limitInfo ? limitInfo.current >= limitInfo.max : false;
 
     const panelRef = useRef<HTMLDivElement>(null);
 
@@ -78,20 +75,6 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
             if (cancelled || !spaceData) return;
             setWorkspaceId(spaceData.workspace_id);
 
-            // Check plan limits (seat-based)
-            const { data: wsData } = await supabase.from('workspaces')
-                .select('max_members, plan').eq('id', spaceData.workspace_id).single();
-
-            // Count all active members (non-removed)
-            const { count: memberCount } = await supabase.from('workspace_members')
-                .select('*', { count: 'exact', head: true })
-                .eq('workspace_id', spaceData.workspace_id)
-                .is('removed_at', null);
-
-            if (wsData) {
-                setLimitInfo({ current: memberCount || 0, max: wsData.max_members || 3, plan: wsData.plan || 'free' });
-            }
-
             // Load rooms for destination selector
             const { data: roomsData } = await supabase
                 .from('rooms')
@@ -107,7 +90,7 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
 
 
     const handleGenerateLink = async () => {
-        if (!workspaceId || isAtLimit) return;
+        if (!workspaceId) return;
         setInviting(true);
         setInviteError('');
         setGeneratedLink('');
@@ -315,23 +298,11 @@ export function InvitePanel({ spaceId, isOpen, onClose, invitableRoles }: Invite
                         </motion.div>
                     )}
 
-                    {/* Limit check */}
-                    {isAtLimit && limitInfo && (
-                        <UpgradeBanner
-                            currentCount={limitInfo.current}
-                            maxCount={limitInfo.max}
-                            planName={limitInfo.plan}
-                            className="mb-2"
-                        />
-                    )}
-
                     {/* Generate button */}
                     <Button
                         onClick={handleGenerateLink}
-                        disabled={inviting || availableRoles.length === 0 || isAtLimit}
-                        className={`w-full gap-2 font-semibold rounded-xl py-2.5 text-sm transition-all ${isAtLimit
-                            ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                            : inviteResult === 'error'
+                        disabled={inviting || availableRoles.length === 0}
+                        className={`w-full gap-2 font-semibold rounded-xl py-2.5 text-sm transition-all ${inviteResult === 'error'
                                 ? 'bg-red-500 hover:bg-red-400'
                                 : 'bg-gradient-to-r from-primary-500 to-indigo-500 hover:from-primary-400 hover:to-indigo-400 shadow-lg shadow-primary-500/20 hover:shadow-primary-500/30'
                             }`}
