@@ -50,6 +50,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
     billing: { label: 'Fatturazione', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/20' },
     feature_request: { label: 'Funzionalità', color: 'text-purple-400 bg-purple-500/15 border-purple-500/20' },
     upgrade: { label: '⬆️ Upgrade', color: 'text-orange-400 bg-orange-500/15 border-orange-500/20' },
+    bug_report: { label: '🐞 Bug Report', color: 'text-rose-400 bg-rose-500/15 border-rose-500/20' },
 };
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {

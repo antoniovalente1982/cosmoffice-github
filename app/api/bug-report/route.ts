@@ -42,10 +42,39 @@ export async function POST(req: NextRequest) {
         timestamp: new Date().toISOString(),
     };
 
+    // 1. Map Severity to Priority
+    const priorityMap: Record<string, string> = {
+        low: 'low',
+        medium: 'normal',
+        high: 'high',
+        critical: 'urgent'
+    };
+    const mappedPriority = priorityMap[bugSeverity] || 'normal';
+
+    // 2. Append browser info to description
+    const fullDescription = `${description}\n\n--- INFORMAZIONI DI SISTEMA ---\nUser Agent: ${browserInfo.userAgent}\nLingua: ${browserInfo.language}`;
+
+    // 3. Get Requester Info
+    const { data: profile } = await adminClient
+        .from('profiles')
+        .select('full_name, display_name, email, phone, company_name')
+        .eq('id', session.user.id)
+        .single();
+
+    let requesterRole = null;
     let workspaceName = null;
     let workspaceOwnerEmail = null;
 
     if (workspace_id) {
+        const { data: member } = await adminClient
+            .from('workspace_members')
+            .select('role')
+            .eq('workspace_id', workspace_id)
+            .eq('user_id', session.user.id)
+            .is('removed_at', null)
+            .single();
+        requesterRole = member?.role || null;
+
         // Get workspace name
         const { data: ws } = await adminClient
             .from('workspaces')
@@ -75,18 +104,21 @@ export async function POST(req: NextRequest) {
     }
 
     const { error } = await adminClient
-        .from('bug_reports')
+        .from('support_tickets')
         .insert({
-            reporter_id: session.user.id,
+            user_id: session.user.id,
             workspace_id: workspace_id || null,
             workspace_name: workspaceName,
             workspace_owner_email: workspaceOwnerEmail,
-            title,
-            description,
-            severity: bugSeverity,
-            status: 'open',
-            category: category || 'general',
-            browser_info: browserInfo,
+            requester_name: profile?.display_name || profile?.full_name || null,
+            requester_email: profile?.email || session.user.email || null,
+            requester_phone: profile?.phone || null,
+            requester_role: requesterRole,
+            requester_company: profile?.company_name || null,
+            category: 'bug_report',
+            subject: title,
+            description: fullDescription,
+            priority: mappedPriority,
         });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
