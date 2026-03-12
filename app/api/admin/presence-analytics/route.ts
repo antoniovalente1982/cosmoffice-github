@@ -52,21 +52,38 @@ export async function GET(req: NextRequest) {
 
         const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-        // If workspace_id filter: scope to that workspace. Otherwise: all workspaces (superadmin)
-        let query = supabase
-            .from('presence_events')
-            .select('user_id, room_id, created_at')
-            .gte('created_at', cutoff)
-            .order('created_at', { ascending: true });
+        let allEvents: any[] = [];
+        let offset = 0;
+        const PAGE_SIZE = 1000;
 
-        if (workspaceId) {
-            query = query.eq('workspace_id', workspaceId);
+        while (true) {
+            let query = supabase
+                .from('presence_events')
+                .select('user_id, room_id, created_at')
+                .gte('created_at', cutoff)
+                .order('created_at', { ascending: true })
+                .range(offset, offset + PAGE_SIZE - 1);
+
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId);
+            }
+
+            const { data: page, error } = await query;
+            if (error) {
+                return NextResponse.json({ error: error.message }, { status: 500 });
+            }
+
+            if (page && page.length > 0) {
+                allEvents = allEvents.concat(page);
+                offset += PAGE_SIZE;
+                // Cap total memory usage to 50,000 events
+                if (page.length < PAGE_SIZE || allEvents.length >= 50000) break;
+            } else {
+                break;
+            }
         }
 
-        const { data: events, error } = await query.limit(10000);
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
-        }
+        const events = allEvents;
 
         if (!events || events.length === 0) {
             return NextResponse.json({
