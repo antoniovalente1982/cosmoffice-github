@@ -298,10 +298,13 @@ function UserAvatarInner({
                 </div>
 
                 {/* ─── Compact Call Popup ─── */}
-                {showPopup && !isMe && onClick && (
+                {showPopup && !isMe && onClick && (() => {
+                    const adaptiveScale = Math.min(Math.max(1, 1.2 / Math.max(zoom, 0.2)), 2.5);
+                    return (
                     <div ref={popupRef} className="absolute left-1/2" style={{
                         bottom: RENDER_SZ + 20,
-                        transform: 'translateX(-50%)',
+                        transform: `translateX(-50%) scale(${adaptiveScale})`,
+                        transformOrigin: 'bottom center',
                         pointerEvents: 'auto',
                         zIndex: 100,
                         animation: 'fadeIn 0.12s ease-out',
@@ -382,7 +385,8 @@ function UserAvatarInner({
                             borderBottom: '1px solid rgba(255,255,255,0.1)',
                         }} />
                     </div>
-                )}
+                    );
+                })()}
             </div>
         </div>
     );
