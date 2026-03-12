@@ -420,7 +420,7 @@ export function PixiOffice() {
             let cachedAuraRoomRects: { x: number; y: number; width: number; height: number }[] = [];
             let cachedAuraRoomCount = -1;
 
-            app.ticker.maxFPS = 20; // Cap at 20fps — smooth enough for office, saves ~33% CPU
+            app.ticker.maxFPS = 30; // Cap at 30fps — smooth panning
             app.ticker.add(() => {
                 const curZoom = zoomRef.current;
                 const curPos = stagePosRef.current;
