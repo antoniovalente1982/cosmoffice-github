@@ -163,7 +163,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
         letterSpacing: 1,
         dropShadow: { color: 0x000000, alpha: 0.9, blur: 12, distance: 0 },
     });
-    const nameText = new Text({ text: nameStr, style: nameStyle, resolution: 2 });
+    const nameText = new Text({ text: nameStr, style: nameStyle, resolution: 4 });
 
     // ─── Subtitle line: DEPARTMENT (positioned first to calculate total height) ──
     let subText: Text | null = null;
@@ -177,7 +177,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
             letterSpacing: 1.5,
             dropShadow: { color: 0x000000, alpha: 0.8, blur: 10, distance: 0 },
         });
-        subText = new Text({ text: subtitleStr, style: subStyle, resolution: 2 });
+        subText = new Text({ text: subtitleStr, style: subStyle, resolution: 4 });
     }
 
     // Calculate total label block height: name + gap + department
@@ -250,7 +250,7 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
             dropShadow: { color: 0x000000, alpha: 0.5, blur: 6, distance: 0 },
         });
         const statusText = `${occupants} online`;
-        const status = new Text({ text: statusText, style: statusStyle, resolution: 2 });
+        const status = new Text({ text: statusText, style: statusStyle, resolution: 4 });
 
         if (isCircle) {
             const cy = room.y + room.height / 2;
@@ -341,7 +341,7 @@ export function drawRoomConnections(
                         fill: 0xffffff,
                         letterSpacing: 0.5,
                     });
-                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle, resolution: 2 });
+                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle, resolution: 4 });
                     labelText.anchor.set(0.5, 0.5);
                     labelText.position.set((cx1 + cx2) / 2, midY);
 
@@ -414,7 +414,7 @@ export function drawRoomConnections(
                         fill: 0xffffff,
                         letterSpacing: 0.5,
                     });
-                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle, resolution: 2 });
+                    const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle, resolution: 4 });
                     labelText.anchor.set(0.5, 0.5);
                     labelText.position.set(midX, midY);
 

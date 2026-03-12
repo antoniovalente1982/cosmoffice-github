@@ -132,7 +132,7 @@ function drawCorporateLobby(container: Container, x: number, y: number, scale: n
         letterSpacing: 2,
         dropShadow: { color: 0x000000, alpha: 0.5, blur: 4, distance: 0 },
     });
-    const title = new PixiText({ text: 'RECEPTION', style: titleStyle, resolution: 2 });
+    const title = new PixiText({ text: 'RECEPTION', style: titleStyle, resolution: 8 });
     title.anchor.set(0.5, 0);
     title.position.set(x, y + 92 * s);
     container.addChild(title);
@@ -326,7 +326,7 @@ export function PixiOffice() {
                 canvas: canvasRef.current!,
                 background: themeConfig.canvasBg,
                 antialias: true,
-                resolution: window.devicePixelRatio || 2,
+                resolution: Math.max(window.devicePixelRatio || 1, 2),
                 autoDensity: true,
                 resizeTo: containerRef.current!,
             });
