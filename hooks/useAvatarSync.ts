@@ -322,7 +322,20 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
 
                 case 'move': {
                     if (msg.userId === userId) return;
-                    useAvatarStore.getState().updatePeer(msg.userId, {
+                    
+                    const avatarStore = useAvatarStore.getState();
+                    const previousPeer = avatarStore.peers[msg.userId];
+                    const previousRoom = previousPeer?.roomId;
+                    const myRoom = avatarStore.myRoomId;
+                    
+                    if (myRoom && msg.roomId === myRoom && previousRoom !== myRoom) {
+                        playRoomEnterSound();
+                    }
+                    if (myRoom && previousRoom === myRoom && msg.roomId !== myRoom) {
+                        playRoomLeaveSound();
+                    }
+                    
+                    avatarStore.updatePeer(msg.userId, {
                         id: msg.userId,
                         position: { x: msg.x, y: msg.y },
                         roomId: msg.roomId,
@@ -346,6 +359,21 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
 
                 case 'user_update': {
                     if (msg.userId === userId) return;
+                    
+                    const avatarStore = useAvatarStore.getState();
+                    const previousPeer = avatarStore.peers[msg.userId];
+                    const previousRoom = previousPeer?.roomId;
+                    const myRoom = avatarStore.myRoomId;
+                    
+                    if (msg.data.roomId !== undefined) {
+                        if (myRoom && msg.data.roomId === myRoom && previousRoom !== myRoom) {
+                            playRoomEnterSound();
+                        }
+                        if (myRoom && previousRoom === myRoom && msg.data.roomId !== myRoom) {
+                            playRoomLeaveSound();
+                        }
+                    }
+                    
                     const updateData: any = {
                         id: msg.userId,
                         ...msg.data,
@@ -366,7 +394,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     if (msg.data.isAway !== undefined) {
                         updateData.isAway = msg.data.isAway;
                     }
-                    useAvatarStore.getState().updatePeer(msg.userId, updateData);
+                    avatarStore.updatePeer(msg.userId, updateData);
                     break;
                 }
 

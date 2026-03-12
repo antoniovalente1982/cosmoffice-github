@@ -45,6 +45,10 @@ export function useProximityAndRooms() {
     const lastProximityPeersRef = useRef<Set<string>>(new Set());
     const fadeOutTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
     const lastVolumesRef = useRef<Map<string, number>>(new Map());
+    
+    // Hysteresis buffer for room entry/exit to prevent flapping
+    const pendingRoomIdRef = useRef<string | null>(null);
+    const pendingRoomTicksRef = useRef<number>(0);
 
     // ─── Room entry handler (rooms ARE explicit — keep Daily join) ────
     const handleRoomEntry = useCallback((roomId: string, rooms: any[]) => {
@@ -205,21 +209,33 @@ export function useProximityAndRooms() {
                 }
             }
             
-            // If the room changed, trigger entry events (clear old aura first)
-            if (currentRoomId && currentRoomId !== lastRoomIdRef.current) {
-                if (avatarStore.myProximityGroupId) {
-                    avatarStore.setMyProximityGroup(null);
-                }
-                lastProximityPeersRef.current.clear();
-
-                handleRoomEntry(currentRoomId, rooms);
-                lastRoomIdRef.current = currentRoomId;
+            // ─── Hysteresis Buffer to Prevent Flapping ──────
+            // Only commit a room change if we've seen the identical target state for 2 consecutive ticks (~1 second)
+            if (currentRoomId !== pendingRoomIdRef.current) {
+                pendingRoomIdRef.current = currentRoomId;
+                pendingRoomTicksRef.current = 1;
+            } else {
+                pendingRoomTicksRef.current++;
             }
 
-            // ─── 2. Open space — check if we just left a room ──
-            if (!currentRoomId && lastRoomIdRef.current) {
-                handleRoomExit();
-                lastRoomIdRef.current = null;
+            // Require 2 ticks (1 second) of stability before resolving the geographic transition
+            if (pendingRoomTicksRef.current >= 2) {
+                // If the room changed and is stable, trigger entry events (clear old aura first)
+                if (currentRoomId && currentRoomId !== lastRoomIdRef.current) {
+                    if (avatarStore.myProximityGroupId) {
+                        avatarStore.setMyProximityGroup(null);
+                    }
+                    lastProximityPeersRef.current.clear();
+
+                    handleRoomEntry(currentRoomId, rooms);
+                    lastRoomIdRef.current = currentRoomId;
+                }
+
+                // Open space — check if we just left a room stably
+                if (!currentRoomId && lastRoomIdRef.current) {
+                    handleRoomExit();
+                    lastRoomIdRef.current = null;
+                }
             }
 
             // ─── 3. Check if currently knocking ─────────────
