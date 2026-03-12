@@ -335,6 +335,13 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             }
             if (publication.source === Track.Source.Microphone) {
                 useDailyStore.getState().setParticipant(id, { audioEnabled: false });
+                // CRITICAL: Also mute the DOM audio element to stop actual audio output
+                const audioEl = document.getElementById(`daily-audio-${supabaseId}`) as HTMLAudioElement;
+                if (audioEl) {
+                    audioEl.volume = 0;
+                    audioEl.muted = true;
+                }
+                console.log('[LiveKit] Remote mic muted:', supabaseId.slice(0, 8));
             }
         });
 
@@ -384,6 +391,13 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     audioTrack: publication.track.mediaStreamTrack,
                     audioEnabled: true,
                 });
+                // Restore audio element — unmute and let proximity engine control volume
+                const audioEl = document.getElementById(`daily-audio-${supabaseId}`) as HTMLAudioElement;
+                if (audioEl) {
+                    audioEl.muted = !useDailyStore.getState().isRemoteAudioEnabled;
+                    // Volume will be set by proximity engine on next tick
+                }
+                console.log('[LiveKit] Remote mic unmuted:', supabaseId.slice(0, 8));
             }
         });
 
@@ -552,13 +566,13 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             currentRoomNameRef.current = null;
             useDailyStore.getState().clearParticipants();
             useDailyStore.getState().setLocalStream(null);
-            // Brief pause for server-side session cleanup
-            await new Promise(r => setTimeout(r, 300));
+            // Brief pause for session cleanup (reduced from 300ms)
+            await new Promise(r => setTimeout(r, 50));
         }
 
         try {
-            // Invalidate token cache to get a fresh token
-            gTokenCache.delete(roomName);
+            // Reuse cached token when possible (tokens last 24h)
+            // Only fetch fresh if not cached
 
             const token = await getToken(roomName);
             if (!token) return;
@@ -642,6 +656,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                                 el.id = audioElId;
                                 el.autoplay = true;
                                 el.style.display = 'none';
+                                el.volume = 0; // START MUTED: ProximityEngine will raise if peer nearby
                                 document.body.appendChild(el);
                             }
                             el.muted = !useDailyStore.getState().isRemoteAudioEnabled;
@@ -675,6 +690,12 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
     // ─── Inner leave (called inside the lock) ──────────────────
     const leaveContextInner = useCallback(async () => {
+        // Clean up ALL audio elements to prevent DOM accumulation on room switches
+        document.querySelectorAll<HTMLAudioElement>('[id^="daily-audio-"]').forEach(el => {
+            el.srcObject = null;
+            el.remove();
+        });
+
         if (roomRef.current) {
             console.log('[LiveKit] 🔌 Disconnecting + destroying room (billing stopped)');
             try {
@@ -711,8 +732,8 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             }
         });
 
-        // Brief pause for cleanup
-        await new Promise(r => setTimeout(r, 200));
+        // Brief pause for cleanup (reduced from 200ms)
+        await new Promise(r => setTimeout(r, 100));
     }, []);
 
     // ─── Public join/leave (serialized via lock) ────────────────

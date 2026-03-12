@@ -445,10 +445,11 @@ export function MediaManager() {
         };
     }, [stopAllScreens]);
 
-    // Volume detection for speaking indicator - OPTIMIZED (setInterval instead of rAF)
+    // Volume detection for speaking indicator - MEMORY-OPTIMIZED
+    // Reuses a single AudioContext across mic toggles instead of creating new ones
     useEffect(() => {
         let speakingInterval: ReturnType<typeof setInterval> | null = null;
-        let audioContext: AudioContext | null = null;
+        let sourceNode: MediaStreamAudioSourceNode | null = null;
 
         const startDetection = async () => {
             try {
@@ -458,26 +459,37 @@ export function MediaManager() {
                     return;
                 }
 
-                audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
+                // Reuse existing AudioContext if available (browsers limit to ~6 concurrent)
+                let ctx = audioContextRef.current;
+                if (!ctx || ctx.state === 'closed') {
+                    ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    audioContextRef.current = ctx;
+                }
+                if (ctx.state === 'suspended') {
+                    await ctx.resume();
                 }
 
-                const analyzer = audioContext.createAnalyser();
-                const source = audioContext.createMediaStreamSource(micStream);
-                source.connect(analyzer);
-                // Reduced FFT size: 256 is sufficient for speech detection
-                analyzer.fftSize = 256;
-                analyzer.smoothingTimeConstant = 0.3;
+                // Reuse or create analyser
+                let analyzer = analyzerRef.current;
+                if (!analyzer || analyzer.context !== ctx) {
+                    analyzer = ctx.createAnalyser();
+                    analyzer.fftSize = 256;
+                    analyzer.smoothingTimeConstant = 0.3;
+                    analyzerRef.current = analyzer;
+                }
+
+                // Only reconnect source (cheap operation)
+                sourceNode = ctx.createMediaStreamSource(micStream);
+                sourceNode.connect(analyzer);
 
                 const bufferLength = analyzer.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
                 let speakCount = 0;
 
                 const checkVolume = () => {
-                    if (!audioContext || audioContext.state === 'closed') return;
+                    if (!ctx || ctx.state === 'closed') return;
 
-                    analyzer.getByteFrequencyData(dataArray);
+                    analyzer!.getByteFrequencyData(dataArray);
 
                     // Optimized average calculation
                     let total = 0;
@@ -501,8 +513,6 @@ export function MediaManager() {
 
                 // 250ms = 4 checks/sec — plenty for speech detection
                 speakingInterval = setInterval(checkVolume, 250);
-                audioContextRef.current = audioContext;
-                analyzerRef.current = analyzer;
             } catch (err) {
                 console.warn('Audio detection failed:', err);
                 setSpeaking(false);
@@ -513,8 +523,9 @@ export function MediaManager() {
 
         return () => {
             if (speakingInterval) clearInterval(speakingInterval);
-            if (audioContext && audioContext.state !== 'closed') {
-                audioContext.close().catch(console.error);
+            // Disconnect source node but keep AudioContext alive for reuse
+            if (sourceNode) {
+                try { sourceNode.disconnect(); } catch {}
             }
             setSpeaking(false);
         };

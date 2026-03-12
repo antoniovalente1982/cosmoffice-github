@@ -33,7 +33,17 @@ function lerp(a: number, b: number, t: number) {
 import { Graphics as PixiGraphics, Text as PixiText, TextStyle as PixiTextStyle } from 'pixi.js';
 
 function drawCorporateLobby(container: Container, x: number, y: number, scale: number = 1) {
+    const c = container as any;
+    // Cache check — skip redraw if nothing changed (prevents massive memory leak)
+    if (c._cachedLobbyX === x && c._cachedLobbyY === y && c._cachedLobbyScale === scale && container.children.length > 0) {
+        return;
+    }
+    // Destroy old children to free GPU memory before creating new ones
+    container.children.forEach(child => child.destroy({ children: true }));
     container.removeChildren();
+    c._cachedLobbyX = x;
+    c._cachedLobbyY = y;
+    c._cachedLobbyScale = scale;
     const s = scale;
     const g = new PixiGraphics();
 
@@ -132,7 +142,7 @@ function drawCorporateLobby(container: Container, x: number, y: number, scale: n
         letterSpacing: 2,
         dropShadow: { color: 0x000000, alpha: 0.5, blur: 4, distance: 0 },
     });
-    const title = new PixiText({ text: 'RECEPTION', style: titleStyle, resolution: 8 });
+    const title = new PixiText({ text: 'RECEPTION', style: titleStyle, resolution: 2 });
     title.anchor.set(0.5, 0);
     title.position.set(x, y + 92 * s);
     container.addChild(title);
@@ -387,7 +397,7 @@ export function PixiOffice() {
             }
 
             // Initialize particles
-            particlesRef.current = createParticles(40, oW, oH);
+            particlesRef.current = createParticles(25, oW, oH); // Reduced from 40 for memory
 
             // Draw platform ONCE (static) — only in free mode
             if (platformGfxRef.current) {
@@ -406,7 +416,11 @@ export function PixiOffice() {
 
             // ─── Render loop ─────────────────────────────────────
             let frameCount = 0;
-            app.ticker.maxFPS = 30; // Cap at 30fps — more than enough for office
+            // Pre-allocated room rects cache to avoid per-frame array creation
+            let cachedAuraRoomRects: { x: number; y: number; width: number; height: number }[] = [];
+            let cachedAuraRoomCount = -1;
+
+            app.ticker.maxFPS = 20; // Cap at 20fps — smooth enough for office, saves ~33% CPU
             app.ticker.add(() => {
                 const curZoom = zoomRef.current;
                 const curPos = stagePosRef.current;
@@ -419,7 +433,7 @@ export function PixiOffice() {
 
                 frameCount++;
 
-                // Particles + Landing Pad at ~4fps (every 8th frame at 30fps)
+                // Particles + Landing Pad at ~2.5fps (every 8th frame at 20fps)
                 if (frameCount % 8 === 0) {
                     if (particleGfxRef.current) {
                         const tc = getThemeConfig(useWorkspaceStore.getState().theme);
@@ -441,8 +455,8 @@ export function PixiOffice() {
                     }
                 }
 
-                // Proximity aura — EVERY frame (cheap: only position/alpha/scale, no redraw)
-                if (auraRef.current) {
+                // Proximity aura — every 2nd frame (still smooth, halves CPU cost)
+                if (auraRef.current && frameCount % 2 === 0) {
                     try {
                         const avatarState = useAvatarStore.getState();
                         const dailyState = useDailyStore.getState();
@@ -454,13 +468,17 @@ export function PixiOffice() {
                         else if (avatarState.myRoomId) auraState = 'none';
                         else if (dailyState.activeContext === 'proximity') auraState = 'active';
 
-                        // Only rebuild room rects when state check runs (cheap object creation)
-                        const roomRects = (wsState.rooms || []).map((r: any) => ({
-                            x: r.x, y: r.y, width: r.width, height: r.height,
-                        }));
+                        // Cache room rects — only rebuild when room count changes
+                        const wsRooms = wsState.rooms || [];
+                        if (wsRooms.length !== cachedAuraRoomCount) {
+                            cachedAuraRoomRects = wsRooms.map((r: any) => ({
+                                x: r.x, y: r.y, width: r.width, height: r.height,
+                            }));
+                            cachedAuraRoomCount = wsRooms.length;
+                        }
 
                         auraRef.current.setState(auraState);
-                        auraRef.current.update(app.ticker.deltaMS, myPos.x, myPos.y, roomRects);
+                        auraRef.current.update(app.ticker.deltaMS * 2, myPos.x, myPos.y, cachedAuraRoomRects);
                     } catch (e) {
                         console.warn('[Aura] Error in aura update:', e);
                     }
@@ -513,7 +531,7 @@ export function PixiOffice() {
             }
         };
         updateOccupants();
-        const interval = setInterval(updateOccupants, 2000);
+        const interval = setInterval(updateOccupants, 5000); // Reduced from 2s for memory
         return () => clearInterval(interval);
     }, [appReady]);
 

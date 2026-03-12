@@ -173,7 +173,11 @@ export function useProximityAndRooms() {
 
     // ─── Adaptive volume update ──────────────────────────────
     const updateAdaptiveVolume = useCallback((nearbyPeers: ProximityPeer[]) => {
+        const avatarPeers = useAvatarStore.getState().peers;
         nearbyPeers.forEach(peer => {
+            // Only set volume for peers that actually exist in the avatar store
+            if (!avatarPeers[peer.id]) return;
+            
             const volume = getAdaptiveVolume(peer.distance, PROXIMITY_RADIUS);
             const prevVol = lastVolumesRef.current.get(peer.id) ?? -1;
             if (Math.abs(volume - prevVol) < 0.01) return;
