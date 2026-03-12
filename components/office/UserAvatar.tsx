@@ -299,7 +299,8 @@ function UserAvatarInner({
 
                 {/* ─── Compact Call Popup ─── */}
                 {showPopup && !isMe && onClick && (() => {
-                    const adaptiveScale = Math.min(Math.max(1, 1.2 / Math.max(zoom, 0.2)), 2.5);
+                    const zoomScale = Math.min(Math.max(1, 1.2 / Math.max(zoom, 0.2)), 2.5);
+                    const adaptiveScale = (1 / SCALE_FACTOR) * zoomScale;
                     return (
                     <div ref={popupRef} className="absolute left-1/2" style={{
                         bottom: RENDER_SZ + 20,
