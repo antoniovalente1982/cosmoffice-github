@@ -555,7 +555,7 @@ export default function DashboardPage() {
                                         <div className="mt-4 pt-3 border-t border-white/5">
                                             {(() => {
                                                 const used = memberCounts[workspace.id] || 0;
-                                                const max = workspace.max_members || 3;
+                                                const max = workspace.max_capacity || 50;
                                                 const pct = Math.min((used / max) * 100, 100);
                                                 const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
                                                 const textColor = pct >= 90 ? 'text-red-400' : pct >= 70 ? 'text-amber-400' : 'text-emerald-400';

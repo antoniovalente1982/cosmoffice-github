@@ -42,37 +42,27 @@ const navSections: NavSection[] = [
         ],
     },
     {
-        label: 'Gestione',
+        label: 'Gestione Clienti',
         items: [
-            { href: '/superadmin/customers', label: 'Gestionale Clienti', icon: BookUser },
-            { href: '/superadmin/support', label: 'Assistenza', icon: Headphones, badgeKey: 'total' },
+            { href: '/superadmin/customers', label: 'Clienti & Spazi', icon: BookUser },
         ],
     },
     {
-        label: 'Monetizzazione',
+        label: 'Finanze',
         items: [
-            { href: '/superadmin/revenue', label: 'Revenue', icon: Receipt },
-            { href: '/superadmin/infrastructure', label: 'Infrastruttura & Costi', icon: Server },
-            { href: '/superadmin/payments', label: 'Setup Pagamenti', icon: CreditCard },
+            { href: '/superadmin/revenue', label: 'Revenue & Pagamenti', icon: Receipt },
         ],
     },
     {
-        label: 'Monitoraggio',
+        label: 'Piattaforma',
         items: [
-            { href: '/superadmin/analytics', label: 'Analytics', icon: BarChart3 },
-            { href: '/superadmin/security', label: 'Sicurezza', icon: Shield },
-            { href: '/superadmin/bugs', label: 'Bug Reports', icon: Bug },
-            { href: '/superadmin/audit', label: 'Audit Log', icon: ScrollText },
+            { href: '/superadmin/analytics', label: 'Statistiche & Sistema', icon: Server },
         ],
     },
     {
-        label: 'Integrazioni',
+        label: 'Supporto',
         items: [
-            { href: '/superadmin/daily', label: 'LiveKit', icon: Video },
-            { href: 'https://supabase.com/dashboard', label: 'Supabase', icon: Database, external: true },
-            { href: 'https://vercel.com/dashboard', label: 'Vercel', icon: Globe, external: true },
-            { href: 'https://partykit.io/dashboard', label: 'PartyKit', icon: Wifi, external: true },
-            { href: '/superadmin/email', label: 'Email (Resend)', icon: Mail },
+            { href: '/superadmin/support', label: 'Assistenza', icon: Headphones, badgeKey: 'support' },
         ],
     },
 ];

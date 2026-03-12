@@ -26,7 +26,7 @@ export async function GET() {
 
     let wsMap: Record<string, any> = {};
     if (wsIds.length > 0) {
-        const { data: workspaces } = await supabase.from('workspaces').select('id, name, max_members').in('id', wsIds);
+        const { data: workspaces } = await supabase.from('workspaces').select('id, name, max_capacity').in('id', wsIds);
         (workspaces || []).forEach((w: any) => { wsMap[w.id] = w; });
     }
 
@@ -69,7 +69,7 @@ export async function GET() {
             user_company: profile?.company_name || r.requester_company || null,
             user_role: roleMap[roleKey] || r.requester_role || null,
             workspace_name: ws?.name || null,
-            current_seats: ws?.max_members || null,
+            current_seats: ws?.max_capacity || null,
             used_seats: r.workspace_id ? (memberCounts[r.workspace_id] || 0) : null,
         };
     });

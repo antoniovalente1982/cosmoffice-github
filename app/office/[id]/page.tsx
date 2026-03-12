@@ -332,11 +332,11 @@ export default function OfficePage() {
             const supabaseClient = createClient();
             const { data: spaceData } = await supabaseClient.from('spaces').select('workspace_id').eq('id', spaceId).single();
             if (spaceData?.workspace_id) {
-                const { data: ws } = await supabaseClient.from('workspaces').select('name, logo_url, max_members').eq('id', spaceData.workspace_id).single();
+                const { data: ws } = await supabaseClient.from('workspaces').select('name, logo_url, max_capacity').eq('id', spaceData.workspace_id).single();
                 if (ws) {
                     setWorkspaceName(ws.name);
                     setWorkspaceLogoUrl(ws.logo_url || null);
-                    if (ws.max_members) setMaxCapacity(ws.max_members);
+                    if (ws.max_capacity) setMaxCapacity(ws.max_capacity);
                 }
             }
         };

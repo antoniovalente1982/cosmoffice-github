@@ -22,7 +22,7 @@ interface Props {
     onRefresh: () => void;
 }
 
-// Single per-user pricing model: max_members × price_per_seat = monthly cost
+// Single per-user pricing model: max_capacity × price_per_seat = monthly cost
 
 const TABS: { id: Tab; label: string; icon: any }[] = [
     { id: 'overview', label: 'Panoramica', icon: TrendingUp },
@@ -529,7 +529,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     <div className="flex gap-2">
                                                         <button onClick={async () => {
                                                             setSavingSeats(true);
-                                                            const seats = parseInt(editSeatsValue) || ws.max_members;
+                                                            const seats = parseInt(editSeatsValue) || ws.maxCapacity;
                                                             const pricePerSeat = Math.round((parseFloat(editPricePerSeat) || 0) * 100);
                                                             const totalCents = seats * pricePerSeat;
                                                             try {
@@ -540,7 +540,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                                         action: 'update_seats',
                                                                         workspaceId: ws.id,
                                                                         data: {
-                                                                            max_members: seats,
+                                                                            max_capacity: seats,
                                                                             price_per_seat: pricePerSeat,
                                                                             monthly_amount_cents: totalCents,
                                                                             billing_cycle: editBillingCycle,
@@ -573,7 +573,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                             ) : (
                                                 <button onClick={() => {
                                                     setEditSeatsWsId(ws.id);
-                                                    setEditSeatsValue((ws.max_members || 3).toString());
+                                                    setEditSeatsValue((ws.maxCapacity || 50).toString());
                                                     setEditPricePerSeat(ws.price_per_seat ? (ws.price_per_seat / 100).toFixed(2) : '');
                                                     setEditBillingCycle(ws.billing_cycle || 'monthly');
                                                 }}

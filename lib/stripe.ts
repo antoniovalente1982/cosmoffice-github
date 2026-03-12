@@ -24,7 +24,7 @@ export const stripe = new Proxy({} as Stripe, {
 
 // ─── Plan Configuration ────────────────────────────────
 // Single per-user pricing model: €30 + IVA per user/month
-// SuperAdmin manages max_members and price_per_seat per workspace.
+// SuperAdmin manages max_capacity and price_per_seat per workspace.
 // The PLAN_CONFIG below defines the DEFAULT plan settings.
 // Actual limits are stored in the workspace table (managed by SuperAdmin).
 
@@ -33,7 +33,7 @@ export const DEFAULT_PRICE_PER_USER_EUR = 30; // €30 + IVA
 export const PLAN_CONFIG: Record<string, {
     name: string;
     stripePriceId: string;
-    maxMembers: number;
+    maxCapacity: number;
     maxSpaces: number;
     maxRoomsPerSpace: number;
     storageQuotaBytes: number;
@@ -43,7 +43,7 @@ export const PLAN_CONFIG: Record<string, {
     demo: {
         name: 'Demo',
         stripePriceId: '',
-        maxMembers: 3,
+        maxCapacity: 5, // Demo plan has a hard limit of 5 concurrent users: 1,
         maxSpaces: 1,
         maxRoomsPerSpace: 5,
         storageQuotaBytes: 512 * 1024 * 1024, // 512MB
@@ -53,7 +53,7 @@ export const PLAN_CONFIG: Record<string, {
     premium: {
         name: 'Premium',
         stripePriceId: process.env.STRIPE_PRICE_PER_USER || '',
-        maxMembers: 10, // Default, SuperAdmin overrides via workspace.max_members
+        maxCapacity: 10, // Default, SuperAdmin overrides via workspace.max_capacity
         maxSpaces: 50,
         maxRoomsPerSpace: 100,
         storageQuotaBytes: 50 * 1024 * 1024 * 1024, // 50GB

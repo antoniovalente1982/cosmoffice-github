@@ -5,7 +5,7 @@
  * - demo: limited features (chat only, basic access)
  * - premium: full features (video, mic, screen share, etc.)
  * 
- * Limits are stored in workspace DB columns (max_members, max_spaces, etc.)
+ * Limits are stored in workspace DB columns (max_capacity, max_spaces, etc.)
  * NOT derived from plan name — SuperAdmin sets them per-workspace.
  */
 
@@ -49,7 +49,7 @@ export function isSuperAdmin(profile: { is_super_admin?: boolean } | null): bool
 
 /**
  * Check if total people (members + guests) is within workspace limit
- * For manual plans, the limit is stored in max_members (total people cap)
+ * For manual plans, the limit is stored in max_capacity (total people cap)
  */
 export function canAddPerson(
     currentMembers: number,

@@ -16,7 +16,7 @@ export type LimitCheckResult = {
 
 /**
  * Check if a workspace can add more members/guests (total people)
- * In manual plan model, max_members = total people cap (members + guests)
+ * In manual plan model, max_capacity = total people cap (members + guests)
  */
 export async function checkPeopleLimit(
     supabase: any,
@@ -24,14 +24,14 @@ export async function checkPeopleLimit(
 ): Promise<LimitCheckResult> {
     const { data: workspace } = await supabase
         .from('workspaces')
-        .select('plan, max_members')
+        .select('plan, max_capacity')
         .eq('id', workspaceId)
         .single();
 
     if (!workspace) return { allowed: false, current: 0, max: 0, planName: 'unknown', upgradeRequired: false };
 
-    // Unlimited if max_members is 0 or negative
-    if (workspace.max_members <= 0) {
+    // Unlimited if max_capacity is 0 or negative
+    if (workspace.max_capacity <= 0) {
         return { allowed: true, current: 0, max: 999, planName: workspace.plan || 'demo', upgradeRequired: false };
     }
 
@@ -42,7 +42,7 @@ export async function checkPeopleLimit(
         .is('removed_at', null);
 
     const current = memberCount || 0;
-    const max = workspace.max_members || 3;
+    const max = workspace.max_capacity || 3;
 
     return {
         allowed: current < max,

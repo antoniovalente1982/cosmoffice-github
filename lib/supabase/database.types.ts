@@ -80,7 +80,7 @@ export interface Workspace {
   logo_url: string | null;
   plan: 'active' | 'demo' | 'free' | 'starter' | 'pro' | 'enterprise'; // 'active' = paid per-user, 'demo' = SuperAdmin test. Legacy: free/starter/pro/enterprise
   plan_expires_at: string | null;
-  max_members: number;
+  max_capacity: number;
   max_spaces: number;
   max_rooms_per_space: number;
   storage_quota_bytes: number;

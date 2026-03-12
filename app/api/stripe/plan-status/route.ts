@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
         // Get workspace
         const { data: workspace } = await supabase
             .from('workspaces')
-            .select('id, name, plan, max_members, max_spaces, max_rooms_per_space, storage_quota_bytes, stripe_subscription_status, stripe_customer_id, trial_ends_at, created_at')
+            .select('id, name, plan, max_capacity, max_spaces, max_rooms_per_space, storage_quota_bytes, stripe_subscription_status, stripe_customer_id, trial_ends_at, created_at')
             .eq('id', workspaceId)
             .single();
 
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
                 monthlyPricePerUserEur: plan.monthlyPricePerUserEur || DEFAULT_PRICE_PER_USER_EUR,
             },
             limits: {
-                maxMembers: workspace.max_members,
+                maxCapacity: workspace.max_capacity,
                 maxSpaces: workspace.max_spaces,
                 maxRoomsPerSpace: workspace.max_rooms_per_space,
                 storageQuotaBytes: workspace.storage_quota_bytes,

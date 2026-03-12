@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
                 const workspaceId = session.metadata?.workspace_id;
 
                 if (workspaceId && session.subscription) {
-                    // Per-user model: activate workspace, keep max_members as set by SuperAdmin
+                    // Per-user model: activate workspace, keep max_capacity as set by SuperAdmin
                     await supabaseAdmin.from('workspaces').update({
                         stripe_subscription_id: session.subscription as string,
                         stripe_subscription_status: 'active',

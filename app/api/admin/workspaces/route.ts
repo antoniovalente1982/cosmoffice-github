@@ -58,8 +58,8 @@ export async function GET(req: NextRequest) {
         let hasSuspendedColumn = true;
         const buildQuery = (withSuspended: boolean) => {
             const selectFields = withSuspended
-                ? `id, name, slug, plan, max_members, max_spaces, price_per_seat, monthly_amount_cents, billing_cycle, next_invoice_date, payment_status, created_at, updated_at, deleted_at, suspended_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`
-                : `id, name, slug, plan, max_members, max_spaces, price_per_seat, monthly_amount_cents, billing_cycle, next_invoice_date, payment_status, created_at, updated_at, deleted_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`;
+                ? `id, name, slug, plan, max_capacity, max_spaces, price_per_seat, monthly_amount_cents, billing_cycle, next_invoice_date, payment_status, created_at, updated_at, deleted_at, suspended_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`
+                : `id, name, slug, plan, max_capacity, max_spaces, price_per_seat, monthly_amount_cents, billing_cycle, next_invoice_date, payment_status, created_at, updated_at, deleted_at, created_by, workspace_members(id, user_id, role, joined_at, last_active_at, is_suspended, removed_at)`;
 
             let q = supabase
                 .from('workspaces')
@@ -197,7 +197,7 @@ export async function GET(req: NextRequest) {
                 name: ws.name,
                 slug: ws.slug,
                 plan: ws.plan,
-                maxMembers: ws.max_members,
+                maxCapacity: ws.max_capacity,
                 maxSpaces: ws.max_spaces,
                 totalMembers: activeMembers.length,
                 nonGuestMembers: nonGuestMembers.length,
@@ -338,9 +338,9 @@ export async function POST(req: NextRequest) {
 
         switch (action) {
             case 'create_customer_manual': {
-                const { email, fullName, workspaceName, plan, maxMembers, pricePerSeat, monthlyAmountCents } = actionData;
+                const { email, fullName, workspaceName, plan, maxCapacity, pricePerSeat, monthlyAmountCents } = actionData;
 
-                if (!email || !fullName || !workspaceName || !maxMembers || pricePerSeat === undefined) {
+                if (!email || !fullName || !workspaceName || !maxCapacity || pricePerSeat === undefined) {
                     return NextResponse.json({ error: 'Campi obbligatori mancanti' }, { status: 400 });
                 }
 
@@ -384,7 +384,7 @@ export async function POST(req: NextRequest) {
                     slug: uniqueSlug,
                     created_by: targetUserId,
                     plan: plan || 'premium',
-                    max_members: maxMembers,
+                    max_capacity: maxCapacity,
                     price_per_seat: pricePerSeat,
                     monthly_amount_cents: monthlyAmountCents,
                 }).select().single();
@@ -406,7 +406,7 @@ export async function POST(req: NextRequest) {
                     slug: 'ufficio-principale',
                     created_by: targetUserId,
                     layout_data: defaultLayoutData,
-                    max_capacity: maxMembers,
+                    max_capacity: maxCapacity,
                 }).select().single();
 
                 // 5b. Create default rooms if space was created
@@ -801,7 +801,7 @@ export async function POST(req: NextRequest) {
                 if (uniqueWsIds.length > 0) {
                     const { data: wsData } = await supabase
                         .from('workspaces')
-                        .select('id, name, slug, plan, max_members, max_spaces, max_rooms_per_space, max_guests, price_per_seat, plan_expires_at, plan_notes, monthly_amount_cents, billing_cycle, next_invoice_date, payment_status, last_payment_at, created_at, deleted_at, suspended_at')
+                        .select('id, name, slug, plan, max_capacity, max_spaces, max_rooms_per_space, max_guests, price_per_seat, plan_expires_at, plan_notes, monthly_amount_cents, billing_cycle, next_invoice_date, payment_status, last_payment_at, created_at, deleted_at, suspended_at')
                         .in('id', uniqueWsIds)
                         .order('created_at', { ascending: false });
                     ownedWs = wsData || [];
@@ -899,7 +899,7 @@ export async function POST(req: NextRequest) {
                     return {
                         ...w,
                         // Explicit camelCase mappings for frontend compatibility
-                        maxMembers: w.max_members,
+                        maxCapacity: w.max_capacity,
                         maxSpaces: w.max_spaces,
                         pricePerSeat: w.price_per_seat,
                         billingCycle: w.billing_cycle,
@@ -1061,7 +1061,7 @@ export async function POST(req: NextRequest) {
 
 
             case 'add_workspace_to_owner': {
-                const { ownerId, workspaceName, maxMembers, pricePerSeat } = actionData;
+                const { ownerId, workspaceName, maxCapacity, pricePerSeat } = actionData;
                 if (!ownerId || !workspaceName) {
                     return NextResponse.json({ error: 'ownerId e workspaceName obbligatori' }, { status: 400 });
                 }
@@ -1094,7 +1094,7 @@ export async function POST(req: NextRequest) {
                 // Create workspace
                 const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
                 const uniqueSlug = `${slug}-${Date.now().toString().slice(-4)}`;
-                const seats = maxMembers || 10;
+                const seats = maxCapacity || 10;
                 const pps = pricePerSeat !== undefined ? pricePerSeat : 0;
                 const monthlyAmountCents = seats * pps;
 
@@ -1103,7 +1103,7 @@ export async function POST(req: NextRequest) {
                     slug: uniqueSlug,
                     created_by: ownerId,
                     plan: 'premium',
-                    max_members: seats,
+                    max_capacity: seats,
                     price_per_seat: pps,
                     monthly_amount_cents: monthlyAmountCents,
                 }).select().single();
@@ -1137,9 +1137,9 @@ export async function POST(req: NextRequest) {
             }
 
             case 'update_seats': {
-                const { max_members, price_per_seat, monthly_amount_cents, billing_cycle, register_payment } = actionData;
+                const { max_capacity, price_per_seat, monthly_amount_cents, billing_cycle, register_payment } = actionData;
                 const updateData: any = {};
-                if (max_members !== undefined) updateData.max_members = max_members;
+                if (max_capacity !== undefined) updateData.max_capacity = max_capacity;
                 if (price_per_seat !== undefined) updateData.price_per_seat = price_per_seat;
                 if (monthly_amount_cents !== undefined) {
                     updateData.monthly_amount_cents = monthly_amount_cents;
@@ -1166,9 +1166,9 @@ export async function POST(req: NextRequest) {
                 if (seatsError) return NextResponse.json({ error: seatsError.message }, { status: 500 });
 
                 // Also update max_capacity on spaces
-                if (max_members !== undefined) {
+                if (max_capacity !== undefined) {
                     await supabase.from('spaces')
-                        .update({ max_capacity: max_members })
+                        .update({ max_capacity: max_capacity })
                         .eq('workspace_id', workspaceId);
                 }
 
@@ -1221,7 +1221,7 @@ export async function POST(req: NextRequest) {
                         sdi_code: ownerProfile.sdi_code || '',
                         pec: ownerProfile.pec || '',
                         amount_cents: totalCents,
-                        seats: max_members || 0,
+                        seats: max_capacity || 0,
                         price_per_seat_cents: price_per_seat || 0,
                         billing_cycle: cycle,
                     };
@@ -1234,7 +1234,7 @@ export async function POST(req: NextRequest) {
                         type: 'payment',
                         amount_cents: totalCents,
                         plan_at_time: monthly_amount_cents > 0 ? 'premium' : 'demo',
-                        description: `Pagamento ${cycleLabels[cycle] || cycle} — ${wsInfo?.name || ''} (${max_members || '?'} accessi × €${fmtIT((price_per_seat || 0) / 100)} × ${months} mesi)`,
+                        description: `Pagamento ${cycleLabels[cycle] || cycle} — ${wsInfo?.name || ''} (${max_capacity || '?'} accessi × €${fmtIT((price_per_seat || 0) / 100)} × ${months} mesi)`,
                         payment_method: 'bank_transfer',
                         payment_date: today,
                         recorded_by: userId,
@@ -1284,11 +1284,11 @@ export async function POST(req: NextRequest) {
 
                 // Get workspace info
                 const { data: ws } = await supabase.from('workspaces')
-                    .select('name, max_members, price_per_seat, monthly_amount_cents, billing_cycle, created_by')
+                    .select('name, max_capacity, price_per_seat, monthly_amount_cents, billing_cycle, created_by')
                     .eq('id', workspaceId).single();
                 if (!ws) return NextResponse.json({ error: 'Workspace non trovato' }, { status: 404 });
 
-                const seats = ws.max_members || 0;
+                const seats = ws.max_capacity || 0;
                 const ppsCents = ws.price_per_seat || 0;
                 const subtotal = seats * ppsCents;
                 const months = billingCycle === 'annual' ? 12 : 1;
@@ -1428,11 +1428,11 @@ export async function POST(req: NextRequest) {
 
                 // Get current workspace
                 const { data: currWs } = await supabase.from('workspaces')
-                    .select('name, max_members, price_per_seat, monthly_amount_cents, billing_cycle, next_invoice_date')
+                    .select('name, max_capacity, price_per_seat, monthly_amount_cents, billing_cycle, next_invoice_date')
                     .eq('id', workspaceId).single();
                 if (!currWs) return NextResponse.json({ error: 'Workspace non trovato' }, { status: 404 });
 
-                const oldSeats = currWs.max_members || 0;
+                const oldSeats = currWs.max_capacity || 0;
                 const oldPPS = currWs.price_per_seat || 0;
                 const newSeats = new_seats !== undefined ? new_seats : oldSeats;
                 const newPPS = new_price_per_seat_cents !== undefined ? new_price_per_seat_cents : oldPPS;
@@ -1452,7 +1452,7 @@ export async function POST(req: NextRequest) {
 
                 // Update workspace
                 await supabase.from('workspaces').update({
-                    max_members: newSeats,
+                    max_capacity: newSeats,
                     price_per_seat: newPPS,
                     monthly_amount_cents: newMonthly,
                     plan: 'premium',
@@ -1516,7 +1516,7 @@ export async function POST(req: NextRequest) {
                 // Generate invoices for all workspaces past their next_invoice_date
                 const today = new Date().toISOString().split('T')[0];
                 const { data: dueWs } = await supabase.from('workspaces')
-                    .select('id, name, max_members, price_per_seat, billing_cycle, next_invoice_date')
+                    .select('id, name, max_capacity, price_per_seat, billing_cycle, next_invoice_date')
                     .or(`next_invoice_date.is.null,next_invoice_date.lte.${today}`)
                     .gt('price_per_seat', 0)
                     .is('deleted_at', null)
@@ -1524,7 +1524,7 @@ export async function POST(req: NextRequest) {
 
                 const generated: string[] = [];
                 for (const ws of (dueWs || [])) {
-                    const seats = ws.max_members || 0;
+                    const seats = ws.max_capacity || 0;
                     const ppsCents = ws.price_per_seat || 0;
                     const cycle = ws.billing_cycle || 'monthly';
                     const months = cycle === 'annual' ? 12 : 1;

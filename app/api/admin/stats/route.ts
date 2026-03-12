@@ -152,7 +152,7 @@ export async function GET(req: NextRequest) {
         // ───────────────────────────────────────────────
         // BLOCCO 2: WORKSPACE
         // ───────────────────────────────────────────────
-        const { data: wsData } = await supabase.from('workspaces').select('id, plan, deleted_at, suspended_at, created_at, monthly_amount_cents, billing_cycle, payment_status, max_members, price_per_seat');
+        const { data: wsData } = await supabase.from('workspaces').select('id, plan, deleted_at, suspended_at, created_at, monthly_amount_cents, billing_cycle, payment_status, max_capacity, price_per_seat');
         const allWorkspaces = wsData || [];
 
         const wsActive = allWorkspaces.filter((w: any) => !w.deleted_at && !w.suspended_at);
@@ -191,7 +191,7 @@ export async function GET(req: NextRequest) {
         );
 
         // Total seats allocated
-        const totalSeatsAllocated = wsTotal.reduce((sum: number, w: any) => sum + (w.max_members || 0), 0);
+        const totalSeatsAllocated = wsTotal.reduce((sum: number, w: any) => sum + (w.max_capacity || 0), 0);
         const totalSeatsUsed = allMembers.length;
 
         // ───────────────────────────────────────────────
