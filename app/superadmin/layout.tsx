@@ -28,6 +28,7 @@ import {
     Bell,
     X,
     BarChart3,
+    Calculator,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import CurrencySelector from '../../components/CurrencySelector';
@@ -51,6 +52,7 @@ const navSections: NavSection[] = [
         label: 'Finanze',
         items: [
             { href: '/superadmin/revenue', label: 'Revenue & Pagamenti', icon: Receipt },
+            { href: '/superadmin/infrastructure', label: 'Simulatore Costi', icon: Calculator },
         ],
     },
     {
