@@ -63,6 +63,9 @@ export function useProximityAndRooms() {
 
         if (!isKnockRequired) {
             avatarStore.setMyRoom(roomId);
+            const pos = avatarStore.myPosition;
+            const sendFn = (window as any).__sendAvatarPosition;
+            if (sendFn) sendFn(pos.x, pos.y, roomId);
             console.log('[Proximity] Entered room:', room.name, '(state only — Daily on mic/cam)');
             return;
         }
@@ -70,6 +73,9 @@ export function useProximityAndRooms() {
         const peersInRoom = Object.values(avatarStore.peers).filter((p: any) => p.roomId === roomId);
         if (peersInRoom.length === 0) {
             avatarStore.setMyRoom(roomId);
+            const pos = avatarStore.myPosition;
+            const sendFn = (window as any).__sendAvatarPosition;
+            if (sendFn) sendFn(pos.x, pos.y, roomId);
             console.log('[Proximity] First in knock room:', room.name, '(state only)');
             return;
         }
@@ -84,6 +90,11 @@ export function useProximityAndRooms() {
         const avatarStore = useAvatarStore.getState();
         avatarStore.setMyRoom(undefined);
         avatarStore.setKnockingAtRoom(null);
+        
+        const pos = avatarStore.myPosition;
+        const sendFn = (window as any).__sendAvatarPosition;
+        if (sendFn) sendFn(pos.x, pos.y, null);
+        
         console.log('[Proximity] Left room (state only — DailyManager handles disconnect)');
     }, []);
 
@@ -192,6 +203,8 @@ export function useProximityAndRooms() {
                     currentRoomId = room.id;
                     break;
                 }
+            }
+            
             // If the room changed, trigger entry events (clear old aura first)
             if (currentRoomId && currentRoomId !== lastRoomIdRef.current) {
                 if (avatarStore.myProximityGroupId) {
