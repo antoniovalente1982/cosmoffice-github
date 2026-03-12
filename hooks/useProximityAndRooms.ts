@@ -246,6 +246,7 @@ export function useProximityAndRooms() {
                 isDnd: avatarStore.myDnd,
                 isAway: avatarStore.myAway,
                 inRoom: !!currentRoomId,
+                roomId: currentRoomId,
             };
 
             const nearbyPeers: ProximityPeer[] = [];
@@ -263,6 +264,7 @@ export function useProximityAndRooms() {
                     isDnd: peer.isDnd || false,
                     isAway: peer.isAway || peer.status === 'away',
                     inRoom: peerInRoom,
+                    roomId: peer.roomId,
                 };
 
                 // Apply do-not-disturb / away gating
