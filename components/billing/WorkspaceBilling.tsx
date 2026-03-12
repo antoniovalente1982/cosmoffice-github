@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import {
-    CreditCard, Users, Crown, Loader2, ExternalLink, AlertTriangle,
-    ArrowUpRight, CheckCircle2,
+    CreditCard, Users, Crown, Loader2, ExternalLink, Activity,
+    CheckCircle2,
 } from 'lucide-react';
 
 interface PlanStatus {
     plan: { key: string; name: string; monthlyPricePerUserEur: number };
-    limits: { maxMembers: number; maxSpaces: number; maxRoomsPerSpace: number; storageQuotaBytes: number };
+    limits: { maxCapacity: number; maxSpaces: number; maxRoomsPerSpace: number; storageQuotaBytes: number };
     usage: { members: number; spaces: number };
     subscription: { status: string; hasCustomer: boolean; trialEndsAt: string | null };
     isOwner: boolean;
@@ -61,64 +61,52 @@ export default function WorkspaceBilling({ workspaceId }: { workspaceId: string 
     if (!status) return null;
 
     const s = statusLabels[status.subscription.status] || statusLabels.none;
-    const usagePercent = status.limits.maxMembers > 0
-        ? Math.min((status.usage.members / status.limits.maxMembers) * 100, 100)
-        : 0;
-    const isAtLimit = status.usage.members >= status.limits.maxMembers;
-    const isNearLimit = usagePercent >= 80;
-    const monthlyCost = status.usage.members * (status.plan.monthlyPricePerUserEur || 30);
+    const monthlyCost = status.limits.maxCapacity * (status.plan.monthlyPricePerUserEur || 30);
 
     return (
         <div className="space-y-4">
             {/* Current Plan Card */}
             <div
-                className="rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 p-5"
+                className="rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 p-5 shadow-[0_0_30px_rgba(6,182,212,0.1)]"
                 style={{ background: 'rgba(15, 23, 42, 0.7)' }}
             >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/5 box-shadow-glow">
                             <Crown className="w-5 h-5 text-cyan-400" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white">Piano Per Utente</h3>
+                            <h3 className="text-lg font-bold text-white">Piano {status.plan.name}</h3>
                             <p className={`text-xs font-semibold ${s.color}`}>{s.label}</p>
                         </div>
                     </div>
-                    <div className="text-right">
+                    <div className="sm:text-right border-t sm:border-t-0 border-white/10 pt-3 sm:pt-0">
                         <p className="text-2xl font-extrabold text-white">€{monthlyCost}</p>
-                        <p className="text-[10px] text-slate-500">
-                            {status.usage.members} utenti × €{status.plan.monthlyPricePerUserEur || 30}/mese
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wide font-semibold mt-1">
+                            {status.limits.maxCapacity} {status.limits.maxCapacity === 1 ? 'accesso' : 'accessi'} × €{status.plan.monthlyPricePerUserEur || 30}/mese
                         </p>
                     </div>
                 </div>
 
-                {/* Usage Bar */}
-                <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Users className="w-3.5 h-3.5 text-cyan-400" />
-                            <span className="text-xs text-slate-400">Utenti</span>
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-3 mt-5">
+                    <div className="p-3 rounded-xl bg-black/20 border border-white/5">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Users className="w-4 h-4 text-cyan-400" />
+                            <span className="text-xs font-semibold text-slate-300">Membri Registrati</span>
                         </div>
-                        <span className={`text-xs font-bold ${isAtLimit ? 'text-red-400' : isNearLimit ? 'text-amber-400' : 'text-slate-300'}`}>
-                            {status.usage.members}/{status.limits.maxMembers}
-                        </span>
+                        <p className="text-xl font-bold text-white">{status.usage.members}</p>
+                        <p className="text-[10px] text-emerald-400/80 mt-1 font-medium">Inviti e membri illimitati</p>
                     </div>
-                    <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                        <div
-                            className={`h-full rounded-full transition-all duration-500 ${isAtLimit ? 'bg-red-500' : isNearLimit ? 'bg-amber-500' : 'bg-gradient-to-r from-cyan-500 to-blue-500'}`}
-                            style={{ width: `${usagePercent}%` }}
-                        />
+                    <div className="p-3 rounded-xl bg-black/20 border border-white/5">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Activity className="w-4 h-4 text-purple-400" />
+                            <span className="text-xs font-semibold text-slate-300">Posti Acquistati</span>
+                        </div>
+                        <p className="text-xl font-bold text-white">{status.limits.maxCapacity}</p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-medium">Accessi simultanei nell'ufficio</p>
                     </div>
                 </div>
-
-                {/* Limit warning */}
-                {isAtLimit && (
-                    <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20">
-                        <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-                        <p className="text-xs text-red-300">Limite utenti raggiunto. Richiedi un upgrade per invitare altre persone.</p>
-                    </div>
-                )}
             </div>
 
             {/* Features */}

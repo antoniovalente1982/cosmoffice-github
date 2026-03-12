@@ -7,6 +7,9 @@ import {
     CreditCard, Calendar, Save, Loader2, History, Receipt, Crown,
     UserMinus, ShieldCheck, Shield, User, Check, AlertTriangle,
     Mail, Link2, Copy, TrendingUp, Edit3, KeyRound, Plus,
+    BarChart3,
+    Calculator,
+    Activity,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import { useCurrency } from '../../hooks/useCurrency';
@@ -414,27 +417,28 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                 </span>
                                             </div>
                                             {/* Info row */}
-                                            <div className="mt-2 flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-                                                <span className="flex items-center gap-1"><Users className="w-3 h-3" />{ws.totalSeats}/{ws.maxMembers} accessi</span>
-                                                {ws.price_per_seat > 0 && <span className="text-emerald-400">{fmt(ws.price_per_seat)}/utente</span>}
-                                                <span>{ws.activeSpaces} uffici</span>
+                                            <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400 flex-wrap">
+                                                <span className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded"><Users className="w-3 h-3 text-cyan-400" /> {ws.totalSeats} Membri Totali</span>
+                                                <span className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded whitespace-nowrap"><Activity className="w-3 h-3 text-purple-400" /> {ws.maxCapacity} {ws.maxCapacity === 1 ? 'Posto' : 'Posti'} Online</span>
+                                                {ws.price_per_seat > 0 && <span className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded"><CreditCard className="w-3 h-3" />{fmt(ws.price_per_seat)}/utente</span>}
+                                                <span className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded"><Building2 className="w-3 h-3 text-slate-500" /> {ws.activeSpaces} uffici</span>
                                                 {ws.monthly_amount_cents > 0 && (() => {
                                                     const cycle = ws.billingCycle || ws.billing_cycle || 'monthly';
                                                     const months: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
                                                     const labels: Record<string, string> = { monthly: 'mese', quarterly: 'trimestre', semiannual: 'semestre', annual: 'anno' };
                                                     const m = months[cycle] || 1;
                                                     const total = ws.monthly_amount_cents * m;
-                                                    return <span className="ml-auto text-emerald-400 font-semibold">{fmt(total)}/{labels[cycle] || 'mese'}</span>;
+                                                    return <span className="ml-auto text-emerald-400 font-bold px-2 py-1 bg-emerald-500/10 rounded">{fmt(total)}/{labels[cycle] || 'mese'}</span>;
                                                 })()}
                                                 {ws.payment_status && ws.payment_status !== 'none' && (
-                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ws.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-300' : ws.payment_status === 'overdue' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
+                                                    <span className={`px-1.5 py-1 rounded text-[10px] font-bold uppercase ${ws.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-300' : ws.payment_status === 'overdue' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
                                                         {ws.payment_status === 'paid' ? 'Pagato' : ws.payment_status === 'overdue' ? 'Scaduto' : 'In attesa'}
                                                     </span>
                                                 )}
                                             </div>
                                             {/* Subscription info row */}
-                                            <div className="mt-1.5 flex items-center gap-3 text-[10px] text-slate-500">
-                                                <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 font-bold uppercase">
+                                            <div className="mt-2 flex items-center gap-3 text-[10px] text-slate-500">
+                                                <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 font-bold uppercase tracking-wide">
                                                     {(() => {
                                                         const cycle = ws.billingCycle || ws.billing_cycle || 'monthly';
                                                         const labels: Record<string, string> = { monthly: '📅 Mensile', quarterly: '📅 Trimestrale', semiannual: '📅 Semestrale', annual: '📅 Annuale' };
@@ -442,25 +446,11 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                     })()}
                                                 </span>
                                                 {(ws.nextInvoiceDate || ws.next_invoice_date) && (
-                                                    <span className="flex items-center gap-1">
-                                                        Prossimo rinnovo: <span className="text-white font-semibold">{new Date(ws.nextInvoiceDate || ws.next_invoice_date).toLocaleDateString('it-IT')}</span>
+                                                    <span className="flex items-center gap-1 font-medium bg-black/30 px-2 py-0.5 rounded">
+                                                        Prossimo rinnovo: <span className="text-white font-bold">{new Date(ws.nextInvoiceDate || ws.next_invoice_date).toLocaleDateString('it-IT')}</span>
                                                     </span>
                                                 )}
                                             </div>
-                                            {/* Seat usage bar */}
-                                            {(() => {
-                                                const used = ws.totalSeats || 0;
-                                                const max = ws.maxMembers || 3;
-                                                const pct = Math.min((used / max) * 100, 100);
-                                                const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
-                                                return (
-                                                    <div className="mt-2">
-                                                        <div className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden">
-                                                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
                                             {/* Gestisci Piano – single unified button */}
                                             {editSeatsWsId === ws.id ? (
                                                 <div className="mt-3 space-y-3 p-3 rounded-xl bg-black/20 border border-white/5">
@@ -633,7 +623,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
                                                                 data: {
                                                                     ownerId,
                                                                     workspaceName: addWsName.trim(),
-                                                                    maxMembers: parseInt(addWsSeats) || 10,
+                                                                    maxCapacity: parseInt(addWsSeats) || 10,
                                                                     pricePerSeatCents: Math.round((parseFloat(addWsPPS) || 0) * 100),
                                                                 },
                                                             }),
