@@ -219,6 +219,11 @@ export default function OfficePage() {
                     }
                     // Force-remove any orphaned DOM containers before starting
                     document.querySelectorAll('[id^="screen-share-container-"]').forEach(el => el.remove());
+                    
+                    // Force internal state reset in LiveKit just in case the previous 
+                    // session was killed by the browser "Stop sharing" Native Dialog
+                    try { await room.localParticipant.setScreenShareEnabled(false); } catch { }
+                    
                     // Small delay to let LiveKit fully clean up any previous track
                     await new Promise(r => setTimeout(r, 300));
                     // Start sharing

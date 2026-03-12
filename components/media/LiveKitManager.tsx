@@ -272,6 +272,13 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 useDailyStore.getState().addScreenStream(screenStream);
                 track.mediaStreamTrack.addEventListener('ended', () => {
                     useDailyStore.getState().removeScreenStream(screenStream.id);
+                    // Crucial fix: when the browser's native "Stop sharing" is clicked, 
+                    // we must tell LiveKit to disable the screen share explicitly
+                    // so it resets its internal 'isScreenShareEnabled' flag. 
+                    // Otherwise, the second time, setScreenShareEnabled(true) does nothing!
+                    if (room.localParticipant) {
+                        room.localParticipant.setScreenShareEnabled(false).catch(() => {});
+                    }
                 });
                 return;
             }
