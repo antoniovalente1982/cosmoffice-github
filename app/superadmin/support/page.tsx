@@ -6,11 +6,14 @@ import {
     MessageSquare, Phone, Mail, Building2, Crown, Shield, User, Star,
     ArrowRight, ChevronDown, Search, Filter, Send, X,
 } from 'lucide-react';
+import { createClient } from '../../../utils/supabase/client';
 
 interface SupportTicket {
     id: string;
     user_id: string;
     workspace_id: string | null;
+    workspace_name: string | null;
+    workspace_owner_email: string | null;
     requester_name: string | null;
     requester_email: string | null;
     requester_phone: string | null;
@@ -107,21 +110,47 @@ export default function SupportPage() {
 
     useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
-    // Silent background poll — updates data without resetting UI/loading/input
+    // Silent background Realtime update
     useEffect(() => {
-        const interval = setInterval(async () => {
-            try {
-                const params = new URLSearchParams();
-                if (filter !== 'all') params.set('status', filter);
-                if (categoryFilter) params.set('category', categoryFilter);
-                const res = await fetch(`/api/admin/support-tickets?${params}`);
-                const data = await res.json();
-                if (data.tickets) setTickets(data.tickets);
-                if (data.statusCounts) setStatusCounts(data.statusCounts);
-                if (data.unreadByStatus) setUnreadByStatus(data.unreadByStatus);
-            } catch { /* silent */ }
-        }, 30000);
-        return () => clearInterval(interval);
+        const supabase = createClient();
+        const channel = supabase.channel('superadmin-support-page')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => {
+                 // refetch silently without showing loading UI
+                 const refetch = async () => {
+                     try {
+                         const params = new URLSearchParams();
+                         if (filter !== 'all') params.set('status', filter);
+                         if (categoryFilter) params.set('category', categoryFilter);
+                         const res = await fetch(`/api/admin/support-tickets?${params}`);
+                         const data = await res.json();
+                         if (data.tickets) setTickets(data.tickets);
+                         if (data.statusCounts) setStatusCounts(data.statusCounts);
+                         if (data.unreadByStatus) setUnreadByStatus(data.unreadByStatus);
+                     } catch { /* silent */ }
+                 };
+                 refetch();
+            })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_messages' }, () => {
+                 // if the ticket is expanded, also refetch the chat messages
+                 // But we can only refetch tickets for now; chat updates would require knowing `expandedId` 
+                 // which is handled below, so we just run a silent refetch of tickets to update counts.
+                 const refetch = async () => {
+                     try {
+                         const params = new URLSearchParams();
+                         if (filter !== 'all') params.set('status', filter);
+                         if (categoryFilter) params.set('category', categoryFilter);
+                         const res = await fetch(`/api/admin/support-tickets?${params}`);
+                         const data = await res.json();
+                         if (data.tickets) setTickets(data.tickets);
+                         if (data.statusCounts) setStatusCounts(data.statusCounts);
+                         if (data.unreadByStatus) setUnreadByStatus(data.unreadByStatus);
+                     } catch { /* silent */ }
+                 };
+                 refetch();
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
     }, [filter, categoryFilter]);
 
     const updateTicket = async (id: string, updates: Record<string, any>) => {
@@ -175,11 +204,24 @@ export default function SupportPage() {
         setSendingMessage(null);
     };
 
-    // Load messages when a ticket is expanded
+    // Realtime chat messages loader
     useEffect(() => {
-        if (expandedId && !chatMessages[expandedId]) {
+        if (!expandedId) return;
+
+        // Fetch once immediately
+        if (!chatMessages[expandedId]) {
             fetchMessages(expandedId);
         }
+
+        // Listen for new messages inserted for this specific ticket
+        const supabase = createClient();
+        const channel = supabase.channel(`support-chat-${expandedId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_messages', filter: `ticket_id=eq.${expandedId}` }, () => {
+                 fetchMessages(expandedId);
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
     }, [expandedId]);
 
     const filtered = tickets.filter(t => {
@@ -382,7 +424,19 @@ export default function SupportPage() {
                                                     )}
                                                     {t.requester_company && (
                                                         <span className="flex items-center gap-1">
-                                                            <Building2 className="w-3 h-3" /> {t.requester_company}
+                                                            <Building2 className="w-3 h-3 text-cyan-400" /> {t.requester_company}
+                                                        </span>
+                                                    )}
+                                                    {t.workspace_name && (
+                                                        <span className="flex items-center gap-1 border-l border-white/10 pl-2 ml-1" title="Workspace di provenienza">
+                                                            <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">WS:</span>
+                                                            <span className="text-indigo-300 font-semibold">{t.workspace_name}</span>
+                                                        </span>
+                                                    )}
+                                                    {t.workspace_owner_email && (
+                                                        <span className="flex items-center gap-1 text-slate-400" title={`Owner: ${t.workspace_owner_email}`}>
+                                                            <Crown className="w-3 h-3 text-amber-400" />
+                                                            <span className="truncate max-w-[120px]">{t.workspace_owner_email}</span>
                                                         </span>
                                                     )}
                                                 </div>

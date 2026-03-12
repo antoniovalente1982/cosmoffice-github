@@ -38,8 +38,11 @@ export async function POST(req: NextRequest) {
         .eq('id', session.user.id)
         .single();
 
-    // Get workspace role if workspace_id provided
+    // Get workspace role and info if workspace_id provided
     let requesterRole = null;
+    let workspaceName = null;
+    let workspaceOwnerEmail = null;
+
     if (workspace_id) {
         const { data: member } = await adminClient
             .from('workspace_members')
@@ -49,6 +52,33 @@ export async function POST(req: NextRequest) {
             .is('removed_at', null)
             .single();
         requesterRole = member?.role || null;
+
+        // Get workspace name
+        const { data: ws } = await adminClient
+            .from('workspaces')
+            .select('name')
+            .eq('id', workspace_id)
+            .single();
+        if (ws) workspaceName = ws.name;
+
+        // Get owner email
+        const { data: ownerMember } = await adminClient
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', workspace_id)
+            .eq('role', 'owner')
+            .is('removed_at', null)
+            .limit(1)
+            .maybeSingle();
+
+        if (ownerMember) {
+            const { data: ownerProfile } = await adminClient
+                .from('profiles')
+                .select('email')
+                .eq('id', ownerMember.user_id)
+                .maybeSingle();
+            if (ownerProfile) workspaceOwnerEmail = ownerProfile.email;
+        }
     }
 
     const { error } = await adminClient
@@ -56,6 +86,8 @@ export async function POST(req: NextRequest) {
         .insert({
             user_id: session.user.id,
             workspace_id: workspace_id || null,
+            workspace_name: workspaceName,
+            workspace_owner_email: workspaceOwnerEmail,
             requester_name: profile?.display_name || profile?.full_name || null,
             requester_email: profile?.email || session.user.email || null,
             requester_phone: profile?.phone || null,

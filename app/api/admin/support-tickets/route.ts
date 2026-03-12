@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
         let query = supabase
             .from('support_tickets')
             .select(`
-                id, user_id, workspace_id,
+                id, user_id, workspace_id, workspace_name, workspace_owner_email,
                 requester_name, requester_email, requester_phone, requester_role, requester_company,
                 category, subject, description, priority, status,
                 assigned_to, admin_notes, resolution, resolved_at, resolved_by,

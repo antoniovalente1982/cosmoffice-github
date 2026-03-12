@@ -42,11 +42,45 @@ export async function POST(req: NextRequest) {
         timestamp: new Date().toISOString(),
     };
 
+    let workspaceName = null;
+    let workspaceOwnerEmail = null;
+
+    if (workspace_id) {
+        // Get workspace name
+        const { data: ws } = await adminClient
+            .from('workspaces')
+            .select('name')
+            .eq('id', workspace_id)
+            .single();
+        if (ws) workspaceName = ws.name;
+
+        // Get owner email
+        const { data: ownerMember } = await adminClient
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', workspace_id)
+            .eq('role', 'owner')
+            .is('removed_at', null)
+            .limit(1)
+            .maybeSingle();
+
+        if (ownerMember) {
+            const { data: ownerProfile } = await adminClient
+                .from('profiles')
+                .select('email')
+                .eq('id', ownerMember.user_id)
+                .maybeSingle();
+            if (ownerProfile) workspaceOwnerEmail = ownerProfile.email;
+        }
+    }
+
     const { error } = await adminClient
         .from('bug_reports')
         .insert({
             reporter_id: session.user.id,
             workspace_id: workspace_id || null,
+            workspace_name: workspaceName,
+            workspace_owner_email: workspaceOwnerEmail,
             title,
             description,
             severity: bugSeverity,
