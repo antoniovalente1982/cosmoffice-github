@@ -192,24 +192,19 @@ export function useProximityAndRooms() {
                     currentRoomId = room.id;
                     break;
                 }
-            }
-
-            if (currentRoomId) {
-                if (currentRoomId !== lastRoomIdRef.current) {
-                    // Clear proximity when entering a room
-                    if (avatarStore.myProximityGroupId) {
-                        avatarStore.setMyProximityGroup(null);
-                    }
-                    lastProximityPeersRef.current.clear();
-
-                    handleRoomEntry(currentRoomId, rooms);
-                    lastRoomIdRef.current = currentRoomId;
+            // If the room changed, trigger entry events (clear old aura first)
+            if (currentRoomId && currentRoomId !== lastRoomIdRef.current) {
+                if (avatarStore.myProximityGroupId) {
+                    avatarStore.setMyProximityGroup(null);
                 }
-                return;
+                lastProximityPeersRef.current.clear();
+
+                handleRoomEntry(currentRoomId, rooms);
+                lastRoomIdRef.current = currentRoomId;
             }
 
             // ─── 2. Open space — check if we just left a room ──
-            if (lastRoomIdRef.current) {
+            if (!currentRoomId && lastRoomIdRef.current) {
                 handleRoomExit();
                 lastRoomIdRef.current = null;
             }
@@ -221,7 +216,7 @@ export function useProximityAndRooms() {
             const myState = {
                 isDnd: avatarStore.myDnd,
                 isAway: avatarStore.myAway,
-                inRoom: false,
+                inRoom: !!currentRoomId,
             };
 
             const nearbyPeers: ProximityPeer[] = [];
@@ -229,18 +224,31 @@ export function useProximityAndRooms() {
             Object.values(avatarStore.peers).forEach((peer: any) => {
                 if (!peer.position) return;
 
+                // For users explicitly inside rooms, rely on exact roomId matching
+                // Proximity only applies in open space, unless both users are in the SAME room
+                const peerInRoom = !!peer.roomId;
+                if (currentRoomId && peer.roomId !== currentRoomId) return; // Ignore if I'm in a room, and they are outside/in another room
+                if (!currentRoomId && peerInRoom) return; // Ignore if I'm outside, and they're in a room
+
                 const peerState = {
                     isDnd: peer.isDnd || false,
                     isAway: peer.isAway || peer.status === 'away',
-                    inRoom: !!peer.roomId,
+                    inRoom: peerInRoom,
                 };
 
+                // Apply do-not-disturb / away gating
                 if (!canFormProximityConnection(myState, peerState)) return;
 
-                const dist = distance(myPos, peer.position);
-                if (dist >= PROXIMITY_RADIUS) return;
-
-                if (isBlockedByWall(myPos, peer.position, roomRects)) return;
+                // If both are in the SAME room, consider them "infinitely close" so they always link up without geometry bugs
+                let dist = distance(myPos, peer.position);
+                
+                if (currentRoomId && peer.roomId === currentRoomId) {
+                    dist = 0; // Inside a room = automatic proximity
+                } else {
+                    // Open space logic
+                    if (dist >= PROXIMITY_RADIUS) return;
+                    if (isBlockedByWall(myPos, peer.position, roomRects)) return;
+                }
 
                 nearbyPeers.push({
                     id: peer.id,
