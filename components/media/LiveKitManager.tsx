@@ -199,6 +199,8 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 }
                 el.muted = !useDailyStore.getState().isRemoteAudioEnabled;
                 el.srcObject = new MediaStream([track.mediaStreamTrack]);
+                el.play().catch(e => console.warn('[LiveKit] Audio autoplay blocked:', e));
+                
                 useDailyStore.getState().setParticipant(id, {
                     audioTrack: track.mediaStreamTrack,
                     audioEnabled: true,
@@ -778,6 +780,9 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
         const audioElements = document.querySelectorAll<HTMLAudioElement>('[id^="daily-audio-"]');
         audioElements.forEach(el => {
             el.muted = !isRemoteAudioEnabled;
+            if (isRemoteAudioEnabled && el.srcObject) {
+                el.play().catch(e => console.warn('[LiveKit] Audio play blocked on unmute:', e));
+            }
         });
     }, [isRemoteAudioEnabled]);
 
