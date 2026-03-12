@@ -193,6 +193,12 @@ export function useProximityAndRooms() {
             const dailyStore = useDailyStore.getState();
             const workspaceStore = useWorkspaceStore.getState();
 
+            // ─── Freeze room state in builder mode ───────────
+            // When the user is editing/dragging rooms, skip room boundary
+            // detection entirely so that moving a room doesn't eject the
+            // avatar from its current room assignment.
+            if (workspaceStore.isBuilderMode) return;
+
             const myPos = avatarStore.myPosition;
             const rooms = workspaceStore.rooms;
 
