@@ -136,11 +136,21 @@ export function getAdaptiveVolume(distancePx: number, maxRadius: number = 250): 
  * within proximity radius, and not blocked by a wall.
  */
 export function canFormProximityConnection(
-    userA: { isDnd: boolean; isAway: boolean; inRoom: boolean },
-    userB: { isDnd: boolean; isAway: boolean; inRoom: boolean },
+    userA: { isDnd: boolean; isAway: boolean; inRoom: boolean; roomId?: string | null },
+    userB: { isDnd: boolean; isAway: boolean; inRoom: boolean; roomId?: string | null },
 ): boolean {
     if (userA.isDnd || userB.isDnd) return false;
     if (userA.isAway || userB.isAway) return false;
+    
+    // If both are in the SAME room, they can connect
+    if (userA.inRoom && userB.inRoom) {
+        if (userA.roomId && userB.roomId && userA.roomId === userB.roomId) {
+            return true;
+        }
+    }
+    
+    // Otherwise, if any of them is in a room, they cannot connect via proximity
     if (userA.inRoom || userB.inRoom) return false;
+    
     return true;
 }

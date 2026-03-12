@@ -194,6 +194,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     el.id = audioElId;
                     el.autoplay = true;
                     el.style.display = 'none';
+                    el.volume = 0; // START MUTED: ProximityEngine will raise this if peer is nearby
                     document.body.appendChild(el);
                 }
                 el.muted = !useDailyStore.getState().isRemoteAudioEnabled;
