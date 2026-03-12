@@ -6,7 +6,7 @@ import {
     Bug, AlertTriangle, Shield, Ban, ArrowUpRight, ArrowDownRight, RefreshCw, Sparkles, Rocket,
     ShieldCheck, UserCog, User, Eye, Calendar, ChevronDown, UserPlus, Receipt,
     Headphones, CircleDot, Clock, CheckCircle2, XCircle, AlertCircleIcon,
-    Server, Globe, CreditCard, Banknote, BarChart3, Target, Gauge,
+    Server, Globe, CreditCard, Banknote, BarChart3, Target, Gauge, ListFilter,
 } from 'lucide-react';
 import { formatNumber, formatEurCents } from '../../lib/currency';
 
@@ -429,14 +429,31 @@ export default function AdminOverview() {
                                     <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                                         {(() => {
                                             const total = s.users.total || 1;
-                                            const segments = [
-                                                { count: s.users.owners, color: '#f59e0b' },
-                                                { count: s.users.admins, color: '#a855f7' },
-                                                { count: s.users.members, color: '#06b6d4' },
-                                                { count: s.users.guests, color: '#64748b' },
+                                            const activeCount = 
+                                                (s.users.owners || 0) + 
+                                                (s.users.admins || 0) + 
+                                                (s.users.members || 0) + 
+                                                (s.users.guests || 0) + 
+                                                (s.users.superAdmins || 0);
+                                                
+                                            const noWorkspaceCount = Math.max(0, (s.users.total || 0) - activeCount);
+                                            
+                                            const rawSegments = [
+                                                { count: s.users.superAdmins || 0, color: '#f43f5e' }, // rose-500
+                                                { count: s.users.owners || 0, color: '#f59e0b' },      // amber-500
+                                                { count: s.users.admins || 0, color: '#a855f7' },      // purple-500
+                                                { count: s.users.members || 0, color: '#06b6d4' },     // cyan-500
+                                                { count: s.users.guests || 0, color: '#64748b' },      // slate-500
                                             ];
+                                            
+                                            if (noWorkspaceCount > 0) {
+                                                rawSegments.push({ count: noWorkspaceCount, color: '#334155' }); // slate-700
+                                            }
+                                            
+                                            const validSegments = rawSegments.filter(seg => seg.count > 0);
+                                            
                                             let offset = 0;
-                                            return segments.map((seg, i) => {
+                                            return validSegments.map((seg, i) => {
                                                 const pct = (seg.count / total) * 100;
                                                 const dashArray = `${pct * 2.51} ${251 - pct * 2.51}`;
                                                 const el = <circle key={i} cx="50" cy="50" r="40" fill="none" stroke={seg.color} strokeWidth="8"
@@ -453,11 +470,19 @@ export default function AdminOverview() {
                                 </div>
                             </div>
                             <div className="space-y-0.5">
-                                <MiniStat icon={ShieldCheck} label="Super Admin" value={s.users.superAdmins} color="text-rose-300" />
-                                <MiniStat icon={Crown} label="Owner" value={s.users.owners} color="text-amber-300" />
-                                <MiniStat icon={UserCog} label="Admin" value={s.users.admins} color="text-purple-300" />
-                                <MiniStat icon={User} label="Membri" value={s.users.members} color="text-cyan-300" />
-                                <MiniStat icon={Eye} label="Guest" value={s.users.guests} color="text-slate-400" />
+                                <MiniStat icon={ShieldCheck} label="Super Admin" value={s.users.superAdmins || 0} color="text-rose-400" />
+                                <MiniStat icon={Crown} label="Owner" value={s.users.owners || 0} color="text-amber-400" />
+                                <MiniStat icon={UserCog} label="Admin" value={s.users.admins || 0} color="text-purple-400" />
+                                <MiniStat icon={User} label="Membri" value={s.users.members || 0} color="text-cyan-400" />
+                                <MiniStat icon={Eye} label="Guest" value={s.users.guests || 0} color="text-slate-400" />
+                                {(() => {
+                                    const ac = (s.users.superAdmins || 0) + (s.users.owners || 0) + (s.users.admins || 0) + (s.users.members || 0) + (s.users.guests || 0);
+                                    const nw = Math.max(0, (s.users.total || 0) - ac);
+                                    if (nw > 0) {
+                                        return <MiniStat icon={ListFilter} label="Nessun Workspace" value={nw} color="text-slate-600" />;
+                                    }
+                                    return null;
+                                })()}
                             </div>
                         </div>
                     </GlassCard>

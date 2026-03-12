@@ -14,6 +14,7 @@ import {
 import { createClient } from '../../utils/supabase/client';
 import { useCurrency } from '../../hooks/useCurrency';
 import { formatNumber } from '../../lib/currency';
+import { useRouter } from 'next/navigation';
 
 const fmtIT = (n: number, dec = 2) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
 
@@ -37,6 +38,7 @@ const TABS: { id: Tab; label: string; icon: any }[] = [
 // formatCents is now replaced by useCurrency().fmt()
 
 export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Props) {
+    const router = useRouter();
     const [tab, setTab] = useState<Tab>('overview');
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -219,7 +221,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
             });
             if (!r.ok) throw new Error('Failed');
             showFb('success', 'Ruolo aggiornato ✅');
-            loadDetail();
+            loadDetail(); onRefresh(); router.refresh();
         } catch { showFb('error', 'Errore nel cambio ruolo'); }
         setChangingRole(null);
     };
@@ -234,7 +236,7 @@ export default function ClientDetailDrawer({ ownerId, onClose, onRefresh }: Prop
             });
             if (!r.ok) throw new Error('Failed');
             showFb('success', 'Membro rimosso ✅');
-            loadDetail(); onRefresh();
+            loadDetail(); onRefresh(); router.refresh();
         } catch { showFb('error', 'Errore nella rimozione'); }
     };
 

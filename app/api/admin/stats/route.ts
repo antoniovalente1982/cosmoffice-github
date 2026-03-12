@@ -90,22 +90,40 @@ export async function GET(req: NextRequest) {
         const uniqueUsers = uniqueUserIds.size;
         const totalUsers = totalProfiles;
 
-        const roleCounts = { owner: 0, admin: 0, member: 0, guest: 0 };
-        const roleSets: Record<string, Set<string>> = {
-            owner: new Set(), admin: new Set(), member: new Set(), guest: new Set()
-        };
-        for (const m of allMembers) {
-            const role = (m.role || '').toLowerCase();
-            if (roleSets[role]) roleSets[role].add(m.user_id);
-        }
-        roleCounts.owner = roleSets.owner.size;
-        roleCounts.admin = roleSets.admin.size;
-        roleCounts.member = roleSets.member.size;
-        roleCounts.guest = roleSets.guest.size;
+        // 1) Fetch all super admins to ensure they are prioritized and not double counted in workspaces
+        const { data: saData } = await supabase.from('profiles').select('id').eq('is_super_admin', true);
+        const superAdminIds = new Set((saData || []).map(p => p.id));
+        const superAdmins = superAdminIds.size;
 
-        const superAdmins = await safeCount(() =>
-            supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_super_admin', true)
-        );
+        // 2) Enforce mutually exclusive roles globally per-user
+        const uniqueUserRoles = new Map<string, string>(); // user_id -> highest_role
+        const rolePriority: Record<string, number> = { 'owner': 1, 'admin': 2, 'member': 3, 'guest': 4 };
+
+        for (const m of allMembers) {
+            const userId = m.user_id;
+
+            // If they are a super admin, they are forever categorised as a super admin for stats
+            if (superAdminIds.has(userId)) {
+                uniqueUserRoles.set(userId, 'super_admin');
+                continue;
+            }
+
+            const currentRole = (m.role || '').toLowerCase();
+            const existingRole = uniqueUserRoles.get(userId);
+
+            // If no role assigned yet, or current role is higher priority than existing
+            if (!existingRole || (rolePriority[currentRole] !== undefined && rolePriority[currentRole] < rolePriority[existingRole])) {
+                uniqueUserRoles.set(userId, currentRole);
+            }
+        }
+
+        const roleCounts = { owner: 0, admin: 0, member: 0, guest: 0 };
+        for (const role of Array.from(uniqueUserRoles.values())) {
+            if (role === 'owner') roleCounts.owner++;
+            if (role === 'admin') roleCounts.admin++;
+            if (role === 'member') roleCounts.member++;
+            if (role === 'guest') roleCounts.guest++;
+        }
 
         // Range-aware user metrics
         let recentSignups: number;
