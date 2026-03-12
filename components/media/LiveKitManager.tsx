@@ -194,11 +194,17 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     el.id = audioElId;
                     el.autoplay = true;
                     el.style.display = 'none';
-                    el.volume = 0; // START MUTED: ProximityEngine will raise this if peer is nearby
+                    // Room context → full volume immediately; Proximity → engine controls volume
+                    const ctx = useDailyStore.getState().activeContext;
+                    el.volume = (ctx === 'room') ? 1.0 : 0;
                     document.body.appendChild(el);
                 }
                 el.muted = !useDailyStore.getState().isRemoteAudioEnabled;
                 el.srcObject = new MediaStream([track.mediaStreamTrack]);
+                // If in room context, ensure volume is up (may be reusing existing element)
+                if (useDailyStore.getState().activeContext === 'room') {
+                    el.volume = 1.0;
+                }
                 el.play().catch(e => console.warn('[LiveKit] Audio autoplay blocked:', e));
                 
                 useDailyStore.getState().setParticipant(id, {
@@ -591,13 +597,25 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
             useDailyStore.getState().clearDailyError();
 
+            // Set context BEFORE connect so TrackSubscribed knows if room or proximity
+            useDailyStore.getState().setActiveContext(contextType, contextId);
+
             await room.connect(LIVEKIT_URL, token);
 
             joinedRef.current = true;
             currentRoomNameRef.current = roomName;
             useDailyStore.getState().setConnected(true);
-            useDailyStore.getState().setActiveContext(contextType, contextId);
             console.log(`[LiveKit] ✅ Joined ${contextType}:`, roomName);
+
+            // Safety net: ensure all audio elements are at full volume for room context
+            // (TrackSubscribed may have fired before context was fully settled)
+            if (contextType === 'room') {
+                setTimeout(() => {
+                    document.querySelectorAll<HTMLAudioElement>('[id^="daily-audio-"]').forEach(el => {
+                        if (el.volume < 0.5) el.volume = 1.0;
+                    });
+                }, 500);
+            }
 
             // Re-enable media that the user wanted
             const wanted = wantedMediaRef.current;
