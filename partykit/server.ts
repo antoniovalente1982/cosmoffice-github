@@ -763,7 +763,19 @@ export default class AvatarServer {
         if (req.method === 'OPTIONS') {
             return new Response(null, { status: 204, headers });
         }
-        const onlineCount = this.users.size;
+        // Count only non-ghost users with active connections
+        let onlineCount = 0;
+        const now = Date.now();
+        this.users.forEach((state, userId) => {
+            // Skip ghosts
+            if (state.x === -9999 && state.y === -9999) return;
+            // Skip stale users
+            if (now - state.lastSeen > STALE_THRESHOLD_MS) return;
+            // Check connection exists
+            const connId = this.userToConnection.get(userId);
+            if (!connId) return;
+            onlineCount++;
+        });
         return new Response(
             JSON.stringify({ onlineCount }),
             { status: 200, headers }

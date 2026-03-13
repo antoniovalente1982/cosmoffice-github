@@ -182,7 +182,7 @@ export default function DashboardPage() {
     useEffect(() => {
         if (workspaces.length === 0) return;
         const wsIds = workspaces.map((w: any) => w.id);
-        const interval = setInterval(() => fetchOnlineCounts(wsIds), 30000);
+        const interval = setInterval(() => fetchOnlineCounts(wsIds), 15000);
         return () => clearInterval(interval);
     }, [workspaces]);
 

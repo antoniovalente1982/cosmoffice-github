@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
                 await Promise.all(
                     spaceIds.map(async (spaceId) => {
                         try {
-                            const url = `${protocol}://${PARTYKIT_HOST}/parties/avatar/${spaceId}`;
+                            const url = `${protocol}://${PARTYKIT_HOST}/parties/main/${spaceId}`;
                             const res = await fetch(url, {
                                 signal: AbortSignal.timeout(3000),
                             });
