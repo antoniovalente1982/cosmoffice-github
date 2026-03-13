@@ -211,49 +211,88 @@ export function WorkspaceSettings({
                                             </div>
 
                                             {/* Theme Selector */}
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                                 <label className="block text-xs font-medium text-slate-400 flex items-center gap-1.5">
                                                     <Building2 className="w-3 h-3" /> {t('settings.themeLabel')}
                                                 </label>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    {(Object.values(OFFICE_THEMES) as any[]).map((thm: any) => (
-                                                        <button
-                                                            key={thm.id}
-                                                            disabled={savingTheme || !isAdmin}
-                                                            onClick={async () => {
-                                                                if (thm.id === theme) return;
-                                                                setSavingTheme(true);
-                                                                setThemeLocal(thm.id);
-                                                                setThemeStore(thm.id);
-                                                                const supabase = createClient();
-                                                                const { data: ws } = await supabase
-                                                                    .from('workspaces')
-                                                                    .select('settings')
-                                                                    .eq('id', workspaceId)
-                                                                    .single();
-                                                                const currentSettings = ws?.settings || {};
-                                                                await supabase
-                                                                    .from('workspaces')
-                                                                    .update({ settings: { ...currentSettings, theme: thm.id } })
-                                                                    .eq('id', workspaceId);
-                                                                setSavingTheme(false);
-                                                            }}
-                                                            className={`relative p-4 rounded-xl border-2 transition-all text-left group ${
-                                                                theme === thm.id
-                                                                    ? 'border-cyan-400 bg-cyan-500/10 ring-1 ring-cyan-400/30'
-                                                                    : 'border-white/10 bg-slate-800/40 hover:border-white/20 hover:bg-slate-800/60'
-                                                            }`}
-                                                        >
-                                                            <div className="text-2xl mb-2">{thm.icon}</div>
-                                                            <div className="text-sm font-bold text-slate-100">{t(`settings.theme.${thm.id}` as any)}</div>
-                                                            <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{t(`settings.theme.${thm.id}Desc` as any)}</div>
-                                                            {theme === thm.id && (
-                                                                <div className="absolute top-2 right-2">
-                                                                    <Check className="w-4 h-4 text-cyan-400" />
+                                                <div className="grid grid-cols-3 gap-3">
+                                                    {(Object.values(OFFICE_THEMES) as any[]).map((thm: any) => {
+                                                        const isActive = theme === thm.id;
+                                                        const accentColors: Record<string, { border: string; ring: string; dot: string; bg: string }> = {
+                                                            space: { border: 'border-indigo-400', ring: 'ring-indigo-400/30', dot: 'bg-indigo-400', bg: 'bg-indigo-500/10' },
+                                                            corporate: { border: 'border-blue-400', ring: 'ring-blue-400/30', dot: 'bg-blue-400', bg: 'bg-blue-500/10' },
+                                                            medical: { border: 'border-teal-400', ring: 'ring-teal-400/30', dot: 'bg-teal-400', bg: 'bg-teal-500/10' },
+                                                        };
+                                                        const previewGradients: Record<string, string> = {
+                                                            space: 'linear-gradient(135deg, #0f0a2e 0%, #1e1b4b 30%, #312e81 60%, #4338ca 80%, #6366f1 100%)',
+                                                            corporate: 'linear-gradient(135deg, #0c1222 0%, #1e293b 30%, #334155 55%, #3b82f6 85%, #60a5fa 100%)',
+                                                            medical: 'linear-gradient(135deg, #071a1f 0%, #0d2a2d 30%, #134e4a 55%, #14b8a6 80%, #5eead4 100%)',
+                                                        };
+                                                        const accent = accentColors[thm.id] || accentColors.space;
+                                                        return (
+                                                            <button
+                                                                key={thm.id}
+                                                                disabled={savingTheme || !isAdmin}
+                                                                onClick={async () => {
+                                                                    if (thm.id === theme) return;
+                                                                    setSavingTheme(true);
+                                                                    setThemeLocal(thm.id);
+                                                                    setThemeStore(thm.id);
+                                                                    const supabase = createClient();
+                                                                    const { data: ws } = await supabase
+                                                                        .from('workspaces')
+                                                                        .select('settings')
+                                                                        .eq('id', workspaceId)
+                                                                        .single();
+                                                                    const currentSettings = ws?.settings || {};
+                                                                    await supabase
+                                                                        .from('workspaces')
+                                                                        .update({ settings: { ...currentSettings, theme: thm.id } })
+                                                                        .eq('id', workspaceId);
+                                                                    setSavingTheme(false);
+                                                                }}
+                                                                className={`relative rounded-xl border-2 transition-all text-left overflow-hidden ${
+                                                                    isActive
+                                                                        ? `${accent.border} ${accent.bg} ring-1 ${accent.ring}`
+                                                                        : 'border-white/10 bg-slate-800/40 hover:border-white/20 hover:bg-slate-800/60'
+                                                                }`}
+                                                            >
+                                                                {/* Gradient preview stripe at top */}
+                                                                <div
+                                                                    className="h-14 w-full relative"
+                                                                    style={{ background: previewGradients[thm.id] || previewGradients.space }}
+                                                                >
+                                                                    {/* Mini grid pattern overlay */}
+                                                                    <div className="absolute inset-0" style={{
+                                                                        backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
+                                                                        backgroundSize: '8px 8px',
+                                                                    }} />
+                                                                    {/* Floating dots to simulate particles */}
+                                                                    <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-40">
+                                                                        {[0, 1, 2, 3, 4].map(i => (
+                                                                            <div key={i} className={`w-1.5 h-1.5 rounded-full ${accent.dot}`}
+                                                                                style={{ transform: `translateY(${Math.sin(i * 1.5) * 8}px)` }}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                    {/* Selected check badge */}
+                                                                    {isActive && (
+                                                                        <div className={`absolute top-2 right-2 w-5 h-5 rounded-full ${accent.dot} flex items-center justify-center shadow-lg`}>
+                                                                            <Check className="w-3 h-3 text-white" />
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                            )}
-                                                        </button>
-                                                    ))}
+                                                                {/* Text area */}
+                                                                <div className="p-3">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="text-lg">{thm.icon}</span>
+                                                                        <span className="text-sm font-bold text-slate-100">{t(`settings.theme.${thm.id}` as any)}</span>
+                                                                    </div>
+                                                                    <div className="text-[9px] text-slate-500 mt-1 leading-tight">{t(`settings.theme.${thm.id}Desc` as any)}</div>
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                                 <p className="text-[10px] text-slate-600 ml-1">{t('settings.themeHint')}</p>
                                             </div>

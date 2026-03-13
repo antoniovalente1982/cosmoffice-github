@@ -29,6 +29,7 @@ import { Card } from '../../components/ui/card';
 import { Logo } from '../../components/ui/logo';
 import { WorkspaceSettings } from '../../components/workspace/WorkspaceSettings';
 import { OFFICE_PRESETS } from '../../lib/officePresets';
+import { OFFICE_THEMES, type OfficeThemeId } from '../../lib/officeThemes';
 
 // max_workspaces is now dynamic, fetched from profiles table
 
@@ -565,10 +566,25 @@ export default function DashboardPage() {
                                             ) : (
                                                 <div>
                                                     <h3 className="text-xl font-bold text-slate-100 group-hover:text-primary-400 transition-colors">{workspace?.name || 'Workspace'}</h3>
-                                                    <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                         <p className="text-slate-400 text-sm flex items-center gap-1">
                                                             <Globe className="w-3 h-3" /> {space.name}
                                                         </p>
+                                                        {(() => {
+                                                            const themeId = (workspace?.settings as any)?.theme || 'space';
+                                                            const themeObj = OFFICE_THEMES[themeId as OfficeThemeId];
+                                                            if (!themeObj) return null;
+                                                            const colorClasses: Record<string, string> = {
+                                                                space: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+                                                                corporate: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+                                                                medical: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
+                                                            };
+                                                            return (
+                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorClasses[themeId] || colorClasses.space}`}>
+                                                                    {themeObj.icon} {themeObj.label}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
                                             )}
