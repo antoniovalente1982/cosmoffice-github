@@ -352,25 +352,25 @@ export function drawRoomConnections(
                 const midX = (edgeA.x + edgeB.x) / 2 + cpOffsetX;
                 const midY = (edgeA.y + edgeB.y) / 2 + cpOffsetY;
 
-                // Glow line (wider, transparent — underneath)
+                // Outer glow line (wide, translucent — underneath)
                 gfx.moveTo(edgeA.x, edgeA.y);
                 gfx.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
-                gfx.stroke({ color: connColor, width: 8, alpha: 0.12 });
+                gfx.stroke({ color: connColor, width: 14, alpha: 0.25 });
 
                 // Main line (sharp, on top)
                 gfx.moveTo(edgeA.x, edgeA.y);
                 gfx.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
-                gfx.stroke({ color: connColor, width: 3, alpha: 0.7 });
+                gfx.stroke({ color: connColor, width: 4, alpha: 0.9 });
 
                 // Endpoint dots with glow
-                gfx.circle(edgeA.x, edgeA.y, 6);
-                gfx.fill({ color: connColor, alpha: 0.15 });
+                gfx.circle(edgeA.x, edgeA.y, 7);
+                gfx.fill({ color: connColor, alpha: 0.2 });
                 gfx.circle(edgeA.x, edgeA.y, 4);
-                gfx.fill({ color: connColor, alpha: 0.9 });
-                gfx.circle(edgeB.x, edgeB.y, 6);
-                gfx.fill({ color: connColor, alpha: 0.15 });
+                gfx.fill({ color: connColor, alpha: 0.95 });
+                gfx.circle(edgeB.x, edgeB.y, 7);
+                gfx.fill({ color: connColor, alpha: 0.2 });
                 gfx.circle(edgeB.x, edgeB.y, 4);
-                gfx.fill({ color: connColor, alpha: 0.9 });
+                gfx.fill({ color: connColor, alpha: 0.95 });
 
                 // Store endpoint handles for drag-and-drop in builder
                 handles.push({ connId: conn.id, x: edgeA.x, y: edgeA.y, side: 'a' });
@@ -390,25 +390,26 @@ export function drawRoomConnections(
                     }
                 }
 
-                // Label at control point
+                // Label at control point — styled like room department labels
                 if (conn.label && labelContainer) {
                     const labelStyle = new TextStyle({
                         fontFamily: 'Inter, system-ui, sans-serif',
-                        fontSize: 12,
-                        fontWeight: '700',
+                        fontSize: 18,
+                        fontWeight: '800',
                         fill: 0xffffff,
-                        letterSpacing: 0.5,
+                        letterSpacing: 1,
+                        dropShadow: { color: 0x000000, alpha: 0.9, blur: 12, distance: 0 },
                     });
                     const labelText = new Text({ text: conn.label.toUpperCase(), style: labelStyle, resolution: 4 });
                     labelText.anchor.set(0.5, 0.5);
                     labelText.position.set(midX, midY);
 
                     const labelBg = new Graphics();
-                    const padding = 8;
+                    const padding = 10;
                     const lw = labelText.width + padding * 2;
                     const lh = labelText.height + padding;
-                    labelBg.roundRect(midX - lw / 2, midY - lh / 2, lw, lh, 10);
-                    labelBg.fill({ color: connColor, alpha: 0.85 });
+                    labelBg.roundRect(midX - lw / 2, midY - lh / 2, lw, lh, 12);
+                    labelBg.fill({ color: connColor, alpha: 0.9 });
 
                     labelContainer.addChild(labelBg);
                     labelContainer.addChild(labelText);
