@@ -49,6 +49,7 @@ export default function DashboardPage() {
     const [spaceMenuOpen, setSpaceMenuOpen] = useState<string | null>(null);
     const [settingsWorkspace, setSettingsWorkspace] = useState<{ id: string; name: string } | null>(null);
     const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+    const [onlineCounts, setOnlineCounts] = useState<Record<string, number>>({});
     const [userRoles, setUserRoles] = useState<Record<string, string>>({});
     const [ownedWorkspaceCount, setOwnedWorkspaceCount] = useState(0);
     const [maxOwnedWorkspaces, setMaxOwnedWorkspaces] = useState(1);
@@ -155,10 +156,34 @@ export default function DashboardPage() {
                 }
             }
 
+            // Fetch initial online counts
+            if (wsList.length > 0) {
+                fetchOnlineCounts(wsList.map((w: any) => w.id));
+            }
+
             setLoading(false);
         };
         initDashboard();
     }, [supabase, router]);
+
+    // Fetch online counts from PartyKit via API
+    const fetchOnlineCounts = async (wsIds: string[]) => {
+        try {
+            const res = await fetch(`/api/workspaces/online-count?workspaceIds=${wsIds.join(',')}`);
+            if (res.ok) {
+                const data = await res.json();
+                setOnlineCounts(data);
+            }
+        } catch { /* ignore */ }
+    };
+
+    // Poll online counts every 30s
+    useEffect(() => {
+        if (workspaces.length === 0) return;
+        const wsIds = workspaces.map((w: any) => w.id);
+        const interval = setInterval(() => fetchOnlineCounts(wsIds), 30000);
+        return () => clearInterval(interval);
+    }, [workspaces]);
 
     // Chiudi il menu quando si clicca fuori
     useEffect(() => {
@@ -439,10 +464,10 @@ export default function DashboardPage() {
                                                 <Building2 className="w-6 h-6" />
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {/* Member count */}
+                                                {/* Online count */}
                                                 <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-700/30 text-slate-400 text-xs font-medium">
                                                     <Users className="w-3 h-3" />
-                                                    {memberCounts[space.workspace_id] || 1}
+                                                    {onlineCounts[space.workspace_id] ?? 0}
                                                 </div>
                                                 {/* Settings button — owner only */}
                                                 {isOwnerOfWs && (
@@ -554,7 +579,7 @@ export default function DashboardPage() {
                                     {isOwnerOfWs && workspace && (
                                         <div className="mt-4 pt-3 border-t border-white/5">
                                             {(() => {
-                                                const used = memberCounts[workspace.id] || 0;
+                                                const used = onlineCounts[workspace.id] ?? 0;
                                                 const max = workspace.max_capacity || 50;
                                                 const pct = Math.min((used / max) * 100, 100);
                                                 const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';

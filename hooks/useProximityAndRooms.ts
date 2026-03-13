@@ -70,6 +70,16 @@ export function useProximityAndRooms() {
             const pos = avatarStore.myPosition;
             const sendFn = (window as any).__sendAvatarPosition;
             if (sendFn) sendFn(pos.x, pos.y, roomId);
+            
+            // BUG-2 FIX: When entering a room, ensure all audio elements for same-room peers
+            // are at full volume. This fixes audio being stuck at 0 after proximity→room transition.
+            setTimeout(() => {
+                document.querySelectorAll<HTMLAudioElement>('[id^="daily-audio-"]').forEach(el => {
+                    if (el.volume < 0.3) el.volume = 1.0;
+                    if (el.paused && el.srcObject) el.play().catch(() => {});
+                });
+            }, 500);
+            
             console.log('[Proximity] Entered room:', room.name, '(state only — Daily on mic/cam)');
             return;
         }

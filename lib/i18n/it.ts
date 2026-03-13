@@ -595,6 +595,17 @@ export const it = {
   'bugReport.networkError': 'Errore di rete',
 
   // ─── Minimap ───
+  // ─── Video Grid ───
+  'videoGrid.title': 'Griglia Video',
+  'videoGrid.participant': 'partecipante',
+  'videoGrid.participants': 'partecipanti',
+  'videoGrid.close': 'Chiudi',
+  'videoGrid.noWebcams': 'Nessuna webcam attiva',
+  'videoGrid.noWebcamsDesc': 'Attiva la webcam per avviare la videochiamata.',
+  'videoGrid.turnOnWebcam': 'Attiva webcam',
+  'videoGrid.you': '(Tu)',
+
+  // ─── Minimap ───
   'minimap.reception': 'RECEPTION',
 } as const;
 

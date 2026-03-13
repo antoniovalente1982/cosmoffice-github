@@ -320,6 +320,53 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     break;
                 }
 
+                // BUG-6 FIX: State reconciliation — update peers from server truth
+                case 'sync_state': {
+                    const users = msg.users as Record<string, any>;
+                    const avatarStore = useAvatarStore.getState();
+                    const currentPeerIds = new Set(Object.keys(avatarStore.peers));
+                    
+                    Object.entries(users).forEach(([id, state]) => {
+                        if (id === userId) return;
+                        if (state.x === -9999 && state.y === -9999) return;
+                        
+                        const existingPeer = avatarStore.peers[id];
+                        // Only update if data actually differs (avoid unnecessary re-renders)
+                        const needsUpdate = !existingPeer
+                            || existingPeer.roomId !== state.roomId
+                            || existingPeer.audioEnabled !== (state.audioEnabled ?? false)
+                            || existingPeer.videoEnabled !== (state.videoEnabled ?? false)
+                            || existingPeer.status !== (state.status || 'online')
+                            || existingPeer.isDnd !== (state.isDnd || false);
+                        
+                        if (needsUpdate) {
+                            avatarStore.updatePeer(id, {
+                                id,
+                                email: state.email || '',
+                                full_name: state.name,
+                                avatar_url: state.avatarUrl,
+                                position: { x: state.x, y: state.y },
+                                status: state.status || 'online',
+                                last_seen: new Date().toISOString(),
+                                roomId: state.roomId,
+                                role: state.role || undefined,
+                                isDnd: state.isDnd || false,
+                                isAway: state.isAway || false,
+                                audioEnabled: state.audioEnabled ?? false,
+                                videoEnabled: state.videoEnabled ?? false,
+                            });
+                        }
+                        currentPeerIds.delete(id);
+                    });
+                    
+                    // Remove peers that server doesn't know about (they left and we missed it)
+                    currentPeerIds.forEach(orphanId => {
+                        avatarStore.removePeer(orphanId);
+                        console.log('[Sync] Removed orphan peer:', orphanId.slice(0, 8));
+                    });
+                    break;
+                }
+
                 case 'move': {
                     if (msg.userId === userId) return;
                     
@@ -489,6 +536,19 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                         if (!dailyStore.isAudioOn) {
                             useDailyStore.setState({ isAudioOn: true });
                         }
+                        // BUG-5 FIX: Explicitly trigger LiveKit join after call acceptance
+                        // The debounced room/proximity watchers may not fire fast enough,
+                        // leaving the user with mic ON but no LiveKit connection
+                        setTimeout(() => {
+                            const joinFn = (window as any).__joinDailyContext;
+                            if (!joinFn) return;
+                            const as = useAvatarStore.getState();
+                            if (as.myRoomId) {
+                                joinFn('room', as.myRoomId);
+                            } else if (as.myProximityGroupId) {
+                                joinFn('proximity', as.myProximityGroupId);
+                            }
+                        }, 200);
                     } else {
                         playCallDeclinedSound();
                     }
@@ -717,9 +777,18 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             }
         }, 15000);
 
+        // BUG-6 FIX: Periodic state sync (every 15s, offset from heartbeat)
+        // Requests full state from server and reconciles local peer list
+        const syncInterval = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: 'request_sync' }));
+            }
+        }, 15000);
+
         return () => {
             connectedRef.current = false;
             clearInterval(heartbeatInterval);
+            clearInterval(syncInterval);
             socket.close();
             socketRef.current = null;
             delete (window as any).__partykitSocket;

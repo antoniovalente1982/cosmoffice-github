@@ -40,23 +40,19 @@ export async function POST(request: NextRequest) {
         if (membersUsingInvite && membersUsingInvite.length > 0) {
             const userIds = membersUsingInvite.map(m => m.user_id);
 
-            // 2. Perform a hard delete for anonymous users
             for (const uid of userIds) {
                 const { data: { user: targetUser } } = await adminClient.auth.admin.getUserById(uid);
-                // Check if user is anonymous (Supabase Auth supports this flag)
+
+                // Hard delete from workspace_members (free the seat)
+                await adminClient
+                    .from('workspace_members')
+                    .delete()
+                    .eq('user_id', uid)
+                    .eq('workspace_id', workspaceId);
+
+                // For anonymous users, also delete the Auth account entirely
                 if (targetUser && targetUser.is_anonymous) {
                     await adminClient.auth.admin.deleteUser(uid);
-                } else {
-                    // Se non anonimo, si fa solo un soft-delete (rimozione dal workspace)
-                    await adminClient
-                        .from('workspace_members')
-                        .update({
-                            removed_at: new Date().toISOString(),
-                            removed_by: user.id,
-                            remove_reason: 'Invito revocato'
-                        })
-                        .eq('user_id', uid)
-                        .eq('workspace_id', workspaceId);
                 }
             }
         }

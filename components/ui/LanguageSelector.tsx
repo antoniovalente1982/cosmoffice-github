@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Globe } from 'lucide-react';
+import { Languages } from 'lucide-react';
 import { useT, LOCALE_NAMES, LOCALE_FLAGS, type Locale } from '../../lib/i18n';
 
 interface LanguageSelectorProps {
@@ -53,7 +53,7 @@ export function LanguageSelector({ className = '', compact = false }: LanguageSe
         }`}
         title={LOCALE_NAMES[locale]}
       >
-        <Globe className="w-4 h-4 text-slate-400" />
+        <Languages className="w-4 h-4 text-slate-400" />
         {!compact && (
           <>
             <span className="text-sm text-slate-300">{LOCALE_FLAGS[locale]}</span>

@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, Video } from 'lucide-react';
+import { useT } from '../../lib/i18n';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { useDailyStore } from '../../stores/dailyStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
@@ -18,6 +19,7 @@ interface VideoTileProps {
 }
 
 function VideoTile({ stream, fullName, isMe, audioEnabled, isSpeaking }: VideoTileProps) {
+    const { t } = useT();
     const videoElRef = useRef<HTMLVideoElement | null>(null);
 
     // Update video srcObject when stream changes — robust autoplay for WebRTC
@@ -83,7 +85,7 @@ function VideoTile({ stream, fullName, isMe, audioEnabled, isSpeaking }: VideoTi
             <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
                 <div className="bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-semibold text-white flex items-center gap-1.5 border border-white/10 truncate max-w-[80%]">
                     <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSpeaking ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
-                    <span className="truncate">{fullName} {isMe && '(You)'}</span>
+                    <span className="truncate">{fullName} {isMe && t('videoGrid.you')}</span>
                 </div>
                 <div className="flex items-center gap-1">
                     {!audioEnabled && (

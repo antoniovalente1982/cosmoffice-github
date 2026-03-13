@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, X, Grid3X3, Video, VideoOff } from 'lucide-react';
+import { useT } from '../../lib/i18n';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { useDailyStore } from '../../stores/dailyStore';
 
@@ -20,6 +21,7 @@ interface GridParticipant {
 }
 
 function GridTile({ participant }: { participant: GridParticipant }) {
+    const { t } = useT();
     const videoElRef = useRef<HTMLVideoElement | null>(null);
     const { stream, fullName, initials, isMe, audioEnabled, isSpeaking, videoEnabled, avatarUrl } = participant;
     const [trackAlive, setTrackAlive] = useState(false);
@@ -102,7 +104,7 @@ function GridTile({ participant }: { participant: GridParticipant }) {
                             </div>
                         )}
                         <span className="text-xs font-semibold text-white truncate">
-                            {fullName} {isMe && '(You)'}
+                            {fullName} {isMe && t('videoGrid.you')}
                         </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -119,6 +121,7 @@ function GridTile({ participant }: { participant: GridParticipant }) {
 }
 
 export function FullscreenGrid() {
+    const { t } = useT();
     const isGridViewOpen = useDailyStore(s => s.isGridViewOpen);
     const toggleGridView = useDailyStore(s => s.toggleGridView);
     const localStream = useDailyStore(s => s.localStream);
@@ -225,10 +228,10 @@ export function FullscreenGrid() {
                         <div className="flex items-center gap-3">
                             <Grid3X3 className="w-4 h-4 text-primary-400" />
                             <h2 className="text-sm font-bold text-white">
-                                Video Grid
+                                {t('videoGrid.title')}
                             </h2>
                             <span className="text-xs text-slate-400">
-                                {participants.length} {participants.length === 1 ? 'participant' : 'participants'}
+                                {participants.length} {participants.length === 1 ? t('videoGrid.participant') : t('videoGrid.participants')}
                             </span>
                         </div>
                         <button
@@ -236,7 +239,7 @@ export function FullscreenGrid() {
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10 hover:border-white/20"
                         >
                             <X className="w-3.5 h-3.5" />
-                            <span className="text-xs font-medium">Close</span>
+                            <span className="text-xs font-medium">{t('videoGrid.close')}</span>
                         </button>
                     </div>
 
@@ -256,10 +259,10 @@ export function FullscreenGrid() {
                                     </div>
                                     <div className="space-y-2">
                                         <h3 className="text-xl font-bold text-white">
-                                            No active webcams
+                                            {t('videoGrid.noWebcams')}
                                         </h3>
                                         <p className="text-slate-400 text-sm">
-                                            Turn on your webcam to start the video call.
+                                            {t('videoGrid.noWebcamsDesc')}
                                         </p>
                                     </div>
                                     <button
@@ -272,7 +275,7 @@ export function FullscreenGrid() {
                                         className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary-500 hover:bg-primary-400 text-white font-semibold transition-all text-sm shadow-[0_0_20px_rgba(99,102,241,0.4)]"
                                     >
                                         <Video className="w-4 h-4" />
-                                        <span>Turn on webcam</span>
+                                        <span>{t('videoGrid.turnOnWebcam')}</span>
                                     </button>
                                 </motion.div>
                             </div>

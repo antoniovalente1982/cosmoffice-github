@@ -71,7 +71,8 @@ type IncomingMessage =
     | { type: "wb_cursor"; scope: string; roomId: string | null; cursor: any }
     | { type: "wb_clear"; scope: string; roomId: string | null }
     | { type: "wb_activity"; scope: string; roomId: string | null; userId: string; userName: string; color: string; action: string }
-    | { type: "wb_stroke_update"; scope: string; roomId: string | null; strokeId: string; updates: any };
+    | { type: "wb_stroke_update"; scope: string; roomId: string | null; strokeId: string; updates: any }
+    | { type: "request_sync" };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
@@ -347,6 +348,23 @@ export default class AvatarServer {
                 }
                 // Respond with pong so client knows connection is alive
                 sender.send(JSON.stringify({ type: "pong" }));
+                break;
+            }
+
+            // BUG-6 FIX: State reconciliation — client requests full state dump
+            case "request_sync": {
+                const usersObj: Record<string, UserState> = {};
+                const now = Date.now();
+                this.users.forEach((state, id) => {
+                    // Skip ghosts and stale users
+                    if (state.x === -9999 && state.y === -9999) return;
+                    const connId = this.userToConnection.get(id);
+                    if (!connId) return;
+                    const conn = this.party.getConnection(connId);
+                    if (!conn && (now - state.lastSeen > STALE_THRESHOLD_MS)) return;
+                    usersObj[id] = state;
+                });
+                sender.send(JSON.stringify({ type: "sync_state", users: usersObj }));
                 break;
             }
 
@@ -717,6 +735,25 @@ export default class AvatarServer {
                 break;
             }
         }
+    }
+
+    // ─── HTTP API — GET /parties/avatar/:roomId ─────────────
+    // Returns online count for this party room (workspace)
+    async onRequest(req: any) {
+        const headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Content-Type': 'application/json',
+        };
+        if (req.method === 'OPTIONS') {
+            return new Response(null, { status: 204, headers });
+        }
+        const onlineCount = this.users.size;
+        return new Response(
+            JSON.stringify({ onlineCount }),
+            { status: 200, headers }
+        );
     }
 
     onClose(connection: any) {

@@ -597,5 +597,16 @@ export const es: Record<TranslationKey, string> = {
   'bugReport.networkError': 'Error de red',
 
   // ─── Minimap ───
+  // ─── Video Grid ───
+  'videoGrid.title': 'Cuadrícula de Video',
+  'videoGrid.participant': 'participante',
+  'videoGrid.participants': 'participantes',
+  'videoGrid.close': 'Cerrar',
+  'videoGrid.noWebcams': 'Sin webcams activas',
+  'videoGrid.noWebcamsDesc': 'Activa tu webcam para iniciar la videollamada.',
+  'videoGrid.turnOnWebcam': 'Activar webcam',
+  'videoGrid.you': '(Tú)',
+
+  // ─── Minimap ───
   'minimap.reception': 'RECEPCIÓN',
 };

@@ -25,7 +25,7 @@ const ROOM_CHECK_INTERVAL = 1500;
 
 // ─── Token cache ────────────────────────────────────────────
 const gTokenCache = new Map<string, { token: string; ts: number }>();
-const TOKEN_CACHE_TTL_MS = 20 * 60 * 1000; // 20 min (tokens last 24h)
+const TOKEN_CACHE_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours (tokens last 24h) — longer cache = fewer API calls
 const gPendingTokenRequests = new Map<string, Promise<string | null>>();
 
 // ─── LiveKit participant ID → Supabase user_id mapping ──────
@@ -67,12 +67,17 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
     }, [isAudioOn, isVideoOn]);
 
     // ─── Room name — generates LiveKit room name for a given context ─
+    // BUG-4 FIX: Use full contextId (not truncated) to prevent room name collisions
+    // Two different rooms sharing the first 8 chars of their UUIDs would end up in the same
+    // LiveKit room — causing users to see/hear each other across rooms
     const getContextRoomName = useCallback((contextType: 'room' | 'proximity', contextId: string) => {
         if (!spaceId) return null;
         const prefix = spaceId.slice(0, 8);
+        // Use full contextId to guarantee uniqueness
+        const safeId = contextId.replace(/[^a-zA-Z0-9-]/g, '');
         return contextType === 'room'
-            ? `co-${prefix}-room-${contextId.slice(0, 8)}`
-            : `co-${prefix}-prox-${contextId.slice(0, 8)}`;
+            ? `co-${prefix}-room-${safeId}`
+            : `co-${prefix}-prox-${safeId}`;
     }, [spaceId]);
 
     // ─── Get token for a room (with cache + dedup) ─────────────
@@ -188,32 +193,45 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
             if (track.kind === Track.Kind.Audio) {
                 const audioElId = `daily-audio-${supabaseId}`;
-                let el = document.getElementById(audioElId) as HTMLAudioElement;
-                if (!el) {
-                    el = document.createElement('audio');
-                    el.id = audioElId;
-                    el.autoplay = true;
-                    el.style.display = 'none';
-                    // Room context → full volume immediately; Proximity → engine controls volume
-                    const ctx = useDailyStore.getState().activeContext;
-                    el.volume = (ctx === 'room') ? 1.0 : 0;
-                    document.body.appendChild(el);
+                // BUG-3 FIX: Remove any existing element first to prevent duplicates
+                const existingEl = document.getElementById(audioElId) as HTMLAudioElement;
+                if (existingEl) {
+                    existingEl.srcObject = null;
+                    existingEl.remove();
                 }
+                const el = document.createElement('audio');
+                el.id = audioElId;
+                el.autoplay = true;
+                el.style.display = 'none';
+                // BUG-2 FIX: Always start at volume 1.0 for room context
+                // For proximity, the adaptive volume engine will adjust on next tick
+                const ctx = useDailyStore.getState().activeContext;
+                el.volume = (ctx === 'room') ? 1.0 : 0.5;
+                document.body.appendChild(el);
                 el.muted = !useDailyStore.getState().isRemoteAudioEnabled;
                 el.srcObject = new MediaStream([track.mediaStreamTrack]);
-                // If in room context, ensure volume is up (may be reusing existing element)
-                if (useDailyStore.getState().activeContext === 'room') {
-                    el.volume = 1.0;
-                }
                 el.play().catch(e => console.warn('[LiveKit] Audio autoplay blocked:', e));
                 
                 useDailyStore.getState().setParticipant(id, {
                     audioTrack: track.mediaStreamTrack,
                     audioEnabled: true,
                 });
+                console.log('[LiveKit] Audio track subscribed for:', supabaseId.slice(0, 8), 'ctx:', ctx, 'vol:', el.volume);
             }
 
             if (track.kind === Track.Kind.Video) {
+                // BUG-4 FIX: Only show video for peers in the same room/proximity context
+                const myRoomId = useAvatarStore.getState().myRoomId;
+                const peerData = useAvatarStore.getState().peers[supabaseId];
+                const peerRoomId = peerData?.roomId;
+                const activeCtx = useDailyStore.getState().activeContext;
+                
+                // If in room context, only accept video from peers in the same room
+                if (activeCtx === 'room' && myRoomId && peerRoomId && peerRoomId !== myRoomId) {
+                    console.log('[LiveKit] Ignoring video from peer in different room:', supabaseId.slice(0, 8));
+                    return;
+                }
+
                 const videoStream = new MediaStream([track.mediaStreamTrack]);
                 useDailyStore.getState().setParticipant(id, {
                     videoTrack: track.mediaStreamTrack,
@@ -221,7 +239,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     videoStream,
                 });
 
-                if (useAvatarStore.getState().peers[supabaseId]) {
+                if (peerData) {
                     useAvatarStore.getState().updatePeer(supabaseId, {
                         id: supabaseId,
                         videoEnabled: true,
@@ -242,11 +260,22 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             const supabaseId = gLivekitToSupabase.get(id) || id;
 
             if (track.source === Track.Source.ScreenShare) {
-                // Clean up screen share — clear ALL screen streams from this participant
-                // This is critical for re-share to work: without cleanup, stale streams
-                // block the new screen share from being displayed
-                useDailyStore.getState().clearAllScreenStreams();
-                console.log('[LiveKit] Screen share track unsubscribed — state cleaned for:', supabaseId.slice(0, 8));
+                // BUG-7 FIX: Only remove the specific screen stream from this participant,
+                // NOT all streams. clearAllScreenStreams() was killing other users' shares.
+                const trackId = track.mediaStreamTrack?.id;
+                if (trackId) {
+                    const streams = useDailyStore.getState().screenStreams;
+                    const matchingStream = streams.find(s => 
+                        s.getVideoTracks().some(t => t.id === trackId)
+                    );
+                    if (matchingStream) {
+                        useDailyStore.getState().removeScreenStream(matchingStream.id);
+                    }
+                } else {
+                    // Fallback: if no track ID, clear all (legacy behavior)
+                    useDailyStore.getState().clearAllScreenStreams();
+                }
+                console.log('[LiveKit] Screen share track unsubscribed for:', supabaseId.slice(0, 8));
                 return;
             }
 
@@ -341,13 +370,18 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             }
             if (publication.source === Track.Source.Microphone) {
                 useDailyStore.getState().setParticipant(id, { audioEnabled: false });
-                // CRITICAL: Also mute the DOM audio element to stop actual audio output
+                // BUG-1 FIX: Completely stop audio output by nulling srcObject.
+                // Just setting volume=0/muted=true is insufficient — the audio pipeline
+                // can still leak sound through browser quirks.
                 const audioEl = document.getElementById(`daily-audio-${supabaseId}`) as HTMLAudioElement;
                 if (audioEl) {
                     audioEl.volume = 0;
                     audioEl.muted = true;
+                    // Store srcObject for restore on unmute
+                    (audioEl as any).__savedSrcObject = audioEl.srcObject;
+                    audioEl.srcObject = null;
                 }
-                console.log('[LiveKit] Remote mic muted:', supabaseId.slice(0, 8));
+                console.log('[LiveKit] Remote mic muted — audio pipeline stopped:', supabaseId.slice(0, 8));
             }
         });
 
@@ -397,13 +431,24 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     audioTrack: publication.track.mediaStreamTrack,
                     audioEnabled: true,
                 });
-                // Restore audio element — unmute and let proximity engine control volume
+                // BUG-1 FIX: Fully restore audio pipeline — re-attach srcObject and set volume
                 const audioEl = document.getElementById(`daily-audio-${supabaseId}`) as HTMLAudioElement;
                 if (audioEl) {
+                    // Restore srcObject from saved or create fresh MediaStream
+                    const savedSrc = (audioEl as any).__savedSrcObject;
+                    if (savedSrc) {
+                        audioEl.srcObject = savedSrc;
+                        delete (audioEl as any).__savedSrcObject;
+                    } else {
+                        audioEl.srcObject = new MediaStream([publication.track.mediaStreamTrack]);
+                    }
                     audioEl.muted = !useDailyStore.getState().isRemoteAudioEnabled;
-                    // Volume will be set by proximity engine on next tick
+                    // Set volume based on context — room = full, proximity = engine controls
+                    const ctx = useDailyStore.getState().activeContext;
+                    audioEl.volume = (ctx === 'room') ? 1.0 : 0.5;
+                    audioEl.play().catch(e => console.warn('[LiveKit] Audio play on unmute blocked:', e));
                 }
-                console.log('[LiveKit] Remote mic unmuted:', supabaseId.slice(0, 8));
+                console.log('[LiveKit] Remote mic unmuted — audio pipeline restored:', supabaseId.slice(0, 8));
             }
         });
 
@@ -555,6 +600,13 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
         joiningRef.current = true;
 
+        // ─── BUG-3 FIX: Aggressive DOM cleanup BEFORE destroying old room ─────
+        // Remove ALL orphaned audio elements to prevent DOM accumulation
+        document.querySelectorAll<HTMLAudioElement>('[id^="daily-audio-"]').forEach(el => {
+            el.srcObject = null;
+            el.remove();
+        });
+
         // ─── Destroy old Room before creating new one ─────
         if (roomRef.current) {
             console.log('[LiveKit] Destroying old room before new join');
@@ -572,7 +624,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             currentRoomNameRef.current = null;
             useDailyStore.getState().clearParticipants();
             useDailyStore.getState().setLocalStream(null);
-            // Brief pause for session cleanup (reduced from 300ms)
+            // BUG-8 FIX: Minimal pause — 50ms is enough for cleanup
             await new Promise(r => setTimeout(r, 50));
         }
 
@@ -607,14 +659,24 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             useDailyStore.getState().setConnected(true);
             console.log(`[LiveKit] ✅ Joined ${contextType}:`, roomName);
 
-            // Safety net: ensure all audio elements are at full volume for room context
-            // (TrackSubscribed may have fired before context was fully settled)
+            // BUG-2 FIX: Multi-step audio activation for room context.
+            // TrackSubscribed fires asynchronously and may race with context setting.
+            // Three sweeps ensure audio is NEVER stuck at zero.
             if (contextType === 'room') {
-                setTimeout(() => {
+                const activateRoomAudio = () => {
                     document.querySelectorAll<HTMLAudioElement>('[id^="daily-audio-"]').forEach(el => {
-                        if (el.volume < 0.5) el.volume = 1.0;
+                        if (el.volume < 0.3) el.volume = 1.0;
+                        if (el.muted && useDailyStore.getState().isRemoteAudioEnabled) {
+                            el.muted = false;
+                        }
+                        if (el.srcObject && el.paused) {
+                            el.play().catch(() => {});
+                        }
                     });
-                }, 500);
+                };
+                setTimeout(activateRoomAudio, 300);
+                setTimeout(activateRoomAudio, 1000);
+                setTimeout(activateRoomAudio, 2500);
             }
 
             // Re-enable media that the user wanted
@@ -668,17 +730,22 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                         }
                         if (pub.track.kind === Track.Kind.Audio && pub.source === Track.Source.Microphone) {
                             const audioElId = `daily-audio-${pid}`;
-                            let el = document.getElementById(audioElId) as HTMLAudioElement;
-                            if (!el) {
-                                el = document.createElement('audio');
-                                el.id = audioElId;
-                                el.autoplay = true;
-                                el.style.display = 'none';
-                                el.volume = 0; // START MUTED: ProximityEngine will raise if peer nearby
-                                document.body.appendChild(el);
+                            // BUG-3 FIX: Remove existing element first
+                            const existingEl = document.getElementById(audioElId) as HTMLAudioElement;
+                            if (existingEl) {
+                                existingEl.srcObject = null;
+                                existingEl.remove();
                             }
+                            const el = document.createElement('audio');
+                            el.id = audioElId;
+                            el.autoplay = true;
+                            el.style.display = 'none';
+                            // BUG-2 FIX: For room context, start at full volume immediately
+                            el.volume = (contextType === 'room') ? 1.0 : 0.5;
+                            document.body.appendChild(el);
                             el.muted = !useDailyStore.getState().isRemoteAudioEnabled;
                             el.srcObject = new MediaStream([pub.track.mediaStreamTrack]);
+                            el.play().catch(e => console.warn('[LiveKit] Audio play blocked:', e));
                             useDailyStore.getState().setParticipant(pid, {
                                 audioTrack: pub.track.mediaStreamTrack,
                                 audioEnabled: true,
@@ -750,8 +817,8 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             }
         });
 
-        // Brief pause for cleanup (reduced from 200ms)
-        await new Promise(r => setTimeout(r, 100));
+        // BUG-8 FIX: Minimal pause for cleanup
+        await new Promise(r => setTimeout(r, 30));
     }, []);
 
     // ─── Public join/leave (serialized via lock) ────────────────
@@ -943,6 +1010,79 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             if (roomDebounceRef.current) clearTimeout(roomDebounceRef.current);
         };
     }, [joinContext, leaveContext]);
+
+    // ─── BUG-1/BUG-4 FIX: Periodic reconciliation ────────────────
+    // Every 3s: check that muted tracks have zero audio output
+    // Every 5s: hide video from peers in different rooms
+    useEffect(() => {
+        // Audio mute reconciliation (3s)
+        const audioReconcile = setInterval(() => {
+            if (!roomRef.current || !joinedRef.current) return;
+            
+            for (const participant of Array.from(roomRef.current.remoteParticipants.values())) {
+                const pid = participant.identity;
+                const supabaseId = gLivekitToSupabase.get(pid) || pid;
+                
+                // Check mic tracks
+                for (const pub of Array.from(participant.trackPublications.values())) {
+                    if (pub.source === Track.Source.Microphone) {
+                        const audioEl = document.getElementById(`daily-audio-${supabaseId}`) as HTMLAudioElement;
+                        if (!audioEl) continue;
+                        
+                        if (pub.isMuted || !pub.isSubscribed) {
+                            // Track is muted at LiveKit level → ensure audio is stopped
+                            if (audioEl.srcObject || audioEl.volume > 0) {
+                                audioEl.volume = 0;
+                                audioEl.muted = true;
+                                (audioEl as any).__savedSrcObject = audioEl.srcObject;
+                                audioEl.srcObject = null;
+                            }
+                            // Sync store state
+                            const storeParticipant = useDailyStore.getState().participants[pid];
+                            if (storeParticipant?.audioEnabled) {
+                                useDailyStore.getState().setParticipant(pid, { audioEnabled: false });
+                            }
+                        } else if (!pub.isMuted && pub.isSubscribed && pub.track) {
+                            // Track is active → ensure audio element is playing
+                            if (!audioEl.srcObject) {
+                                audioEl.srcObject = new MediaStream([pub.track.mediaStreamTrack]);
+                                audioEl.muted = !useDailyStore.getState().isRemoteAudioEnabled;
+                                const ctx = useDailyStore.getState().activeContext;
+                                audioEl.volume = (ctx === 'room') ? 1.0 : 0.5;
+                                audioEl.play().catch(() => {});
+                            }
+                        }
+                    }
+                }
+            }
+        }, 3000);
+
+        // Video room isolation check (5s)
+        const videoReconcile = setInterval(() => {
+            if (!joinedRef.current) return;
+            
+            const myRoomId = useAvatarStore.getState().myRoomId;
+            const activeCtx = useDailyStore.getState().activeContext;
+            if (activeCtx !== 'room' || !myRoomId) return;
+            
+            // Check all peers: if they're in a different room, clear their video
+            const peers = useAvatarStore.getState().peers;
+            Object.entries(peers).forEach(([peerId, peer]: [string, any]) => {
+                if (peer.roomId && peer.roomId !== myRoomId && peer.videoEnabled) {
+                    useAvatarStore.getState().updatePeer(peerId, {
+                        id: peerId,
+                        videoEnabled: false,
+                        stream: null,
+                    });
+                }
+            });
+        }, 5000);
+
+        return () => {
+            clearInterval(audioReconcile);
+            clearInterval(videoReconcile);
+        };
+    }, []);
 
     // ─── Cleanup on unmount ─────────────────────────────────────
     useEffect(() => {
