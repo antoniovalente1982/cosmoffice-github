@@ -351,33 +351,37 @@ export function drawRoomConnections(
                 const midX = (edgeA.x + edgeB.x) / 2 + cpOffsetX;
                 const midY = (edgeA.y + edgeB.y) / 2 + cpOffsetY;
 
-                // Draw lines as individual Graphics (shared gfx unreliable across browsers)
+                // Draw lines as individual Graphics (reliable cross-browser)
                 if (labelContainer) {
-                    // Outer glow line
+                    console.log(`[CONN] Drawing connection: ${roomA.name} → ${roomB.name} edgeA(${edgeA.x.toFixed(0)},${edgeA.y.toFixed(0)}) edgeB(${edgeB.x.toFixed(0)},${edgeB.y.toFixed(0)}) mid(${midX.toFixed(0)},${midY.toFixed(0)}) color=0x${connColor.toString(16)}`);
+
+                    // Outer glow line (two straight segments through midpoint)
                     const glowLine = new Graphics();
                     glowLine.moveTo(edgeA.x, edgeA.y);
-                    glowLine.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
-                    glowLine.stroke({ color: connColor, width: 14, alpha: 0.25 });
+                    glowLine.lineTo(midX, midY);
+                    glowLine.lineTo(edgeB.x, edgeB.y);
+                    glowLine.stroke({ color: connColor, width: 14, alpha: 0.3 });
                     labelContainer.addChild(glowLine);
 
-                    // Main line
+                    // Main line (two straight segments through midpoint)
                     const mainLine = new Graphics();
                     mainLine.moveTo(edgeA.x, edgeA.y);
-                    mainLine.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
-                    mainLine.stroke({ color: connColor, width: 4, alpha: 0.9 });
+                    mainLine.lineTo(midX, midY);
+                    mainLine.lineTo(edgeB.x, edgeB.y);
+                    mainLine.stroke({ color: connColor, width: 5, alpha: 1.0 });
                     labelContainer.addChild(mainLine);
 
-                    // Endpoint dots with glow
+                    // Endpoint dots — bright and large
                     const dotsGfx = new Graphics();
-                    dotsGfx.circle(edgeA.x, edgeA.y, 7);
-                    dotsGfx.fill({ color: connColor, alpha: 0.2 });
-                    dotsGfx.circle(edgeA.x, edgeA.y, 4);
-                    dotsGfx.fill({ color: connColor, alpha: 0.95 });
-                    dotsGfx.circle(edgeB.x, edgeB.y, 7);
-                    dotsGfx.fill({ color: connColor, alpha: 0.2 });
-                    dotsGfx.circle(edgeB.x, edgeB.y, 4);
-                    dotsGfx.fill({ color: connColor, alpha: 0.95 });
+                    dotsGfx.circle(edgeA.x, edgeA.y, 8);
+                    dotsGfx.fill({ color: connColor, alpha: 1.0 });
+                    dotsGfx.circle(edgeB.x, edgeB.y, 8);
+                    dotsGfx.fill({ color: connColor, alpha: 1.0 });
+                    dotsGfx.circle(midX, midY, 6);
+                    dotsGfx.fill({ color: 0xffffff, alpha: 1.0 });
                     labelContainer.addChild(dotsGfx);
+                } else {
+                    console.warn('[CONN] labelContainer is NULL — cannot draw connection lines!');
                 }
 
                 // Store endpoint handles for drag-and-drop in builder

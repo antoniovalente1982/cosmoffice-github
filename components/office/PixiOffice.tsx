@@ -359,22 +359,22 @@ export function PixiOffice() {
             world.addChild(particleGfx);
             particleGfxRef.current = particleGfx;
 
-            // Connection layer
+            // Connection layer (shared gfx — kept for backward compat)
             const connectionGfx = new Graphics();
             world.addChild(connectionGfx);
             connectionGfxRef.current = connectionGfx;
-
-            // Connection labels layer (above connection lines)
-            const connectionLabels = new Container();
-            connectionLabels.label = 'connection-labels';
-            world.addChild(connectionLabels);
-            connectionLabelContainerRef.current = connectionLabels;
 
             // Room layer
             const roomLayer = new Container();
             roomLayer.label = 'rooms';
             world.addChild(roomLayer);
             roomLayerRef.current = roomLayer;
+
+            // Connection labels + lines layer (ABOVE rooms so always visible)
+            const connectionLabels = new Container();
+            connectionLabels.label = 'connection-labels';
+            world.addChild(connectionLabels);
+            connectionLabelContainerRef.current = connectionLabels;
 
             // Proximity aura layer
             const aura = new ProximityAura();
