@@ -502,6 +502,40 @@ export function PixiOffice() {
     // ─── Draw rooms when they change ─────────────────────
     const peersByRoomRef = useRef<Record<string, number>>({});
 
+    // ─── Fallback avatar fetch: fill missing avatar_url from Supabase profiles ───
+    const avatarFetchedRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        if (!appReady) return;
+        const fetchMissingAvatars = async () => {
+            const peersList = Object.values(useAvatarStore.getState().peers);
+            const missing = peersList.filter(
+                (p: any) => !p.avatar_url && p.id && !avatarFetchedRef.current.has(p.id)
+            );
+            if (missing.length === 0) return;
+            // Mark as fetching to avoid duplicate requests
+            missing.forEach((p: any) => avatarFetchedRef.current.add(p.id));
+            const supabase = createClient();
+            const { data } = await supabase
+                .from('profiles')
+                .select('id, avatar_url')
+                .in('id', missing.map((p: any) => p.id));
+            if (data) {
+                data.forEach((profile: any) => {
+                    if (profile.avatar_url) {
+                        useAvatarStore.getState().updatePeer(profile.id, {
+                            id: profile.id,
+                            avatar_url: profile.avatar_url,
+                        });
+                    }
+                });
+            }
+        };
+        // Run immediately + every 5s to catch late-joining peers
+        fetchMissingAvatars();
+        const interval = setInterval(fetchMissingAvatars, 5000);
+        return () => clearInterval(interval);
+    }, [appReady]);
+
     // Update occupant counts — reactive via store subscription + fallback poll
     useEffect(() => {
         if (!appReady) return;
