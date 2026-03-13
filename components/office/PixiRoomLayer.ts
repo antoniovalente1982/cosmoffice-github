@@ -342,7 +342,6 @@ export function drawRoomConnections(
                 }
             } else {
                 // Edge-to-edge connections — teamsmap / free
-                // Find intersection with room border (edge) instead of center
                 const edgeA = getRoomEdge(roomA, cx2, cy2);
                 const edgeB = getRoomEdge(roomB, cx1, cy1);
 
@@ -352,25 +351,34 @@ export function drawRoomConnections(
                 const midX = (edgeA.x + edgeB.x) / 2 + cpOffsetX;
                 const midY = (edgeA.y + edgeB.y) / 2 + cpOffsetY;
 
-                // Outer glow line (wide, translucent — underneath)
-                gfx.moveTo(edgeA.x, edgeA.y);
-                gfx.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
-                gfx.stroke({ color: connColor, width: 14, alpha: 0.25 });
+                // Draw lines as individual Graphics (shared gfx unreliable across browsers)
+                if (labelContainer) {
+                    // Outer glow line
+                    const glowLine = new Graphics();
+                    glowLine.moveTo(edgeA.x, edgeA.y);
+                    glowLine.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
+                    glowLine.stroke({ color: connColor, width: 14, alpha: 0.25 });
+                    labelContainer.addChild(glowLine);
 
-                // Main line (sharp, on top)
-                gfx.moveTo(edgeA.x, edgeA.y);
-                gfx.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
-                gfx.stroke({ color: connColor, width: 4, alpha: 0.9 });
+                    // Main line
+                    const mainLine = new Graphics();
+                    mainLine.moveTo(edgeA.x, edgeA.y);
+                    mainLine.quadraticCurveTo(midX, midY, edgeB.x, edgeB.y);
+                    mainLine.stroke({ color: connColor, width: 4, alpha: 0.9 });
+                    labelContainer.addChild(mainLine);
 
-                // Endpoint dots with glow
-                gfx.circle(edgeA.x, edgeA.y, 7);
-                gfx.fill({ color: connColor, alpha: 0.2 });
-                gfx.circle(edgeA.x, edgeA.y, 4);
-                gfx.fill({ color: connColor, alpha: 0.95 });
-                gfx.circle(edgeB.x, edgeB.y, 7);
-                gfx.fill({ color: connColor, alpha: 0.2 });
-                gfx.circle(edgeB.x, edgeB.y, 4);
-                gfx.fill({ color: connColor, alpha: 0.95 });
+                    // Endpoint dots with glow
+                    const dotsGfx = new Graphics();
+                    dotsGfx.circle(edgeA.x, edgeA.y, 7);
+                    dotsGfx.fill({ color: connColor, alpha: 0.2 });
+                    dotsGfx.circle(edgeA.x, edgeA.y, 4);
+                    dotsGfx.fill({ color: connColor, alpha: 0.95 });
+                    dotsGfx.circle(edgeB.x, edgeB.y, 7);
+                    dotsGfx.fill({ color: connColor, alpha: 0.2 });
+                    dotsGfx.circle(edgeB.x, edgeB.y, 4);
+                    dotsGfx.fill({ color: connColor, alpha: 0.95 });
+                    labelContainer.addChild(dotsGfx);
+                }
 
                 // Store endpoint handles for drag-and-drop in builder
                 handles.push({ connId: conn.id, x: edgeA.x, y: edgeA.y, side: 'a' });
