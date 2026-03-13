@@ -650,6 +650,12 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     break;
                 }
 
+                // ─── Data changed broadcasts ─────────────────
+                case 'data_changed': {
+                    window.dispatchEvent(new CustomEvent('partykit-data-changed', { detail: msg }));
+                    break;
+                }
+
                 case 'leave_room': {
                     if (msg.userId === userId) return;
                     // Play sound if they left OUR room

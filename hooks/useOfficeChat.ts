@@ -100,27 +100,8 @@ export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: 
         return () => { cancelled = true; };
     }, [workspaceId, supabase, setOfficeMessages]);
 
-    // ─── Supabase Realtime: catch DELETES only (PartyKit handles new messages) ───────
-    useEffect(() => {
-        if (!workspaceId) return;
-
-        const channel = supabase.channel(`office-chat-${workspaceId}`)
-            .on('postgres_changes', {
-                event: 'DELETE',
-                schema: 'public',
-                table: 'messages',
-                filter: `workspace_id=eq.${workspaceId}`,
-            }, (payload: any) => {
-                if (payload.old?.id) {
-                    removeOfficeMessage(payload.old.id);
-                }
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [workspaceId, supabase, removeOfficeMessage]);
+    // DELETE events are handled by PartyKit (message_deleted broadcast)
+    // No Supabase Realtime channel needed.
 
     // ─── Send message: Optimistic + PartyKit + Supabase ──────
     const sendMessage = useCallback(async (content: string) => {

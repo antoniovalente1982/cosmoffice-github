@@ -103,18 +103,11 @@ export default function UserManagement({ workspaceId, isOpen, onClose }: UserMan
         if (isOpen) fetchData();
     }, [isOpen, fetchData]);
 
-    // Realtime updates
+    // Poll for updates every 30s while panel is open
     useEffect(() => {
         if (!workspaceId || !isOpen) return;
-        const channel = supabase.channel(`user-mgmt-${workspaceId}`)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'workspace_members',
-                filter: `workspace_id=eq.${workspaceId}`,
-            }, () => fetchData())
-            .subscribe();
-        return () => { supabase.removeChannel(channel); };
+        const intervalId = setInterval(fetchData, 30000);
+        return () => { clearInterval(intervalId); };
     }, [workspaceId, isOpen, fetchData]);
 
     const getName = (m: Member) =>

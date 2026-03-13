@@ -229,54 +229,8 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
         };
     }, [userId, addStroke, addOfficeStroke, updateRemoteCursor, clearRoomStrokes, clearOfficeStrokes, setActiveDrawer, removeActiveDrawer, updateStroke, updateOfficeStroke]);
 
-    // ─── Supabase Realtime: whiteboard backup sync ────────────
-    useEffect(() => {
-        if (!workspaceId) return;
-
-        const channel = supabase.channel(`whiteboard-${workspaceId}`)
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'whiteboard_strokes',
-                filter: `workspace_id=eq.${workspaceId}`,
-            }, (payload: any) => {
-                const row = payload.new;
-                if (!row || row.user_id === userId) return; // Skip own
-
-                // Check if we already have this stroke (from PartyKit)
-                const store = useWhiteboardStore.getState();
-                const isRoom = row.room_id != null;
-                const existing = isRoom ? store.roomStrokes : store.officeStrokes;
-                if (existing.some((s: WhiteboardStroke) => s.id === row.id)) return;
-
-                // Only add if it matches our current scope
-                if (isRoom && row.room_id !== roomId) return; // Different room
-
-                const stroke: WhiteboardStroke = {
-                    id: row.id,
-                    userId: row.user_id,
-                    userName: row.user_name || 'User',
-                    color: row.user_color || '#22d3ee',
-                    fillColor: row.stroke_data?.fillColor || null,
-                    width: row.stroke_data?.width || 4,
-                    points: row.stroke_data?.points || [],
-                    tool: row.stroke_data?.tool || 'pen',
-                    text: row.stroke_data?.text || undefined,
-                    timestamp: row.created_at,
-                };
-
-                if (isRoom) {
-                    addStroke(stroke);
-                } else {
-                    addOfficeStroke(stroke);
-                }
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [workspaceId, roomId, userId, supabase, addStroke, addOfficeStroke]);
+    // Whiteboard sync is fully handled by PartyKit (wb_stroke/wb_clear/wb_stroke_update).
+    // No Supabase Realtime backup channel needed — data is persisted to Supabase on write.
 
     // ─── Send stroke: Optimistic + PartyKit + Supabase ────────
     const sendStroke = useCallback(async (stroke: WhiteboardStroke) => {

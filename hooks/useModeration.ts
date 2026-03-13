@@ -251,23 +251,11 @@ export function useRoomModeration(roomId?: string) {
 
     fetchModerationState();
 
-    // Subscribe to mutes
-    const muteSubscription = supabase
-      .channel(`room_mutes:${roomId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'room_mutes',
-          filter: `room_id=eq.${roomId}`,
-        },
-        () => fetchModerationState()
-      )
-      .subscribe();
+    // Poll for mute/kick changes every 30s (moderation is admin-only)
+    const intervalId = setInterval(fetchModerationState, 30000);
 
     return () => {
-      muteSubscription.unsubscribe();
+      clearInterval(intervalId);
     };
   }, [roomId]);
 
@@ -317,22 +305,11 @@ export function useBannedUsers(workspaceId?: string) {
 
     fetchBannedUsers();
 
-    const subscription = supabase
-      .channel(`workspace_bans:${workspaceId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'workspace_bans',
-          filter: `workspace_id=eq.${workspaceId}`,
-        },
-        () => fetchBannedUsers()
-      )
-      .subscribe();
+    // Poll for ban changes every 60s (rare admin action)
+    const intervalId = setInterval(fetchBannedUsers, 60000);
 
     return () => {
-      subscription.unsubscribe();
+      clearInterval(intervalId);
     };
   }, [workspaceId]);
 

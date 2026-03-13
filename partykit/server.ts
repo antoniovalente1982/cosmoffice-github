@@ -72,7 +72,8 @@ type IncomingMessage =
     | { type: "wb_clear"; scope: string; roomId: string | null }
     | { type: "wb_activity"; scope: string; roomId: string | null; userId: string; userName: string; color: string; action: string }
     | { type: "wb_stroke_update"; scope: string; roomId: string | null; strokeId: string; updates: any }
-    | { type: "request_sync" };
+    | { type: "request_sync" }
+    | { type: "data_changed"; userId: string; scope: string };
 
 type OutgoingMessage =
     | { type: "init"; users: Record<string, UserState> }
@@ -88,7 +89,8 @@ type OutgoingMessage =
     | { type: "knock_request"; userId: string; roomId: string; name: string; avatarUrl: string | null }
     | { type: "knock_accepted"; userId: string; roomId: string }
     | { type: "knock_rejected"; userId: string; roomId: string }
-    | { type: "admin_action"; command: AdminCommand; adminId: string; targetUserId?: string; roomId?: string };
+    | { type: "admin_action"; command: AdminCommand; adminId: string; targetUserId?: string; roomId?: string }
+    | { type: "data_changed"; scope: string; senderId: string };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default class AvatarServer {
@@ -732,6 +734,18 @@ export default class AvatarServer {
                     roomId: parsed.roomId,
                 };
                 this.party.broadcast(JSON.stringify(clearMsg));
+                break;
+            }
+
+            case "data_changed": {
+                // Broadcast data change notification to all OTHER clients
+                // so they refetch (rooms, furniture, settings, etc.)
+                const dcMsg: OutgoingMessage = {
+                    type: "data_changed",
+                    scope: parsed.scope || "office",
+                    senderId: parsed.userId || "",
+                };
+                this.party.broadcast(JSON.stringify(dcMsg), [sender.id]);
                 break;
             }
         }

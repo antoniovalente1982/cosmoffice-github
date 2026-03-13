@@ -94,27 +94,8 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
         return () => { cancelled = true; };
     }, [roomId, workspaceId, supabase, clearMessages, setMessages]);
 
-    // ─── Supabase Realtime: catch DELETES only (PartyKit handles new messages) ──
-    useEffect(() => {
-        if (!roomId || !workspaceId) return;
-
-        const channel = supabase.channel(`room-chat-${roomId}`)
-            .on('postgres_changes', {
-                event: 'DELETE',
-                schema: 'public',
-                table: 'messages',
-                filter: `room_id=eq.${roomId}`,
-            }, (payload: any) => {
-                if (payload.old?.id) {
-                    removeMessage(payload.old.id);
-                }
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [roomId, workspaceId, supabase, removeMessage]);
+    // DELETE events are handled by PartyKit (message_deleted broadcast)
+    // No Supabase Realtime channel needed.
 
     // ─── Send message: Optimistic + PartyKit + Supabase ──────
     const sendMessage = useCallback(async (content: string) => {

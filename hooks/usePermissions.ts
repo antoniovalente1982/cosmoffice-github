@@ -172,27 +172,11 @@ export function useWorkspaceRole(workspaceId?: string) {
 
     fetchRole();
 
-    // Subscribe to changes
-    const subscription = supabase
-      .channel(`workspace_member:${workspaceId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'workspace_members',
-          filter: `workspace_id=eq.${workspaceId}`,
-        },
-        (payload) => {
-          if (payload.new && 'role' in payload.new) {
-            setRole(payload.new.role as WorkspaceRole);
-          }
-        }
-      )
-      .subscribe();
+    // Poll for role changes every 60s (rare events, no need for Realtime)
+    const intervalId = setInterval(fetchRole, 60000);
 
     return () => {
-      subscription.unsubscribe();
+      clearInterval(intervalId);
     };
   }, [workspaceId]);
 

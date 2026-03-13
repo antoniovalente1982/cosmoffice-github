@@ -51,43 +51,11 @@ export function useWorkspace(workspaceId?: string) {
 
     fetchWorkspace();
 
-    // Subscribe to workspace changes
-    const workspaceSub = supabase
-      .channel(`workspace:${workspaceId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'workspaces',
-          filter: `id=eq.${workspaceId}`,
-        },
-        (payload) => {
-          setWorkspace(payload.new as Workspace);
-        }
-      )
-      .subscribe();
-
-    // Subscribe to members changes
-    const membersSub = supabase
-      .channel(`workspace_members:${workspaceId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'workspace_members',
-          filter: `workspace_id=eq.${workspaceId}`,
-        },
-        () => {
-          getWorkspaceMembers(workspaceId).then(setMembers);
-        }
-      )
-      .subscribe();
+    // Poll for workspace/member changes every 60s (rare admin events)
+    const intervalId = setInterval(fetchWorkspace, 60000);
 
     return () => {
-      workspaceSub.unsubscribe();
-      membersSub.unsubscribe();
+      clearInterval(intervalId);
     };
   }, [workspaceId]);
 

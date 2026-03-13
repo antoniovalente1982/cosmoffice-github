@@ -119,14 +119,11 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // Realtime updates
+    // Poll for member/invite changes every 30s
     useEffect(() => {
         if (!workspaceId) return;
-        const channel = supabase.channel(`team-panel-${workspaceId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'workspace_members', filter: `workspace_id=eq.${workspaceId}` }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'workspace_invitations', filter: `workspace_id=eq.${workspaceId}` }, () => fetchData())
-            .subscribe();
-        return () => { supabase.removeChannel(channel); };
+        const intervalId = setInterval(fetchData, 30000);
+        return () => { clearInterval(intervalId); };
     }, [workspaceId, fetchData]);
 
     // ─── Actions ───
