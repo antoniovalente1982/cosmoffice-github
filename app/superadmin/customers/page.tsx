@@ -316,7 +316,7 @@ export default function CustomersPage() {
                     action: 'update_seats',
                     workspaceId: editPlanWsId,
                     data: {
-                        max_members: maxMembers,
+                        max_capacity: maxMembers,
                         price_per_seat: ppsCents,
                         monthly_amount_cents: totalCents,
                     },

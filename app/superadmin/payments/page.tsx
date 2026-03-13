@@ -143,7 +143,7 @@ export default function CashflowPage() {
                     ownerName: ws.owner?.name || ws.owner?.email || 'N/A',
                     ownerId: ws.owner?.id || '',
                     ownerEmail: ws.owner?.email || '',
-                    seats: ws.max_members || 0,
+                    seats: ws.max_capacity || 0,
                     pricePerSeat: ws.price_per_seat || 0,
                     amount: periodAmount,
                     cycle,
@@ -183,7 +183,7 @@ export default function CashflowPage() {
             client.workspaces.push({
                 id: ws.id,
                 name: ws.name,
-                seats: ws.max_members || 0,
+                seats: ws.max_capacity || 0,
                 pricePerSeat: ws.price_per_seat || 0,
                 monthlyAmount: ws.monthlyAmountCents,
                 cycle,
