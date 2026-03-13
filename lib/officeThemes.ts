@@ -165,58 +165,58 @@ const CORPORATE_THEME: OfficeThemeConfig = {
     hudTextColor: 0xe2e8f0,
 };
 
-// ─── Medical Theme (clean teal/mint healthcare look) ────────────
+// ─── Medical Theme (pharmacy / farmacia — green cross clinical look) ─
 const MEDICAL_THEME: OfficeThemeConfig = {
     id: 'medical',
     label: 'Sanitario',
-    icon: '🏥',
-    description: 'Design clinico moderno con toni teal, verde menta e atmosfera professionale',
+    icon: '⚕️',
+    description: 'Ambiente farmaceutico con verde farmacia, atmosfera clinica e pulita',
 
-    canvasBg: 0x071a1f,
+    canvasBg: 0x081a12,
 
     bgGradientCSS: `
-        radial-gradient(circle at 20% 30%, rgba(20, 184, 166, 0.18) 0%, transparent 45%),
-        radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.14) 0%, transparent 45%),
-        radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.10) 0%, transparent 55%),
-        linear-gradient(150deg, #071a1f 0%, #0d2a2d 40%, #061518 100%)
+        radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.20) 0%, transparent 40%),
+        radial-gradient(circle at 75% 65%, rgba(52, 211, 153, 0.14) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(167, 243, 208, 0.08) 0%, transparent 50%),
+        linear-gradient(160deg, #081a12 0%, #0a2618 35%, #071f10 70%, #0d3320 100%)
     `,
     gridCSS: `
-        linear-gradient(rgba(20, 184, 166, 0.12) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(20, 184, 166, 0.12) 1px, transparent 1px)
+        linear-gradient(rgba(16, 185, 129, 0.10) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 185, 129, 0.10) 1px, transparent 1px)
     `,
-    gridOpacity: 0.35,
+    gridOpacity: 0.4,
 
-    platformFill: 0x14b8a6,
-    platformFillAlpha: 0.05,
-    platformInnerFill: 0x0d2a2d,
-    platformInnerAlpha: 0.75,
-    platformBorder: 0x2dd4bf,
-    platformBorderAlpha: 0.25,
+    platformFill: 0x10b981,
+    platformFillAlpha: 0.06,
+    platformInnerFill: 0x0a2618,
+    platformInnerAlpha: 0.78,
+    platformBorder: 0x34d399,
+    platformBorderAlpha: 0.28,
 
-    roomBg: 0x0a2025,
-    roomBgAlpha: 0.90,
-    roomGlowAlpha: 0.14,
-    roomGlowHoverAlpha: 0.25,
-    roomTextColor: 0xf0fdfa,        // teal-50 for clean white-teal text
-    roomStatusTextColor: 0x5eead4,  // teal-300 for status
+    roomBg: 0x0b1f14,
+    roomBgAlpha: 0.92,
+    roomGlowAlpha: 0.16,
+    roomGlowHoverAlpha: 0.28,
+    roomTextColor: 0xecfdf5,        // emerald-50 — clean white-green
+    roomStatusTextColor: 0x6ee7b7,  // emerald-300
 
-    connectionColor: 0x2dd4bf,      // teal-400
+    connectionColor: 0x34d399,      // emerald-400
     connectionAlpha: 0.6,
-    proximityLineColor: 0x14b8a6,   // teal-500
+    proximityLineColor: 0x10b981,   // emerald-500
 
-    particleColors: [0x5eead4, 0x99f6e4, 0xa7f3d0],  // teal/emerald floating particles
-    particleAlpha: 0.5,
+    particleColors: [0xd1fae5, 0xa7f3d0, 0xffffff],  // mint + white floating "pills"
+    particleAlpha: 0.35,
 
     showSpaceship: false,
     showStars: false,
-    showParticles: true,  // subtle floating particles like sanitizing bubbles
+    showParticles: true,
 
-    landingPadLabel: 'Accettazione',
+    landingPadLabel: 'Farmacia',
 
-    hudBadgeText: 'Medical',
-    hudBadgeColor: 'text-teal-400',
-    hudBgAlpha: 0.88,
-    hudTextColor: 0xf0fdfa,
+    hudBadgeText: 'Pharmacy',
+    hudBadgeColor: 'text-emerald-400',
+    hudBgAlpha: 0.90,
+    hudTextColor: 0xecfdf5,
 };
 
 // ─── Theme Registry ─────────────────────────────────────────────

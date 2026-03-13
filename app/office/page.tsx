@@ -577,7 +577,7 @@ export default function DashboardPage() {
                                                             const colorClasses: Record<string, string> = {
                                                                 space: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
                                                                 corporate: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-                                                                medical: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
+                                                                medical: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
                                                             };
                                                             return (
                                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorClasses[themeId] || colorClasses.space}`}>

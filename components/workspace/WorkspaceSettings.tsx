@@ -221,12 +221,12 @@ export function WorkspaceSettings({
                                                         const accentColors: Record<string, { border: string; ring: string; dot: string; bg: string }> = {
                                                             space: { border: 'border-indigo-400', ring: 'ring-indigo-400/30', dot: 'bg-indigo-400', bg: 'bg-indigo-500/10' },
                                                             corporate: { border: 'border-blue-400', ring: 'ring-blue-400/30', dot: 'bg-blue-400', bg: 'bg-blue-500/10' },
-                                                            medical: { border: 'border-teal-400', ring: 'ring-teal-400/30', dot: 'bg-teal-400', bg: 'bg-teal-500/10' },
+                                                            medical: { border: 'border-emerald-400', ring: 'ring-emerald-400/30', dot: 'bg-emerald-400', bg: 'bg-emerald-500/10' },
                                                         };
                                                         const previewGradients: Record<string, string> = {
                                                             space: 'linear-gradient(135deg, #0f0a2e 0%, #1e1b4b 30%, #312e81 60%, #4338ca 80%, #6366f1 100%)',
                                                             corporate: 'linear-gradient(135deg, #0c1222 0%, #1e293b 30%, #334155 55%, #3b82f6 85%, #60a5fa 100%)',
-                                                            medical: 'linear-gradient(135deg, #071a1f 0%, #0d2a2d 30%, #134e4a 55%, #14b8a6 80%, #5eead4 100%)',
+                                                            medical: 'linear-gradient(135deg, #081a12 0%, #0a2618 25%, #064e3b 50%, #10b981 80%, #6ee7b7 100%)',
                                                         };
                                                         const accent = accentColors[thm.id] || accentColors.space;
                                                         return (
