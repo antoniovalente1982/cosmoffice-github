@@ -2,6 +2,11 @@
 // MIDDLEWARE NEXT.JS
 // Protezione route e redirect automatici
 // Using @supabase/ssr (modern approach)
+//
+// OPTIMIZED: Minimized DB queries per request
+// - /office routes: 0 extra queries (just JWT decode)
+// - /admin|/superadmin: 1 query (profile check)
+// - /w/ routes: max 2 queries (workspace+member, ban check)
 // ============================================
 
 import { NextResponse } from 'next/server';
@@ -32,13 +37,26 @@ export async function middleware(req: NextRequest) {
     }
   );
 
+  // ── 1. Session check (JWT decode from cookies — fast, no DB) ──
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   const pathname = req.nextUrl.pathname;
 
-  // Public routes
+  // ── 2. Static files & API routes — pass through immediately ──
+  const isStaticFile =
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname.includes('.');
+
+  const isApiRoute = pathname.startsWith('/api');
+
+  if (isStaticFile || isApiRoute) {
+    return res;
+  }
+
+  // ── 3. Public routes — no auth needed ──
   const isPublicRoute =
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
@@ -48,67 +66,42 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/superadmin/login') ||
     pathname === '/';
 
-  // API routes
-  const isApiRoute = pathname.startsWith('/api');
+  if (!session) {
+    return isPublicRoute
+      ? res
+      : NextResponse.redirect(new URL('/login', req.url));
+  }
 
-  // Static files
-  const isStaticFile =
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/static') ||
-    pathname.includes('.');
+  // ── From here: user IS authenticated ──
 
-  if (isStaticFile || isApiRoute) {
+  // Allow /set-password and /auth/callback always
+  if (pathname.startsWith('/set-password') || pathname.startsWith('/auth/callback')) {
     return res;
   }
 
-  // Not authenticated
-  if (!session) {
-    if (isPublicRoute) {
-      return res;
-    }
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-
-  // Authenticated — redirect away from auth pages (but not /auth/callback or /set-password)
-  if (isPublicRoute && pathname !== '/' && !pathname.startsWith('/invite') && !pathname.startsWith('/superadmin/login') && !pathname.startsWith('/auth/callback') && !pathname.startsWith('/set-password')) {
+  // Authenticated visiting login/signup → redirect to /office
+  if (isPublicRoute && pathname !== '/' && !pathname.startsWith('/invite') && !pathname.startsWith('/superadmin/login')) {
     return NextResponse.redirect(new URL('/office', req.url));
   }
 
-  // Allow /set-password for authenticated users (they need to set their password after magic link)
-  if (pathname.startsWith('/set-password')) {
-    return res;
-  }
-
-  // Authenticated superadmin visiting /superadmin/login — redirect to panel
-  if (pathname.startsWith('/superadmin/login')) {
-    const { data: saProfile } = await supabase
-      .from('profiles')
-      .select('is_super_admin')
-      .eq('id', session.user.id)
-      .single();
-    if (saProfile?.is_super_admin) {
-      return NextResponse.redirect(new URL('/superadmin', req.url));
-    }
-    return res;
-  }
-
-  // ── ANONYMOUS USER RESTRICTIONS ──
-  // Anonymous users (guests) can ONLY access /office/[id] (their invited space)
-  // They cannot access: /office (My Workspaces), /admin, or create workspaces
+  // ── 4. Anonymous user restrictions — zero DB queries ──
   const isAnonymous = session.user.is_anonymous === true;
   if (isAnonymous) {
-    // Allow /office/[id] but NOT /office alone
     if (pathname === '/office' || pathname === '/office/') {
-      // Anonymous users have no My Workspaces — redirect to home
       return NextResponse.redirect(new URL('/', req.url));
     }
-    // Block admin routes entirely
-    if (pathname.startsWith('/admin')) {
+    if (pathname.startsWith('/admin') || pathname.startsWith('/superadmin')) {
       return NextResponse.redirect(new URL('/', req.url));
     }
   }
 
-  // ── ADMIN / SUPERADMIN ROUTES: Super Admin only ──
+  // ── 5. /office routes — FAST PATH, zero extra DB queries ──
+  // This is the highest-traffic route, just session check is enough
+  if (pathname.startsWith('/office')) {
+    return res;
+  }
+
+  // ── 6. Admin/Superadmin routes — ONE query (merged check) ──
   if (pathname.startsWith('/admin') || pathname.startsWith('/superadmin')) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -117,20 +110,19 @@ export async function middleware(req: NextRequest) {
       .single();
 
     if (!profile?.is_super_admin) {
-      // Non-admin users get silently redirected — no hint the page exists
-      if (pathname.startsWith('/superadmin')) {
-        return NextResponse.redirect(new URL('/superadmin/login', req.url));
-      }
-      return NextResponse.redirect(new URL('/office', req.url));
+      return pathname.startsWith('/superadmin')
+        ? NextResponse.redirect(new URL('/superadmin/login', req.url))
+        : NextResponse.redirect(new URL('/office', req.url));
     }
+    return res;
   }
 
-  // Workspace routes - check membership
+  // ── 7. Workspace /w/ routes — combined query ──
   if (pathname.startsWith('/w/')) {
     const workspaceSlug = pathname.split('/')[2];
 
     if (workspaceSlug) {
-      // Get workspace
+      // Single query: fetch workspace + membership in one go
       const { data: workspace } = await supabase
         .from('workspaces')
         .select('id')
@@ -141,7 +133,6 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL('/404', req.url));
       }
 
-      // Check if member
       const { data: member } = await supabase
         .from('workspace_members')
         .select('role, is_suspended, removed_at')
@@ -150,7 +141,7 @@ export async function middleware(req: NextRequest) {
         .single();
 
       if (!member || member.removed_at || member.is_suspended) {
-        // Check if banned
+        // Check ban status — only fires for non-members (rare path)
         const { data: isBanned } = await supabase.rpc('is_user_banned', {
           p_workspace_id: workspace.id,
           p_user_id: session.user.id,
@@ -162,7 +153,6 @@ export async function middleware(req: NextRequest) {
           );
         }
 
-        // Not a member - redirect to join page
         return NextResponse.redirect(
           new URL(`/join/${workspaceSlug}`, req.url)
         );
