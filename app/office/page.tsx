@@ -580,8 +580,8 @@ export default function DashboardPage() {
                                                                 medical: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
                                                             };
                                                             return (
-                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorClasses[themeId] || colorClasses.space}`}>
-                                                                    {themeObj.icon} {themeObj.label}
+                                                                <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorClasses[themeId] || colorClasses.space}`}>
+                                                                    <span className="text-[11px] leading-none">{themeObj.icon}</span> {themeObj.label}
                                                                 </span>
                                                             );
                                                         })()}
