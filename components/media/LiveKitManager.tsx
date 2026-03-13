@@ -15,7 +15,7 @@ import {
     Participant,
     TrackPublication,
 } from 'livekit-client';
-import { useDailyStore } from '../../stores/dailyStore';
+import { useMediaStore } from '../../stores/mediaStore';
 import { useAvatarStore } from '../../stores/avatarStore';
 
 // ─── Configuration ──────────────────────────────────────────
@@ -57,9 +57,9 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
     }, []);
 
     // Read media toggles from daily store
-    const isAudioOn = useDailyStore(s => s.isAudioOn);
-    const isVideoOn = useDailyStore(s => s.isVideoOn);
-    const isRemoteAudioEnabled = useDailyStore(s => s.isRemoteAudioEnabled);
+    const isAudioOn = useMediaStore(s => s.isAudioOn);
+    const isVideoOn = useMediaStore(s => s.isVideoOn);
+    const isRemoteAudioEnabled = useMediaStore(s => s.isRemoteAudioEnabled);
 
     // Always track what user wants
     useEffect(() => {
@@ -110,7 +110,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
                 if (!res.ok) {
                     const errData = await res.json().catch(() => ({}));
-                    useDailyStore.getState().setDailyError(`Errore token LiveKit: ${errData?.error || `HTTP ${res.status}`}`);
+                    useMediaStore.getState().setMediaError(`Errore token LiveKit: ${errData?.error || `HTTP ${res.status}`}`);
                     return null;
                 }
 
@@ -121,7 +121,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 const msg = err?.message?.includes('fetch')
                     ? 'Connessione internet assente o instabile'
                     : err?.message || 'Errore sconosciuto';
-                useDailyStore.getState().setDailyError(`Impossibile ottenere token LiveKit: ${msg}`);
+                useMediaStore.getState().setMediaError(`Impossibile ottenere token LiveKit: ${msg}`);
                 return null;
             } finally {
                 gPendingTokenRequests.delete(roomName);
@@ -139,7 +139,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             const id = participant.identity;
             gLivekitToSupabase.set(id, id);
 
-            useDailyStore.getState().setParticipant(id, {
+            useMediaStore.getState().setParticipant(id, {
                 sessionId: participant.sid,
                 odell: id,
                 userName: participant.name || 'Anonymous',
@@ -158,7 +158,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             const supabaseId = gLivekitToSupabase.get(id) || id;
 
             document.getElementById(`daily-audio-${supabaseId}`)?.remove();
-            useDailyStore.getState().removeParticipant(id);
+            useMediaStore.getState().removeParticipant(id);
 
             if (useAvatarStore.getState().peers[supabaseId]) {
                 useAvatarStore.getState().updatePeer(supabaseId, {
@@ -184,9 +184,9 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
             if (track.source === Track.Source.ScreenShare) {
                 const screenStream = new MediaStream([track.mediaStreamTrack]);
-                useDailyStore.getState().addScreenStream(screenStream);
+                useMediaStore.getState().addScreenStream(screenStream);
                 track.mediaStreamTrack.addEventListener('ended', () =>
-                    useDailyStore.getState().removeScreenStream(screenStream.id)
+                    useMediaStore.getState().removeScreenStream(screenStream.id)
                 );
                 return;
             }
@@ -205,14 +205,14 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 el.style.display = 'none';
                 // BUG-2 FIX: Always start at volume 1.0 for room context
                 // For proximity, the adaptive volume engine will adjust on next tick
-                const ctx = useDailyStore.getState().activeContext;
+                const ctx = useMediaStore.getState().activeContext;
                 el.volume = (ctx === 'room') ? 1.0 : 0.5;
                 document.body.appendChild(el);
-                el.muted = !useDailyStore.getState().isRemoteAudioEnabled;
+                el.muted = !useMediaStore.getState().isRemoteAudioEnabled;
                 el.srcObject = new MediaStream([track.mediaStreamTrack]);
                 el.play().catch(e => console.warn('[LiveKit] Audio autoplay blocked:', e));
                 
-                useDailyStore.getState().setParticipant(id, {
+                useMediaStore.getState().setParticipant(id, {
                     audioTrack: track.mediaStreamTrack,
                     audioEnabled: true,
                 });
@@ -224,7 +224,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 const myRoomId = useAvatarStore.getState().myRoomId;
                 const peerData = useAvatarStore.getState().peers[supabaseId];
                 const peerRoomId = peerData?.roomId;
-                const activeCtx = useDailyStore.getState().activeContext;
+                const activeCtx = useMediaStore.getState().activeContext;
                 
                 // If in room context, only accept video from peers in the same room
                 if (activeCtx === 'room' && myRoomId && peerRoomId && peerRoomId !== myRoomId) {
@@ -233,7 +233,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 }
 
                 const videoStream = new MediaStream([track.mediaStreamTrack]);
-                useDailyStore.getState().setParticipant(id, {
+                useMediaStore.getState().setParticipant(id, {
                     videoTrack: track.mediaStreamTrack,
                     videoEnabled: true,
                     videoStream,
@@ -264,16 +264,16 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 // NOT all streams. clearAllScreenStreams() was killing other users' shares.
                 const trackId = track.mediaStreamTrack?.id;
                 if (trackId) {
-                    const streams = useDailyStore.getState().screenStreams;
+                    const streams = useMediaStore.getState().screenStreams;
                     const matchingStream = streams.find(s => 
                         s.getVideoTracks().some(t => t.id === trackId)
                     );
                     if (matchingStream) {
-                        useDailyStore.getState().removeScreenStream(matchingStream.id);
+                        useMediaStore.getState().removeScreenStream(matchingStream.id);
                     }
                 } else {
                     // Fallback: if no track ID, clear all (legacy behavior)
-                    useDailyStore.getState().clearAllScreenStreams();
+                    useMediaStore.getState().clearAllScreenStreams();
                 }
                 console.log('[LiveKit] Screen share track unsubscribed for:', supabaseId.slice(0, 8));
                 return;
@@ -282,11 +282,11 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             if (track.kind === Track.Kind.Audio) {
                 const el = document.getElementById(`daily-audio-${supabaseId}`);
                 if (el) (el as HTMLAudioElement).srcObject = null;
-                useDailyStore.getState().setParticipant(id, { audioTrack: null, audioEnabled: false });
+                useMediaStore.getState().setParticipant(id, { audioTrack: null, audioEnabled: false });
             }
 
             if (track.kind === Track.Kind.Video) {
-                useDailyStore.getState().setParticipant(id, { videoTrack: null, videoEnabled: false, videoStream: null });
+                useMediaStore.getState().setParticipant(id, { videoTrack: null, videoEnabled: false, videoStream: null });
                 if (useAvatarStore.getState().peers[supabaseId]) {
                     useAvatarStore.getState().updatePeer(supabaseId, {
                         id: supabaseId,
@@ -307,9 +307,9 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
             if (track.source === Track.Source.ScreenShare) {
                 const screenStream = new MediaStream([track.mediaStreamTrack]);
-                useDailyStore.getState().addScreenStream(screenStream);
+                useMediaStore.getState().addScreenStream(screenStream);
                 track.mediaStreamTrack.addEventListener('ended', () => {
-                    useDailyStore.getState().removeScreenStream(screenStream.id);
+                    useMediaStore.getState().removeScreenStream(screenStream.id);
                     // Crucial fix: when the browser's native "Stop sharing" is clicked, 
                     // we must tell LiveKit to disable the screen share explicitly
                     // so it resets its internal 'isScreenShareEnabled' flag. 
@@ -329,7 +329,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     localTracks.push(pub.track.mediaStreamTrack);
                 }
             });
-            useDailyStore.getState().setLocalStream(
+            useMediaStore.getState().setLocalStream(
                 localTracks.length > 0 ? new MediaStream(localTracks) : null
             );
         });
@@ -352,14 +352,14 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                         localTracks.push(pub.track.mediaStreamTrack);
                     }
                 });
-                useDailyStore.getState().setLocalStream(
+                useMediaStore.getState().setLocalStream(
                     localTracks.length > 0 ? new MediaStream(localTracks) : null
                 );
                 return;
             }
 
             if (publication.source === Track.Source.Camera) {
-                useDailyStore.getState().setParticipant(id, { videoEnabled: false });
+                useMediaStore.getState().setParticipant(id, { videoEnabled: false });
                 if (useAvatarStore.getState().peers[supabaseId]) {
                     useAvatarStore.getState().updatePeer(supabaseId, {
                         id: supabaseId,
@@ -369,7 +369,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 console.log('[LiveKit] Remote camera muted:', supabaseId.slice(0, 8));
             }
             if (publication.source === Track.Source.Microphone) {
-                useDailyStore.getState().setParticipant(id, { audioEnabled: false });
+                useMediaStore.getState().setParticipant(id, { audioEnabled: false });
                 // BUG-1 FIX: Completely stop audio output by nulling srcObject.
                 // Just setting volume=0/muted=true is insufficient — the audio pipeline
                 // can still leak sound through browser quirks.
@@ -403,7 +403,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                         localTracks.push(pub.track.mediaStreamTrack);
                     }
                 });
-                useDailyStore.getState().setLocalStream(
+                useMediaStore.getState().setLocalStream(
                     localTracks.length > 0 ? new MediaStream(localTracks) : null
                 );
                 return;
@@ -412,7 +412,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             if (publication.source === Track.Source.Camera && publication.track) {
                 // Rebuild video stream from the now-live track
                 const videoStream = new MediaStream([publication.track.mediaStreamTrack]);
-                useDailyStore.getState().setParticipant(id, {
+                useMediaStore.getState().setParticipant(id, {
                     videoTrack: publication.track.mediaStreamTrack,
                     videoEnabled: true,
                     videoStream,
@@ -427,7 +427,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 console.log('[LiveKit] Remote camera unmuted:', supabaseId.slice(0, 8));
             }
             if (publication.source === Track.Source.Microphone && publication.track) {
-                useDailyStore.getState().setParticipant(id, {
+                useMediaStore.getState().setParticipant(id, {
                     audioTrack: publication.track.mediaStreamTrack,
                     audioEnabled: true,
                 });
@@ -442,9 +442,9 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     } else {
                         audioEl.srcObject = new MediaStream([publication.track.mediaStreamTrack]);
                     }
-                    audioEl.muted = !useDailyStore.getState().isRemoteAudioEnabled;
+                    audioEl.muted = !useMediaStore.getState().isRemoteAudioEnabled;
                     // Set volume based on context — room = full, proximity = engine controls
-                    const ctx = useDailyStore.getState().activeContext;
+                    const ctx = useMediaStore.getState().activeContext;
                     audioEl.volume = (ctx === 'room') ? 1.0 : 0.5;
                     audioEl.play().catch(e => console.warn('[LiveKit] Audio play on unmute blocked:', e));
                 }
@@ -460,7 +460,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             // Handle screen share track being unpublished
             if (publication.source === Track.Source.ScreenShare) {
                 // Clear all screen streams and reset sharing state
-                useDailyStore.getState().clearAllScreenStreams();
+                useMediaStore.getState().clearAllScreenStreams();
                 console.log('[LiveKit] Screen share track unpublished — state cleared');
                 return;
             }
@@ -473,7 +473,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     localTracks.push(pub.track.mediaStreamTrack);
                 }
             });
-            useDailyStore.getState().setLocalStream(
+            useMediaStore.getState().setLocalStream(
                 localTracks.length > 0 ? new MediaStream(localTracks) : null
             );
         });
@@ -483,7 +483,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             const localIdentity = room.localParticipant?.identity;
             const isLocalSpeaking = speakers.some(s => s.identity === localIdentity);
 
-            useDailyStore.getState().setSpeaking(isLocalSpeaking);
+            useMediaStore.getState().setSpeaking(isLocalSpeaking);
 
             // Broadcast via PartyKit
             const socket = (window as any).__partykitSocket;
@@ -503,10 +503,10 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             joinedRef.current = false;
             joiningRef.current = false;
             currentRoomNameRef.current = null;
-            useDailyStore.getState().clearParticipants();
-            useDailyStore.getState().setLocalStream(null);
-            useDailyStore.getState().setConnected(false);
-            useDailyStore.getState().setActiveContext('none', null);
+            useMediaStore.getState().clearParticipants();
+            useMediaStore.getState().setLocalStream(null);
+            useMediaStore.getState().setConnected(false);
+            useMediaStore.getState().setActiveContext('none', null);
 
             // If we were force-disconnected (signal-lost, server restart, etc.)
             // and user still wants media, attempt auto-reconnect
@@ -515,7 +515,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 setTimeout(() => {
                     const currentRoom = useAvatarStore.getState().myRoomId;
                     const currentProx = useAvatarStore.getState().myProximityGroupId;
-                    const stillWants = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
+                    const stillWants = useMediaStore.getState().isAudioOn || useMediaStore.getState().isVideoOn;
                     if (stillWants) {
                         if (currentRoom) {
                             lockOperation(() => joinContextInner('room', currentRoom));
@@ -622,8 +622,8 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             (window as any).__livekitRoom = null;
             joinedRef.current = false;
             currentRoomNameRef.current = null;
-            useDailyStore.getState().clearParticipants();
-            useDailyStore.getState().setLocalStream(null);
+            useMediaStore.getState().clearParticipants();
+            useMediaStore.getState().setLocalStream(null);
             // BUG-8 FIX: Minimal pause — 50ms is enough for cleanup
             await new Promise(r => setTimeout(r, 50));
         }
@@ -647,16 +647,16 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             roomRef.current = room;
             (window as any).__livekitRoom = room;
 
-            useDailyStore.getState().clearDailyError();
+            useMediaStore.getState().clearMediaError();
 
             // Set context BEFORE connect so TrackSubscribed knows if room or proximity
-            useDailyStore.getState().setActiveContext(contextType, contextId);
+            useMediaStore.getState().setActiveContext(contextType, contextId);
 
             await room.connect(LIVEKIT_URL, token);
 
             joinedRef.current = true;
             currentRoomNameRef.current = roomName;
-            useDailyStore.getState().setConnected(true);
+            useMediaStore.getState().setConnected(true);
             console.log(`[LiveKit] ✅ Joined ${contextType}:`, roomName);
 
             // BUG-2 FIX: Multi-step audio activation for room context.
@@ -666,7 +666,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 const activateRoomAudio = () => {
                     document.querySelectorAll<HTMLAudioElement>('[id^="daily-audio-"]').forEach(el => {
                         if (el.volume < 0.3) el.volume = 1.0;
-                        if (el.muted && useDailyStore.getState().isRemoteAudioEnabled) {
+                        if (el.muted && useMediaStore.getState().isRemoteAudioEnabled) {
                             el.muted = false;
                         }
                         if (el.srcObject && el.paused) {
@@ -700,7 +700,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             for (const participant of Array.from(room.remoteParticipants.values())) {
                 const pid = participant.identity;
                 gLivekitToSupabase.set(pid, pid);
-                useDailyStore.getState().setParticipant(pid, {
+                useMediaStore.getState().setParticipant(pid, {
                     sessionId: participant.sid,
                     odell: pid,
                     userName: participant.name || 'Anonymous',
@@ -715,7 +715,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     if (pub.track && pub.isSubscribed) {
                         if (pub.track.kind === Track.Kind.Video && pub.source === Track.Source.Camera) {
                             const videoStream = new MediaStream([pub.track.mediaStreamTrack]);
-                            useDailyStore.getState().setParticipant(pid, {
+                            useMediaStore.getState().setParticipant(pid, {
                                 videoTrack: pub.track.mediaStreamTrack,
                                 videoEnabled: true,
                                 videoStream,
@@ -743,10 +743,10 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                             // BUG-2 FIX: For room context, start at full volume immediately
                             el.volume = (contextType === 'room') ? 1.0 : 0.5;
                             document.body.appendChild(el);
-                            el.muted = !useDailyStore.getState().isRemoteAudioEnabled;
+                            el.muted = !useMediaStore.getState().isRemoteAudioEnabled;
                             el.srcObject = new MediaStream([pub.track.mediaStreamTrack]);
                             el.play().catch(e => console.warn('[LiveKit] Audio play blocked:', e));
-                            useDailyStore.getState().setParticipant(pid, {
+                            useMediaStore.getState().setParticipant(pid, {
                                 audioTrack: pub.track.mediaStreamTrack,
                                 audioEnabled: true,
                             });
@@ -758,7 +758,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
         } catch (err: any) {
             const msg = err?.message || 'Errore sconosciuto';
-            useDailyStore.getState().setDailyError(`Connessione LiveKit fallita: ${msg}`);
+            useMediaStore.getState().setMediaError(`Connessione LiveKit fallita: ${msg}`);
             console.error('[LiveKit] Join failed:', msg);
             // Clean up on failure
             if (roomRef.current) {
@@ -799,10 +799,10 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
         joinedRef.current = false;
         currentRoomNameRef.current = null;
 
-        useDailyStore.getState().clearParticipants();
-        useDailyStore.getState().setLocalStream(null);
-        useDailyStore.getState().setConnected(false);
-        useDailyStore.getState().setActiveContext('none', null);
+        useMediaStore.getState().clearParticipants();
+        useMediaStore.getState().setLocalStream(null);
+        useMediaStore.getState().setConnected(false);
+        useMediaStore.getState().setActiveContext('none', null);
 
         // Clear peer video in avatarStore
         const peers = useAvatarStore.getState().peers;
@@ -924,8 +924,8 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             const oldGroup = prevState.myProximityGroupId;
             if (newGroup === oldGroup) return;
 
-            const dailyStore = useDailyStore.getState();
-            const anyMediaOn = dailyStore.isAudioOn || dailyStore.isVideoOn;
+            const mediaStore = useMediaStore.getState();
+            const anyMediaOn = mediaStore.isAudioOn || mediaStore.isVideoOn;
             if (state.myRoomId) return;
 
             if (proxDebounceRef.current) {
@@ -938,22 +938,22 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     proxDebounceRef.current = setTimeout(() => {
                         proxDebounceRef.current = null;
                         const still = useAvatarStore.getState();
-                        const stillMedia = useDailyStore.getState();
+                        const stillMedia = useMediaStore.getState();
                         if (still.myProximityGroupId === newGroup && !still.myRoomId &&
                             (stillMedia.isAudioOn || stillMedia.isVideoOn)) {
                             joinContext('proximity', newGroup);
                         }
                     }, 500);
                 }
-            } else if (oldGroup && dailyStore.activeContext === 'proximity') {
+            } else if (oldGroup && mediaStore.activeContext === 'proximity') {
                 proxDebounceRef.current = setTimeout(() => {
                     proxDebounceRef.current = null;
                     const still = useAvatarStore.getState();
                     if (!still.myProximityGroupId && !still.myRoomId) {
                         leaveContext();
-                        const ds = useDailyStore.getState();
+                        const ds = useMediaStore.getState();
                         if (ds.isAudioOn || ds.isVideoOn) {
-                            useDailyStore.setState({ isAudioOn: false, isVideoOn: false });
+                            useMediaStore.setState({ isAudioOn: false, isVideoOn: false });
                             console.log('[LiveKit] Walked away → mic/cam auto-disabled');
                         }
                     }
@@ -975,7 +975,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             const oldRoomId = prevState.myRoomId;
             if (newRoomId === oldRoomId) return;
 
-            const anyMediaOn = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
+            const anyMediaOn = useMediaStore.getState().isAudioOn || useMediaStore.getState().isVideoOn;
             if (!anyMediaOn) return;
 
             if (roomDebounceRef.current) {
@@ -986,7 +986,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             // Use a shorter debounce (400ms instead of 800ms) for snappier room switches
             roomDebounceRef.current = setTimeout(() => {
                 roomDebounceRef.current = null;
-                const stillMediaOn = useDailyStore.getState().isAudioOn || useDailyStore.getState().isVideoOn;
+                const stillMediaOn = useMediaStore.getState().isAudioOn || useMediaStore.getState().isVideoOn;
                 if (!stillMediaOn) return;
 
                 const currentRoomId = useAvatarStore.getState().myRoomId;
@@ -999,7 +999,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                         joinContext('proximity', proxGroup);
                     } else if (joinedRef.current) {
                         leaveContext();
-                        useDailyStore.setState({ isAudioOn: false, isVideoOn: false });
+                        useMediaStore.setState({ isAudioOn: false, isVideoOn: false });
                         console.log('[LiveKit] Left room → no one nearby, mic/cam auto-disabled');
                     }
                 }
@@ -1038,16 +1038,16 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                                 audioEl.srcObject = null;
                             }
                             // Sync store state
-                            const storeParticipant = useDailyStore.getState().participants[pid];
+                            const storeParticipant = useMediaStore.getState().participants[pid];
                             if (storeParticipant?.audioEnabled) {
-                                useDailyStore.getState().setParticipant(pid, { audioEnabled: false });
+                                useMediaStore.getState().setParticipant(pid, { audioEnabled: false });
                             }
                         } else if (!pub.isMuted && pub.isSubscribed && pub.track) {
                             // Track is active → ensure audio element is playing
                             if (!audioEl.srcObject) {
                                 audioEl.srcObject = new MediaStream([pub.track.mediaStreamTrack]);
-                                audioEl.muted = !useDailyStore.getState().isRemoteAudioEnabled;
-                                const ctx = useDailyStore.getState().activeContext;
+                                audioEl.muted = !useMediaStore.getState().isRemoteAudioEnabled;
+                                const ctx = useMediaStore.getState().activeContext;
                                 audioEl.volume = (ctx === 'room') ? 1.0 : 0.5;
                                 audioEl.play().catch(() => {});
                             }
@@ -1062,7 +1062,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             if (!joinedRef.current) return;
             
             const myRoomId = useAvatarStore.getState().myRoomId;
-            const activeCtx = useDailyStore.getState().activeContext;
+            const activeCtx = useMediaStore.getState().activeContext;
             if (activeCtx !== 'room' || !myRoomId) return;
             
             // Check all peers: if they're in a different room, clear their video

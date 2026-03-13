@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import PartySocket from 'partysocket';
 import { useAvatarStore } from '../stores/avatarStore';
-import { useDailyStore } from '../stores/dailyStore';
+import { useMediaStore } from '../stores/mediaStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useChatStore } from '../stores/chatStore';
 import { useCallStore } from '../stores/callStore';
@@ -273,7 +273,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             // Broadcast current media state so existing peers get our mic/cam status
             setTimeout(() => {
                 if (socket.readyState !== WebSocket.OPEN) return;
-                const ds = useDailyStore.getState();
+                const ds = useMediaStore.getState();
                 socket.send(JSON.stringify({
                     type: 'media_state',
                     userId,
@@ -532,9 +532,9 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             body: '🎤 Attiva microfono e webcam per parlare',
                         });
                         // Auto-enable mic for caller
-                        const dailyStore = useDailyStore.getState();
-                        if (!dailyStore.isAudioOn) {
-                            useDailyStore.setState({ isAudioOn: true });
+                        const mediaStore = useMediaStore.getState();
+                        if (!mediaStore.isAudioOn) {
+                            useMediaStore.setState({ isAudioOn: true });
                         }
                         // BUG-5 FIX: Explicitly trigger LiveKit join after call acceptance
                         // The debounced room/proximity watchers may not fire fast enough,
@@ -689,7 +689,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                     switch (msg.command) {
                         case 'mute_audio':
                             if (msg.targetUserId === myUserId) {
-                                useDailyStore.getState().setAdminMutedAudio(true);
+                                useMediaStore.getState().setAdminMutedAudio(true);
                                 useAvatarStore.getState().setMyAdminMutedAudio(true);
                             } else if (msg.targetUserId) {
                                 useAvatarStore.getState().updatePeer(msg.targetUserId, {
@@ -700,7 +700,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             break;
                         case 'unmute_audio':
                             if (msg.targetUserId === myUserId) {
-                                useDailyStore.getState().setAdminMutedAudio(false);
+                                useMediaStore.getState().setAdminMutedAudio(false);
                                 useAvatarStore.getState().setMyAdminMutedAudio(false);
                             } else if (msg.targetUserId) {
                                 useAvatarStore.getState().updatePeer(msg.targetUserId, {
@@ -711,7 +711,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             break;
                         case 'mute_video':
                             if (msg.targetUserId === myUserId) {
-                                useDailyStore.getState().setAdminMutedVideo(true);
+                                useMediaStore.getState().setAdminMutedVideo(true);
                                 useAvatarStore.getState().setMyAdminMutedVideo(true);
                             } else if (msg.targetUserId) {
                                 useAvatarStore.getState().updatePeer(msg.targetUserId, {
@@ -722,7 +722,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             break;
                         case 'unmute_video':
                             if (msg.targetUserId === myUserId) {
-                                useDailyStore.getState().setAdminMutedVideo(false);
+                                useMediaStore.getState().setAdminMutedVideo(false);
                                 useAvatarStore.getState().setMyAdminMutedVideo(false);
                             } else if (msg.targetUserId) {
                                 useAvatarStore.getState().updatePeer(msg.targetUserId, {
@@ -735,7 +735,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             if (msg.targetUserId === myUserId) {
                                 // Force leave current room
                                 useAvatarStore.getState().setMyRoom(undefined);
-                                useDailyStore.getState().setActiveContext('none', null);
+                                useMediaStore.getState().setActiveContext('none', null);
                                 const leaveFn = (window as any).__leaveDailyContext;
                                 if (leaveFn) leaveFn();
                             }
@@ -747,18 +747,18 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                             }
                             break;
                         case 'mute_all':
-                            useDailyStore.getState().setAdminMutedAudio(true);
+                            useMediaStore.getState().setAdminMutedAudio(true);
                             useAvatarStore.getState().setMyAdminMutedAudio(true);
                             break;
                         case 'disable_all_cams':
-                            useDailyStore.getState().setAdminMutedVideo(true);
+                            useMediaStore.getState().setAdminMutedVideo(true);
                             useAvatarStore.getState().setMyAdminMutedVideo(true);
                             break;
                         case 'block_proximity':
-                            useDailyStore.getState().setProximityBlockedGlobal(true);
+                            useMediaStore.getState().setProximityBlockedGlobal(true);
                             break;
                         case 'unblock_proximity':
-                            useDailyStore.getState().setProximityBlockedGlobal(false);
+                            useMediaStore.getState().setProximityBlockedGlobal(false);
                             break;
                         case 'lock_room':
                             if (msg.roomId) useWorkspaceStore.getState().setRoomLocked(msg.roomId, true);
@@ -846,9 +846,9 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         };
     }, [sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendLeaveRoom, sendStateUpdate, sendMediaState, sendStatusChange]);
 
-    // ─── Auto-broadcast media state when dailyStore changes ──
+    // ─── Auto-broadcast media state when mediaStore changes ──
     useEffect(() => {
-        const unsubDaily = useDailyStore.subscribe((state, prevState) => {
+        const unsubDaily = useMediaStore.subscribe((state, prevState) => {
             if (state.isAudioOn !== prevState.isAudioOn ||
                 state.isVideoOn !== prevState.isVideoOn ||
                 state.isRemoteAudioEnabled !== prevState.isRemoteAudioEnabled) {

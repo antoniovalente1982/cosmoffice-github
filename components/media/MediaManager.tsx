@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { useDailyStore } from '../../stores/dailyStore';
+import { useMediaStore } from '../../stores/mediaStore';
 import { createClient } from '../../utils/supabase/client';
 
 // Map per tracciare i container degli schermi condivisi
@@ -9,15 +9,15 @@ const screenContainersMap = new Map<string, HTMLDivElement>();
 
 export function MediaManager() {
     // Granular selectors to avoid re-render on every store change
-    const isScreenSharing = useDailyStore(s => s.isScreenSharing);
-    const screenStreams = useDailyStore(s => s.screenStreams);
-    const isSpeaking = useDailyStore(s => s.isSpeaking);
-    const localStream = useDailyStore(s => s.localStream);
-    const setSpeaking = useDailyStore(s => s.setSpeaking);
-    const removeScreenStream = useDailyStore(s => s.removeScreenStream);
-    const clearAllScreenStreams = useDailyStore(s => s.clearAllScreenStreams);
-    const isMicEnabled = useDailyStore(s => s.isAudioOn);
-    const isVideoEnabled = useDailyStore(s => s.isVideoOn);
+    const isScreenSharing = useMediaStore(s => s.isScreenSharing);
+    const screenStreams = useMediaStore(s => s.screenStreams);
+    const isSpeaking = useMediaStore(s => s.isSpeaking);
+    const localStream = useMediaStore(s => s.localStream);
+    const setSpeaking = useMediaStore(s => s.setSpeaking);
+    const removeScreenStream = useMediaStore(s => s.removeScreenStream);
+    const clearAllScreenStreams = useMediaStore(s => s.clearAllScreenStreams);
+    const isMicEnabled = useMediaStore(s => s.isAudioOn);
+    const isVideoEnabled = useMediaStore(s => s.isVideoOn);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyzerRef = useRef<AnalyserNode | null>(null);
     const initializedRef = useRef(false);
@@ -505,7 +505,7 @@ export function MediaManager() {
                     }
 
                     const speakingNow = speakCount > 1;
-                    const prevSpeaking = useDailyStore.getState().isSpeaking;
+                    const prevSpeaking = useMediaStore.getState().isSpeaking;
                     if (speakingNow !== prevSpeaking) {
                         setSpeaking(speakingNow);
                     }

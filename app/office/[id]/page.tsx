@@ -35,7 +35,7 @@ import { Logo } from '../../../components/ui/logo';
 const PixiOffice = dynamic(() => import('../../../components/office/PixiOffice').then(mod => mod.PixiOffice), { ssr: false });
 const VideoGrid = dynamic(() => import('../../../components/media/VideoGrid').then(mod => mod.VideoGrid), { ssr: false });
 const MediaManager = dynamic(() => import('../../../components/media/MediaManager').then(mod => mod.MediaManager), { ssr: false });
-const DailyErrorToast = dynamic(() => import('../../../components/media/DailyErrorToast'), { ssr: false });
+const MediaErrorToast = dynamic(() => import('../../../components/media/MediaErrorToast'), { ssr: false });
 const CallRequestModal = dynamic(() => import('../../../components/office/CallRequestModal'), { ssr: false });
 const CallResponseToast = dynamic(() => import('../../../components/office/CallResponseToast'), { ssr: false });
 const TeamList = dynamic(() => import('../../../components/office/TeamList').then(mod => mod.TeamList), { ssr: false });
@@ -52,7 +52,7 @@ const UserManagement = null; // Integrated into TeamList
 const SupportCenter = dynamic(() => import('../../../components/office/SupportCenter'), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
-import { useDailyStore } from '../../../stores/dailyStore';
+import { useMediaStore } from '../../../stores/mediaStore';
 import { useWorkspaceStore } from '../../../stores/workspaceStore';
 import { useChatStore } from '../../../stores/chatStore';
 import { useWhiteboardStore } from '../../../stores/whiteboardStore';
@@ -68,22 +68,22 @@ export default function OfficePage() {
     const supabase = createClient();
     const router = useRouter();
 
-    // Daily store
-    const isMicEnabled = useDailyStore(s => s.isAudioOn);
-    const isVideoEnabled = useDailyStore(s => s.isVideoOn);
-    const isScreenSharing = useDailyStore(s => s.isScreenSharing);
-    const isRemoteAudioEnabled = useDailyStore(s => s.isRemoteAudioEnabled);
-    const screenStreams = useDailyStore(s => s.screenStreams);
-    const hasCompletedDeviceSetup = useDailyStore(s => s.hasCompletedDeviceSetup);
-    const toggleMic = useDailyStore(s => s.toggleAudio);
-    const toggleVideo = useDailyStore(s => s.toggleVideo);
-    const toggleRemoteAudio = useDailyStore(s => s.toggleRemoteAudio);
-    const addScreenStream = useDailyStore(s => s.addScreenStream);
-    const clearAllScreenStreams = useDailyStore(s => s.clearAllScreenStreams);
-    const isGridViewOpen = useDailyStore(s => s.isGridViewOpen);
-    const toggleGridView = useDailyStore(s => s.toggleGridView);
-    const isConnected = useDailyStore(s => s.isConnected);
-    const activeContext = useDailyStore(s => s.activeContext);
+    // Media store
+    const isMicEnabled = useMediaStore(s => s.isAudioOn);
+    const isVideoEnabled = useMediaStore(s => s.isVideoOn);
+    const isScreenSharing = useMediaStore(s => s.isScreenSharing);
+    const isRemoteAudioEnabled = useMediaStore(s => s.isRemoteAudioEnabled);
+    const screenStreams = useMediaStore(s => s.screenStreams);
+    const hasCompletedDeviceSetup = useMediaStore(s => s.hasCompletedDeviceSetup);
+    const toggleMic = useMediaStore(s => s.toggleAudio);
+    const toggleVideo = useMediaStore(s => s.toggleVideo);
+    const toggleRemoteAudio = useMediaStore(s => s.toggleRemoteAudio);
+    const addScreenStream = useMediaStore(s => s.addScreenStream);
+    const clearAllScreenStreams = useMediaStore(s => s.clearAllScreenStreams);
+    const isGridViewOpen = useMediaStore(s => s.isGridViewOpen);
+    const toggleGridView = useMediaStore(s => s.toggleGridView);
+    const isConnected = useMediaStore(s => s.isConnected);
+    const activeContext = useMediaStore(s => s.activeContext);
 
     // Avatar store
     const myStatus = useAvatarStore(s => s.myStatus);
@@ -142,7 +142,7 @@ export default function OfficePage() {
     // ─── Auto-disable mic/cam when going "busy" ─────────────
     useEffect(() => {
         if (myStatus === 'busy') {
-            const ds = useDailyStore.getState();
+            const ds = useMediaStore.getState();
             if (ds.isAudioOn) {
                 toggleMic();
             }
@@ -154,7 +154,7 @@ export default function OfficePage() {
     }, [myStatus, toggleMic, toggleVideo, showMediaToast]);
 
     const smartToggleMic = useCallback(async () => {
-        const ds = useDailyStore.getState();
+        const ds = useMediaStore.getState();
         if (ds.isAudioOn) {
             // Always allow turning OFF
             await toggleMic();
@@ -173,7 +173,7 @@ export default function OfficePage() {
     }, [toggleMic, showMediaToast, hasPeopleNearby, myStatus]);
 
     const smartToggleVideo = useCallback(async () => {
-        const ds = useDailyStore.getState();
+        const ds = useMediaStore.getState();
         if (ds.isVideoOn) {
             await toggleVideo();
             return;
@@ -209,13 +209,13 @@ export default function OfficePage() {
                 if (actuallySharing) {
                     // Stop sharing — clear store + force DOM cleanup
                     await room.localParticipant.setScreenShareEnabled(false);
-                    useDailyStore.getState().clearAllScreenStreams();
+                    useMediaStore.getState().clearAllScreenStreams();
                     // Force-remove any orphaned DOM containers from MediaManager
                     document.querySelectorAll('[id^="screen-share-container-"]').forEach(el => el.remove());
                 } else {
                     // If store thinks we're sharing but LiveKit doesn't, clear stale state first
-                    if (useDailyStore.getState().isScreenSharing) {
-                        useDailyStore.getState().clearAllScreenStreams();
+                    if (useMediaStore.getState().isScreenSharing) {
+                        useMediaStore.getState().clearAllScreenStreams();
                     }
                     // Force-remove any orphaned DOM containers before starting
                     document.querySelectorAll('[id^="screen-share-container-"]').forEach(el => el.remove());
@@ -234,7 +234,7 @@ export default function OfficePage() {
                 if (err?.message?.includes('Permission denied') || err?.message?.includes('cancelled')) return;
                 console.error('Screen share failed:', err);
                 // Reset state on error so next attempt works
-                useDailyStore.getState().clearAllScreenStreams();
+                useMediaStore.getState().clearAllScreenStreams();
                 document.querySelectorAll('[id^="screen-share-container-"]').forEach(el => el.remove());
                 showMediaToast(t('office.toast.screenFailed'));
             }
@@ -466,7 +466,7 @@ export default function OfficePage() {
                 });
 
                 // Controlla se l'utente ha già completato il setup dispositivi
-                const hasSetup = useDailyStore.getState().hasCompletedDeviceSetup;
+                const hasSetup = useMediaStore.getState().hasCompletedDeviceSetup;
                 if (!hasSetup) {
                     setShowInitialSetup(true);
                 }
@@ -713,7 +713,7 @@ export default function OfficePage() {
                             <PixiOffice />
                             <DayNightCycle />
                             <MediaManager />
-                            <DailyErrorToast />
+                            <MediaErrorToast />
                             <CallRequestModal />
                             <CallResponseToast />
                             {mediaToast && (

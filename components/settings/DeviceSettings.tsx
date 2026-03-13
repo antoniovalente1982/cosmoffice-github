@@ -17,7 +17,7 @@ import {
     Monitor
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDailyStore } from '../../stores/dailyStore';
+import { useMediaStore } from '../../stores/mediaStore';
 import { useT } from '../../lib/i18n';
 
 interface DeviceSettingsProps {
@@ -54,7 +54,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
         toggleAudio: toggleMic,
         toggleVideo,
         toggleRemoteAudio
-    } = useDailyStore();
+    } = useMediaStore();
 
     const [devices, setDevices] = useState<DeviceInfo[]>([]);
     const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
@@ -119,7 +119,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
             setPermissionGranted(true);
 
             // Step 5: Seleziona i default se non già selezionati
-            const store = useDailyStore.getState();
+            const store = useMediaStore.getState();
 
             if (!store.selectedAudioInput) {
                 setSelectedAudioInput('default');
@@ -676,7 +676,7 @@ export function DeviceSettings({ isOpen, onClose, isInitialSetup = false }: Devi
     // Applica le impostazioni
     const applySettings = useCallback(() => {
         // Stop any existing local stream
-        const currentStream = useDailyStore.getState().localStream;
+        const currentStream = useMediaStore.getState().localStream;
         if (currentStream) {
             currentStream.getTracks().forEach(t => t.stop());
         }

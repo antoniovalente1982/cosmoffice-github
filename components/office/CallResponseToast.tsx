@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff, Loader2, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { useCallStore } from '../../stores/callStore';
-import { useDailyStore } from '../../stores/dailyStore';
+import { useMediaStore } from '../../stores/mediaStore';
 
 export function CallResponseToast() {
     const outgoingCall = useCallStore(s => s.outgoingCall);
@@ -13,8 +13,8 @@ export function CallResponseToast() {
     const setCallResponse = useCallStore(s => s.setCallResponse);
 
     // Real-time media state
-    const isAudioOn = useDailyStore(s => s.isAudioOn);
-    const isVideoOn = useDailyStore(s => s.isVideoOn);
+    const isAudioOn = useMediaStore(s => s.isAudioOn);
+    const isVideoOn = useMediaStore(s => s.isVideoOn);
 
     // Auto-dismiss response toast after 5s
     useEffect(() => {

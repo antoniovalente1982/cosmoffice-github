@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAvatarStore } from '../stores/avatarStore';
-import { useDailyStore } from '../stores/dailyStore';
+import { useMediaStore } from '../stores/mediaStore';
 
 const KNOCK_TIMEOUT_MS = 30_000;
 
@@ -115,7 +115,7 @@ export function useKnockToEnter() {
             const avatarStore = useAvatarStore.getState();
             avatarStore.setKnockingAtRoom(null);
             avatarStore.setMyRoom(roomId);
-            useDailyStore.getState().setActiveContext('room', roomId);
+            useMediaStore.getState().setActiveContext('room', roomId);
 
             // Trigger Daily.co room join
             const joinFn = (window as any).__joinDailyContext;

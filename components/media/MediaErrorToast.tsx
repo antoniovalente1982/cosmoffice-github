@@ -1,30 +1,30 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useDailyStore } from '../../stores/dailyStore';
+import { useMediaStore } from '../../stores/mediaStore';
 
 /**
- * DailyErrorToast — Shows a prominent error notification
- * when Daily.co connection fails.
+ * MediaErrorToast — Shows a prominent error notification
+ * when WebRTC/LiveKit connection fails.
  * Renders as a fixed overlay at the top of the screen.
  */
-export default function DailyErrorToast() {
-    const dailyError = useDailyStore((s) => s.dailyError);
-    const clearDailyError = useDailyStore((s) => s.clearDailyError);
+export default function MediaErrorToast() {
+    const mediaError = useMediaStore((s) => s.mediaError);
+    const clearMediaError = useMediaStore((s) => s.clearMediaError);
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
-        if (dailyError) {
+        if (mediaError) {
             setVisible(true);
         }
-    }, [dailyError]);
+    }, [mediaError]);
 
     const handleDismiss = () => {
         setVisible(false);
-        setTimeout(() => clearDailyError(), 300); // Wait for fade-out
+        setTimeout(() => clearMediaError(), 300); // Wait for fade-out
     };
 
-    if (!dailyError) return null;
+    if (!mediaError) return null;
 
     return (
         <div
@@ -76,7 +76,7 @@ export default function DailyErrorToast() {
                         letterSpacing: '0.02em',
                     }}
                 >
-                    Errore Connessione Daily.co
+                    Errore Connessione Media
                 </div>
                 <div
                     style={{
@@ -86,7 +86,7 @@ export default function DailyErrorToast() {
                         wordBreak: 'break-word',
                     }}
                 >
-                    {dailyError}
+                    {mediaError}
                 </div>
             </div>
 

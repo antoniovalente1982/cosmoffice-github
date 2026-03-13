@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAvatarStore } from '../stores/avatarStore';
-import { useDailyStore } from '../stores/dailyStore';
+import { useMediaStore } from '../stores/mediaStore';
 
 export function useSpatialAudio() {
     const lastPosRef = useRef({ x: 0, y: 0 });
@@ -9,7 +9,7 @@ export function useSpatialAudio() {
     useEffect(() => {
         const calculateVolume = () => {
             const { myPosition, myRoomId, peers } = useAvatarStore.getState();
-            const { isRemoteAudioEnabled } = useDailyStore.getState();
+            const { isRemoteAudioEnabled } = useMediaStore.getState();
 
             // Skip if position hasn't changed significantly (> 3px)
             const dx = Math.abs(myPosition.x - lastPosRef.current.x);

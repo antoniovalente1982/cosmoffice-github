@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useAvatarStore } from '../stores/avatarStore';
-import { useDailyStore } from '../stores/dailyStore';
+import { useMediaStore } from '../stores/mediaStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { isPointInRect, isBlockedByWall, distance, type Rect, type Point } from '../utils/wallDetection';
 import { getAdaptiveVolume, canFormProximityConnection } from '../utils/avatarStateMachine';
@@ -115,12 +115,12 @@ export function useProximityAndRooms() {
     // ─── Proximity group tracking (VISUAL ONLY — no Daily calls) ─────
     const updateProximityGroup = useCallback((nearbyPeers: ProximityPeer[]) => {
         const avatarStore = useAvatarStore.getState();
-        const dailyStore = useDailyStore.getState();
+        const mediaStore = useMediaStore.getState();
         const myId = avatarStore.myProfile?.id;
         if (!myId) return;
 
         // Skip if DND or admin blocked proximity
-        if (avatarStore.myDnd || dailyStore.proximityBlockedGlobal) {
+        if (avatarStore.myDnd || mediaStore.proximityBlockedGlobal) {
             // Clear proximity state
             if (avatarStore.myProximityGroupId) {
                 avatarStore.setMyProximityGroup(null);
@@ -204,7 +204,7 @@ export function useProximityAndRooms() {
     useEffect(() => {
         const interval = setInterval(() => {
             const avatarStore = useAvatarStore.getState();
-            const dailyStore = useDailyStore.getState();
+            const mediaStore = useMediaStore.getState();
             const workspaceStore = useWorkspaceStore.getState();
 
             // ─── Freeze room state in builder mode ───────────

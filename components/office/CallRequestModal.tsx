@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff, X } from 'lucide-react';
 import { useCallStore } from '../../stores/callStore';
 import { useAvatarStore } from '../../stores/avatarStore';
-import { useDailyStore } from '../../stores/dailyStore';
+import { useMediaStore } from '../../stores/mediaStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { playCallRingSound, playCallAcceptedSound, playCallDeclinedSound } from '../../utils/sounds';
 
@@ -78,8 +78,8 @@ export function CallRequestModal() {
         }
 
         // ─── Auto-enable mic for receiver ─────────────────────
-        if (!useDailyStore.getState().isAudioOn) {
-            useDailyStore.setState({ isAudioOn: true });
+        if (!useMediaStore.getState().isAudioOn) {
+            useMediaStore.setState({ isAudioOn: true });
         }
 
         // ─── Notify receiver to enable webcam ────────────────

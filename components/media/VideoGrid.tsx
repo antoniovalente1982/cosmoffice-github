@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, Video } from 'lucide-react';
 import { useT } from '../../lib/i18n';
 import { useAvatarStore } from '../../stores/avatarStore';
-import { useDailyStore } from '../../stores/dailyStore';
+import { useMediaStore } from '../../stores/mediaStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 
 interface VideoTileProps {
@@ -125,11 +125,11 @@ const MAX_PER_ROW = 4;
 const TILE_SIZE = 160;
 
 export function VideoGrid() {
-    const localStream = useDailyStore(s => s.localStream);
-    const isMicEnabled = useDailyStore(s => s.isAudioOn);
-    const isVideoEnabled = useDailyStore(s => s.isVideoOn);
-    const isSpeaking = useDailyStore(s => s.isSpeaking);
-    const dailyParticipants = useDailyStore(s => s.participants); // REACTIVE — re-renders on track changes
+    const localStream = useMediaStore(s => s.localStream);
+    const isMicEnabled = useMediaStore(s => s.isAudioOn);
+    const isVideoEnabled = useMediaStore(s => s.isVideoOn);
+    const isSpeaking = useMediaStore(s => s.isSpeaking);
+    const dailyParticipants = useMediaStore(s => s.participants); // REACTIVE — re-renders on track changes
     const peers = useAvatarStore(s => s.peers);
     const myProfile = useAvatarStore(s => s.myProfile);
     const myRoomId = useAvatarStore(s => s.myRoomId);
@@ -178,13 +178,13 @@ export function VideoGrid() {
         }
     });
 
-    // Also check dailyStore participants for any video tracks we might have missed
+    // Also check mediaStore participants for any video tracks we might have missed
     Object.entries(dailyParticipants).forEach(([id, info]: [string, any]) => {
         if (!info.videoEnabled || !info.videoStream) return;
         const supabaseId = info.supabaseId || id;
         if (seenIds.has(supabaseId) || seenIds.has(id)) return; // Already shown
 
-        // Room isolation check for dailyStore participants too
+        // Room isolation check for mediaStore participants too
         const peer = peers[supabaseId] || peers[id];
         if (peer) {
             const sameRoom = myRoomId && peer.roomId === myRoomId;

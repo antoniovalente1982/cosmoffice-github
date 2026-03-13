@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { Application, Container, Graphics } from 'pixi.js';
 import { useAvatarStore } from '../../stores/avatarStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
-import { useDailyStore } from '../../stores/dailyStore';
+import { useMediaStore } from '../../stores/mediaStore';
 import { usePresence } from '../../hooks/usePresence';
 import { useProximityAndRooms } from '../../hooks/useProximityAndRooms';
 import { KnockNotification } from './KnockNotification';
@@ -216,11 +216,11 @@ export function PixiOffice() {
     }, [supabase]);
 
     // Daily store (media state)
-    const isMicEnabled = useDailyStore(s => s.isAudioOn);
-    const isVideoEnabled = useDailyStore(s => s.isVideoOn);
-    const isSpeaking = useDailyStore(s => s.isSpeaking);
-    const localStream = useDailyStore(s => s.localStream);
-    const isRemoteAudioEnabled = useDailyStore(s => s.isRemoteAudioEnabled);
+    const isMicEnabled = useMediaStore(s => s.isAudioOn);
+    const isVideoEnabled = useMediaStore(s => s.isVideoOn);
+    const isSpeaking = useMediaStore(s => s.isSpeaking);
+    const localStream = useMediaStore(s => s.localStream);
+    const isRemoteAudioEnabled = useMediaStore(s => s.isRemoteAudioEnabled);
 
     const activeSpaceId = useWorkspaceStore(s => s.activeSpaceId);
     const [showWizard, setShowWizard] = useState(false);
@@ -459,7 +459,7 @@ export function PixiOffice() {
                 if (auraRef.current && frameCount % 2 === 0) {
                     try {
                         const avatarState = useAvatarStore.getState();
-                        const dailyState = useDailyStore.getState();
+                        const dailyState = useMediaStore.getState();
                         const wsState = useWorkspaceStore.getState();
                         const myPos = avatarState.myPosition;
 

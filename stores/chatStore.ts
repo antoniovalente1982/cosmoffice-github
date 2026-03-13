@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 // ============================================
 // CHAT STORE — Room + Office chat state
-// Separated from avatarStore and dailyStore
+// Separated from avatarStore and mediaStore
 // to avoid re-render cascading
 // ============================================
 

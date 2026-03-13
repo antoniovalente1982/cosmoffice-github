@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MicOff, X, Grid3X3, Video, VideoOff } from 'lucide-react';
 import { useT } from '../../lib/i18n';
 import { useAvatarStore } from '../../stores/avatarStore';
-import { useDailyStore } from '../../stores/dailyStore';
+import { useMediaStore } from '../../stores/mediaStore';
 
 interface GridParticipant {
     id: string;
@@ -122,14 +122,14 @@ function GridTile({ participant }: { participant: GridParticipant }) {
 
 export function FullscreenGrid() {
     const { t } = useT();
-    const isGridViewOpen = useDailyStore(s => s.isGridViewOpen);
-    const toggleGridView = useDailyStore(s => s.toggleGridView);
-    const localStream = useDailyStore(s => s.localStream);
-    const isMicEnabled = useDailyStore(s => s.isAudioOn);
-    const isVideoEnabled = useDailyStore(s => s.isVideoOn);
-    const isSpeaking = useDailyStore(s => s.isSpeaking);
-    const toggleVideo = useDailyStore(s => s.toggleVideo);
-    const isScreenSharing = useDailyStore(s => s.isScreenSharing);
+    const isGridViewOpen = useMediaStore(s => s.isGridViewOpen);
+    const toggleGridView = useMediaStore(s => s.toggleGridView);
+    const localStream = useMediaStore(s => s.localStream);
+    const isMicEnabled = useMediaStore(s => s.isAudioOn);
+    const isVideoEnabled = useMediaStore(s => s.isVideoOn);
+    const isSpeaking = useMediaStore(s => s.isSpeaking);
+    const toggleVideo = useMediaStore(s => s.toggleVideo);
+    const isScreenSharing = useMediaStore(s => s.isScreenSharing);
     const peers = useAvatarStore(s => s.peers);
     const myProfile = useAvatarStore(s => s.myProfile);
     const myRoomId = useAvatarStore(s => s.myRoomId);
