@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../../stores/commsStore';
 
 import React, { useRef, useEffect, useCallback, useState, memo } from 'react';
 import {
@@ -634,7 +635,7 @@ function WhiteboardInner({ workspaceId, userId, userName, isAdmin }: WhiteboardP
             // Laser: add to temporary list, don't persist
             laserStrokesRef.current.push({ stroke, addedAt: Date.now() });
             // Broadcast via PartyKit but don't save to DB
-            const socket = (window as any).__partykitSocket;
+            const socket = useCommsStore.getState().partykitSocket;
             const isRoom = useWhiteboardStore.getState().activeChannel === 'room';
             if (socket?.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({

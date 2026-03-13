@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../stores/commsStore';
 
 // ============================================
 // useKnockToEnter — Handles knock-to-enter flow for rooms
@@ -38,7 +39,7 @@ export function useKnockToEnter() {
     // ─── Respond to a knock (accept/reject) ──────────────────
     const respondToKnock = useCallback((request: KnockRequest, accepted: boolean) => {
         // Send response via PartyKit
-        const sendKnockResponseFn = (window as any).__sendKnockResponse;
+        const sendKnockResponseFn = useCommsStore.getState().sendKnockResponse;
         if (sendKnockResponseFn) {
             sendKnockResponseFn(request.roomId, request.userId, accepted);
         }
@@ -61,7 +62,7 @@ export function useKnockToEnter() {
         useAvatarStore.getState().setKnockingAtRoom(roomId);
 
         // Send knock via PartyKit
-        const sendKnockFn = (window as any).__sendKnock;
+        const sendKnockFn = useCommsStore.getState().sendKnock;
         if (sendKnockFn) sendKnockFn(roomId);
 
         // Start timeout
@@ -118,7 +119,7 @@ export function useKnockToEnter() {
             useMediaStore.getState().setActiveContext('room', roomId);
 
             // Trigger Daily.co room join
-            const joinFn = (window as any).__joinDailyContext;
+            const joinFn = useCommsStore.getState().joinContext;
             if (joinFn) joinFn('room', roomId);
 
             setState({
@@ -149,15 +150,17 @@ export function useKnockToEnter() {
             }, 3000);
         };
 
-        // Register on window so PartyKit message handler can call them
-        (window as any).__handleKnockRequest = handleKnockRequest;
-        (window as any).__handleKnockAccepted = handleKnockAccepted;
-        (window as any).__handleKnockRejected = handleKnockRejected;
+        // Register handlers via commsStore so PartyKit message handler can call them
+        const cs = useCommsStore.getState();
+        cs.setHandleKnockRequest(handleKnockRequest as any);
+        cs.setHandleKnockAccepted(handleKnockAccepted);
+        cs.setHandleKnockRejected(handleKnockRejected);
 
         return () => {
-            delete (window as any).__handleKnockRequest;
-            delete (window as any).__handleKnockAccepted;
-            delete (window as any).__handleKnockRejected;
+            const cs = useCommsStore.getState();
+            cs.setHandleKnockRequest(null);
+            cs.setHandleKnockAccepted(null);
+            cs.setHandleKnockRejected(null);
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
     }, []);

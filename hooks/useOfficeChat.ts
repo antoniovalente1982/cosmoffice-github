@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../stores/commsStore';
 
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useChatStore, ChatMessage } from '../stores/chatStore';
@@ -122,7 +123,7 @@ export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: 
         addOfficeMessage(optimisticMsg);
 
         // 2. PartyKit — broadcast to other users
-        const sendFn = (window as any).__sendOfficeChatMessage;
+        const sendFn = useCommsStore.getState().sendOfficeChatMessage;
         if (sendFn) sendFn(trimmed);
 
         // 3. Supabase — persist with room_id=NULL
@@ -145,7 +146,7 @@ export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: 
 
         removeOfficeMessage(messageId);
 
-        const deleteFn = (window as any).__sendDeleteMessage;
+        const deleteFn = useCommsStore.getState().sendDeleteMessage;
         if (deleteFn) deleteFn(messageId, null);
 
         try {
@@ -161,7 +162,7 @@ export function useOfficeChat({ workspaceId, userId, userName, userAvatarUrl }: 
 
         clearOfficeMessages();
 
-        const clearFn = (window as any).__sendClearChat;
+        const clearFn = useCommsStore.getState().sendClearChat;
         if (clearFn) clearFn(null);
 
         try {

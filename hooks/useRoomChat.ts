@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../stores/commsStore';
 
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useChatStore, ChatMessage } from '../stores/chatStore';
@@ -116,7 +117,7 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
         addMessage(optimisticMsg);
 
         // 2. PartyKit — broadcast to other room members
-        const sendFn = (window as any).__sendChatMessage;
+        const sendFn = useCommsStore.getState().sendChatMessage;
         if (sendFn) sendFn(trimmed, roomId);
 
         // 3. Supabase — persist (fire-and-forget)
@@ -141,7 +142,7 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
         removeMessage(messageId);
 
         // 2. PartyKit — broadcast deletion
-        const deleteFn = (window as any).__sendDeleteMessage;
+        const deleteFn = useCommsStore.getState().sendDeleteMessage;
         if (deleteFn) deleteFn(messageId, roomId);
 
         // 3. Supabase — delete from DB
@@ -160,7 +161,7 @@ export function useRoomChat({ workspaceId, roomId, userId, userName, userAvatarU
         clearMessages();
 
         // 2. PartyKit — broadcast clear
-        const clearFn = (window as any).__sendClearChat;
+        const clearFn = useCommsStore.getState().sendClearChat;
         if (clearFn) clearFn(roomId);
 
         // 3. Supabase — delete all room messages

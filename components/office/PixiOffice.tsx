@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../../stores/commsStore';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Application, Container, Graphics } from 'pixi.js';
@@ -686,8 +687,8 @@ export function PixiOffice() {
                 const newX = Math.max(r, Math.min(rawX, bw - r));
                 const newY = Math.max(r, Math.min(rawY, bh - r));
                 setMyPosition({ x: newX, y: newY });
-                const sendFn = (window as any).__sendAvatarPosition;
-                if (sendFn) sendFn(newX, newY, useAvatarStore.getState().myRoomId);
+                const sendFn = useCommsStore.getState().sendAvatarPosition;
+                if (sendFn) sendFn(newX, newY, useAvatarStore.getState().myRoomId ?? null);
                 return;
             }
 
@@ -741,7 +742,7 @@ export function PixiOffice() {
                 const currentRoom = useAvatarStore.getState().myRoomId;
                 setMyRoom(found);
                 if (found && found !== currentRoom) {
-                    const joinFn = (window as any).__sendJoinRoom;
+                    const joinFn = useCommsStore.getState().sendJoinRoom;
                     if (joinFn) joinFn(found);
                 }
             }
@@ -877,7 +878,7 @@ export function PixiOffice() {
     const handlePeerClick = useCallback((peerId: string, peerName: string) => {
         const myProfileData = useAvatarStore.getState().myProfile;
         const myId = useAvatarStore.getState().myProfile?.id;
-        const socket = (window as any).__partykitSocket;
+        const socket = useCommsStore.getState().partykitSocket;
 
         if (!socket || socket.readyState !== WebSocket.OPEN || !myProfileData || !myId) return;
 

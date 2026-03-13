@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../stores/commsStore';
 
 // ============================================
 // useProximityAndRooms — Pure visual proximity engine
@@ -68,7 +69,7 @@ export function useProximityAndRooms() {
         if (!isKnockRequired) {
             avatarStore.setMyRoom(roomId);
             const pos = avatarStore.myPosition;
-            const sendFn = (window as any).__sendAvatarPosition;
+            const sendFn = useCommsStore.getState().sendAvatarPosition;
             if (sendFn) sendFn(pos.x, pos.y, roomId);
             
             // BUG-2 FIX: When entering a room, ensure all audio elements for same-room peers
@@ -88,14 +89,14 @@ export function useProximityAndRooms() {
         if (peersInRoom.length === 0) {
             avatarStore.setMyRoom(roomId);
             const pos = avatarStore.myPosition;
-            const sendFn = (window as any).__sendAvatarPosition;
+            const sendFn = useCommsStore.getState().sendAvatarPosition;
             if (sendFn) sendFn(pos.x, pos.y, roomId);
             console.log('[Proximity] First in knock room:', room.name, '(state only)');
             return;
         }
 
         avatarStore.setKnockingAtRoom(roomId);
-        const sendKnockFn = (window as any).__sendKnock;
+        const sendKnockFn = useCommsStore.getState().sendKnock;
         if (sendKnockFn) sendKnockFn(roomId);
         console.log('[Proximity] Knocking at room:', room.name);
     }, []);
@@ -106,7 +107,7 @@ export function useProximityAndRooms() {
         avatarStore.setKnockingAtRoom(null);
         
         const pos = avatarStore.myPosition;
-        const sendFn = (window as any).__sendAvatarPosition;
+        const sendFn = useCommsStore.getState().sendAvatarPosition;
         if (sendFn) sendFn(pos.x, pos.y, null);
         
         console.log('[Proximity] Left room (state only — DailyManager handles disconnect)');

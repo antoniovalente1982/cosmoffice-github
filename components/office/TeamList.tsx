@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../../stores/commsStore';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '../../utils/supabase/client';
@@ -215,7 +216,7 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
                         onClick={(e) => {
                             e.stopPropagation();
                             const mp = useAvatarStore.getState().myProfile;
-                            const socket = (window as any).__partykitSocket;
+                            const socket = useCommsStore.getState().partykitSocket;
                             if (socket?.readyState === WebSocket.OPEN && mp) {
                                 const callId = crypto.randomUUID();
                                 socket.send(JSON.stringify({

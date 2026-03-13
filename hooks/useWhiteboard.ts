@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../stores/commsStore';
 
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useWhiteboardStore, WhiteboardStroke } from '../stores/whiteboardStore';
@@ -243,7 +244,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
         if (isRoom) addStroke(stroke); else addOfficeStroke(stroke);
 
         // 2. PartyKit broadcast
-        const socket = (window as any).__partykitSocket;
+        const socket = useCommsStore.getState().partykitSocket;
         if (socket?.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({
                 type: 'wb_stroke',
@@ -277,7 +278,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
 
     // ─── Send activity notification (drawing/opened) ──────────
     const sendActivity = useCallback((action: string, color: string) => {
-        const socket = (window as any).__partykitSocket;
+        const socket = useCommsStore.getState().partykitSocket;
         if (socket?.readyState === WebSocket.OPEN) {
             const isRoom = useWhiteboardStore.getState().activeChannel === 'room';
             socket.send(JSON.stringify({
@@ -303,7 +304,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
         if (isRoom) updateStroke(strokeId, updates); else updateOfficeStroke(strokeId, updates);
 
         // 2. PartyKit broadcast
-        const socket = (window as any).__partykitSocket;
+        const socket = useCommsStore.getState().partykitSocket;
         if (socket?.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({
                 type: 'wb_stroke_update',
@@ -338,7 +339,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
 
     // ─── Send cursor position via PartyKit ────────────────────
     const sendCursor = useCallback((x: number, y: number, color: string) => {
-        const socket = (window as any).__partykitSocket;
+        const socket = useCommsStore.getState().partykitSocket;
         if (socket?.readyState === WebSocket.OPEN) {
             const isRoom = useWhiteboardStore.getState().activeChannel === 'room';
             socket.send(JSON.stringify({
@@ -366,7 +367,7 @@ export function useWhiteboard({ workspaceId, roomId, userId, userName }: UseWhit
 
         if (isRoom) clearRoomStrokes(); else clearOfficeStrokes();
 
-        const socket = (window as any).__partykitSocket;
+        const socket = useCommsStore.getState().partykitSocket;
         if (socket?.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({
                 type: 'wb_clear',

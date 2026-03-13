@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../../../stores/commsStore';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
@@ -195,7 +196,7 @@ export default function OfficePage() {
             showMediaToast(t('office.toast.proximityScreen'));
             return;
         }
-        const room = (window as any).__livekitRoom;
+        const room = useCommsStore.getState().livekitRoom;
         if (room?.localParticipant) {
             try {
                 // Check LiveKit's actual state (not just our store) to avoid stale flags
@@ -319,13 +320,15 @@ export default function OfficePage() {
 
     // Expose sendPosition so PixiOffice can call it when avatar moves
     useEffect(() => {
-        (window as any).__sendAvatarPosition = sendPosition;
-        (window as any).__sendJoinRoom = sendJoinRoom;
-        (window as any).__activeSpaceId = spaceId;
+        const cs = useCommsStore.getState();
+        cs.setSendAvatarPosition(sendPosition);
+        cs.setSendJoinRoom(sendJoinRoom);
+        cs.setActiveSpaceId(spaceId);
         return () => {
-            delete (window as any).__sendAvatarPosition;
-            delete (window as any).__sendJoinRoom;
-            delete (window as any).__activeSpaceId;
+            const cs = useCommsStore.getState();
+            cs.setSendAvatarPosition(null);
+            cs.setSendJoinRoom(null);
+            cs.setActiveSpaceId(null);
         };
     }, [sendPosition, sendJoinRoom, spaceId]);
 
@@ -396,7 +399,7 @@ export default function OfficePage() {
     // Screen sharing via LiveKit WebRTC
     const startScreenShare = useCallback(async () => {
         try {
-            const room = (window as any).__livekitRoom;
+            const room = useCommsStore.getState().livekitRoom;
             if (room?.localParticipant) {
                 await room.localParticipant.setScreenShareEnabled(true);
             } else {
@@ -413,7 +416,7 @@ export default function OfficePage() {
     }, [addScreenStream]);
 
     const stopAllScreens = useCallback(() => {
-        const room = (window as any).__livekitRoom;
+        const room = useCommsStore.getState().livekitRoom;
         if (room?.localParticipant) {
             try { room.localParticipant.setScreenShareEnabled(false); } catch { }
         }
@@ -502,11 +505,11 @@ export default function OfficePage() {
                 useAvatarStore.getState().setMyRoom(targetRoomId);
 
                 // Trigger PartyKit join room broadcast
-                const joinFn = (window as any).__sendJoinRoom;
+                const joinFn = useCommsStore.getState().sendJoinRoom;
                 if (joinFn) joinFn(targetRoomId);
 
                 // Broadcast position via PartyKit so peers see us in the room
-                const sendFn = (window as any).__sendAvatarPosition;
+                const sendFn = useCommsStore.getState().sendAvatarPosition;
                 if (sendFn) sendFn(centerX, centerY, targetRoomId);
 
                 // Re-center the stage camera on the teleported position

@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../../stores/commsStore';
 
 // ============================================
 // AdminContextMenu — Right-click context menu on avatars
@@ -79,7 +80,7 @@ export function AdminContextMenu({
     if (!isOpen || (myRole !== 'owner' && myRole !== 'admin')) return null;
 
     const sendCommand = (command: AdminCommand) => {
-        const sendFn = (window as any).__sendAdminCommand;
+        const sendFn = useCommsStore.getState().sendAdminCommand;
         if (sendFn) {
             sendFn(command, targetUserId, targetRoom);
         }
@@ -183,8 +184,8 @@ export function AdminGlobalControls({
     if (!isOpen || (myRole !== 'owner' && myRole !== 'admin')) return null;
 
     const sendGlobalCommand = (command: AdminCommand) => {
-        const sendFn = (window as any).__sendAdminCommand;
-        if (sendFn) sendFn(command);
+        const sendFn = useCommsStore.getState().sendAdminCommand;
+        if (sendFn) sendFn(command, 'all');
     };
 
     const globalActions = [

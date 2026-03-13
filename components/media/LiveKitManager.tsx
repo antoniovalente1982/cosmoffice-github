@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../../stores/commsStore';
 
 import { useEffect, useRef, useCallback } from 'react';
 import {
@@ -486,7 +487,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             useMediaStore.getState().setSpeaking(isLocalSpeaking);
 
             // Broadcast via PartyKit
-            const socket = (window as any).__partykitSocket;
+            const socket = useCommsStore.getState().partykitSocket;
             if (socket?.readyState === WebSocket.OPEN) {
                 const profile = useAvatarStore.getState().myProfile;
                 socket.send(JSON.stringify({
@@ -574,7 +575,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
     // Expose room ref for screen sharing
     useEffect(() => {
-        return () => { (window as any).__livekitRoom = null; };
+        return () => { useCommsStore.getState().setLivekitRoom(null); };
     }, []);
 
     // ─── Inner join (called inside the lock) ─────────────────────
@@ -619,7 +620,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 await roomRef.current.disconnect(true);
             } catch { }
             roomRef.current = null;
-            (window as any).__livekitRoom = null;
+            useCommsStore.getState().setLivekitRoom(null);
             joinedRef.current = false;
             currentRoomNameRef.current = null;
             useMediaStore.getState().clearParticipants();
@@ -645,7 +646,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             // Create a FRESH Room object — no stale state from previous connection
             const room = createRoom();
             roomRef.current = room;
-            (window as any).__livekitRoom = room;
+            useCommsStore.getState().setLivekitRoom(room);
 
             useMediaStore.getState().clearMediaError();
 
@@ -764,7 +765,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
             if (roomRef.current) {
                 try { await roomRef.current.disconnect(true); } catch { }
                 roomRef.current = null;
-                (window as any).__livekitRoom = null;
+                useCommsStore.getState().setLivekitRoom(null);
             }
             joinedRef.current = false;
             currentRoomNameRef.current = null;
@@ -793,7 +794,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                 await roomRef.current.disconnect(true);
             } catch { }
             roomRef.current = null;
-            (window as any).__livekitRoom = null;
+            useCommsStore.getState().setLivekitRoom(null);
         }
 
         joinedRef.current = false;
@@ -832,11 +833,11 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
 
     // ─── Register global functions for proximity/rooms engine ──
     useEffect(() => {
-        (window as any).__joinDailyContext = joinContext;
-        (window as any).__leaveDailyContext = leaveContext;
+        useCommsStore.getState().setJoinContext(joinContext);
+        useCommsStore.getState().setLeaveContext(leaveContext);
         return () => {
-            delete (window as any).__joinDailyContext;
-            delete (window as any).__leaveDailyContext;
+            useCommsStore.getState().setJoinContext(null);
+            useCommsStore.getState().setLeaveContext(null);
         };
     }, [joinContext, leaveContext]);
 
@@ -1095,7 +1096,7 @@ export function LiveKitManager({ spaceId }: { spaceId: string | null }) {
                     roomRef.current.disconnect(true);
                 } catch { }
                 roomRef.current = null;
-                (window as any).__livekitRoom = null;
+                useCommsStore.getState().setLivekitRoom(null);
                 joinedRef.current = false;
                 gLivekitToSupabase.clear();
             }

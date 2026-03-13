@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../stores/commsStore';
 
 import { useEffect, useCallback } from 'react';
 import { createClient } from '../utils/supabase/client';
@@ -9,7 +10,7 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
  * They will refetch from Supabase when they receive this broadcast.
  */
 function notifyDataChanged(scope: string) {
-    const socket = (window as any).__partykitSocket;
+    const socket = useCommsStore.getState().partykitSocket;
     if (socket?.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({
             type: 'data_changed',

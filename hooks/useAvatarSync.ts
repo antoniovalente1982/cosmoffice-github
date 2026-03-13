@@ -6,6 +6,7 @@ import { useAvatarStore } from '../stores/avatarStore';
 import { useMediaStore } from '../stores/mediaStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useChatStore } from '../stores/chatStore';
+import { useCommsStore } from '../stores/commsStore';
 import { useCallStore } from '../stores/callStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import { playKnockSound, playCallAcceptedSound, playCallDeclinedSound, playWelcomeSound, playChatPingSound, playCallRingSound, playRoomEnterSound, playRoomLeaveSound, playJoinOfficeSound } from '../utils/sounds';
@@ -232,8 +233,8 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         });
         socketRef.current = socket;
 
-        // Expose socket ref globally so useRoomChat can reuse it
-        (window as any).__partykitSocket = socket;
+        // Expose socket ref via commsStore so useRoomChat can reuse it
+        useCommsStore.getState().setPartykitSocket(socket);
 
         socket.onopen = () => {
             connectedRef.current = true;
@@ -540,7 +541,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                         // The debounced room/proximity watchers may not fire fast enough,
                         // leaving the user with mic ON but no LiveKit connection
                         setTimeout(() => {
-                            const joinFn = (window as any).__joinDailyContext;
+                            const joinFn = useCommsStore.getState().joinContext;
                             if (!joinFn) return;
                             const as = useAvatarStore.getState();
                             if (as.myRoomId) {
@@ -564,15 +565,14 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                         // Cooldown: max 1 knock sound per room per 10 seconds
                         const knockKey = `${msg.userId}-${msg.roomId}`;
                         const now = Date.now();
-                        const lastKnock = (window as any).__lastKnockTimes?.get(knockKey) || 0;
+                        const lastKnock = useCommsStore.getState().getLastKnockTime(knockKey);
                         if (now - lastKnock > 10000) {
-                            if (!(window as any).__lastKnockTimes) (window as any).__lastKnockTimes = new Map();
-                            (window as any).__lastKnockTimes.set(knockKey, now);
+                            useCommsStore.getState().setLastKnockTime(knockKey, now);
                             playKnockSound();
                         }
                     }
                     // Also trigger knock UI notification
-                    const handleKnockFn = (window as any).__handleKnockRequest;
+                    const handleKnockFn = useCommsStore.getState().handleKnockRequest;
                     if (handleKnockFn) {
                         handleKnockFn({
                             userId: msg.userId,
@@ -672,12 +672,12 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                 }
 
                 case 'knock_accepted': {
-                    const handleAcceptFn = (window as any).__handleKnockAccepted;
+                    const handleAcceptFn = useCommsStore.getState().handleKnockAccepted;
                     if (handleAcceptFn) handleAcceptFn(msg.roomId);
                     break;
                 }
                 case 'knock_rejected': {
-                    const handleRejectFn = (window as any).__handleKnockRejected;
+                    const handleRejectFn = useCommsStore.getState().handleKnockRejected;
                     if (handleRejectFn) handleRejectFn(msg.roomId);
                     break;
                 }
@@ -736,7 +736,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
                                 // Force leave current room
                                 useAvatarStore.getState().setMyRoom(undefined);
                                 useMediaStore.getState().setActiveContext('none', null);
-                                const leaveFn = (window as any).__leaveDailyContext;
+                                const leaveFn = useCommsStore.getState().leaveContext;
                                 if (leaveFn) leaveFn();
                             }
                             break;
@@ -797,7 +797,7 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             clearInterval(syncInterval);
             socket.close();
             socketRef.current = null;
-            delete (window as any).__partykitSocket;
+            useCommsStore.getState().setPartykitSocket(null);
         };
     }, [workspaceId, userId]); // Only reconnect on workspace/user change
 
@@ -818,31 +818,33 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
         }));
     }, [userName, avatarUrl, status, role, userId, email]);
 
-    // Expose functions globally for hooks
+    // Expose functions via commsStore for other hooks/components
     useEffect(() => {
-        (window as any).__sendChatMessage = sendChatMessage;
-        (window as any).__sendOfficeChatMessage = sendOfficeChatMessage;
-        (window as any).__sendDeleteMessage = sendDeleteMessage;
-        (window as any).__sendClearChat = sendClearChat;
-        (window as any).__sendKnock = sendKnock;
-        (window as any).__sendKnockResponse = sendKnockResponse;
-        (window as any).__sendAdminCommand = sendAdminCommand;
-        (window as any).__sendLeaveRoom = sendLeaveRoom;
-        (window as any).__sendStateUpdate = sendStateUpdate;
-        (window as any).__sendMediaState = sendMediaState;
-        (window as any).__sendStatusChange = sendStatusChange;
+        const cs = useCommsStore.getState();
+        cs.setSendChatMessage(sendChatMessage);
+        cs.setSendOfficeChatMessage(sendOfficeChatMessage);
+        cs.setSendDeleteMessage(sendDeleteMessage);
+        cs.setSendClearChat(sendClearChat);
+        cs.setSendKnock(sendKnock);
+        cs.setSendKnockResponse(sendKnockResponse);
+        cs.setSendAdminCommand(sendAdminCommand);
+        cs.setSendLeaveRoom(sendLeaveRoom);
+        cs.setSendStateUpdate(sendStateUpdate);
+        cs.setSendMediaState(sendMediaState);
+        cs.setSendStatusChange(sendStatusChange);
         return () => {
-            delete (window as any).__sendChatMessage;
-            delete (window as any).__sendOfficeChatMessage;
-            delete (window as any).__sendDeleteMessage;
-            delete (window as any).__sendClearChat;
-            delete (window as any).__sendKnock;
-            delete (window as any).__sendKnockResponse;
-            delete (window as any).__sendAdminCommand;
-            delete (window as any).__sendLeaveRoom;
-            delete (window as any).__sendStateUpdate;
-            delete (window as any).__sendMediaState;
-            delete (window as any).__sendStatusChange;
+            const cs = useCommsStore.getState();
+            cs.setSendChatMessage(null);
+            cs.setSendOfficeChatMessage(null);
+            cs.setSendDeleteMessage(null);
+            cs.setSendClearChat(null);
+            cs.setSendKnock(null);
+            cs.setSendKnockResponse(null);
+            cs.setSendAdminCommand(null);
+            cs.setSendLeaveRoom(null);
+            cs.setSendStateUpdate(null);
+            cs.setSendMediaState(null);
+            cs.setSendStatusChange(null);
         };
     }, [sendChatMessage, sendOfficeChatMessage, sendDeleteMessage, sendClearChat, sendKnock, sendKnockResponse, sendAdminCommand, sendLeaveRoom, sendStateUpdate, sendMediaState, sendStatusChange]);
 

@@ -1,4 +1,5 @@
 'use client';
+import { useCommsStore } from '../../stores/commsStore';
 
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,7 +38,7 @@ export function CallRequestModal() {
 
     const sendResponse = (response: 'accepted' | 'declined') => {
         if (!incomingCall) return;
-        const socket = (window as any).__partykitSocket;
+        const socket = useCommsStore.getState().partykitSocket;
         const myProfile = useAvatarStore.getState().myProfile;
         if (socket?.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({
@@ -64,7 +65,7 @@ export function CallRequestModal() {
             const newY = callerPeer.position.y;
             useAvatarStore.getState().setMyPosition({ x: newX, y: newY });
             // Broadcast position update via PartyKit
-            const socket = (window as any).__partykitSocket;
+            const socket = useCommsStore.getState().partykitSocket;
             const myProfile = useAvatarStore.getState().myProfile;
             if (socket?.readyState === WebSocket.OPEN && myProfile?.id) {
                 socket.send(JSON.stringify({
