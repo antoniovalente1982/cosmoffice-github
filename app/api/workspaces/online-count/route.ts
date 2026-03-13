@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
-const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST || 'localhost:1999';
+const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST || 'cosmoffice.antoniovalente1982.partykit.dev';
 
 /**
  * GET /api/workspaces/online-count?workspaceIds=id1,id2,...
