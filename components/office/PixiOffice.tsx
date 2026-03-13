@@ -502,7 +502,7 @@ export function PixiOffice() {
     // ─── Draw rooms when they change ─────────────────────
     const peersByRoomRef = useRef<Record<string, number>>({});
 
-    // Update occupant counts every 2 seconds
+    // Update occupant counts — reactive via store subscription + fallback poll
     useEffect(() => {
         if (!appReady) return;
         const updateOccupants = () => {
@@ -531,8 +531,18 @@ export function PixiOffice() {
             }
         };
         updateOccupants();
-        const interval = setInterval(updateOccupants, 5000); // Reduced from 2s for memory
-        return () => clearInterval(interval);
+        // Reactive: subscribe to myRoomId and peer roomId changes → instant update
+        const unsub = useAvatarStore.subscribe((state, prevState) => {
+            const myChanged = state.myRoomId !== (prevState as any).myRoomId;
+            const peersChanged = Object.values(state.peers).some((p: any) => {
+                const prev = (prevState as any).peers?.[p.id];
+                return prev && prev.roomId !== p.roomId;
+            });
+            if (myChanged || peersChanged) updateOccupants();
+        });
+        // Fallback poll every 3s for missed events
+        const interval = setInterval(updateOccupants, 3000);
+        return () => { unsub(); clearInterval(interval); };
     }, [appReady]);
 
     useEffect(() => {

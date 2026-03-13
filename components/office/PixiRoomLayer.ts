@@ -216,70 +216,55 @@ export function drawRoom(container: Container, room: any, isHovered: boolean, oc
     // INSIDE — occupant status + capacity bar
     // ═══════════════════════════════════════════════════════
 
-    // ─── Capacity Progress Bar (bottom of room) ─────────
-    const capacity = room.capacity || room.settings?.capacity || 0;
-    if (capacity > 0) {
-        const barWidth = isCircle ? Math.min(room.width, room.height) * 0.6 : room.width - 32;
-        const barHeight = 3;
-        const barX = isCircle ? room.x + room.width / 2 - barWidth / 2 : room.x + 16;
-        const barY = isCircle
-            ? room.y + room.height / 2 + Math.min(room.width, room.height) / 2 - 12
-            : room.y + room.height - 8;
-        const fillRatio = Math.min(1, occupants / capacity);
-        const barColor = fillRatio > 0.8 ? 0xef4444 : fillRatio > 0.5 ? 0xf59e0b : statusColor;
-
-        const barGfx = new Graphics();
-        // Track
-        barGfx.roundRect(barX, barY, barWidth, barHeight, 1.5);
-        barGfx.fill({ color: 0xffffff, alpha: 0.08 });
-        // Fill
-        if (fillRatio > 0) {
-            barGfx.roundRect(barX, barY, barWidth * fillRatio, barHeight, 1.5);
-            barGfx.fill({ color: barColor, alpha: 0.7 });
-        }
-        container.addChild(barGfx);
-    }
-
+    // ─── Occupant count badge (compact pill, bottom-right) ─────
     if (occupants > 0) {
-        const statusStyle = new TextStyle({
-            fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: adaptiveStatusSize,
-            fontWeight: '700',
-            fill: statusColor,
-            letterSpacing: 0.5,
-            dropShadow: { color: 0x000000, alpha: 0.5, blur: 6, distance: 0 },
-        });
-        const statusText = `${occupants} online`;
-        const status = new Text({ text: statusText, style: statusStyle, resolution: 4 });
+        const badgeFontSize = getAdaptiveFontSize(13, zoom);
+        const badgeText = `${occupants}`;
 
+        const badgeStyle = new TextStyle({
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: badgeFontSize,
+            fontWeight: '800',
+            fill: 0xffffff,
+            letterSpacing: 0,
+        });
+        const badge = new Text({ text: badgeText, style: badgeStyle, resolution: 4 });
+        badge.anchor.set(0.5, 0.5);
+
+        const pillW = Math.max(badge.width + badgeFontSize * 1.8, badgeFontSize * 2.8);
+        const pillH = badgeFontSize * 1.8;
+
+        let pillX: number, pillY: number;
         if (isCircle) {
+            const cx = room.x + room.width / 2;
             const cy = room.y + room.height / 2;
             const r = Math.min(room.width, room.height) / 2;
-            const statusY = cy + r - 28;
-            status.anchor.set(0.5, 0.5);
-            status.position.set(room.x + room.width / 2, statusY);
-            // Pulsing green dot
-            const statusDot = new Graphics();
-            const dotX = room.x + room.width / 2 - status.width / 2 - 12;
-            statusDot.circle(dotX, statusY, 4.5);
-            statusDot.fill({ color: statusColor, alpha: 1 });
-            statusDot.circle(dotX, statusY, 7);
-            statusDot.fill({ color: statusColor, alpha: 0.2 });
-            container.addChild(statusDot);
-            container.addChild(status);
+            pillX = cx + r * 0.5;
+            pillY = cy + r * 0.6;
         } else {
-            const statusY = room.y + room.height - 20;
-            status.anchor.set(0, 0.5);
-            status.position.set(room.x + 28, statusY);
-            // Pulsing green dot with glow ring
-            const statusDot = new Graphics();
-            statusDot.circle(room.x + 16, statusY, 4.5);
-            statusDot.fill({ color: statusColor, alpha: 1 });
-            statusDot.circle(room.x + 16, statusY, 7);
-            statusDot.fill({ color: statusColor, alpha: 0.2 });
-            container.addChild(statusDot);
-            container.addChild(status);
+            pillX = room.x + room.width - pillW / 2 - 10;
+            pillY = room.y + room.height - pillH / 2 - 8;
         }
+
+        const pillGfx = new Graphics();
+        // Glow halo
+        pillGfx.roundRect(pillX - pillW / 2 - 2, pillY - pillH / 2 - 2, pillW + 4, pillH + 4, pillH / 2 + 2);
+        pillGfx.fill({ color: statusColor, alpha: 0.15 });
+        // Pill background
+        pillGfx.roundRect(pillX - pillW / 2, pillY - pillH / 2, pillW, pillH, pillH / 2);
+        pillGfx.fill({ color: statusColor, alpha: 0.25 });
+        // Dot indicator
+        const dotR = badgeFontSize * 0.25;
+        const dotX = pillX - badge.width / 2 - dotR - badgeFontSize * 0.3;
+        pillGfx.circle(dotX, pillY, dotR);
+        pillGfx.fill({ color: statusColor, alpha: 1 });
+        // Dot glow
+        pillGfx.circle(dotX, pillY, dotR * 1.8);
+        pillGfx.fill({ color: statusColor, alpha: 0.3 });
+
+        container.addChild(pillGfx);
+        badge.position.set(pillX + dotR * 0.3, pillY);
+        container.addChild(badge);
     }
 }
 
