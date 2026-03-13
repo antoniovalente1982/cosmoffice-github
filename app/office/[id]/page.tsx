@@ -60,6 +60,7 @@ import { useWhiteboardStore } from '../../../stores/whiteboardStore';
 import { useOffice } from '../../../hooks/useOffice';
 import { useWorkspaceRole, getWorkspaceIdFromSpace } from '../../../hooks/useWorkspaceRole';
 import { useAvatarSync } from '../../../hooks/useAvatarSync';
+import { useAutoAway } from '../../../hooks/useAutoAway';
 
 // LiveKitManager singleton — manages LiveKit WebRTC lifecycle
 const LiveKitManager = dynamic(() => import('../../../components/media/LiveKitManager').then(mod => ({ default: mod.LiveKitManager })), { ssr: false });
@@ -103,6 +104,9 @@ export default function OfficePage() {
     const toggleWhiteboard = useWhiteboardStore(s => s.toggleWhiteboard);
     const whiteboardActiveDrawers = useWhiteboardStore(s => s.activeDrawers);
     const wbActiveCount = whiteboardActiveDrawers.size;
+
+    // Auto-away: Page Visibility + idle timer
+    useAutoAway();
 
     // Toast for no-proximity feedback
     const [mediaToast, setMediaToast] = useState<string | null>(null);
