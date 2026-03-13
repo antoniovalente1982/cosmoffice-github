@@ -483,6 +483,8 @@ export const it = {
   'settings.theme.spaceDesc': 'Atmosfera cosmica con stelle, navicella e sfumature galattiche',
   'settings.theme.corporate': 'Aziendale',
   'settings.theme.corporateDesc': 'Design elegante e professionale con toni scuri e accenti raffinati',
+  'settings.theme.medical': 'Sanitario',
+  'settings.theme.medicalDesc': 'Design clinico moderno con toni teal, verde menta e atmosfera professionale',
   'settings.themeHint': 'Il tema si applica a tutti gli utenti del workspace',
   'settings.saveProfile': 'Salva profilo',
   'settings.saved': 'Salvato!',

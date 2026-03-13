@@ -485,6 +485,8 @@ export const es: Record<TranslationKey, string> = {
   'settings.theme.spaceDesc': 'Atmósfera cósmica con estrellas, nave espacial y matices galácticos',
   'settings.theme.corporate': 'Corporativo',
   'settings.theme.corporateDesc': 'Diseño elegante y profesional con tonos oscuros y acentos refinados',
+  'settings.theme.medical': 'Sanitario',
+  'settings.theme.medicalDesc': 'Diseño clínico moderno con tonos teal, verde menta y ambiente profesional',
   'settings.themeHint': 'El tema se aplica a todos los usuarios del workspace',
   'settings.saveProfile': 'Guardar perfil',
   'settings.saved': '¡Guardado!',
