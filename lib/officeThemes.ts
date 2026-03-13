@@ -172,40 +172,40 @@ const MEDICAL_THEME: OfficeThemeConfig = {
     icon: '🏥',
     description: 'Design clinico moderno con toni teal, verde menta e atmosfera professionale',
 
-    canvasBg: 0x0a1628,
+    canvasBg: 0x071a1f,
 
     bgGradientCSS: `
-        radial-gradient(circle at 20% 30%, rgba(20, 184, 166, 0.10) 0%, transparent 45%),
-        radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.08) 0%, transparent 45%),
-        radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.06) 0%, transparent 55%),
-        linear-gradient(150deg, #0a1628 0%, #0f1d2e 40%, #081420 100%)
+        radial-gradient(circle at 20% 30%, rgba(20, 184, 166, 0.18) 0%, transparent 45%),
+        radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.14) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.10) 0%, transparent 55%),
+        linear-gradient(150deg, #071a1f 0%, #0d2a2d 40%, #061518 100%)
     `,
     gridCSS: `
-        linear-gradient(rgba(20, 184, 166, 0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(20, 184, 166, 0.06) 1px, transparent 1px)
+        linear-gradient(rgba(20, 184, 166, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(20, 184, 166, 0.12) 1px, transparent 1px)
     `,
-    gridOpacity: 0.25,
+    gridOpacity: 0.35,
 
     platformFill: 0x14b8a6,
-    platformFillAlpha: 0.03,
-    platformInnerFill: 0x0f1d2e,
-    platformInnerAlpha: 0.72,
-    platformBorder: 0x14b8a6,
-    platformBorderAlpha: 0.14,
+    platformFillAlpha: 0.05,
+    platformInnerFill: 0x0d2a2d,
+    platformInnerAlpha: 0.75,
+    platformBorder: 0x2dd4bf,
+    platformBorderAlpha: 0.25,
 
-    roomBg: 0x0c1a2a,
-    roomBgAlpha: 0.88,
-    roomGlowAlpha: 0.09,
-    roomGlowHoverAlpha: 0.18,
+    roomBg: 0x0a2025,
+    roomBgAlpha: 0.90,
+    roomGlowAlpha: 0.14,
+    roomGlowHoverAlpha: 0.25,
     roomTextColor: 0xf0fdfa,        // teal-50 for clean white-teal text
     roomStatusTextColor: 0x5eead4,  // teal-300 for status
 
     connectionColor: 0x2dd4bf,      // teal-400
-    connectionAlpha: 0.55,
+    connectionAlpha: 0.6,
     proximityLineColor: 0x14b8a6,   // teal-500
 
     particleColors: [0x5eead4, 0x99f6e4, 0xa7f3d0],  // teal/emerald floating particles
-    particleAlpha: 0.3,
+    particleAlpha: 0.5,
 
     showSpaceship: false,
     showStars: false,

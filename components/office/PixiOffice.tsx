@@ -913,7 +913,7 @@ export function PixiOffice() {
                     style={{
                         opacity: themeConfig.gridOpacity,
                         backgroundImage: themeConfig.gridCSS,
-                        backgroundSize: themeConfig.id === 'corporate' ? '20px 20px' : '60px 60px',
+                        backgroundSize: themeConfig.id === 'space' ? '60px 60px' : '20px 20px',
                     }}
                 />
             )}
@@ -950,7 +950,7 @@ export function PixiOffice() {
                         <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Live</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${themeConfig.id === 'corporate' ? 'bg-blue-500' : 'bg-cyan-400'} shadow-[0_0_6px_${themeConfig.id === 'corporate' ? 'rgba(59,130,246,0.8)' : 'rgba(34,211,238,0.8)'}]`} />
+                        <div className={`w-2 h-2 rounded-full ${themeConfig.id === 'corporate' ? 'bg-blue-500' : themeConfig.id === 'medical' ? 'bg-teal-400' : 'bg-cyan-400'} shadow-[0_0_6px_${themeConfig.id === 'corporate' ? 'rgba(59,130,246,0.8)' : themeConfig.id === 'medical' ? 'rgba(20,184,166,0.8)' : 'rgba(34,211,238,0.8)'}]`} />
                         <span className={`text-[10px] font-bold ${themeConfig.hudBadgeColor} uppercase tracking-widest`}>{themeConfig.hudBadgeText}</span>
                     </div>
                     <p className="text-xs font-medium text-slate-300">
