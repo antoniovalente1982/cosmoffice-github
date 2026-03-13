@@ -1,8 +1,8 @@
 // ─── Office Theme System ─────────────────────────────────────────
-// Two visual themes: 'space' (cosmic) and 'corporate' (professional)
+// Visual themes: 'space' (cosmic), 'corporate' (professional), 'medical' (healthcare)
 // Theme is stored in workspaces.settings.theme (jsonb)
 
-export type OfficeThemeId = 'space' | 'corporate';
+export type OfficeThemeId = 'space' | 'corporate' | 'medical';
 
 export interface OfficeThemeConfig {
     id: OfficeThemeId;
@@ -165,10 +165,65 @@ const CORPORATE_THEME: OfficeThemeConfig = {
     hudTextColor: 0xe2e8f0,
 };
 
+// ─── Medical Theme (clean teal/mint healthcare look) ────────────
+const MEDICAL_THEME: OfficeThemeConfig = {
+    id: 'medical',
+    label: 'Sanitario',
+    icon: '🏥',
+    description: 'Design clinico moderno con toni teal, verde menta e atmosfera professionale',
+
+    canvasBg: 0x0a1628,
+
+    bgGradientCSS: `
+        radial-gradient(circle at 20% 30%, rgba(20, 184, 166, 0.10) 0%, transparent 45%),
+        radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.08) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.06) 0%, transparent 55%),
+        linear-gradient(150deg, #0a1628 0%, #0f1d2e 40%, #081420 100%)
+    `,
+    gridCSS: `
+        linear-gradient(rgba(20, 184, 166, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(20, 184, 166, 0.06) 1px, transparent 1px)
+    `,
+    gridOpacity: 0.25,
+
+    platformFill: 0x14b8a6,
+    platformFillAlpha: 0.03,
+    platformInnerFill: 0x0f1d2e,
+    platformInnerAlpha: 0.72,
+    platformBorder: 0x14b8a6,
+    platformBorderAlpha: 0.14,
+
+    roomBg: 0x0c1a2a,
+    roomBgAlpha: 0.88,
+    roomGlowAlpha: 0.09,
+    roomGlowHoverAlpha: 0.18,
+    roomTextColor: 0xf0fdfa,        // teal-50 for clean white-teal text
+    roomStatusTextColor: 0x5eead4,  // teal-300 for status
+
+    connectionColor: 0x2dd4bf,      // teal-400
+    connectionAlpha: 0.55,
+    proximityLineColor: 0x14b8a6,   // teal-500
+
+    particleColors: [0x5eead4, 0x99f6e4, 0xa7f3d0],  // teal/emerald floating particles
+    particleAlpha: 0.3,
+
+    showSpaceship: false,
+    showStars: false,
+    showParticles: true,  // subtle floating particles like sanitizing bubbles
+
+    landingPadLabel: 'Accettazione',
+
+    hudBadgeText: 'Medical',
+    hudBadgeColor: 'text-teal-400',
+    hudBgAlpha: 0.88,
+    hudTextColor: 0xf0fdfa,
+};
+
 // ─── Theme Registry ─────────────────────────────────────────────
 export const OFFICE_THEMES: Record<OfficeThemeId, OfficeThemeConfig> = {
     space: SPACE_THEME,
     corporate: CORPORATE_THEME,
+    medical: MEDICAL_THEME,
 };
 
 export function getThemeConfig(id: OfficeThemeId | string | undefined): OfficeThemeConfig {
