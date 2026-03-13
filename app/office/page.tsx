@@ -157,9 +157,12 @@ export default function DashboardPage() {
                 }
             }
 
-            // Fetch initial online counts
+            // Fetch initial online counts + delayed re-fetch after PartyKit grace period
             if (wsList.length > 0) {
-                fetchOnlineCounts(wsList.map((w: any) => w.id));
+                const wsIds = wsList.map((w: any) => w.id);
+                fetchOnlineCounts(wsIds);
+                // Re-fetch after 5s to catch updated counts post-PartyKit leave grace period
+                setTimeout(() => fetchOnlineCounts(wsIds), 5000);
             }
 
             setLoading(false);

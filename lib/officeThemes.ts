@@ -169,7 +169,7 @@ const CORPORATE_THEME: OfficeThemeConfig = {
 const MEDICAL_THEME: OfficeThemeConfig = {
     id: 'medical',
     label: 'Sanitario',
-    icon: '⚕️',
+    icon: '🩺',
     description: 'Ambiente sanitario con palette Turquoise Harmony',
 
     canvasBg: 0x062e36,  // darkened #0B6477
