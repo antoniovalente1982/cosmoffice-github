@@ -5,6 +5,16 @@ import { useEffect, useCallback } from 'react';
 import { createClient } from '../utils/supabase/client';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 
+interface LayoutSettings {
+    officeWidth?: number;
+    officeHeight?: number;
+    bgOpacity?: number;
+    landingPadX?: number;
+    landingPadY?: number;
+    landingPadScale?: number;
+    layoutMode?: string;
+}
+
 /**
  * Notify other clients via PartyKit that office data has changed.
  * They will refetch from Supabase when they receive this broadcast.
@@ -44,7 +54,7 @@ export function useOffice(spaceId?: string) {
             .single();
 
         if (!spaceError && space?.layout_data) {
-            const layout = space.layout_data as any;
+            const layout = space.layout_data as LayoutSettings;
             if (layout.officeWidth && layout.officeHeight) {
                 setOfficeDimensions(layout.officeWidth, layout.officeHeight);
             }
@@ -97,7 +107,7 @@ export function useOffice(spaceId?: string) {
             setRooms(rooms || []);
 
             // Fetch furniture for all rooms in this space
-            const roomIds = (rooms || []).map((r: any) => r.id);
+            const roomIds = (rooms || []).map((r: { id: string }) => r.id);
             if (roomIds.length > 0) {
                 const { data: furniture, error: furnError } = await supabase
                     .from('furniture')
@@ -140,10 +150,10 @@ export function useOffice(spaceId?: string) {
             }
         };
 
-        window.addEventListener('partykit-data-changed' as any, handleDataChanged);
+        window.addEventListener('partykit-data-changed', handleDataChanged as EventListener);
 
         return () => {
-            window.removeEventListener('partykit-data-changed' as any, handleDataChanged);
+            window.removeEventListener('partykit-data-changed', handleDataChanged as EventListener);
         };
     }, [spaceId, fetchOfficeData]);
 

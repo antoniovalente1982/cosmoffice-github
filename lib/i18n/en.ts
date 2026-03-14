@@ -611,4 +611,48 @@ export const en: Record<TranslationKey, string> = {
 
   // ─── Minimap ───
   'minimap.reception': 'RECEPTION',
+
+  // ─── Office Builder ───
+  'builder.title': 'Space Builder',
+  'builder.close': 'Close Space Builder',
+  'builder.deleteRoom': 'Delete this room and all its furniture?',
+  'builder.selectAll': 'Select all',
+  'builder.deselectAll': 'Deselect all',
+  'builder.addRoom': 'Add Room',
+  'builder.roomName': 'Room Name',
+  'builder.roomType': 'Room Type',
+  'builder.capacity': 'Capacity',
+  'builder.save': 'Save Layout',
+  'builder.saving': 'Saving...',
+
+  // ─── Whiteboard ───
+  'whiteboard.select': 'Select',
+  'whiteboard.fill': 'Fill',
+  'whiteboard.noFill': 'No fill',
+  'whiteboard.undo': 'Undo (⌘Z)',
+  'whiteboard.redo': 'Redo (⌘⇧Z)',
+  'whiteboard.clear': 'Clear whiteboard',
+  'whiteboard.clearConfirm': 'Clear the entire whiteboard? This action is irreversible.',
+  'whiteboard.export': 'Export as image',
+
+  // ─── Workspace Settings Extra ───
+  'wsSettings.saving': 'Saving...',
+  'wsSettings.saved': 'Saved!',
+  'wsSettings.saveChanges': 'Save changes',
+  'wsSettings.saveError': 'Error saving',
+
+  // ─── Knock ───
+  'knock.noResponse': 'No response received',
+  'knock.waiting': 'Waiting for response...',
+  'knock.accept': 'Accept',
+  'knock.decline': 'Decline',
+
+  // ─── Invite Member ───
+  'inviteMember.invite': 'Invite',
+  'inviteMember.error': 'Error sending the invite',
+  'inviteMember.noEmail': 'No email',
+
+  // ─── Media ───
+  'media.closeScreen': 'Close this screen',
+  'media.unknownError': 'Unknown error',
 };

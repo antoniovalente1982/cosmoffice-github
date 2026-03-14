@@ -609,6 +609,50 @@ export const it = {
 
   // ─── Minimap ───
   'minimap.reception': 'RECEPTION',
+
+  // ─── Office Builder ───
+  'builder.title': 'Space Builder',
+  'builder.close': 'Chiudi Space Builder',
+  'builder.deleteRoom': 'Eliminare questa stanza e tutti i suoi arredi?',
+  'builder.selectAll': 'Seleziona tutto',
+  'builder.deselectAll': 'Deseleziona tutto',
+  'builder.addRoom': 'Aggiungi Stanza',
+  'builder.roomName': 'Nome Stanza',
+  'builder.roomType': 'Tipo Stanza',
+  'builder.capacity': 'Capacità',
+  'builder.save': 'Salva Layout',
+  'builder.saving': 'Salvataggio...',
+
+  // ─── Whiteboard ───
+  'whiteboard.select': 'Seleziona',
+  'whiteboard.fill': 'Riempimento',
+  'whiteboard.noFill': 'Nessun riempimento',
+  'whiteboard.undo': 'Annulla (⌘Z)',
+  'whiteboard.redo': 'Ripeti (⌘⇧Z)',
+  'whiteboard.clear': 'Pulisci lavagna',
+  'whiteboard.clearConfirm': 'Pulire tutta la lavagna? L\'azione è irreversibile.',
+  'whiteboard.export': 'Esporta come immagine',
+
+  // ─── Workspace Settings Extra ───
+  'wsSettings.saving': 'Salvataggio...',
+  'wsSettings.saved': 'Salvato!',
+  'wsSettings.saveChanges': 'Salva modifiche',
+  'wsSettings.saveError': 'Errore durante il salvataggio',
+
+  // ─── Knock ───
+  'knock.noResponse': 'Nessuna risposta ricevuta',
+  'knock.waiting': 'In attesa di risposta...',
+  'knock.accept': 'Accetta',
+  'knock.decline': 'Rifiuta',
+
+  // ─── Invite Member ───
+  'inviteMember.invite': 'Invita',
+  'inviteMember.error': 'Errore durante l\'invio dell\'invito',
+  'inviteMember.noEmail': 'Nessuna email',
+
+  // ─── Media ───
+  'media.closeScreen': 'Chiudi questo schermo',
+  'media.unknownError': 'Errore sconosciuto',
 } as const;
 
 export type TranslationKey = keyof typeof it;

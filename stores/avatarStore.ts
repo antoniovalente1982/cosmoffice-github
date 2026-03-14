@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { UserProfile } from '../types';
 
 // ============================================
 // AVATAR STORE — User positions & presence
@@ -38,7 +39,7 @@ interface AvatarState {
     myPosition: UserPosition;
     myStatus: 'online' | 'away' | 'busy' | 'offline';
     myRoomId?: string;
-    myProfile: any;
+    myProfile: UserProfile | null;
     myRole: 'owner' | 'admin' | 'member' | 'guest' | null;
     // Room isolation + proximity state
     myDnd: boolean;
@@ -56,7 +57,7 @@ interface AvatarState {
     setMyPosition: (position: UserPosition) => void;
     setMyStatus: (status: 'online' | 'away' | 'busy' | 'offline') => void;
     setMyRoom: (roomId?: string) => void;
-    setMyProfile: (profile: any) => void;
+    setMyProfile: (profile: UserProfile | null) => void;
     setMyRole: (role: 'owner' | 'admin' | 'member' | 'guest' | null) => void;
     setMyDnd: (dnd: boolean) => void;
     setMyAway: (away: boolean) => void;
@@ -140,10 +141,12 @@ export const useAvatarStore = create<AvatarState>((set, get) => ({
         if (current) {
             const keys = Object.keys(data) as (keyof typeof data)[];
             const changed = keys.some(k => {
-                const oldVal = (current as any)[k];
+                const oldVal = current[k];
                 const newVal = data[k];
                 if (k === 'position' && oldVal && newVal && typeof oldVal === 'object' && typeof newVal === 'object') {
-                    return (oldVal as any).x !== (newVal as any).x || (oldVal as any).y !== (newVal as any).y;
+                    const oldPos = oldVal as { x: number; y: number };
+                    const newPos = newVal as { x: number; y: number };
+                    return oldPos.x !== newPos.x || oldPos.y !== newPos.y;
                 }
                 return oldVal !== newVal;
             });

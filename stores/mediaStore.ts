@@ -133,7 +133,7 @@ export const useMediaStore = create<MediaState>((set, get) => ({
         if (current) {
             // Shallow compare: skip if nothing changed
             const keys = Object.keys(data) as (keyof typeof data)[];
-            const changed = keys.some(k => (current as any)[k] !== data[k]);
+            const changed = keys.some(k => current[k] !== data[k]);
             if (!changed) return;
         }
         set((state) => ({
