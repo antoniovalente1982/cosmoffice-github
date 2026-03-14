@@ -36,52 +36,56 @@ import {
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import CurrencySelector from '../../components/CurrencySelector';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
+import { useT } from '../../lib/i18n';
 
 interface NavItem { href: string; label: string; icon: any; external?: boolean; badgeKey?: string; }
 interface NavSection { label?: string; items: NavItem[]; }
 
-const navSections: NavSection[] = [
-    {
-        items: [
-            { href: '/superadmin', label: 'Overview', icon: LayoutDashboard },
-        ],
-    },
-    {
-        label: 'Gestione Clienti',
-        items: [
-            { href: '/superadmin/customers', label: 'Clienti & Spazi', icon: BookUser },
-            { href: '/superadmin/email', label: 'Email Clienti', icon: Mail },
-        ],
-    },
-    {
-        label: 'Finanze',
-        items: [
-            { href: '/superadmin/revenue', label: 'Revenue & Pagamenti', icon: Receipt },
-            { href: '/superadmin/infrastructure', label: 'Simulatore Costi', icon: Calculator },
-            { href: '/superadmin/livekit', label: 'Monitor LiveKit', icon: Zap },
-        ],
-    },
-    {
-        label: 'Piattaforma',
-        items: [
-            { href: '/superadmin/analytics', label: 'Statistiche & Sistema', icon: Server },
-            { href: '/superadmin/audit', label: 'Audit Log', icon: ScrollText },
-            { href: '/superadmin/security', label: 'Sicurezza RLS', icon: ShieldCheck },
-        ],
-    },
-    {
-        label: 'Supporto',
-        items: [
-            { href: '/superadmin/support', label: 'Assistenza', icon: Headphones, badgeKey: 'support' },
-        ],
-    },
-    {
-        label: '⚠️ Zona di Pericolo',
-        items: [
-            { href: '/superadmin/transfer', label: 'Trasferimento Owner', icon: AlertTriangle },
-        ],
-    },
-];
+function buildNavSections(t: (key: any) => string): NavSection[] {
+    return [
+        {
+            items: [
+                { href: '/superadmin', label: t('sa.nav.overview'), icon: LayoutDashboard },
+            ],
+        },
+        {
+            label: t('sa.nav.clientManagement'),
+            items: [
+                { href: '/superadmin/customers', label: t('sa.nav.customers'), icon: BookUser },
+                { href: '/superadmin/email', label: t('sa.nav.emailClients'), icon: Mail },
+            ],
+        },
+        {
+            label: t('sa.nav.finance'),
+            items: [
+                { href: '/superadmin/revenue', label: t('sa.nav.revenue'), icon: Receipt },
+                { href: '/superadmin/infrastructure', label: t('sa.nav.costSimulator'), icon: Calculator },
+                { href: '/superadmin/livekit', label: t('sa.nav.livekitMonitor'), icon: Zap },
+            ],
+        },
+        {
+            label: t('sa.nav.platform'),
+            items: [
+                { href: '/superadmin/analytics', label: t('sa.nav.analytics'), icon: Server },
+                { href: '/superadmin/audit', label: t('sa.nav.auditLog'), icon: ScrollText },
+                { href: '/superadmin/security', label: t('sa.nav.securityRLS'), icon: ShieldCheck },
+            ],
+        },
+        {
+            label: t('sa.nav.support'),
+            items: [
+                { href: '/superadmin/support', label: t('sa.nav.assistance'), icon: Headphones, badgeKey: 'support' },
+            ],
+        },
+        {
+            label: t('sa.nav.dangerZone'),
+            items: [
+                { href: '/superadmin/transfer', label: t('sa.nav.transferOwner'), icon: AlertTriangle },
+            ],
+        },
+    ];
+}
 
 interface PendingCounts {
     support: number;
@@ -100,6 +104,8 @@ interface PendingNotification {
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
+    const { t } = useT();
+    const navSections = buildNavSections(t);
     const [loading, setLoading] = useState(true);
     const [authorized, setAuthorized] = useState(false);
     const [adminEmail, setAdminEmail] = useState('');
@@ -235,12 +241,12 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     const timeAgo = (dateStr: string) => {
         const diff = Date.now() - new Date(dateStr).getTime();
         const mins = Math.floor(diff / 60000);
-        if (mins < 1) return 'ora';
-        if (mins < 60) return `${mins}m fa`;
+        if (mins < 1) return 'now';
+        if (mins < 60) return `${mins}m`;
         const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return `${hrs}h fa`;
+        if (hrs < 24) return `${hrs}h`;
         const days = Math.floor(hrs / 24);
-        return `${days}g fa`;
+        return `${days}d`;
     };
 
     // Login page — render without sidebar
@@ -269,7 +275,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                         <div className="flex-1">
                             <h1 className="text-sm font-bold text-white tracking-wide">Cosmoffice</h1>
                             <p className="text-[10px] text-amber-300/60 font-medium uppercase tracking-widest">
-                                {isSupportStaff ? 'Supporto' : 'Super Admin'}
+                                {isSupportStaff ? t('sa.supportStaff') : t('sa.title')}
                             </p>
                         </div>
                         {/* Notification bell */}
@@ -355,7 +361,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                 <div className="p-3 border-t border-white/5 space-y-2">
                     {/* Admin info */}
                     <div className="px-3 py-2 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                        <p className="text-[10px] text-amber-300/50 font-bold uppercase tracking-widest">Loggato come</p>
+                        <p className="text-[10px] text-amber-300/50 font-bold uppercase tracking-widest">{t('sa.loggedAs')}</p>
                         <p className="text-xs text-amber-200/80 font-medium truncate mt-0.5">{adminEmail}</p>
                     </div>
                     <button
@@ -363,9 +369,12 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                         className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-red-400 transition-all"
                     >
                         <LogOut className="w-4 h-4" />
-                        Esci
+                        {t('sa.logout')}
                     </button>
-                    <CurrencySelector />
+                    <div className="flex items-center gap-2">
+                        <CurrencySelector />
+                        <LanguageSelector compact />
+                    </div>
                 </div>
             </aside>
 
@@ -381,7 +390,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                                     <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
                                 </span>
                                 <span className="text-sm font-bold text-amber-300">
-                                    {totalPending} {totalPending === 1 ? 'richiesta in attesa' : 'richieste in attesa'}
+                                    {totalPending} {totalPending === 1 ? t('sa.pendingRequest') : t('sa.pendingRequests')}
                                 </span>
                             </div>
                             <div className="flex items-center gap-2 ml-2">
@@ -389,19 +398,19 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                                     <Link href="/superadmin/support"
                                         className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/20 hover:bg-blue-500/30 transition-all flex items-center gap-1.5">
                                         <Headphones className="w-3 h-3" />
-                                        {pendingCounts.support} assistenza
+                                        {pendingCounts.support} {t('sa.assistance')}
                                     </Link>
                                 )}
                                 {pendingCounts.upgrades > 0 && (
                                     <Link href="/superadmin/support"
                                         className="px-3 py-1 rounded-lg text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/20 hover:bg-purple-500/30 transition-all flex items-center gap-1.5">
                                         <ArrowUpCircle className="w-3 h-3" />
-                                        {pendingCounts.upgrades} upgrade
+                                        {pendingCounts.upgrades} {t('sa.upgrade')}
                                     </Link>
                                 )}
                             </div>
                             <div className="flex-1" />
-                            <span className="text-[10px] text-slate-500">aggiornamento ogni 30s</span>
+                            <span className="text-[10px] text-slate-500">{t('sa.refreshEvery30s')}</span>
                         </div>
                     </div>
                 )}
@@ -414,7 +423,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                             <div className="p-4 border-b border-white/5 flex items-center justify-between">
                                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                                     <Bell className="w-4 h-4 text-amber-400" />
-                                    Notifiche ({visibleNotifs.length})
+                                    {t('sa.notifications')} ({visibleNotifs.length})
                                 </h3>
                                 <button onClick={() => setShowNotifPanel(false)} className="p-1 rounded-lg hover:bg-white/5 text-slate-500">
                                     <X className="w-4 h-4" />
@@ -423,7 +432,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                             {visibleNotifs.length === 0 ? (
                                 <div className="p-8 text-center">
                                     <Bell className="w-8 h-8 text-slate-700 mx-auto mb-2" />
-                                    <p className="text-sm text-slate-500">Nessuna notifica pendente</p>
+                                    <p className="text-sm text-slate-500">{t('sa.noNotifications')}</p>
                                 </div>
                             ) : (
                                 <div className="p-2 space-y-1">
