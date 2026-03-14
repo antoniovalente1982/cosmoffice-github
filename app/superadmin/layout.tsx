@@ -32,9 +32,11 @@ import {
     Zap,
     ArrowRightLeft,
     ShieldCheck,
+    AlertTriangle,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import CurrencySelector from '../../components/CurrencySelector';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
 
 interface NavItem { href: string; label: string; icon: any; external?: boolean; badgeKey?: string; }
 interface NavSection { label?: string; items: NavItem[]; }
@@ -49,7 +51,6 @@ const navSections: NavSection[] = [
         label: 'Gestione Clienti',
         items: [
             { href: '/superadmin/customers', label: 'Clienti & Spazi', icon: BookUser },
-            { href: '/superadmin/transfer', label: 'Trasferimento Owner', icon: ArrowRightLeft },
             { href: '/superadmin/email', label: 'Email Clienti', icon: Mail },
         ],
     },
@@ -73,6 +74,12 @@ const navSections: NavSection[] = [
         label: 'Supporto',
         items: [
             { href: '/superadmin/support', label: 'Assistenza', icon: Headphones, badgeKey: 'support' },
+        ],
+    },
+    {
+        label: '⚠️ Zona di Pericolo',
+        items: [
+            { href: '/superadmin/transfer', label: 'Trasferimento Owner', icon: AlertTriangle },
         ],
     },
 ];
@@ -293,8 +300,8 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                         <div key={si}>
                             {section.label && (
                                 <>
-                                    {si > 0 && <div className="my-2 mx-2 border-t border-white/5" />}
-                                    <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                                    {si > 0 && <div className={`my-2 mx-2 border-t ${section.label.includes('Pericolo') ? 'border-red-500/20' : 'border-white/5'}`} />}
+                                    <p className={`px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest ${section.label.includes('Pericolo') ? 'text-red-500/60' : 'text-slate-600'}`}>
                                         {section.label}
                                     </p>
                                 </>
@@ -302,6 +309,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                             {section.items.map((item) => {
                                 const isActive = !item.external && (pathname === item.href || (item.href !== '/superadmin' && pathname.startsWith(item.href)));
                                 const badgeCount = item.badgeKey ? pendingCounts[item.badgeKey as keyof PendingCounts] : 0;
+                                const isDanger = section.label?.includes('Pericolo');
 
                                 if (item.external) {
                                     return (
@@ -323,8 +331,12 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                                         key={item.href}
                                         href={item.href}
                                         className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all ${isActive
-                                            ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]'
-                                            : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
+                                            ? isDanger
+                                                ? 'bg-red-500/10 text-red-300 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]'
+                                                : 'bg-amber-500/10 text-amber-300 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]'
+                                            : isDanger
+                                                ? 'text-red-400/60 hover:bg-red-500/5 hover:text-red-300 border border-transparent'
+                                                : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
                                             }`}
                                     >
                                         <item.icon className="w-4 h-4" />
@@ -354,7 +366,10 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                         <LogOut className="w-4 h-4" />
                         Esci
                     </button>
-                    <CurrencySelector />
+                    <div className="flex items-center gap-2">
+                        <CurrencySelector />
+                        <LanguageSelector compact />
+                    </div>
                 </div>
             </aside>
 
