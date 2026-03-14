@@ -37,7 +37,7 @@ export async function GET(req: Request) {
         .from('workspace_members')
         .select('*', { count: 'exact', head: true })
         .eq('workspace_id', workspaceId)
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        .gte('joined_at', thirtyDaysAgo.toISOString());
 
     // 4. Rooms count
     const { data: spaces } = await supabase
@@ -55,12 +55,13 @@ export async function GET(req: Request) {
         totalRooms = count || 0;
     }
 
-    // 5. Guest invite count (active)
+    // 5. Active invite count (not accepted & not revoked)
     const { count: activeInvites } = await supabase
         .from('workspace_invitations')
         .select('*', { count: 'exact', head: true })
         .eq('workspace_id', workspaceId)
-        .eq('status', 'active');
+        .is('accepted_at', null)
+        .is('revoked_at', null);
 
     return NextResponse.json({
         totalMembers: totalMembers || 0,
