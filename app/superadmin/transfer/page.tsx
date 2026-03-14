@@ -19,6 +19,7 @@ import {
     ArrowRight,
     Mail,
 } from 'lucide-react';
+import { useT } from '../../../lib/i18n';
 
 type UserProfile = {
     id: string;
@@ -59,6 +60,7 @@ export default function TransferPage() {
     const [currentUserId, setCurrentUserId] = useState('');
     const [loading, setLoading] = useState(true);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const { t } = useT();
 
     // Co-Admin search
     const [coAdminSearch, setCoAdminSearch] = useState('');
@@ -168,7 +170,7 @@ export default function TransferPage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
-            showFeedback('success', `Accesso admin revocato per ${getUserName(revokeTarget)}`);
+            showFeedback('success', `t('sa.transfer.revokeSuccess') + ' ' + ${getUserName(revokeTarget)}`);
             setRevokeTarget(null); setRevokeConfirmText(''); setRevokeReason('');
             await refreshData();
         } catch (err: any) {
@@ -201,9 +203,9 @@ export default function TransferPage() {
     };
 
     const typeLabels: Record<string, { label: string; color: string; icon: any }> = {
-        transfer: { label: 'Trasferimento', color: 'text-amber-400', icon: ArrowRightLeft },
-        grant: { label: 'Concessione', color: 'text-emerald-400', icon: UserPlus },
-        revoke: { label: 'Revoca', color: 'text-red-400', icon: ShieldOff },
+        transfer: { label: t('sa.transfer.transferLabel'), color: 'text-amber-400', icon: ArrowRightLeft },
+        grant: { label: t('sa.transfer.grantLabel'), color: 'text-emerald-400', icon: UserPlus },
+        revoke: { label: t('sa.transfer.revokeLabel'), color: 'text-red-400', icon: ShieldOff },
     };
 
     if (loading) {
@@ -222,10 +224,10 @@ export default function TransferPage() {
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)]">
                         <Crown className="w-5 h-5 text-white" />
                     </div>
-                    Gestione Super Admin
+                    {t('sa.transfer.title')}
                 </h1>
                 <p className="text-slate-400 mt-2">
-                    Gestisci chi ha accesso alla dashboard di amministrazione. Ogni azione viene registrata.
+                    {t('sa.transfer.subtitle')}
                 </p>
             </div>
 
@@ -291,10 +293,10 @@ export default function TransferPage() {
                 <div className="px-6 py-4 border-b border-white/5">
                     <div className="flex items-center gap-2">
                         <UserPlus className="w-4 h-4 text-emerald-400" />
-                        <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Aggiungi Co-Admin</h2>
+                        <h2 className="text-sm font-semibold text-white uppercase tracking-wider">{t('sa.transfer.addCoAdmin')}</h2>
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                        Cerca un utente registrato e concedigli l'accesso alla dashboard admin. Puoi revocarlo in seguito.
+                        {t('sa.transfer.searchDesc')}
                     </p>
                 </div>
                 <div className="p-6">
@@ -302,7 +304,7 @@ export default function TransferPage() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                         <input
                             type="text"
-                            placeholder="Cerca per email o nome..."
+                            placeholder={t('sa.transfer.searchPlaceholder')}
                             value={coAdminSearch}
                             onChange={(e) => setCoAdminSearch(e.target.value)}
                             className="w-full bg-slate-900/50 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 outline-none transition-colors"
@@ -334,7 +336,7 @@ export default function TransferPage() {
                     )}
 
                     {coAdminSearch && !coAdminSearching && coAdminResults.length === 0 && (
-                        <p className="text-sm text-slate-500 text-center py-6">Nessun utente trovato per &quot;{coAdminSearch}&quot;</p>
+                        <p className="text-sm text-slate-500 text-center py-6">{t('sa.transfer.noUserFound')} &quot;{coAdminSearch}&quot;</p>
                     )}
                 </div>
             </section>
@@ -347,10 +349,10 @@ export default function TransferPage() {
                 <div className="px-6 py-4 border-b border-red-500/20">
                     <div className="flex items-center gap-2">
                         <ShieldAlert className="w-4 h-4 text-red-400" />
-                        <h2 className="text-sm font-bold text-red-400 uppercase tracking-wider">Danger Zone</h2>
+                        <h2 className="text-sm font-bold text-red-400 uppercase tracking-wider">{t('sa.transfer.dangerZone')}</h2>
                     </div>
                     <p className="text-xs text-red-300/50 mt-1">
-                        Azioni irreversibili o ad alto rischio. Procedi con estrema cautela.
+                        {t('sa.transfer.dangerDesc')}
                     </p>
                 </div>
 
@@ -364,13 +366,13 @@ export default function TransferPage() {
                                     Revoca Accesso Admin
                                 </h3>
                                 <p className="text-xs text-slate-500 mt-1">
-                                    Rimuovi i privilegi di super admin da un co-admin. Non puoi revocare l'ultimo admin rimasto.
+                                    {t('sa.transfer.revokeDesc')}
                                 </p>
                             </div>
                         </div>
 
                         {admins.filter(a => a.id !== currentUserId).length === 0 ? (
-                            <p className="text-xs text-slate-600 mt-3 italic">Nessun altro admin da revocare.</p>
+                            <p className="text-xs text-slate-600 mt-3 italic">{t('sa.transfer.noAdminToRevoke')}</p>
                         ) : (
                             <div className="mt-4 space-y-2">
                                 {admins.filter(a => a.id !== currentUserId).map((admin) => (
@@ -405,7 +407,7 @@ export default function TransferPage() {
                                     Trasferisci Proprietà
                                 </h3>
                                 <p className="text-xs text-slate-500 mt-1">
-                                    Cedi completamente il tuo ruolo di super admin a un altro utente. <strong className="text-red-400">Perderai l'accesso alla dashboard.</strong>
+                                    Cedi completamente il tuo ruolo di super admin a un altro utente. <strong className="text-red-400">{t('sa.transfer.loseAccess')}</strong>
                                 </p>
                             </div>
                             {transferStep === 0 && (
@@ -414,7 +416,7 @@ export default function TransferPage() {
                                     className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-red-400 border border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50 transition-all"
                                 >
                                     <ArrowRightLeft className="w-3.5 h-3.5" />
-                                    Avvia Trasferimento
+                                    {t('sa.transfer.startTransfer')}
                                 </button>
                             )}
                         </div>
@@ -445,7 +447,7 @@ export default function TransferPage() {
                                             </div>
                                         ))}
                                         <span className="text-[10px] text-slate-500 uppercase tracking-wider ml-2">
-                                            {transferStep === 1 ? 'Seleziona utente' : transferStep === 2 ? 'Conferma dati' : 'Verifica finale'}
+                                            {transferStep === 1 ? 'Seleziona utente' : transferStep === 2 ? 'Conferma dati' : t('sa.transfer.finalVerify')}
                                         </span>
                                         <button onClick={resetTransfer} className="ml-auto text-slate-500 hover:text-slate-300 transition-colors">
                                             <X className="w-4 h-4" />
@@ -459,7 +461,7 @@ export default function TransferPage() {
                                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                                 <input
                                                     type="text"
-                                                    placeholder="Cerca il nuovo proprietario per email o nome..."
+                                                    placeholder={t('sa.transfer.searchOwnerPlaceholder')}
                                                     value={transferSearch}
                                                     onChange={(e) => setTransferSearch(e.target.value)}
                                                     className="w-full bg-slate-900/50 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-red-500/50 outline-none transition-colors"
@@ -488,7 +490,7 @@ export default function TransferPage() {
                                                 </div>
                                             )}
                                             {transferSearch && !transferSearching && transferResults.length === 0 && (
-                                                <p className="text-sm text-slate-500 text-center py-4">Nessun utente trovato</p>
+                                                <p className="text-sm text-slate-500 text-center py-4">{t('sa.transfer.noUserFound')}</p>
                                             )}
                                         </div>
                                     )}
@@ -500,9 +502,9 @@ export default function TransferPage() {
                                                 <div className="flex items-start gap-3">
                                                     <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                                                     <div className="text-sm">
-                                                        <p className="font-semibold text-red-300 mb-1">Attenzione: operazione irreversibile</p>
+                                                        <p className="font-semibold text-red-300 mb-1">{t('sa.transfer.warningIrreversible')}</p>
                                                         <p className="text-red-300/60">
-                                                            Stai per cedere tutti i tuoi privilegi di Super Admin. Perderai immediatamente l'accesso a questa dashboard.
+                                                            {t('sa.transfer.finalWarning')}
                                                             Solo il nuovo proprietario potrà restituirti l'accesso.
                                                         </p>
                                                     </div>
@@ -524,25 +526,25 @@ export default function TransferPage() {
                                                 </div>
                                                 <div className="text-center">
                                                     <UserAvatar user={transferTarget} ring="ring-2 ring-emerald-400/30" />
-                                                    <p className="text-[10px] text-emerald-400 font-semibold mt-1 uppercase">Nuovo</p>
+                                                    <p className="text-[10px] text-emerald-400 font-semibold mt-1 uppercase">{t('sa.transfer.new')}</p>
                                                 </div>
                                             </div>
 
                                             <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/30 border border-white/5">
                                                 <div>
-                                                    <p className="text-xs text-slate-500">Nuovo proprietario</p>
+                                                    <p className="text-xs text-slate-500">{t('sa.transfer.newOwner')}</p>
                                                     <p className="text-sm font-medium text-white">{getUserName(transferTarget)}</p>
                                                     <p className="text-xs text-slate-500">{transferTarget.email}</p>
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <label className="block text-xs font-medium text-slate-400 mb-1.5">Motivazione (opzionale)</label>
+                                                <label className="block text-xs font-medium text-slate-400 mb-1.5">{t('sa.transfer.reason')}</label>
                                                 <input
                                                     type="text"
                                                     value={transferReason}
                                                     onChange={(e) => setTransferReason(e.target.value)}
-                                                    placeholder="es. Cessione aziendale, cambio ruolo..."
+                                                    placeholder={t('sa.transfer.reasonPlaceholder')}
                                                     className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-red-500/50 outline-none transition-colors"
                                                 />
                                             </div>
@@ -552,7 +554,7 @@ export default function TransferPage() {
                                                     ← Indietro
                                                 </button>
                                                 <button onClick={() => setTransferStep(3)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2">
-                                                    Procedi <ArrowRight className="w-4 h-4" />
+                                                    {t('sa.transfer.proceed')} <ArrowRight className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </div>
@@ -572,7 +574,7 @@ export default function TransferPage() {
                                                 type="text"
                                                 value={transferConfirmText}
                                                 onChange={(e) => setTransferConfirmText(e.target.value.toUpperCase())}
-                                                placeholder="Scrivi TRANSFER"
+                                                placeholder={t('sa.transfer.writeTransfer')}
                                                 className="w-full bg-slate-900/50 border-2 border-red-500/30 rounded-xl px-4 py-3 text-center text-sm text-slate-100 placeholder:text-slate-600 focus:border-red-500/60 outline-none transition-colors font-mono tracking-[0.3em] uppercase"
                                                 autoFocus
                                             />
@@ -614,7 +616,7 @@ export default function TransferPage() {
                 >
                     <div className="flex items-center gap-2">
                         <History className="w-4 h-4 text-slate-400" />
-                        <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Storico Operazioni</h2>
+                        <h2 className="text-sm font-semibold text-white uppercase tracking-wider">{t('sa.transfer.history')}</h2>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-500">{transfers.length} eventi</span>
@@ -630,7 +632,7 @@ export default function TransferPage() {
                             className="overflow-hidden border-t border-white/5"
                         >
                             {transfers.length === 0 ? (
-                                <p className="text-sm text-slate-500 text-center py-8">Nessuna operazione registrata</p>
+                                <p className="text-sm text-slate-500 text-center py-8">{t('sa.transfer.noOperations')}</p>
                             ) : (
                                 <div className="divide-y divide-white/5 max-h-96 overflow-y-auto">
                                     {transfers.map((t) => {
@@ -690,7 +692,7 @@ export default function TransferPage() {
                                     <UserPlus className="w-5 h-5 text-emerald-400" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-white">Aggiungi Co-Admin</h3>
+                                    <h3 className="text-lg font-bold text-white">{t('sa.transfer.addCoAdminTitle')}</h3>
                                     <p className="text-xs text-slate-500">{getUserName(grantTarget)} · {grantTarget.email}</p>
                                 </div>
                             </div>
@@ -700,7 +702,7 @@ export default function TransferPage() {
                             </p>
 
                             <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1.5">Motivazione (opzionale)</label>
+                                <label className="block text-xs font-medium text-slate-400 mb-1.5">{t('sa.transfer.reason')}</label>
                                 <input
                                     type="text"
                                     value={grantReason}
@@ -719,7 +721,7 @@ export default function TransferPage() {
                                     disabled={grantLoading}
                                     className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.3)] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
                                 >
-                                    {grantLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Conferma</>}
+                                    {grantLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> {t('sa.transfer.confirm')}</>}
                                 </button>
                             </div>
                         </motion.div>
@@ -746,7 +748,7 @@ export default function TransferPage() {
                                     <ShieldOff className="w-5 h-5 text-red-400" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-white">Revoca Accesso Admin</h3>
+                                    <h3 className="text-lg font-bold text-white">{t('sa.transfer.revokeAccess')}</h3>
                                     <p className="text-xs text-slate-500">{getUserName(revokeTarget)} · {revokeTarget.email}</p>
                                 </div>
                             </div>
@@ -758,19 +760,19 @@ export default function TransferPage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1.5">Motivazione (opzionale)</label>
+                                <label className="block text-xs font-medium text-slate-400 mb-1.5">{t('sa.transfer.reason')}</label>
                                 <input
                                     type="text"
                                     value={revokeReason}
                                     onChange={(e) => setRevokeReason(e.target.value)}
-                                    placeholder="es. Cambio ruolo, fine collaborazione..."
+                                    placeholder={t('sa.transfer.reasonPlaceholder')}
                                     className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-red-500/50 outline-none"
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                                    Scrivi <span className="text-red-400 font-bold font-mono">REVOCA</span> per confermare
+                                    Scrivi <span className="text-red-400 font-bold font-mono">{t('sa.transfer.revokeRevoke')}</span> per confermare
                                 </label>
                                 <input
                                     type="text"
@@ -791,7 +793,7 @@ export default function TransferPage() {
                                     disabled={revokeLoading || revokeConfirmText !== 'REVOCA'}
                                     className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-400 shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
-                                    {revokeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ShieldOff className="w-4 h-4" /> Revoca</>}
+                                    {revokeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ShieldOff className="w-4 h-4" /> {t('sa.transfer.revoke')}</>}
                                 </button>
                             </div>
                         </motion.div>

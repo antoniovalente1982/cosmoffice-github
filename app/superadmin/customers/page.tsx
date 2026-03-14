@@ -9,6 +9,7 @@ import {
     ClipboardList, Save, Calendar, DollarSign, Receipt, Link2, Copy,
     History, CreditCard, BookUser, UserPlus, KeyRound, Plus, FileText, Zap, SlidersHorizontal
 } from 'lucide-react';
+import { useT } from '../../../lib/i18n';
 import { createClient } from '../../../utils/supabase/client';
 import ClientDetailDrawer from '../../../components/superadmin/ClientDetailDrawer';
 import { useCurrency, CURRENCIES, CurrencyCode } from '../../../hooks/useCurrency';
@@ -70,43 +71,44 @@ interface OwnerGroup {
 }
 
 // Single per-user pricing model
-const PAYMENT_STATUS_COLORS: Record<string, { bg: string, text: string, border: string, label: string }> = {
-    none: { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20', label: '—' },
-    pending: { bg: 'bg-amber-500/10', text: 'text-amber-300', border: 'border-amber-500/20', label: 'In attesa' },
-    paid: { bg: 'bg-emerald-500/10', text: 'text-emerald-300', border: 'border-emerald-500/20', label: 'Pagato' },
-    overdue: { bg: 'bg-red-500/10', text: 'text-red-300', border: 'border-red-500/20', label: 'Scaduto' },
+const PAYMENT_STATUS_COLORS: Record<string, { bg: string, text: string, border: string, labelKey: string }> = {
+    none: { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20', labelKey: '' },
+    pending: { bg: 'bg-amber-500/10', text: 'text-amber-300', border: 'border-amber-500/20', labelKey: 'sa.customers.paymentPending' },
+    paid: { bg: 'bg-emerald-500/10', text: 'text-emerald-300', border: 'border-emerald-500/20', labelKey: 'sa.customers.paymentPaid' },
+    overdue: { bg: 'bg-red-500/10', text: 'text-red-300', border: 'border-red-500/20', labelKey: 'sa.customers.paymentOverdue' },
 };
-function PaymentBadge({ status }: { status: string }) {
+function PaymentBadge({ status, t }: { status: string; t: (k: any) => string }) {
     const s = PAYMENT_STATUS_COLORS[status] || PAYMENT_STATUS_COLORS.none;
     if (status === 'none') return null;
-    return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.text} ${s.border}`}>{s.label}</span>;
+    return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.text} ${s.border}`}>{s.labelKey ? t(s.labelKey) : '—'}</span>;
 }
 
-function PlanCostBadge({ totalMonthlyCents, cs }: { totalMonthlyCents: number; cs: string }) {
+function PlanCostBadge({ totalMonthlyCents, cs, t }: { totalMonthlyCents: number; cs: string; t: (k: any) => string }) {
     if (totalMonthlyCents > 0) {
-        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">{cs}{formatNumber(totalMonthlyCents / 100, 2)}/mese</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">{cs}{formatNumber(totalMonthlyCents / 100, 2)}{t('sa.customers.perMonth')}</span>;
     }
     return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-slate-500/20 text-slate-400 border-slate-500/30">Demo</span>;
 }
 
-function StatusBadge({ status }: { status: 'active' | 'suspended' | 'deleted' }) {
+function StatusBadge({ status, t }: { status: 'active' | 'suspended' | 'deleted'; t: (k: any) => string }) {
     const styles = {
         active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
         suspended: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
         deleted: 'bg-red-500/20 text-red-300 border-red-500/30',
     };
-    const labels = { active: 'Attivo', suspended: 'Sospeso', deleted: 'Eliminato' };
-    return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${styles[status]}`}>{labels[status]}</span>;
+    const labelKeys = { active: 'sa.customers.activeStatus', suspended: 'sa.customers.suspended', deleted: 'sa.customers.deleted' };
+    return <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${styles[status]}`}>{t(labelKeys[status])}</span>;
 }
 
-function OwnerStatusBadge({ suspended, deleted }: { suspended: boolean; deleted: boolean }) {
-    if (deleted) return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-red-500/20 text-red-300 border-red-500/30">Eliminato</span>;
-    if (suspended) return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-amber-500/20 text-amber-300 border-amber-500/30">Sospeso</span>;
-    return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Attivo</span>;
+function OwnerStatusBadge({ suspended, deleted, t }: { suspended: boolean; deleted: boolean; t: (k: any) => string }) {
+    if (deleted) return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-red-500/20 text-red-300 border-red-500/30">{t('sa.customers.deleted')}</span>;
+    if (suspended) return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-amber-500/20 text-amber-300 border-amber-500/30">{t('sa.customers.suspended')}</span>;
+    return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">{t('sa.customers.activeStatus')}</span>;
 }
 
 export default function CustomersPage() {
     const { symbol: cs, fmt, currency: currCode, setCurrency } = useCurrency();
+    const { t } = useT();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -322,7 +324,7 @@ export default function CustomersPage() {
                     },
                 }),
             });
-            showFeedback('success', `Capienza aggiornata: ${maxMembers} online simultanei × ${cs}${fmtIT(ppsCents / 100)} = ${cs}${fmtIT(totalCents / 100)}/mese ✅`);
+            showFeedback('success', `Capienza aggiornata: ${maxMembers} online simultanei × ${cs}${fmtIT(ppsCents / 100)} = ${cs}${fmtIT(totalCents / 100)}{t('sa.customers.perMonth')} ✅`);
             setEditPlanWsId(null); fetchData();
         } catch (err: any) { showFeedback('error', err.message); }
         setSavingPlan(false);
@@ -355,7 +357,7 @@ export default function CustomersPage() {
             type: payType,
             amount_cents: payType === 'refund' ? -amtCents : amtCents,
             plan_at_time: paymentWs.plan,
-            description: `${payType === 'refund' ? 'Rimborso' : 'Pagamento'} ${paymentWs.name}`,
+            description: `${payType === 'refund' ? t('sa.customers.refund') : 'Pagamento'} ${paymentWs.name}`,
             payment_method: 'bank_transfer',
             reference: payRef || null,
             invoice_number: payInvoice || null,
@@ -372,7 +374,7 @@ export default function CustomersPage() {
                 payment_status: payType === 'refund' ? 'pending' : 'paid',
                 last_payment_at: payType === 'refund' ? undefined : new Date().toISOString(),
             }).eq('id', paymentWs.id);
-            showFeedback('success', payType === 'refund' ? 'Rimborso registrato ✅' : 'Pagamento registrato ✅');
+            showFeedback('success', payType === 'refund' ? t('sa.customers.refundSuccess') : t('sa.customers.paymentSuccess'));
             setPaymentWs(null);
             fetchData();
         } else {
@@ -470,7 +472,7 @@ export default function CustomersPage() {
                     },
                 }),
             });
-            if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Errore'); }
+            if (!res.ok) { const e = await res.json(); throw new Error(e.error || t('sa.mc.error')); }
             showFeedback('success', `Workspace "${addWsName}" creato con successo ✅`);
             setAddWsOwnerId(null);
             fetchData();
@@ -508,8 +510,8 @@ export default function CustomersPage() {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
                 body: JSON.stringify({ action: 'generate_invoice', workspaceId: wsId, data: { billing_cycle: cycle || 'monthly' } }),
             });
-            if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Errore'); }
-            showFeedback('success', 'Ricevuta generata ✅');
+            if (!res.ok) { const e = await res.json(); throw new Error(e.error || t('sa.mc.error')); }
+            showFeedback('success', t('sa.customers.invoiceGenerated'));
             loadInvoices(wsId);
             fetchData();
         } catch (err: any) { showFeedback('error', err.message); }
@@ -526,8 +528,8 @@ export default function CustomersPage() {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
                 body: JSON.stringify({ action: 'mark_invoice_paid', workspaceId: '_', data: { invoiceId: markPaidId, payment_method: markPaidMethod, payment_reference: markPaidRef } }),
             });
-            if (!res.ok) throw new Error('Errore');
-            showFeedback('success', 'Pagamento confermato ✅');
+            if (!res.ok) throw new Error(t('sa.mc.error'));
+            showFeedback('success', t('sa.customers.paymentConfirmed'));
             setMarkPaidId(null); setMarkPaidRef('');
             if (invoiceWsId) loadInvoices(invoiceWsId);
             fetchData();
@@ -550,9 +552,9 @@ export default function CustomersPage() {
                     data: { new_seats: parseInt(upgradeSeats) || upgradeWs.maxMembers, new_price_per_seat_cents: newPPSCents },
                 }),
             });
-            if (!res.ok) throw new Error('Errore');
+            if (!res.ok) throw new Error(t('sa.mc.error'));
             const r = await res.json();
-            showFeedback('success', `Upgrade completato! ${r.adjustment_cents > 0 ? `Ricevuta proporzionale: €${fmtIT(r.adjustment_cents / 100)}` : 'Nessun costo aggiuntivo'}`);
+            showFeedback('success', t('sa.customers.upgradeComplete'));
             setUpgradeWs(null);
             fetchData();
         } catch (err: any) { showFeedback('error', err.message); }
@@ -721,7 +723,7 @@ export default function CustomersPage() {
 
             if (wsIds.length === 0) {
                 console.warn('[BULK] No IDs to process!');
-                showFeedback('error', 'Nessun workspace selezionato');
+                showFeedback('error', t('sa.customers.noWsSelected'));
                 setConfirmAction(null);
                 setConfirmText('');
                 return;
@@ -807,9 +809,9 @@ export default function CustomersPage() {
             <div>
                 <h1 className="text-2xl font-bold text-white flex items-center gap-3">
                     <BookUser className="w-6 h-6 text-amber-400" />
-                    Gestionale Clienti
+                    {t('sa.customers.title')}
                 </h1>
-                <p className="text-sm text-slate-400 mt-1">Gestisci proprietari, workspace, piani, pagamenti e membri da un unico punto</p>
+                <p className="text-sm text-slate-400 mt-1">{t('sa.customers.subtitle')}</p>
             </div>
 
             {/* Feedback */}
@@ -832,7 +834,7 @@ export default function CustomersPage() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                         <input
                             type="text" value={search} onChange={e => setSearch(e.target.value)}
-                            placeholder="Cerca workspace o owner..."
+                            placeholder={t('sa.customers.searchPlaceholder')}
                             className="w-full pl-10 pr-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50"
                         />
                     </div>
@@ -844,7 +846,7 @@ export default function CustomersPage() {
                         className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
                     >
                         <UserPlus className="w-4 h-4" />
-                        Nuovo Cliente
+                        {t('sa.customers.newClient')}
                     </button>
                     <button
                         onClick={() => { setIsOwnerLinkModalOpen(true); setOwnerLink(''); setOwnerLinkData({ email: '', max_workspaces: '1', max_capacity: '50', notes: '' }); }}
@@ -962,7 +964,7 @@ export default function CustomersPage() {
                             <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Owner</span>
                         </div>
                         <p className="text-2xl font-bold text-purple-300">{summary.totalOwners}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">proprietari attivi</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{t('sa.customers.ownerActive')}</p>
                     </div>
                     <div className="rounded-xl border border-white/5 p-4" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                         <div className="flex items-center gap-2 mb-1">
@@ -986,7 +988,7 @@ export default function CustomersPage() {
             {/* Owner Groups */}
             <div className="space-y-3">
                 {ownerGroups.length === 0 && !loading && (
-                    <div className="text-center py-12 text-slate-500 text-sm">Nessun risultato trovato</div>
+                    <div className="text-center py-12 text-slate-500 text-sm">{t('sa.customers.noResults')}</div>
                 )}
 
                 {ownerGroups.map(group => {
@@ -1030,7 +1032,7 @@ export default function CustomersPage() {
                                                 <Crown className="w-3 h-3 inline mr-0.5 -mt-0.5" />Super Admin
                                             </span>
                                         )}
-                                        {!isNoOwner && <OwnerStatusBadge suspended={group.owner.suspended} deleted={group.owner.deleted} />}
+                                        {!isNoOwner && <OwnerStatusBadge t={t} suspended={group.owner.suspended} deleted={group.owner.deleted} />}
                                     </div>
                                     {!isNoOwner && (
                                         <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
@@ -1055,9 +1057,9 @@ export default function CustomersPage() {
                                     <div className="flex items-center gap-1.5 text-xs">
                                         <Users className="w-3.5 h-3.5 text-purple-400" />
                                         <span className="text-white font-medium">{group.uniqueMembers}</span>
-                                        <span className="text-slate-600">utenti unici</span>
+                                        <span className="text-slate-600">{t('sa.customers.uniqueUsersLabel')}</span>
                                     </div>
-                                    <PlanCostBadge totalMonthlyCents={group.totalMonthlyCents} cs={cs} />
+                                    <PlanCostBadge t={t} totalMonthlyCents={group.totalMonthlyCents} cs={cs} />
                                     {group.suspendedWs > 0 && (
                                         <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
                                             {group.suspendedWs} sospesi
@@ -1076,7 +1078,7 @@ export default function CustomersPage() {
                                         onClick={(e) => { e.stopPropagation(); setDetailOwnerId(group.owner.id); }}
                                         className="px-3 py-1.5 rounded-lg text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all flex items-center gap-1.5 shrink-0"
                                     >
-                                        <BookUser className="w-3.5 h-3.5" /> Gestionale
+                                        <BookUser className="w-3.5 h-3.5" /> {t('sa.customers.manage')}
                                     </button>
                                 )}
 
@@ -1093,24 +1095,24 @@ export default function CustomersPage() {
                                             <div className="absolute right-0 top-full mt-1 w-56 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left">
                                                 <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Gestione Owner</p>
                                                 <button onClick={() => { setAddWsOwnerId(group.owner.id); setAddWsName(''); setAddWsSeats('10'); setAddWsPPS('10'); setActionMenuId(null); }} className="w-full px-3 py-2 text-left text-xs text-cyan-400 hover:bg-white/5 flex items-center gap-2">
-                                                    <Plus className="w-3.5 h-3.5" /> Aggiungi Workspace
+                                                    <Plus className="w-3.5 h-3.5" /> {t('sa.customers.addWorkspace')}
                                                 </button>
                                                 <div className="border-t border-white/5 my-1" />
                                                 {!group.owner.suspended ? (
                                                     <button onClick={() => openConfirm({
                                                         action: 'suspend_owner', workspaceId: group.workspaces[0]?.id || '', ownerId: group.owner.id,
                                                         ownerName: group.owner.name, workspaceName: group.owner.name,
-                                                        label: 'Sospendi Owner', description: `Sospenderai l'account di ${group.owner.name}. Non potrà accedere alla piattaforma.`, danger: true, confirmWord: 'SOSPENDI',
+                                                        label: t('sa.customers.suspendOwner'), description: `Sospenderai l'account di ${group.owner.name}. Non potrà accedere alla piattaforma.`, danger: true, confirmWord: 'SOSPENDI',
                                                     })} className="w-full px-3 py-2 text-left text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2">
-                                                        <Pause className="w-3.5 h-3.5" /> Sospendi Owner
+                                                        <Pause className="w-3.5 h-3.5" /> {t('sa.customers.suspendOwnerBtn')}
                                                     </button>
                                                 ) : (
                                                     <button onClick={() => openConfirm({
                                                         action: 'reactivate_owner', workspaceId: group.workspaces[0]?.id || '', ownerId: group.owner.id,
                                                         ownerName: group.owner.name, workspaceName: group.owner.name,
-                                                        label: 'Riattiva Owner', description: `Riattiverai l'account di ${group.owner.name}. Potrà nuovamente accedere.`, danger: false,
+                                                        label: t('sa.customers.reactivateOwner'), description: `Riattiverai l'account di ${group.owner.name}. Potrà nuovamente accedere.`, danger: false,
                                                     })} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
-                                                        <Play className="w-3.5 h-3.5" /> Riattiva Owner
+                                                        <Play className="w-3.5 h-3.5" /> {t('sa.customers.reactivateOwnerBtn')}
                                                     </button>
                                                 )}
                                                 <div className="border-t border-white/5 my-1" />
@@ -1121,7 +1123,7 @@ export default function CustomersPage() {
                                                     danger: true, confirmWord: 'ELIMINA',
                                                     ownerId: group.owner.id,
                                                 })} className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
-                                                    <Trash2 className="w-3.5 h-3.5" /> Elimina Workspace
+                                                    <Trash2 className="w-3.5 h-3.5" /> {t('sa.customers.deleteWs')}
                                                 </button>
                                                 <button onClick={() => openConfirm({
                                                     action: 'hard_delete_owner', workspaceId: '', ownerId: group.owner.id,
@@ -1147,9 +1149,9 @@ export default function CustomersPage() {
                                     <Building2 className="w-3 h-3" /> {group.workspaces.length} ws
                                 </div>
                                 <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                                    <Users className="w-3 h-3" /> {group.uniqueMembers} utenti unici
+                                    <Users className="w-3 h-3" /> {group.uniqueMembers} {t('sa.customers.uniqueUsersLabel')}
                                 </div>
-                                <PlanCostBadge totalMonthlyCents={group.totalMonthlyCents} cs={cs} />
+                                <PlanCostBadge t={t} totalMonthlyCents={group.totalMonthlyCents} cs={cs} />
                             </div>
 
                             {/* Add workspace inline form */}
@@ -1172,14 +1174,14 @@ export default function CustomersPage() {
                                                 className="w-16 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" />
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <span className="text-xs text-slate-500">{cs}/utente:</span>
+                                            <span className="text-xs text-slate-500">{cs}{t('sa.customers.perUser')}</span>
                                             <input type="number" value={addWsPPS} onChange={e => setAddWsPPS(e.target.value)}
                                                 placeholder="10.00" step="0.01"
                                                 className="w-20 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" />
                                         </div>
                                         {addWsName && addWsSeats && addWsPPS && (
                                             <span className="text-xs text-emerald-400 font-bold">
-                                                = {cs}{fmtIT(parseInt(addWsSeats) * parseFloat(addWsPPS))}/mese
+                                                = {cs}{fmtIT(parseInt(addWsSeats) * parseFloat(addWsPPS))}{t('sa.customers.perMonth')}
                                             </span>
                                         )}
                                         <button onClick={addWorkspaceToOwner} disabled={addingWs || !addWsName.trim()}
@@ -1292,7 +1294,7 @@ export default function CustomersPage() {
                                                     </span>
 
                                                     {/* Status — only show if not active */}
-                                                    {ws.status !== 'active' && <StatusBadge status={ws.status} />}
+                                                    {ws.status !== 'active' && <StatusBadge t={t} status={ws.status} />}
 
                                                     {/* Empty workspace badge */}
                                                     {ws.activeSpaces === 0 && ws.status === 'active' && (
@@ -1313,9 +1315,9 @@ export default function CustomersPage() {
                                                         {actionMenuId === ws.id && (
                                                             <div className="absolute right-0 top-full mt-1 w-52 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-30 py-1 text-left"
                                                                 onClick={e => e.stopPropagation()}>
-                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Ricevute</p>
+                                                                <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">{t('sa.customers.invoices')}</p>
                                                                 <button onClick={() => generateInvoice(ws.id)} disabled={generatingInvoice} className="w-full px-3 py-2 text-left text-xs text-emerald-400 hover:bg-white/5 flex items-center gap-2">
-                                                                    <FileText className="w-3.5 h-3.5" /> Genera Ricevuta
+                                                                    <FileText className="w-3.5 h-3.5" /> {t('sa.customers.generateInvoice')}
                                                                 </button>
                                                                 <button onClick={() => loadInvoices(ws.id)} className="w-full px-3 py-2 text-left text-xs text-purple-400 hover:bg-white/5 flex items-center gap-2">
                                                                     <History className="w-3.5 h-3.5" /> Storico Ricevute
@@ -1324,7 +1326,7 @@ export default function CustomersPage() {
                                                                 <div className="border-t border-white/5 my-1" />
                                                                 <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Accesso</p>
                                                                 <button onClick={() => generateInviteLink(ws)} className="w-full px-3 py-2 text-left text-xs text-sky-400 hover:bg-white/5 flex items-center gap-2">
-                                                                    <Link2 className="w-3.5 h-3.5" /> Genera Link Invito
+                                                                    <Link2 className="w-3.5 h-3.5" /> Genera {t('sa.customers.inviteLink')}
                                                                 </button>
                                                                 <div className="border-t border-white/5 my-1" />
                                                                 <p className="px-3 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Workspace</p>
@@ -1383,14 +1385,14 @@ export default function CustomersPage() {
                                                                         placeholder="10" min="1" className="w-16 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" autoFocus />
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
-                                                                    <span className="text-xs text-slate-500">{cs}/utente:</span>
+                                                                    <span className="text-xs text-slate-500">{cs}{t('sa.customers.perUser')}</span>
                                                                     <input type="number" value={editPlanPPS} onChange={e => setEditPlanPPS(e.target.value)}
                                                                         placeholder="30.00" step="0.01" className="w-20 px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-white outline-none text-right" />
-                                                                    <span className="text-xs text-slate-500">/mese</span>
+                                                                    <span className="text-xs text-slate-500">{t('sa.customers.perMonth')}</span>
                                                                 </div>
                                                                 {editPlanMembers && editPlanPPS && (
                                                                     <span className="text-xs text-emerald-400 font-bold">
-                                                                        = {cs}{fmtIT(parseInt(editPlanMembers) * parseFloat(editPlanPPS))}/mese
+                                                                        = {cs}{fmtIT(parseInt(editPlanMembers) * parseFloat(editPlanPPS))}{t('sa.customers.perMonth')}
                                                                     </span>
                                                                 )}
                                                                 <input type="date" value={editPlanExpiry} onChange={e => setEditPlanExpiry(e.target.value)}
@@ -1418,7 +1420,7 @@ export default function CustomersPage() {
                                                             {loadingPayments ? (
                                                                 <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-purple-400" /></div>
                                                             ) : payments.length === 0 ? (
-                                                                <p className="text-xs text-slate-500 italic">Nessun pagamento registrato</p>
+                                                                <p className="text-xs text-slate-500 italic">{t('sa.customers.noPayments')}</p>
                                                             ) : (
                                                                 <div className="space-y-1 max-h-40 overflow-y-auto">
                                                                     {payments.map(p => (
@@ -1431,7 +1433,7 @@ export default function CustomersPage() {
                                                                                 {p.reference && <span className="text-slate-600">CRO: {p.reference}</span>}
                                                                             </div>
                                                                             <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${p.type === 'refund' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
-                                                                                {p.type === 'refund' ? 'Rimborso' : 'Pagamento'}
+                                                                                {p.type === 'refund' ? t('sa.customers.refund') : 'Pagamento'}
                                                                             </span>
                                                                         </div>
                                                                     ))}
@@ -1454,7 +1456,7 @@ export default function CustomersPage() {
                                                             {loadingInvoices ? (
                                                                 <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-indigo-400" /></div>
                                                             ) : invoices.length === 0 ? (
-                                                                <p className="text-xs text-slate-500 italic">Nessuna ricevuta. Clicca &quot;Genera Ricevuta&quot; dal menu.</p>
+                                                                <p className="text-xs text-slate-500 italic">Nessuna ricevuta. Clicca &quot;{t('sa.customers.generateInvoice')}&quot; dal menu.</p>
                                                             ) : (
                                                                 <div className="space-y-1.5 max-h-52 overflow-y-auto">
                                                                     {invoices.map(inv => (
@@ -1482,7 +1484,7 @@ export default function CustomersPage() {
                                                                                             });
                                                                                             loadInvoices(ws.id);
                                                                                             showFeedback('success', 'Ricevuta eliminata');
-                                                                                        } catch { showFeedback('error', 'Errore eliminazione'); }
+                                                                                        } catch { showFeedback('error', t('sa.customers.errorDelete')); }
                                                                                     }} className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Elimina ricevuta">
                                                                                         <Trash2 className="w-3 h-3" />
                                                                                     </button>
@@ -1511,11 +1513,11 @@ export default function CustomersPage() {
                                                                                         <button onClick={markInvoicePaid} className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-emerald-500 hover:bg-emerald-600">
                                                                                             ✅ Conferma Pagamento
                                                                                         </button>
-                                                                                        <button onClick={() => setMarkPaidId(null)} className="text-[10px] text-slate-500 hover:text-white">Annulla</button>
+                                                                                        <button onClick={() => setMarkPaidId(null)} className="text-[10px] text-slate-500 hover:text-white">{t('sa.customers.cancel')}</button>
                                                                                     </div>
                                                                                 ) : (
                                                                                     <button onClick={() => setMarkPaidId(inv.id)} className="mt-1 px-3 py-1.5 rounded-lg text-[10px] font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10">
-                                                                                        💰 Segna come Pagato
+                                                                                        💰 {t('sa.customers.markPaid')}
                                                                                     </button>
                                                                                 )
                                                                             )}
@@ -1724,7 +1726,7 @@ export default function CustomersPage() {
                                         <DollarSign className="w-5 h-5 text-emerald-400" />
                                     </div>
                                     <div>
-                                        <h3 className="text-base font-bold text-white">Registra Pagamento</h3>
+                                        <h3 className="text-base font-bold text-white">{t('sa.customers.recordPayment')}</h3>
                                         <p className="text-[11px] text-slate-500">{paymentWs.name}</p>
                                     </div>
                                 </div>
@@ -1779,7 +1781,7 @@ export default function CustomersPage() {
                                 </button>
                                 <button onClick={savePayment} disabled={savingPayment || !payAmount}
                                     className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-30 flex items-center justify-center gap-2 ${payType === 'refund' ? 'bg-red-500 hover:bg-red-400' : 'bg-emerald-500 hover:bg-emerald-400'}`}>
-                                    {savingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CreditCard className="w-4 h-4" /> {payType === 'refund' ? 'Registra Rimborso' : 'Registra Pagamento'}</>}
+                                    {savingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CreditCard className="w-4 h-4" /> {payType === 'refund' ? t('sa.customers.recordRefund') : t('sa.customers.recordPayment')}</>}
                                 </button>
                             </div>
                         </motion.div>
@@ -1802,7 +1804,7 @@ export default function CustomersPage() {
                                     <Link2 className="w-5 h-5 text-sky-400" />
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-bold text-white">Link Invito</h3>
+                                    <h3 className="text-base font-bold text-white">{t('sa.customers.inviteLink')}</h3>
                                     <p className="text-[11px] text-slate-500">{inviteLinkWs.name} • Valido 7 giorni • Max 10 usi</p>
                                 </div>
                             </div>
@@ -1818,10 +1820,10 @@ export default function CustomersPage() {
                                             {copiedLink ? <><Check className="w-3 h-3" /> Copiato!</> : <><Copy className="w-3 h-3" /> Copia</>}
                                         </button>
                                     </div>
-                                    <p className="text-[10px] text-slate-500">Condividi questo link con il cliente per dargli accesso al workspace.</p>
+                                    <p className="text-[10px] text-slate-500">{t('sa.customers.shareLink')}</p>
                                 </div>
                             ) : (
-                                <p className="text-sm text-red-400">Errore nella generazione del link.</p>
+                                <p className="text-sm text-red-400">{t('sa.customers.errorLink')}</p>
                             )}
                             <button onClick={() => { setInviteLinkWs(null); setGeneratedLink(''); }}
                                 className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5">
@@ -1860,7 +1862,7 @@ export default function CustomersPage() {
                                         <span className="text-slate-600">×</span>
                                         <span className="text-slate-400">€{fmtIT(upgradeWs.pricePerSeat / 100)}/utente</span>
                                         <span className="text-slate-600">=</span>
-                                        <span className="text-white font-bold">€{fmtIT((upgradeWs.maxMembers * upgradeWs.pricePerSeat) / 100)}/mese</span>
+                                        <span className="text-white font-bold">€{fmtIT((upgradeWs.maxMembers * upgradeWs.pricePerSeat) / 100)}{t('sa.customers.perMonth')}</span>
                                     </div>
                                 </div>
 
@@ -1882,7 +1884,7 @@ export default function CustomersPage() {
                                         <p className="text-[10px] text-cyan-300 uppercase font-bold tracking-wider mb-1">Nuovo Piano</p>
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm text-slate-300">{upgradeSeats} accessi × €{fmtIT(parseFloat(upgradePPS))}</span>
-                                            <span className="text-lg font-bold text-cyan-300">€{fmtIT(parseInt(upgradeSeats) * parseFloat(upgradePPS))}/mese</span>
+                                            <span className="text-lg font-bold text-cyan-300">€{fmtIT(parseInt(upgradeSeats) * parseFloat(upgradePPS))}{t('sa.customers.perMonth')}</span>
                                         </div>
                                         {upgradeWs.nextInvoiceDate && (() => {
                                             const now = new Date();
@@ -1904,7 +1906,7 @@ export default function CustomersPage() {
                             <div className="flex gap-2">
                                 <button onClick={doUpgrade} disabled={upgradingWs}
                                     className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2">
-                                    {upgradingWs ? <><Loader2 className="w-4 h-4 animate-spin" /> Aggiorno...</> : <><Zap className="w-4 h-4" /> Applica Upgrade</>}
+                                    {upgradingWs ? <><Loader2 className="w-4 h-4 animate-spin" /> {t('sa.customers.upgrading')}</> : <><Zap className="w-4 h-4" /> {t('sa.customers.applyUpgrade')}</>}
                                 </button>
                                 <button onClick={() => setUpgradeWs(null)}
                                     className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-white/10 hover:bg-white/5">
@@ -1933,7 +1935,7 @@ export default function CustomersPage() {
                                         <UserPlus className="w-5 h-5 text-emerald-400" />
                                     </div>
                                     <div>
-                                        <h3 className="text-base font-bold text-white">Nuovo Cliente Manuale</h3>
+                                        <h3 className="text-base font-bold text-white">{t('sa.customers.newClient')} Manuale</h3>
                                         <p className="text-[11px] text-slate-500">Crea Owner e Workspace direttamente</p>
                                     </div>
                                 </div>
@@ -2031,7 +2033,7 @@ export default function CustomersPage() {
                                     <Crown className="w-5 h-5 text-amber-400" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-white">Genera Link Owner</h3>
+                                    <h3 className="text-lg font-bold text-white">Genera {t('sa.customers.linkOwner')}</h3>
                                     <p className="text-xs text-slate-500">Crea un link di registrazione per un nuovo proprietario</p>
                                 </div>
                                 <button onClick={() => setIsOwnerLinkModalOpen(false)} className="ml-auto text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
@@ -2065,7 +2067,7 @@ export default function CustomersPage() {
                                     </div>
                                     <button onClick={handleGenerateOwnerLink} disabled={generatingOwnerLink}
                                         className="w-full px-4 py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20">
-                                        {generatingOwnerLink ? <Loader2 className="w-5 h-5 animate-spin" /> : <><KeyRound className="w-4 h-4" /> Genera Link</>}
+                                        {generatingOwnerLink ? <Loader2 className="w-5 h-5 animate-spin" /> : <><KeyRound className="w-4 h-4" /> {t('sa.customers.generateLink')}</>}
                                     </button>
                                 </div>
                             ) : (
@@ -2080,7 +2082,7 @@ export default function CustomersPage() {
                                             <button onClick={() => { navigator.clipboard.writeText(ownerLink); setCopiedOwnerLink(true); setTimeout(() => setCopiedOwnerLink(false), 2000); }}
                                                 className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition-all flex items-center gap-1">
                                                 {copiedOwnerLink ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                                                {copiedOwnerLink ? 'Copiato!' : 'Copia'}
+                                                {copiedOwnerLink ? t('sa.customers.copied') : 'Copia'}
                                             </button>
                                         </div>
                                     </div>

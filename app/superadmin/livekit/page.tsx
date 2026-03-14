@@ -7,6 +7,7 @@ import {
     TrendingUp, Eye, Gauge, Package, Info, ExternalLink,
     Check, ShieldAlert, Clock,
 } from 'lucide-react';
+import { useT } from '../../../lib/i18n';
 
 // ─── Types ───────────────────────────────────────────────────
 interface PlanInfo {
@@ -77,6 +78,7 @@ export default function LiveKitPage() {
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
     const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
     const [showSources, setShowSources] = useState(false);
+    const { t } = useT();
 
     const fetchData = useCallback(async () => {
         try {
@@ -113,10 +115,10 @@ export default function LiveKitPage() {
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center">
                             <Zap className="w-4 h-4 text-white" />
                         </div>
-                        LiveKit — Monitor
+                        LiveKit — {t('sa.livekit.title')}
                     </h1>
                     <p className="text-sm text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
-                        Monitoraggio WebRTC in tempo reale
+                        {t('sa.livekit.subtitle')}
                         {data?.livekit && (
                             <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                                 {data.livekit.region}
@@ -138,11 +140,11 @@ export default function LiveKitPage() {
                     </button>
                     <button onClick={fetchData}
                         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/30 transition-all">
-                        <RefreshCw className="w-3 h-3" /> Aggiorna
+                        <RefreshCw className="w-3 h-3" /> {t('sa.livekit.refreshBtn')}
                     </button>
                     <a href="https://cloud.livekit.io" target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 hover:text-white transition-all">
-                        <ExternalLink className="w-3 h-3" /> Dashboard LiveKit
+                        <ExternalLink className="w-3 h-3" /> {t('sa.livekit.dashboard')}
                     </a>
                     <span className="text-[10px] text-slate-500">
                         {lastRefresh.toLocaleTimeString('it-IT')}
@@ -162,9 +164,9 @@ export default function LiveKitPage() {
                     <div className="rounded-2xl border border-cyan-500/20 p-1" style={{ background: 'linear-gradient(135deg, rgba(34,211,238,0.05), rgba(99,102,241,0.05))' }}>
                         <div className="flex items-center gap-2 px-4 py-2">
                             <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
-                            <span className="text-xs font-bold text-cyan-300 uppercase tracking-widest">Real Time</span>
+                            <span className="text-xs font-bold text-cyan-300 uppercase tracking-widest">{t('sa.livekit.realtime')}</span>
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                DATI REALI DA LIVEKIT SDK
+                                {t('sa.livekit.realData')}
                             </span>
                             <span className="text-[10px] text-slate-500 ml-auto">ogni 10s</span>
                         </div>
@@ -182,9 +184,9 @@ export default function LiveKitPage() {
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-cyan-400" />
-                                <span className="text-sm font-semibold text-white">Connessioni Simultanee</span>
+                                <span className="text-sm font-semibold text-white">{t('sa.livekit.simultaneousConn')}</span>
                                 <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                    REAL-TIME
+                                    {t('sa.livekit.realtimeTag')}
                                 </span>
                             </div>
                             <span className="text-xs text-slate-400">
@@ -209,14 +211,14 @@ export default function LiveKitPage() {
                     <div className="rounded-2xl border border-amber-500/30 p-4 flex items-start gap-3" style={{ background: 'rgba(245, 158, 11, 0.06)' }}>
                         <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                         <div>
-                            <p className="text-sm font-semibold text-amber-300">Stime approssimative</p>
+                            <p className="text-sm font-semibold text-amber-300">{t('sa.livekit.approxEstimates')}</p>
                             <p className="text-xs text-slate-400 mt-0.5">
                                 I costi mostrati qui sotto sono <strong className="text-amber-300/80">stime calcolate</strong> basate sulle sessioni attive e le tariffe pubblicate.
                                 I <strong className="text-white">costi reali e il consumo mensile effettivo</strong> vanno visualizzati sulla dashboard ufficiale:
                             </p>
                             <a href="https://cloud.livekit.io" target="_blank" rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-all">
-                                <ExternalLink className="w-3 h-3" /> Apri cloud.livekit.io
+                                <ExternalLink className="w-3 h-3" /> {t('sa.livekit.openCloud')}
                             </a>
                         </div>
                     </div>
@@ -227,10 +229,10 @@ export default function LiveKitPage() {
                             <div className="flex items-start justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-                                        <Activity className="w-3 h-3 text-amber-400" /> Burn Rate
-                                        <span className="px-1 py-0.5 rounded text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30">STIMATO</span>
+                                        <Activity className="w-3 h-3 text-amber-400" /> {t('sa.livekit.burnRate')}
+                                        <span className="px-1 py-0.5 rounded text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30">{t('sa.livekit.estimated')}</span>
                                     </p>
-                                    <p className="text-3xl font-bold text-white">{formatCost(data.costs.burnRatePerHour)}<span className="text-sm text-slate-500">/ora</span></p>
+                                    <p className="text-3xl font-bold text-white">{formatCost(data.costs.burnRatePerHour)}<span className="text-sm text-slate-500">{t('sa.livekit.perHour')}</span></p>
                                     <p className="text-[10px] text-slate-500 mt-1">{formatCost(data.costs.burnRatePerMin)}/min • {data.live.participants} connessioni attive</p>
                                 </div>
                                 <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center text-amber-400">
@@ -243,11 +245,11 @@ export default function LiveKitPage() {
                             <div className="flex items-start justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-                                        <Clock className="w-3 h-3 text-purple-400" /> Sessioni Ora
-                                        <span className="px-1 py-0.5 rounded text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30">STIMATO</span>
+                                        <Clock className="w-3 h-3 text-purple-400" /> {t('sa.livekit.sessionsNow')}
+                                        <span className="px-1 py-0.5 rounded text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30">{t('sa.livekit.estimated')}</span>
                                     </p>
                                     <p className="text-3xl font-bold text-white">{data.costs.currentSessionMinutes}<span className="text-sm text-slate-500"> min</span></p>
-                                    <p className="text-[10px] text-slate-500 mt-1">connection-min delle sessioni attive</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">{t('sa.livekit.connMinLabel')}</p>
                                 </div>
                                 <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center text-purple-400">
                                     <DollarSign className="w-5 h-5" />
@@ -259,9 +261,9 @@ export default function LiveKitPage() {
                             <div className="flex items-start justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-                                        <ShieldAlert className="w-3 h-3 text-red-400" /> Consumo Mensile
+                                        <ShieldAlert className="w-3 h-3 text-red-400" /> {t('sa.livekit.monthlyConsumption')}
                                     </p>
-                                    <p className="text-lg font-bold text-red-300">Non disponibile</p>
+                                    <p className="text-lg font-bold text-red-300">{t('sa.livekit.notAvailable')}</p>
                                     <p className="text-[10px] text-slate-500 mt-1">
                                         Richiede piano Scale ($500/mo) + Analytics API
                                     </p>
@@ -282,10 +284,10 @@ export default function LiveKitPage() {
                         <div className="p-4 border-b border-white/5 flex items-center justify-between">
                             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                                 <Package className="w-4 h-4 text-indigo-400" />
-                                Piani LiveKit Cloud
+                                {t('sa.livekit.plans')}
                             </h2>
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-slate-500/20 text-slate-400 border border-white/10">
-                                TARIFFE VERIFICATE 06/03/2026
+                                {t('sa.livekit.verifiedRates')}
                             </span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-x divide-white/5">
@@ -293,7 +295,7 @@ export default function LiveKitPage() {
                                 <div key={plan.key} className={`p-5 relative ${plan.isCurrent ? 'bg-cyan-500/5' : ''}`}>
                                     {plan.isCurrent && (
                                         <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
-                                            <Check className="w-3 h-3" /> ATTIVO
+                                            <Check className="w-3 h-3" /> {t('sa.livekit.activeTag')}
                                         </div>
                                     )}
                                     <h3 className={`text-lg font-bold ${plan.isCurrent ? 'text-cyan-300' : 'text-white'}`}>
@@ -301,7 +303,7 @@ export default function LiveKitPage() {
                                     </h3>
                                     <p className="text-2xl font-bold text-white mt-1">
                                         {plan.baseCostMonth === 0 ? 'Gratis' : `$${plan.baseCostMonth}`}
-                                        {plan.baseCostMonth > 0 && <span className="text-sm text-slate-500">/mese</span>}
+                                        {plan.baseCostMonth > 0 && <span className="text-sm text-slate-500">{t('sa.livekit.perMonth')}</span>}
                                     </p>
                                     <div className="space-y-2 mt-4">
                                         <PlanRow label="Franchigia" value={`${plan.includedMinutes.toLocaleString('en-US')} minutes included`} />
@@ -312,7 +314,7 @@ export default function LiveKitPage() {
                                             <div>
                                                 <PlanRow label="Overage" value="Hard limit ⛔" />
                                                 <p className="text-[10px] text-red-400/70 italic mt-0.5">
-                                                    Il servizio si ferma al superamento della quota
+                                                    {t('sa.livekit.hardLimitMsg')}
                                                 </p>
                                             </div>
                                         )}
@@ -326,18 +328,18 @@ export default function LiveKitPage() {
                     <div className="rounded-2xl border border-white/5 p-5" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                         <h3 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
                             <Eye className="w-4 h-4 text-amber-400" />
-                            Simulazione Costi Mensili
-                            <span className="px-1 py-0.5 rounded text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30">CALCOLATO</span>
+                            {t('sa.livekit.monthlySimulation')}
+                            <span className="px-1 py-0.5 rounded text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30">{t('sa.livekit.calculated')}</span>
                         </h3>
                         <p className="text-[10px] text-slate-500 mb-4">
                             Basato sul tuo piano ({data.plan.name}). LiveKit addebita per &quot;connection-minute&quot;: 1 utente connesso = 1 min. Una connessione di 10s è fatturata come 1 min.
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             {[
-                                { label: '10 utenti × 4h/gg', users: 10, hours: 4, days: 22 },
-                                { label: '25 utenti × 6h/gg', users: 25, hours: 6, days: 22 },
-                                { label: '50 utenti × 8h/gg', users: 50, hours: 8, days: 22 },
-                                { label: '100 utenti × 8h/gg', users: 100, hours: 8, days: 22 },
+                                { label: '10 users × 4h/day', users: 10, hours: 4, days: 22 },
+                                { label: '25 users × 6h/day', users: 25, hours: 6, days: 22 },
+                                { label: '50 users × 8h/day', users: 50, hours: 8, days: 22 },
+                                { label: '100 users × 8h/day', users: 100, hours: 8, days: 22 },
                             ].map((sim) => {
                                 const totalMin = sim.users * sim.hours * 60 * sim.days;
                                 const overageMin = Math.max(0, totalMin - data.plan.includedMinutes);
@@ -356,16 +358,16 @@ export default function LiveKitPage() {
                                                 <p className="text-[10px] text-red-400/70 mt-1">
                                                     {formatNum(totalMin)} min → supera {formatNum(data.plan.includedMinutes)} inclusi
                                                 </p>
-                                                <p className="text-[10px] text-slate-500 mt-0.5">Serve piano superiore</p>
+                                                <p className="text-[10px] text-slate-500 mt-0.5">{t('sa.livekit.needsHigherPlan')}</p>
                                             </>
                                         ) : (
                                             <>
                                                 <p className="text-xl font-bold text-white">
-                                                    {formatCost(totalCost)}<span className="text-xs text-slate-500">/mese</span>
+                                                    {formatCost(totalCost)}<span className="text-xs text-slate-500">{t('sa.livekit.perMonth')}</span>
                                                 </p>
                                                 <p className="text-[10px] text-slate-600 mt-1">{formatNum(totalMin)} min totali</p>
                                                 {isIncluded ? (
-                                                    <p className="text-[10px] text-emerald-400 mt-0.5">✓ Incluso nel piano</p>
+                                                    <p className="text-[10px] text-emerald-400 mt-0.5">{t('sa.livekit.includedInPlan')}</p>
                                                 ) : (
                                                     <p className="text-[10px] text-amber-400 mt-0.5">+ {formatNum(overageMin)} min overage</p>
                                                 )}
@@ -384,7 +386,7 @@ export default function LiveKitPage() {
                                 <Server className="w-4 h-4 text-cyan-400" />
                                 Stanze Attive ({data.rooms.length})
                                 <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                    REAL-TIME
+                                    {t('sa.livekit.realtimeTag')}
                                 </span>
                             </h2>
                         </div>
@@ -453,8 +455,8 @@ export default function LiveKitPage() {
                         ) : (
                             <div className="p-12 text-center">
                                 <Server className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-                                <p className="text-sm text-slate-500">Nessuna stanza attiva</p>
-                                <p className="text-[10px] text-slate-600 mt-1">Le stanze vengono create quando gli utenti iniziano una chiamata</p>
+                                <p className="text-sm text-slate-500">{t('sa.livekit.noActiveRoomsMsg')}</p>
+                                <p className="text-[10px] text-slate-600 mt-1">{t('sa.livekit.roomsCreatedMsg')}</p>
                             </div>
                         )}
                     </div>
@@ -467,9 +469,9 @@ export default function LiveKitPage() {
                         >
                             <h2 className="text-sm font-bold text-white flex items-center gap-2">
                                 <Info className="w-4 h-4 text-slate-400" />
-                                Trasparenza Dati — Da dove vengono questi numeri?
+                                {t('sa.livekit.transparency')}
                             </h2>
-                            <span className="text-xs text-slate-500">{showSources ? '▲ Chiudi' : '▼ Espandi'}</span>
+                            <span className="text-xs text-slate-500">{showSources ? '▲ Chiudi' : t('sa.livekit.expand')}</span>
                         </button>
                         {showSources && data.dataSources && (
                             <div className="p-4 pt-0 space-y-4">
@@ -486,14 +488,14 @@ export default function LiveKitPage() {
                                     color="amber"
                                 />
                                 <SourceBlock
-                                    title="⚙️ Dati Configurati (da env/codice)"
-                                    desc="Impostati manualmente. Verificare che corrispondano al tuo account LiveKit Cloud."
+                                    title="{t('sa.livekit.configuredData')}"
+                                    desc="{t('sa.livekit.configuredDesc')}"
                                     items={data.dataSources.configured}
                                     color="indigo"
                                 />
                                 <SourceBlock
                                     title="❌ Dati Non Disponibili"
-                                    desc="LiveKit non espone questi dati via API nel piano attuale."
+                                    desc="{t('sa.livekit.noApiData')}"
                                     items={data.dataSources.notAvailable}
                                     color="red"
                                 />

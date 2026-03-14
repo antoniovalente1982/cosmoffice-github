@@ -6,6 +6,7 @@ import {
     Shield, Globe, Zap, ArrowRight, AlertTriangle, Send,
     FileText, Key, Server,
 } from 'lucide-react';
+import { useT } from '../../../lib/i18n';
 
 function CopyButton({ text }: { text: string }) {
     const [copied, setCopied] = useState(false);
@@ -13,7 +14,7 @@ function CopyButton({ text }: { text: string }) {
         <button
             onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
             className="p-1 rounded hover:bg-white/10 transition-colors text-slate-500 hover:text-slate-300"
-            title="Copia"
+            title={t('sa.email.copy')}
         >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
         </button>
@@ -34,20 +35,21 @@ const dnsRecords = [
 ];
 
 const emailTemplates = [
-    { id: 'confirm_signup', name: 'Conferma Registrazione', description: 'Inviata quando un utente si registra', icon: '📧' },
-    { id: 'reset_password', name: 'Reset Password', description: 'Inviata quando un utente richiede il reset', icon: '🔑' },
+    { id: 'confirm_signup', nameKey: 'sa.email.confirmSignup', descKey: 'sa.email.confirmSignupDesc', icon: '📧' },
+    { id: 'reset_password', nameKey: 'sa.email.resetPassword', descKey: 'sa.email.resetPasswordDesc', icon: '🔑' },
     { id: 'magic_link', name: 'Magic Link', description: 'Login senza password', icon: '✨' },
-    { id: 'invite', name: 'Invito Workspace', description: 'Inviata quando qualcuno viene invitato', icon: '📨' },
-    { id: 'email_change', name: 'Cambio Email', description: 'Conferma cambio indirizzo email', icon: '📬' },
+    { id: 'invite', nameKey: 'sa.email.invite', descKey: 'sa.email.inviteDesc', icon: '📨' },
+    { id: 'email_change', nameKey: 'sa.email.emailChange', descKey: 'sa.email.emailChangeDesc', icon: '📬' },
 ];
 
 export default function EmailConfigPage() {
+    const { t } = useT();
     return (
         <div className="p-8 space-y-8 max-w-5xl">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-white">Email & Resend</h1>
-                <p className="text-sm text-slate-400 mt-1">Configura il provider email per le notifiche transazionali (login, reset password, inviti)</p>
+                <h1 className="text-2xl font-bold text-white">{t('sa.email.title')}</h1>
+                <p className="text-sm text-slate-400 mt-1">{t('sa.email.subtitle')}</p>
             </div>
 
             {/* Status Banner */}
@@ -57,7 +59,7 @@ export default function EmailConfigPage() {
                         <AlertTriangle className="w-5 h-5 text-amber-400" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold text-white">Configurazione Richiesta</h2>
+                        <h2 className="text-sm font-bold text-white">{t('sa.email.configRequired')}</h2>
                         <p className="text-xs text-slate-400 mt-1">
                             Attualmente le email vengono inviate dal servizio built-in di Supabase con limiti restrittivi.
                             Configura <strong className="text-amber-300">Resend</strong> per email personalizzate dal <strong className="text-amber-300">tuo dominio</strong> con alta deliverability.
@@ -78,11 +80,11 @@ export default function EmailConfigPage() {
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-white">Resend</h3>
-                            <p className="text-xs text-slate-400">Provider email transazionale raccomandato</p>
+                            <p className="text-xs text-slate-400">{t('sa.email.provider')}</p>
                         </div>
                     </div>
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-500/20 text-slate-400 border border-slate-500/20">
-                        <XCircle className="w-3 h-3" /> Non collegato
+                        <XCircle className="w-3 h-3" /> {t('sa.email.notConnected')}
                     </span>
                 </div>
 
@@ -103,13 +105,13 @@ export default function EmailConfigPage() {
 
                 {/* Setup Steps */}
                 <div className="space-y-4 pt-4 border-t border-white/5">
-                    <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">Setup in 4 passi</p>
+                    <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">{t('sa.email.setup')}</p>
 
                     {/* Step 1 */}
                     <div className="flex items-start gap-3">
                         <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
                         <div className="flex-1">
-                            <p className="text-sm text-slate-200 font-medium">Crea account Resend e genera API Key</p>
+                            <p className="text-sm text-slate-200 font-medium">{t('sa.email.step1')}</p>
                             <a href="https://resend.com/signup" target="_blank" rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 mt-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
                                 <Globe className="w-3 h-3" /> resend.com/signup <ExternalLink className="w-3 h-3" />
@@ -121,7 +123,7 @@ export default function EmailConfigPage() {
                     <div className="flex items-start gap-3">
                         <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
                         <div className="flex-1">
-                            <p className="text-sm text-slate-200 font-medium">Verifica dominio su Hostinger</p>
+                            <p className="text-sm text-slate-200 font-medium">{t('sa.email.step2')}</p>
                             <p className="text-xs text-slate-400 mt-1">Aggiungi questi record DNS nel pannello Hostinger:</p>
                             <div className="mt-2 space-y-2">
                                 {dnsRecords.map((record, i) => (
@@ -140,7 +142,7 @@ export default function EmailConfigPage() {
                     <div className="flex items-start gap-3">
                         <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
                         <div className="flex-1">
-                            <p className="text-sm text-slate-200 font-medium">Configura SMTP in Supabase Dashboard</p>
+                            <p className="text-sm text-slate-200 font-medium">{t('sa.email.step3')}</p>
                             <p className="text-xs text-slate-400 mt-1 mb-2">
                                 Vai su <strong className="text-white">Authentication → Email Templates → SMTP Settings</strong> e inserisci:
                             </p>
@@ -156,7 +158,7 @@ export default function EmailConfigPage() {
                             </div>
                             <a href="https://supabase.com/dashboard/project/_/auth/templates" target="_blank" rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 mt-2 text-xs text-cyan-400 hover:text-cyan-300 transition-colors">
-                                Apri Supabase Auth Settings <ExternalLink className="w-3 h-3" />
+                                {t('sa.email.openAuthSettings')} <ExternalLink className="w-3 h-3" />
                             </a>
                         </div>
                     </div>
@@ -165,7 +167,7 @@ export default function EmailConfigPage() {
                     <div className="flex items-start gap-3">
                         <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">4</span>
                         <div className="flex-1">
-                            <p className="text-sm text-slate-200 font-medium">Testa l&apos;invio email</p>
+                            <p className="text-sm text-slate-200 font-medium">{t('sa.email.step4')}</p>
                             <p className="text-xs text-slate-400 mt-1">
                                 Registra un account di test oppure usa &quot;Reset Password&quot; per verificare che le email arrivino dal tuo dominio.
                             </p>
@@ -181,7 +183,7 @@ export default function EmailConfigPage() {
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
                     >
-                        <Key className="w-4 h-4" /> Dashboard Resend <ExternalLink className="w-3.5 h-3.5" />
+                        <Key className="w-4 h-4" /> {t('sa.email.dashboard')} <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                     <a
                         href="https://resend.com/docs/send-with-supabase-smtp"
@@ -189,7 +191,7 @@ export default function EmailConfigPage() {
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
                     >
-                        <FileText className="w-4 h-4" /> Guida Resend + Supabase <ExternalLink className="w-3.5 h-3.5" />
+                        <FileText className="w-4 h-4" /> {t('sa.email.guide')} <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                 </div>
             </div>
@@ -199,19 +201,19 @@ export default function EmailConfigPage() {
                 style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                 <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-purple-400" />
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Template Email</h3>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t('sa.email.templates')}</h3>
                 </div>
                 <p className="text-xs text-slate-400">
                     I template si configurano dal <strong className="text-slate-200">Supabase Dashboard</strong> → Authentication → Email Templates.
                     Una volta collegato Resend, tutte le email useranno il tuo dominio e branding.
                 </p>
                 <div className="space-y-2">
-                    {emailTemplates.map(t => (
-                        <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
-                            <span className="text-xl">{t.icon}</span>
+                    {emailTemplates.map(tmpl => (
+                        <div key={tmpl.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
+                            <span className="text-xl">{tmpl.icon}</span>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white">{t.name}</p>
-                                <p className="text-[11px] text-slate-500">{t.description}</p>
+                                <p className="text-sm font-medium text-white">{tmpl.name}</p>
+                                <p className="text-[11px] text-slate-500">{tmpl.description}</p>
                             </div>
                             <a
                                 href="https://supabase.com/dashboard/project/_/auth/templates"
@@ -219,7 +221,7 @@ export default function EmailConfigPage() {
                                 rel="noopener noreferrer"
                                 className="text-[10px] text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 shrink-0"
                             >
-                                Modifica <ExternalLink className="w-3 h-3" />
+                                {t('sa.email.edit')} <ExternalLink className="w-3 h-3" />
                             </a>
                         </div>
                     ))}
@@ -231,7 +233,7 @@ export default function EmailConfigPage() {
                 style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                 <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-amber-400" />
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Email di Supporto</h3>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t('sa.email.supportEmail')}</h3>
                 </div>
                 <p className="text-xs text-slate-400">
                     L&apos;email di supporto viene gestita dal tuo provider di hosting (Hostinger).
@@ -249,7 +251,7 @@ export default function EmailConfigPage() {
                         rel="noopener noreferrer"
                         className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1"
                     >
-                        Gestisci <ExternalLink className="w-3 h-3" />
+                        {t('sa.email.manage')} <ExternalLink className="w-3 h-3" />
                     </a>
                 </div>
             </div>
@@ -257,7 +259,7 @@ export default function EmailConfigPage() {
             {/* Pricing */}
             <div className="rounded-2xl border border-white/5 p-5 text-center" style={{ background: 'rgba(15, 23, 42, 0.4)' }}>
                 <p className="text-sm text-slate-400">
-                    <strong className="text-white">Resend Piano Gratuito</strong>: 3.000 email/mese · 100 email/giorno · 1 dominio.
+                    <strong className="text-white">{t('sa.email.freePlan')}</strong>: 3.000 email/mese · 100 email/giorno · 1 dominio.
                     <br />
                     <span className="text-slate-500">Sufficiente per ~100 utenti attivi. Piano Pro da $20/mese per scaling.</span>
                 </p>

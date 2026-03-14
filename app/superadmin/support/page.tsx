@@ -7,6 +7,7 @@ import {
     ArrowRight, ChevronDown, Search, Filter, Send, X,
 } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
+import { useT } from '../../../lib/i18n';
 
 interface SupportTicket {
     id: string;
@@ -44,27 +45,27 @@ interface TicketMessage {
     created_at: string;
 }
 
-const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
-    general: { label: 'Generale', color: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/20' },
-    technical: { label: 'Tecnico', color: 'text-amber-400 bg-amber-500/15 border-amber-500/20' },
-    billing: { label: 'Fatturazione', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/20' },
-    feature_request: { label: 'Funzionalità', color: 'text-purple-400 bg-purple-500/15 border-purple-500/20' },
-    upgrade: { label: '⬆️ Upgrade', color: 'text-orange-400 bg-orange-500/15 border-orange-500/20' },
-    bug_report: { label: '🐞 Bug Report', color: 'text-rose-400 bg-rose-500/15 border-rose-500/20' },
+const CATEGORY_CONFIG: Record<string, { labelKey: string; color: string }> = {
+    general: { labelKey: 'sa.support.general', color: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/20' },
+    technical: { labelKey: 'sa.support.technical', color: 'text-amber-400 bg-amber-500/15 border-amber-500/20' },
+    billing: { labelKey: 'sa.support.billing', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/20' },
+    feature_request: { labelKey: 'sa.support.featureRequest', color: 'text-purple-400 bg-purple-500/15 border-purple-500/20' },
+    upgrade: { labelKey: 'sa.support.upgrade', color: 'text-orange-400 bg-orange-500/15 border-orange-500/20' },
+    bug_report: { labelKey: 'sa.support.bugReport', color: 'text-rose-400 bg-rose-500/15 border-rose-500/20' },
 };
 
-const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
-    low: { label: 'Bassa', color: 'text-slate-400' },
-    normal: { label: 'Normale', color: 'text-cyan-400' },
-    high: { label: 'Alta', color: 'text-amber-400' },
-    urgent: { label: '🔴 Urgente', color: 'text-red-400' },
+const PRIORITY_CONFIG: Record<string, { labelKey: string; color: string }> = {
+    low: { labelKey: 'sa.support.priorityLow', color: 'text-slate-400' },
+    normal: { labelKey: 'sa.support.priorityNormal', color: 'text-cyan-400' },
+    high: { labelKey: 'sa.support.priorityHigh', color: 'text-amber-400' },
+    urgent: { labelKey: 'sa.support.priorityUrgent', color: 'text-red-400' },
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    open: { label: 'Aperto', color: 'text-amber-400 bg-amber-500/15 border-amber-500/20' },
-    in_progress: { label: 'In Lavorazione', color: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/20' },
-    resolved: { label: 'Risolto', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/20' },
-    closed: { label: 'Chiuso', color: 'text-slate-500 bg-slate-500/15 border-slate-500/20' },
+const STATUS_CONFIG: Record<string, { labelKey: string; color: string }> = {
+    open: { labelKey: 'sa.support.statusOpenLabel', color: 'text-amber-400 bg-amber-500/15 border-amber-500/20' },
+    in_progress: { labelKey: 'sa.support.statusInProgressLabel', color: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/20' },
+    resolved: { labelKey: 'sa.support.statusResolvedLabel', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/20' },
+    closed: { labelKey: 'sa.support.statusClosedLabel', color: 'text-slate-500 bg-slate-500/15 border-slate-500/20' },
 };
 
 const ROLE_ICONS: Record<string, typeof Crown> = {
@@ -93,6 +94,7 @@ export default function SupportPage() {
     const chatEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const [statusCounts, setStatusCounts] = useState({ open: 0, in_progress: 0, resolved: 0, closed: 0, total: 0 });
     const [unreadByStatus, setUnreadByStatus] = useState({ open: 0, in_progress: 0, resolved: 0, closed: 0, total: 0 });
+    const { t } = useT();
 
     const fetchTickets = useCallback(async () => {
         setLoading(true);
@@ -263,15 +265,15 @@ export default function SupportPage() {
                     <div>
                         <h1 className="text-2xl font-bold text-white flex items-center gap-3">
                             <Headphones className="w-7 h-7 text-emerald-400" />
-                            Assistenza
+                            {t('sa.support.title')}
                             {openCount > 0 && (
                                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                    {openCount} nuov{openCount === 1 ? 'a' : 'e'}
+                                    {openCount} {openCount === 1 ? t('sa.support.newCount') : t('sa.support.newCountPlural')}
                                 </span>
                             )}
                             {inProgressCount > 0 && (
                                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                                    {inProgressCount} in corso
+                                    {inProgressCount} {t('sa.support.inProgress')}
                                 </span>
                             )}
                             {totalUnreadReplies > 0 && (
@@ -280,7 +282,7 @@ export default function SupportPage() {
                                 </span>
                             )}
                         </h1>
-                        <p className="text-sm text-slate-500 mt-1">Gestisci le richieste di assistenza — rispondi direttamente nella chat</p>
+                        <p className="text-sm text-slate-500 mt-1">{t('sa.support.subtitle')}</p>
                     </div>
                     <button onClick={fetchTickets} className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                         <RefreshCw className="w-4 h-4 text-slate-400" />
@@ -291,7 +293,7 @@ export default function SupportPage() {
                 <div className="flex gap-3 mb-6 flex-wrap">
                     <div className="relative flex-1 min-w-[200px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                        <input type="text" placeholder="Cerca per nome, email, azienda..."
+                        <input type="text" placeholder={t('sa.support.searchPlaceholder')}
                             value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/30"
                         />
@@ -323,15 +325,15 @@ export default function SupportPage() {
                     </div>
                     <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
                         className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-300 focus:outline-none">
-                        <option value="">Tutte le categorie</option>
+                        <option value="">{t('sa.support.allCategories')}</option>
                         {Object.entries(CATEGORY_CONFIG).map(([k, v]) => (
-                            <option key={k} value={k}>{v.label}</option>
+                            <option key={k} value={k}>{t(v.labelKey as any)}</option>
                         ))}
                     </select>
                     {filter === 'all' && tickets.length > 0 && (
                         <button
                             onClick={async () => {
-                                if (!confirm(`⚠️ Eliminare definitivamente TUTTI i ${tickets.length} ticket? Questa azione non è reversibile!`)) return;
+                                if (!confirm(t('sa.support.deleteAllConfirm'))) return;
                                 if (!confirm(`Sei davvero sicuro? Verranno eliminati ${tickets.length} ticket con tutti i messaggi.`)) return;
                                 try {
                                     await fetch('/api/admin/support-tickets', {
@@ -358,92 +360,92 @@ export default function SupportPage() {
                     <div className="text-center py-20">
                         <Inbox className="w-12 h-12 text-slate-700 mx-auto mb-3" />
                         <p className="text-slate-500 text-sm">
-                            {filter === 'open' ? 'Nessuna richiesta aperta 🎉' : 'Nessuna richiesta trovata'}
+                            {filter === 'open' ? t('sa.support.noRequestsOpen') : t('sa.support.noRequestsFound')}
                         </p>
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {filtered.map(t => {
-                            const cat = CATEGORY_CONFIG[t.category] || CATEGORY_CONFIG.general;
-                            const pri = PRIORITY_CONFIG[t.priority] || PRIORITY_CONFIG.normal;
-                            const stat = STATUS_CONFIG[t.status] || STATUS_CONFIG.open;
-                            const isExpanded = expandedId === t.id;
-                            const RoleIcon = ROLE_ICONS[t.requester_role || ''] || User;
-                            const messages = chatMessages[t.id] || [];
+                        {filtered.map(tk => {
+                            const cat = CATEGORY_CONFIG[tk.category] || CATEGORY_CONFIG.general;
+                            const pri = PRIORITY_CONFIG[tk.priority] || PRIORITY_CONFIG.normal;
+                            const stat = STATUS_CONFIG[tk.status] || STATUS_CONFIG.open;
+                            const isExpanded = expandedId === tk.id;
+                            const RoleIcon = ROLE_ICONS[tk.requester_role || ''] || User;
+                            const messages = chatMessages[tk.id] || [];
 
                             return (
-                                <div key={t.id}
+                                <div key={tk.id}
                                     className="rounded-2xl border transition-all"
                                     style={{
                                         background: 'rgba(255,255,255,0.02)',
-                                        borderColor: t.status === 'open'
+                                        borderColor: tk.status === 'open'
                                             ? 'rgba(16,185,129,0.2)'
-                                            : t.status === 'in_progress'
+                                            : tk.status === 'in_progress'
                                                 ? 'rgba(6,182,212,0.2)'
                                                 : 'rgba(255,255,255,0.06)',
                                     }}>
                                     {/* Ticket Header */}
                                     <div className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors rounded-2xl"
-                                        onClick={() => setExpandedId(isExpanded ? null : t.id)}>
+                                        onClick={() => setExpandedId(isExpanded ? null : tk.id)}>
                                         <div className="flex items-start justify-between gap-4">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${cat.color}`}>
-                                                        {cat.label}
+                                                        {t(cat.labelKey as any)}
                                                     </span>
                                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${stat.color}`}>
-                                                        {stat.label}
+                                                        {t(stat.labelKey as any)}
                                                     </span>
                                                     <span className={`text-[10px] font-bold ${pri.color}`}>
-                                                        {pri.label}
+                                                        {t(pri.labelKey as any)}
                                                     </span>
                                                     {messages.length > 0 && (
                                                         <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-violet-400 bg-violet-500/15 border border-violet-500/20 flex items-center gap-1">
                                                             <MessageSquare className="w-3 h-3" /> {messages.length}
                                                         </span>
                                                     )}
-                                                    {(t.unreadUserCount || 0) > 0 && (
-                                                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-red-300 bg-red-500/20 border border-red-500/30 flex items-center gap-1 animate-pulse">
-                                                            🔴 {t.unreadUserCount} nuov{t.unreadUserCount === 1 ? 'a' : 'e'}
+                                                    {(tk.unreadUserCount || 0) > 0 && (
+                                                         <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-red-300 bg-red-500/20 border border-red-500/30 flex items-center gap-1 animate-pulse">
+                                                            🔴 {tk.unreadUserCount} {tk.unreadUserCount === 1 ? t('sa.support.newCount') : t('sa.support.newCountPlural')}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <h3 className="text-sm font-bold text-white mb-1 truncate">{t.subject}</h3>
+                                                <h3 className="text-sm font-bold text-white mb-1 truncate">{tk.subject}</h3>
                                                 <div className="flex items-center gap-4 text-[11px] text-slate-400 flex-wrap">
                                                     <span className="flex items-center gap-1">
-                                                        <RoleIcon className="w-3 h-3" /> {t.requester_name || 'Utente'}
+                                                        <RoleIcon className="w-3 h-3" /> {tk.requester_name || 'Utente'}
                                                     </span>
-                                                    {t.requester_email && (
+                                                    {tk.requester_email && (
                                                         <span className="flex items-center gap-1">
-                                                            <Mail className="w-3 h-3" /> {t.requester_email}
+                                                            <Mail className="w-3 h-3" /> {tk.requester_email}
                                                         </span>
                                                     )}
-                                                    {t.requester_phone && (
+                                                    {tk.requester_phone && (
                                                         <span className="flex items-center gap-1 text-emerald-400">
-                                                            <Phone className="w-3 h-3" /> {t.requester_phone}
+                                                            <Phone className="w-3 h-3" /> {tk.requester_phone}
                                                         </span>
                                                     )}
-                                                    {t.requester_company && (
+                                                    {tk.requester_company && (
                                                         <span className="flex items-center gap-1">
-                                                            <Building2 className="w-3 h-3 text-cyan-400" /> {t.requester_company}
+                                                            <Building2 className="w-3 h-3 text-cyan-400" /> {tk.requester_company}
                                                         </span>
                                                     )}
-                                                    {t.workspace_name && (
+                                                    {tk.workspace_name && (
                                                         <span className="flex items-center gap-1 border-l border-white/10 pl-2 ml-1" title="Workspace di provenienza">
                                                             <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">WS:</span>
-                                                            <span className="text-indigo-300 font-semibold">{t.workspace_name}</span>
+                                                            <span className="text-indigo-300 font-semibold">{tk.workspace_name}</span>
                                                         </span>
                                                     )}
-                                                    {t.workspace_owner_email && (
-                                                        <span className="flex items-center gap-1 text-slate-400" title={`Owner: ${t.workspace_owner_email}`}>
+                                                    {tk.workspace_owner_email && (
+                                                        <span className="flex items-center gap-1 text-slate-400" title={`Owner: ${tk.workspace_owner_email}`}>
                                                             <Crown className="w-3 h-3 text-amber-400" />
-                                                            <span className="truncate max-w-[120px]">{t.workspace_owner_email}</span>
+                                                            <span className="truncate max-w-[120px]">{tk.workspace_owner_email}</span>
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <span className="text-[10px] text-slate-600">{formatTime(t.created_at)}</span>
+                                                <span className="text-[10px] text-slate-600">{formatTime(tk.created_at)}</span>
                                                 <ChevronDown className={`w-4 h-4 text-slate-600 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                             </div>
                                         </div>
@@ -454,25 +456,25 @@ export default function SupportPage() {
                                         <div className="px-5 pb-5 border-t border-white/5 pt-4 space-y-4">
                                             {/* Original Description */}
                                             <div className="bg-black/20 rounded-xl p-4">
-                                                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">Richiesta originale</p>
-                                                <p className="text-xs text-slate-300 whitespace-pre-wrap">{t.description}</p>
+                                                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">{t('sa.support.originalRequest')}</p>
+                                                <p className="text-xs text-slate-300 whitespace-pre-wrap">{tk.description}</p>
                                             </div>
 
                                             {/* Chat Thread */}
                                             <div>
                                                 <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5">
-                                                    <MessageSquare className="w-3 h-3" /> Conversazione ({messages.length})
+                                                     <MessageSquare className="w-3 h-3" /> {t('sa.support.conversation')} ({messages.length})
                                                 </p>
                                                 <div className="bg-black/30 rounded-xl border border-white/5 overflow-hidden">
                                                     {/* Messages */}
                                                     <div className="max-h-[400px] overflow-y-auto p-4 space-y-3">
-                                                        {loadingMessages === t.id ? (
+                                                        {loadingMessages === tk.id ? (
                                                             <div className="flex items-center justify-center py-6">
                                                                 <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
                                                             </div>
                                                         ) : messages.length === 0 ? (
                                                             <p className="text-center text-xs text-slate-600 py-4">
-                                                                Nessun messaggio — scrivi la prima risposta!
+                                                                {t('sa.support.noMessages')}
                                                             </p>
                                                         ) : (
                                                             messages.map((msg) => (
@@ -495,26 +497,26 @@ export default function SupportPage() {
                                                                 </div>
                                                             ))
                                                         )}
-                                                        <div ref={(el) => { chatEndRefs.current[t.id] = el; }} />
+                                                        <div ref={(el) => { chatEndRefs.current[tk.id] = el; }} />
                                                     </div>
 
                                                     {/* Input */}
-                                                    {t.status !== 'closed' && (
+                                                    {tk.status !== 'closed' && (
                                                         <div className="border-t border-white/5 p-3 flex items-center gap-2">
                                                             <input
                                                                 type="text"
-                                                                placeholder="Scrivi una risposta..."
-                                                                value={chatInput[t.id] || ''}
-                                                                onChange={(e) => setChatInput(prev => ({ ...prev, [t.id]: e.target.value }))}
-                                                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(t.id); } }}
+                                                                placeholder={t('sa.support.replyPlaceholder')}
+                                                                value={chatInput[tk.id] || ''}
+                                                                onChange={(e) => setChatInput(prev => ({ ...prev, [tk.id]: e.target.value }))}
+                                                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(tk.id); } }}
                                                                 className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/30"
                                                             />
                                                             <button
-                                                                onClick={() => sendMessage(t.id)}
-                                                                disabled={!chatInput[t.id]?.trim() || sendingMessage === t.id}
+                                                                onClick={() => sendMessage(tk.id)}
+                                                                disabled={!chatInput[tk.id]?.trim() || sendingMessage === tk.id}
                                                                 className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:opacity-90 disabled:opacity-30 transition-all"
                                                             >
-                                                                {sendingMessage === t.id
+                                                                {sendingMessage === tk.id
                                                                     ? <Loader2 className="w-4 h-4 animate-spin" />
                                                                     : <Send className="w-4 h-4" />
                                                                 }
@@ -526,11 +528,11 @@ export default function SupportPage() {
 
                                             {/* Admin Notes */}
                                             <div>
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Note Admin (interne)</label>
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">{t('sa.support.adminNotes')}</label>
                                                 <textarea
-                                                    value={noteInputs[t.id] ?? t.admin_notes ?? ''}
-                                                    onChange={(e) => setNoteInputs(p => ({ ...p, [t.id]: e.target.value }))}
-                                                    placeholder="Note interne (non visibili al cliente)..."
+                                                    value={noteInputs[tk.id] ?? tk.admin_notes ?? ''}
+                                                    onChange={(e) => setNoteInputs(p => ({ ...p, [tk.id]: e.target.value }))}
+                                                    placeholder={t('sa.support.adminNotesPlaceholder')}
                                                     rows={2}
                                                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/30 resize-none"
                                                 />
@@ -540,59 +542,59 @@ export default function SupportPage() {
                                             <div className="flex flex-wrap gap-2 items-center">
                                                 {/* Status selector */}
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Sposta in:</span>
-                                                    {t.status !== 'open' && (
-                                                        <button onClick={() => updateTicket(t.id, { status: 'open', admin_notes: noteInputs[t.id] ?? t.admin_notes })}
-                                                            disabled={processing === t.id}
+                                                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{t('sa.support.moveTo')}</span>
+                                                    {tk.status !== 'open' && (
+                                                        <button onClick={() => updateTicket(tk.id, { status: 'open', admin_notes: noteInputs[tk.id] ?? tk.admin_notes })}
+                                                            disabled={processing === tk.id}
                                                             className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25 transition-all disabled:opacity-50">
-                                                            Aperto
+                                                            {t('sa.support.statusOpen')}
                                                         </button>
                                                     )}
-                                                    {t.status !== 'in_progress' && (
-                                                        <button onClick={() => updateTicket(t.id, { status: 'in_progress', admin_notes: noteInputs[t.id] ?? t.admin_notes })}
-                                                            disabled={processing === t.id}
+                                                    {tk.status !== 'in_progress' && (
+                                                        <button onClick={() => updateTicket(tk.id, { status: 'in_progress', admin_notes: noteInputs[tk.id] ?? tk.admin_notes })}
+                                                            disabled={processing === tk.id}
                                                             className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/25 transition-all disabled:opacity-50">
-                                                            In Corso
+                                                            {t('sa.support.statusInProgress')}
                                                         </button>
                                                     )}
-                                                    {t.status !== 'resolved' && (
-                                                        <button onClick={() => updateTicket(t.id, { status: 'resolved', admin_notes: noteInputs[t.id] ?? t.admin_notes, resolution: resolutionInputs[t.id] ?? t.resolution })}
-                                                            disabled={processing === t.id}
+                                                    {tk.status !== 'resolved' && (
+                                                        <button onClick={() => updateTicket(tk.id, { status: 'resolved', admin_notes: noteInputs[tk.id] ?? tk.admin_notes, resolution: resolutionInputs[tk.id] ?? tk.resolution })}
+                                                            disabled={processing === tk.id}
                                                             className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all disabled:opacity-50">
-                                                            Risolto
+                                                            {t('sa.support.statusResolved')}
                                                         </button>
                                                     )}
-                                                    {t.status !== 'closed' && (
-                                                        <button onClick={() => updateTicket(t.id, { status: 'closed', admin_notes: noteInputs[t.id] ?? t.admin_notes })}
-                                                            disabled={processing === t.id}
+                                                    {tk.status !== 'closed' && (
+                                                        <button onClick={() => updateTicket(tk.id, { status: 'closed', admin_notes: noteInputs[tk.id] ?? tk.admin_notes })}
+                                                            disabled={processing === tk.id}
                                                             className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-slate-400 border border-white/10 hover:bg-white/5 transition-all disabled:opacity-50">
-                                                            Chiuso
+                                                            {t('sa.support.statusClosed')}
                                                         </button>
                                                     )}
                                                 </div>
 
                                                 <div className="flex items-center gap-2 ml-auto">
-                                                    {(noteInputs[t.id] !== undefined) && (
-                                                        <button onClick={() => updateTicket(t.id, { admin_notes: noteInputs[t.id] ?? t.admin_notes })}
-                                                            disabled={processing === t.id}
+                                                    {(noteInputs[tk.id] !== undefined) && (
+                                                        <button onClick={() => updateTicket(tk.id, { admin_notes: noteInputs[tk.id] ?? tk.admin_notes })}
+                                                            disabled={processing === tk.id}
                                                             className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50">
-                                                            💾 Salva Note
+                                                            {t('sa.support.saveNotes')}
                                                         </button>
                                                     )}
                                                     {/* Hard delete single ticket */}
                                                     <button onClick={async () => {
-                                                        if (!confirm(`Eliminare definitivamente il ticket "${t.subject}"? Questa azione non è reversibile.`)) return;
+                                                        if (!confirm(t('sa.support.confirmDelete'))) return;
                                                         try {
                                                             await fetch('/api/admin/support-tickets', {
                                                                 method: 'DELETE',
                                                                 headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ id: t.id }),
+                                                                body: JSON.stringify({ id: tk.id }),
                                                             });
                                                             fetchTickets();
                                                         } catch { /* ignore */ }
                                                     }}
                                                         className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-red-400 border border-red-500/20 hover:bg-red-500/15 transition-all">
-                                                        🗑️ Elimina
+                                                        {t('sa.support.deleteTicket')}
                                                     </button>
                                                 </div>
                                             </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { DollarSign, TrendingUp, Receipt, Filter, ArrowUp, ArrowDown, Loader2, Users, Calendar } from 'lucide-react';
 import { createClient } from '../../../utils/supabase/client';
 import { useCurrency } from '../../../hooks/useCurrency';
+import { useT } from '../../../lib/i18n';
 
 interface Payment {
     id: string;
@@ -26,11 +27,11 @@ interface Payment {
     created_at: string;
 }
 
-const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-    payment: { label: 'Pagamento', color: 'text-emerald-400' },
-    refund: { label: 'Rimborso', color: 'text-red-400' },
-    credit_note: { label: 'Nota Credito', color: 'text-amber-400' },
-    adjustment: { label: 'Rettifica', color: 'text-purple-400' },
+const TYPE_COLORS: Record<string, string> = {
+    payment: 'text-emerald-400',
+    refund: 'text-red-400',
+    credit_note: 'text-amber-400',
+    adjustment: 'text-purple-400',
 };
 
 export default function RevenuePage() {
@@ -40,6 +41,14 @@ export default function RevenuePage() {
     const [filterMonth, setFilterMonth] = useState('');
     const [mrrData, setMrrData] = useState({ mrr: 0, payingCount: 0 });
     const { symbol: cs, fmt } = useCurrency();
+    const { t } = useT();
+
+    const TYPE_LABELS: Record<string, string> = {
+        payment: t('sa.revenue.payment'),
+        refund: t('sa.revenue.refund'),
+        credit_note: t('sa.revenue.creditNote'),
+        adjustment: t('sa.revenue.adjustment'),
+    };
 
     useEffect(() => { fetchAll(); }, []);
 
@@ -91,57 +100,57 @@ export default function RevenuePage() {
     return (
         <div className="p-8 space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-white">Revenue</h1>
-                <p className="text-sm text-slate-400 mt-1">Pagamenti, rimborsi e andamento finanziario</p>
+                <h1 className="text-2xl font-bold text-white">{t('sa.revenue.title')}</h1>
+                <p className="text-sm text-slate-400 mt-1">{t('sa.revenue.subtitle')}</p>
             </div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="rounded-2xl border border-white/5 p-5 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Incassato Totale</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sa.revenue.collected')}</p>
                     <p className="text-3xl font-bold text-white mt-1">{fmt(totals.incassato)}</p>
                     <div className="flex items-center gap-1 mt-2">
                         <ArrowUp className="w-3 h-3 text-emerald-400" />
-                        <span className="text-xs text-emerald-400">{payments.filter(p => p.type === 'payment').length} pagamenti</span>
+                        <span className="text-xs text-emerald-400">{payments.filter(p => p.type === 'payment').length} {t('sa.revenue.payments')}</span>
                     </div>
                 </div>
                 <div className="rounded-2xl border border-white/5 p-5 bg-gradient-to-br from-red-500/20 to-red-500/5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Rimborsato</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sa.revenue.refunded')}</p>
                     <p className="text-3xl font-bold text-white mt-1">{fmt(totals.rimborsato)}</p>
                     <div className="flex items-center gap-1 mt-2">
                         <ArrowDown className="w-3 h-3 text-red-400" />
-                        <span className="text-xs text-red-400">{payments.filter(p => p.type === 'refund').length} rimborsi</span>
+                        <span className="text-xs text-red-400">{payments.filter(p => p.type === 'refund').length} {t('sa.revenue.refunds')}</span>
                     </div>
                 </div>
                 <div className="rounded-2xl border border-white/5 p-5 bg-gradient-to-br from-purple-500/20 to-purple-500/5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Netto</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sa.revenue.net')}</p>
                     <p className="text-3xl font-bold text-white mt-1">{fmt(totals.netto)}</p>
-                    <p className="text-xs text-slate-500 mt-2">Incassato − Rimborsato</p>
+                    <p className="text-xs text-slate-500 mt-2">{t('sa.revenue.collected')}</p>
                 </div>
                 <div className="rounded-2xl border border-white/5 p-5 bg-gradient-to-br from-cyan-500/20 to-cyan-500/5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">MRR Stimato</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sa.revenue.estimatedMRR')}</p>
                     <p className="text-3xl font-bold text-white mt-1">{fmt(mrrData.mrr)}</p>
                     <div className="flex items-center gap-1 mt-2">
                         <Users className="w-3 h-3 text-cyan-400" />
-                        <span className="text-xs text-cyan-400">{mrrData.payingCount} clienti paganti</span>
+                        <span className="text-xs text-cyan-400">{mrrData.payingCount} {t('sa.revenue.payingClients')}</span>
                     </div>
                 </div>
             </div>
 
             {/* Filters */}
             <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-1.5 text-xs text-slate-400"><Filter className="w-3.5 h-3.5" /> Filtra:</div>
-                {['', 'payment', 'refund', 'credit_note', 'adjustment'].map(t => (
-                    <button key={t} onClick={() => setFilterType(t)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${filterType === t
+                <div className="flex items-center gap-1.5 text-xs text-slate-400"><Filter className="w-3.5 h-3.5" /> {t('sa.revenue.filter')}</div>
+                {['', 'payment', 'refund', 'credit_note', 'adjustment'].map(ftype => (
+                    <button key={ftype} onClick={() => setFilterType(ftype)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${filterType === ftype
                             ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                             : 'bg-black/20 text-slate-400 border-white/5 hover:bg-white/5'}`}>
-                        {TYPE_LABELS[t]?.label || 'Tutti'}
+                        {TYPE_LABELS[ftype] || t('sa.revenue.allTypes')}
                     </button>
                 ))}
                 <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
                     className="px-3 py-1.5 rounded-lg text-xs bg-black/20 border border-white/5 text-slate-300 outline-none">
-                    <option value="" style={{ background: '#0f172a' }}>Tutti i mesi</option>
+                    <option value="" style={{ background: '#0f172a' }}>{t('sa.revenue.allMonths')}</option>
                     {months.map(m => <option key={m} value={m} style={{ background: '#0f172a' }}>{m}</option>)}
                 </select>
             </div>
@@ -149,16 +158,16 @@ export default function RevenuePage() {
             {/* Transactions List */}
             <div className="rounded-2xl border border-white/5 overflow-hidden" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                 <div className="grid grid-cols-[1fr_1fr_100px_100px_80px] gap-2 px-4 py-3 border-b border-white/5 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
-                    <span>Workspace / Owner</span>
-                    <span>Dettagli</span>
-                    <span className="text-right">Importo</span>
-                    <span className="text-right">Data</span>
-                    <span className="text-right">Tipo</span>
+                    <span>{t('sa.revenue.workspaceOwner')}</span>
+                    <span>{t('sa.revenue.details')}</span>
+                    <span className="text-right">{t('sa.revenue.amount')}</span>
+                    <span className="text-right">{t('sa.revenue.date')}</span>
+                    <span className="text-right">{t('sa.revenue.type')}</span>
                 </div>
                 {filteredPayments.length === 0 ? (
                     <div className="text-center py-12">
                         <Receipt className="w-10 h-10 mx-auto mb-3 text-slate-600" />
-                        <p className="text-sm text-slate-400">Nessuna transazione trovata</p>
+                        <p className="text-sm text-slate-400">{t('sa.revenue.noPayments')}</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-white/5">
@@ -177,8 +186,8 @@ export default function RevenuePage() {
                                     {p.type === 'refund' ? '−' : '+'}{fmt(Math.abs(p.amount_cents))}
                                 </p>
                                 <p className="text-xs text-slate-400 text-right">{new Date(p.payment_date).toLocaleDateString('it-IT')}</p>
-                                <span className={`text-right text-[10px] font-bold uppercase ${TYPE_LABELS[p.type]?.color || 'text-slate-400'}`}>
-                                    {TYPE_LABELS[p.type]?.label || p.type}
+                                <span className={`text-right text-[10px] font-bold uppercase ${TYPE_COLORS[p.type] || 'text-slate-400'}`}>
+                                    {TYPE_LABELS[p.type] || p.type}
                                 </span>
                             </div>
                         ))}

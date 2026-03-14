@@ -68,7 +68,7 @@ export default function SecurityPage() {
                     ? 'from-red-500/20 to-red-500/5 border-red-500/20' : 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/20'}`}>
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Login Falliti (24h)</p>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sa.security.failedLogins')}</p>
                             <p className="text-3xl font-bold text-white mt-1">{overview.failedLogins24h}</p>
                         </div>
                         <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center">
@@ -81,7 +81,7 @@ export default function SecurityPage() {
                     ? 'from-amber-500/20 to-amber-500/5 border-amber-500/20' : 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/20'}`}>
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Ban Attivi</p>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sa.security.activeBans')}</p>
                             <p className="text-3xl font-bold text-white mt-1">{overview.activeBans}</p>
                         </div>
                         <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center">
@@ -94,7 +94,7 @@ export default function SecurityPage() {
                     ? 'from-red-500/20 to-red-500/5 border-red-500/20' : 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/20'}`}>
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Utenti Sospesi</p>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sa.security.suspendedUsers')}</p>
                             <p className="text-3xl font-bold text-white mt-1">{overview.suspendedUsers}</p>
                         </div>
                         <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center">
@@ -107,21 +107,21 @@ export default function SecurityPage() {
             {/* Recent Login Events */}
             <div className="rounded-2xl border border-white/5 overflow-hidden" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                 <div className="p-4 border-b border-white/5">
-                    <h2 className="text-sm font-bold text-white uppercase tracking-wider">Ultimi Accessi</h2>
+                    <h2 className="text-sm font-bold text-white uppercase tracking-wider">{t('sa.security.recentAccess')}</h2>
                 </div>
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-white/5 text-slate-400 text-xs uppercase tracking-wider">
-                            <th className="text-left p-3 font-semibold">Utente</th>
-                            <th className="text-left p-3 font-semibold">Tipo</th>
+                            <th className="text-left p-3 font-semibold">{t('sa.security.user')}</th>
+                            <th className="text-left p-3 font-semibold">{t('sa.security.type')}</th>
                             <th className="text-left p-3 font-semibold">IP</th>
-                            <th className="text-left p-3 font-semibold">Posizione</th>
-                            <th className="text-left p-3 font-semibold">Data</th>
+                            <th className="text-left p-3 font-semibold">{t('sa.security.location')}</th>
+                            <th className="text-left p-3 font-semibold">{t('sa.security.date')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {overview.recentLogins.length === 0 ? (
-                            <tr><td colSpan={5} className="text-center p-6 text-slate-500">Nessun evento registrato</td></tr>
+                            <tr><td colSpan={5} className="text-center p-6 text-slate-500">{t('sa.security.noEvents')}</td></tr>
                         ) : overview.recentLogins.map(ev => (
                             <tr key={ev.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                                 <td className="p-3">

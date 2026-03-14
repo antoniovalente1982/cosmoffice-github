@@ -8,6 +8,7 @@ import {
     Headphones, CircleDot, Clock, CheckCircle2, XCircle, AlertCircleIcon,
     Server, Globe, CreditCard, Banknote, BarChart3, Target, Gauge, ListFilter,
 } from 'lucide-react';
+import { useT } from '../../lib/i18n';
 import { formatNumber, formatEurCents } from '../../lib/currency';
 
 const fmtN = (n: number) => formatNumber(n);
@@ -53,9 +54,9 @@ function getPresetRange(preset: PresetKey): { from: string; to: string } | null 
     }
 }
 
-const presets: { key: PresetKey; label: string }[] = [
-    { key: 'today', label: 'Oggi' }, { key: '7d', label: '7gg' }, { key: '30d', label: '30gg' },
-    { key: '90d', label: '90gg' }, { key: 'year', label: 'Anno' }, { key: 'all', label: 'Tutti' },
+const presets: { key: PresetKey; tKey: string }[] = [
+    { key: 'today', tKey: 'sa.mc.today' }, { key: '7d', tKey: 'sa.mc.7d' }, { key: '30d', tKey: 'sa.mc.30d' },
+    { key: '90d', tKey: 'sa.mc.90d' }, { key: 'year', tKey: 'sa.mc.year' }, { key: 'all', tKey: 'sa.mc.all' },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -193,9 +194,10 @@ function StatusDot({ status }: { status: 'ok' | 'warn' | 'critical' }) {
  *  DATE RANGE PICKER
  * ═══════════════════════════════════════════════════════════════ */
 
-function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, onCustomChange, maxDate }: {
+function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, onCustomChange, maxDate, t }: {
     activePreset: PresetKey; customFrom: string; customTo: string;
     onPresetChange: (key: PresetKey) => void; onCustomChange: (from: string, to: string) => void; maxDate: string;
+    t: (key: any) => string;
 }) {
     const [showCustom, setShowCustom] = useState(false);
     const [localFrom, setLocalFrom] = useState(customFrom);
@@ -212,7 +214,7 @@ function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, o
                         className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${activePreset === p.key && !showCustom
                             ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 shadow-[0_0_8px_rgba(34,211,238,0.15)]'
                             : 'text-slate-500 hover:text-slate-300 border border-transparent'
-                            }`}>{p.label}</button>
+                            }`}>{t(p.tKey)}</button>
                 ))}
             </div>
             <button onClick={() => setShowCustom(v => !v)}
@@ -223,17 +225,17 @@ function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, o
             </button>
             {showCustom && (
                 <div className="flex items-center gap-2 p-2 rounded-xl border border-purple-500/20" style={{ background: 'rgba(8,12,28,0.8)', backdropFilter: 'blur(16px)' }}>
-                    <label className="text-[10px] text-slate-500 font-medium uppercase">Da</label>
+                    <label className="text-[10px] text-slate-500 font-medium uppercase">{t('sa.mc.from')}</label>
                     <input type="date" value={localFrom} max={maxDate} onChange={e => setLocalFrom(e.target.value)}
                         className="px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white outline-none focus:border-purple-500/40" style={{ colorScheme: 'dark' }} />
-                    <label className="text-[10px] text-slate-500 font-medium uppercase">A</label>
+                    <label className="text-[10px] text-slate-500 font-medium uppercase">{t('sa.mc.to')}</label>
                     <input type="date" value={localTo} max={maxDate} onChange={e => setLocalTo(e.target.value)}
                         className="px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white outline-none focus:border-purple-500/40" style={{ colorScheme: 'dark' }} />
                     <button onClick={() => { if (canApply) onCustomChange(localFrom, localTo); }} disabled={!canApply || isApplied}
                         className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${isApplied
                             ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : canApply
                                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30' : 'bg-white/[0.03] text-slate-600 border border-white/[0.06] cursor-not-allowed'
-                            }`}>{isApplied ? '✓' : 'Applica'}</button>
+                            }`}>{isApplied ? '✓' : t('sa.mc.apply')}</button>
                 </div>
             )}
         </div>
@@ -245,6 +247,7 @@ function DateRangePicker({ activePreset, customFrom, customTo, onPresetChange, o
  * ═══════════════════════════════════════════════════════════════ */
 
 export default function AdminOverview() {
+    const { t } = useT();
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -305,7 +308,7 @@ export default function AdminOverview() {
                     </div>
                     <Rocket className="absolute inset-0 m-auto w-6 h-6 text-cyan-400" />
                 </div>
-                <p className="text-[10px] text-slate-600 uppercase tracking-[0.3em] font-medium animate-pulse">Inizializzazione Mission Control…</p>
+                <p className="text-[10px] text-slate-600 uppercase tracking-[0.3em] font-medium animate-pulse">{t('sa.mc.initMC')}</p>
             </div>
         );
     }
@@ -313,7 +316,7 @@ export default function AdminOverview() {
     if (error) {
         return (
             <div className="p-8"><div className="p-6 bg-red-500/10 border border-red-500/25 rounded-2xl text-red-300 flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 shrink-0" /><span className="text-sm">Errore: {error}</span>
+                <AlertTriangle className="w-5 h-5 shrink-0" /><span className="text-sm">{t('sa.mc.error')}: {error}</span>
             </div></div>
         );
     }
@@ -347,10 +350,10 @@ export default function AdminOverview() {
                             </div>
                             <div>
                                 <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                                    Mission Control
-                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 uppercase tracking-widest">Live</span>
+                                    {t('sa.mc.title')}
+                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 uppercase tracking-widest">{t('sa.mc.live')}</span>
                                 </h1>
-                                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-[0.2em]">Cosmoffice Command Center</p>
+                                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-[0.2em]">{t('sa.mc.subtitle')}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -366,7 +369,7 @@ export default function AdminOverview() {
                                 style={{ background: 'rgba(8,12,28,0.6)', backdropFilter: 'blur(12px)' }}>
                                 <StatusDot status={monitorOk ? (ticketsActive > 0 ? 'warn' : 'ok') : 'critical'} />
                                 <span className={`text-[10px] font-bold uppercase tracking-wider ${monitorOk ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {monitorOk ? 'Operativo' : 'Attenzione'}
+                                    {monitorOk ? t('sa.mc.operative') : t('sa.mc.attention')}
                                 </span>
                             </div>
                             {/* Refresh */}
@@ -377,7 +380,7 @@ export default function AdminOverview() {
                             </button>
                         </div>
                     </div>
-                    <DateRangePicker activePreset={activePreset} customFrom={customFrom} customTo={customTo} maxDate={toISODate(new Date())}
+                    <DateRangePicker activePreset={activePreset} customFrom={customFrom} customTo={customTo} maxDate={toISODate(new Date())} t={t}
                         onPresetChange={k => { setActivePreset(k); setIsCustom(false); }} onCustomChange={(f, t) => { setCustomFrom(f); setCustomTo(t); setIsCustom(true); }} />
                 </div>
 
@@ -385,28 +388,28 @@ export default function AdminOverview() {
                     HERO KPIs — 6 cards
                 ═══════════════════════════════════════════ */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <HeroKPI icon={Users} label="Utenti" value={fmtN(isFiltered ? s.users.registeredInPeriod : s.users.total)}
-                        subtitle={isFiltered ? `registrati · ${fmtN(s.users.total)} totali` : `${fmtN(s.users.unique)} unici · ${fmtN(s.users.activeInPeriod)} attivi`}
+                    <HeroKPI icon={Users} label={t('sa.mc.users')} value={fmtN(isFiltered ? s.users.registeredInPeriod : s.users.total)}
+                        subtitle={isFiltered ? `${t('sa.mc.registered')} · ${fmtN(s.users.total)} ${t('sa.mc.total')}` : `${fmtN(s.users.unique)} ${t('sa.mc.unique')} · ${fmtN(s.users.activeInPeriod)} ${t('sa.mc.active')}`}
                         color="text-cyan-400" accentBg="radial-gradient(circle,#06b6d4,transparent)" change={s.users.recentSignups} delay={0} />
 
-                    <HeroKPI icon={Building2} label="Workspace" value={fmtN(isFiltered ? s.workspaces.recentNew : s.workspaces.active)}
-                        subtitle={isFiltered ? `nuovi · ${fmtN(s.workspaces.total)} totali` : `${fmtN(s.workspaces.total)} totali · ${fmtN(s.workspaces.totalSpaces)} uffici`}
+                    <HeroKPI icon={Building2} label={t('sa.mc.workspace')} value={fmtN(isFiltered ? s.workspaces.recentNew : s.workspaces.active)}
+                        subtitle={isFiltered ? `${t('sa.mc.new')} · ${fmtN(s.workspaces.total)} ${t('sa.mc.total')}` : `${fmtN(s.workspaces.total)} ${t('sa.mc.total')} · ${fmtN(s.workspaces.totalSpaces)} ${t('sa.mc.offices')}`}
                         color="text-purple-400" accentBg="radial-gradient(circle,#a855f7,transparent)" change={s.workspaces.recentNew} delay={50} />
 
-                    <HeroKPI icon={Crown} label="Owner" value={fmtN(s.users.owners)}
-                        subtitle={`${fmtN(s.workspaces.paidWorkspaces)} paganti · ${fmtN(s.users.admins)} admin`}
+                    <HeroKPI icon={Crown} label={t('sa.mc.owner')} value={fmtN(s.users.owners)}
+                        subtitle={`${fmtN(s.workspaces.paidWorkspaces)} ${t('sa.mc.paying')} · ${fmtN(s.users.admins)} ${t('sa.mc.admin')}`}
                         color="text-amber-400" accentBg="radial-gradient(circle,#f59e0b,transparent)" delay={100} />
 
-                    <HeroKPI icon={TrendingUp} label="MRR" value={s.revenue.mrrFormatted}
-                        subtitle={`ARR: ${s.revenue.arrFormatted}`}
+                    <HeroKPI icon={TrendingUp} label={t('sa.mc.mrr')} value={s.revenue.mrrFormatted}
+                        subtitle={`${t('sa.mc.arr')}: ${s.revenue.arrFormatted}`}
                         color="text-emerald-400" accentBg="radial-gradient(circle,#10b981,transparent)" delay={150} />
 
-                    <HeroKPI icon={CreditCard} label="Incassato" value={s.revenue.thisMonthFormatted}
-                        subtitle={`Mese prec: ${s.revenue.lastMonthFormatted}`}
+                    <HeroKPI icon={CreditCard} label={t('sa.mc.collected')} value={s.revenue.thisMonthFormatted}
+                        subtitle={`${t('sa.mc.prevMonth')}: ${s.revenue.lastMonthFormatted}`}
                         color="text-green-400" accentBg="radial-gradient(circle,#22c55e,transparent)" change={revenueChange} delay={200} />
 
-                    <HeroKPI icon={Headphones} label="Ticket" value={fmtN(ticketsActive)}
-                        subtitle={`${fmtN(s.tickets.open)} aperti · ${fmtN(s.tickets.in_progress)} in corso`}
+                    <HeroKPI icon={Headphones} label={t('sa.mc.tickets')} value={fmtN(ticketsActive)}
+                        subtitle={`${fmtN(s.tickets.open)} ${t('sa.mc.open')} · ${fmtN(s.tickets.in_progress)} ${t('sa.mc.inProgress')}`}
                         color={ticketsActive > 0 ? 'text-amber-400' : 'text-emerald-400'}
                         accentBg={ticketsActive > 0 ? 'radial-gradient(circle,#f59e0b,transparent)' : 'radial-gradient(circle,#10b981,transparent)'} delay={250} />
                 </div>
@@ -421,7 +424,7 @@ export default function AdminOverview() {
                         <div className="p-5">
                             <div className="flex items-center gap-2 mb-4">
                                 <Users className="w-4 h-4 text-cyan-400" />
-                                <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Composizione Utenti</h2>
+                                <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{t('sa.mc.userComposition')}</h2>
                             </div>
                             {/* Ring visual */}
                             <div className="flex items-center justify-center mb-4">
@@ -465,21 +468,21 @@ export default function AdminOverview() {
                                     </svg>
                                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                                         <span className="text-2xl font-black text-white tabular-nums">{fmtN(s.users.total)}</span>
-                                        <span className="text-[8px] text-slate-500 uppercase tracking-widest">totali</span>
+                                        <span className="text-[8px] text-slate-500 uppercase tracking-widest">{t('sa.mc.total')}</span>
                                     </div>
                                 </div>
                             </div>
                             <div className="space-y-0.5">
-                                <MiniStat icon={ShieldCheck} label="Super Admin" value={s.users.superAdmins || 0} color="text-rose-400" />
-                                <MiniStat icon={Crown} label="Owner" value={s.users.owners || 0} color="text-amber-400" />
-                                <MiniStat icon={UserCog} label="Admin" value={s.users.admins || 0} color="text-purple-400" />
-                                <MiniStat icon={User} label="Membri" value={s.users.members || 0} color="text-cyan-400" />
-                                <MiniStat icon={Eye} label="Guest" value={s.users.guests || 0} color="text-slate-400" />
+                                <MiniStat icon={ShieldCheck} label={t('sa.mc.superAdmin')} value={s.users.superAdmins || 0} color="text-rose-400" />
+                                <MiniStat icon={Crown} label={t('sa.mc.ownerRole')} value={s.users.owners || 0} color="text-amber-400" />
+                                <MiniStat icon={UserCog} label={t('sa.mc.adminRole')} value={s.users.admins || 0} color="text-purple-400" />
+                                <MiniStat icon={User} label={t('sa.mc.members')} value={s.users.members || 0} color="text-cyan-400" />
+                                <MiniStat icon={Eye} label={t('sa.mc.guestRole')} value={s.users.guests || 0} color="text-slate-400" />
                                 {(() => {
                                     const ac = (s.users.superAdmins || 0) + (s.users.owners || 0) + (s.users.admins || 0) + (s.users.members || 0) + (s.users.guests || 0);
                                     const nw = Math.max(0, (s.users.total || 0) - ac);
                                     if (nw > 0) {
-                                        return <MiniStat icon={ListFilter} label="Nessun Workspace" value={nw} color="text-slate-600" />;
+                                        return <MiniStat icon={ListFilter} label={t('sa.mc.noWorkspace')} value={nw} color="text-slate-600" />;
                                     }
                                     return null;
                                 })()}
@@ -493,9 +496,9 @@ export default function AdminOverview() {
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-2">
                                     <DollarSign className="w-4 h-4 text-emerald-400" />
-                                    <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Financial Overview</h2>
+                                    <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{t('sa.mc.financialOverview')}</h2>
                                 </div>
-                                <span className="text-[9px] text-slate-600 tabular-nums">{fmtN(s.revenue.totalPayments)} transazioni</span>
+                                <span className="text-[9px] text-slate-600 tabular-nums">{fmtN(s.revenue.totalPayments)} {t('sa.mc.transactions')}</span>
                             </div>
 
                             {/* Big MRR/ARR row */}
@@ -509,11 +512,11 @@ export default function AdminOverview() {
                                     <p className="text-xl font-black text-white tracking-tighter">{s.revenue.arrFormatted}</p>
                                 </div>
                                 <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/15 text-center">
-                                    <p className="text-[8px] text-purple-400/60 uppercase tracking-widest font-bold mb-1">Questo mese</p>
+                                    <p className="text-[8px] text-purple-400/60 uppercase tracking-widest font-bold mb-1">{t('sa.mc.thisMonth')}</p>
                                     <p className="text-xl font-black text-white tracking-tighter">{s.revenue.thisMonthFormatted}</p>
                                     {revenueChange !== 0 && (
                                         <p className={`text-[9px] font-bold mt-1 ${revenueChange > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            {revenueChange > 0 ? '↑' : '↓'} {Math.abs(revenueChange)}% vs mese prec
+                                            {revenueChange > 0 ? '↑' : '↓'} {Math.abs(revenueChange)}% {t('sa.mc.vsLastMonth')}
                                         </p>
                                     )}
                                 </div>
@@ -521,9 +524,9 @@ export default function AdminOverview() {
 
                             {/* Recent payments */}
                             <div className="space-y-1">
-                                <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold mb-2">Ultimi Pagamenti</p>
+                                <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold mb-2">{t('sa.mc.recentPayments')}</p>
                                 {s.revenue.recentPayments.length === 0 ? (
-                                    <p className="text-[11px] text-slate-600 italic">Nessun pagamento registrato</p>
+                                    <p className="text-[11px] text-slate-600 italic">{t('sa.mc.noPayments')}</p>
                                 ) : s.revenue.recentPayments.map((p: any) => (
                                     <div key={p.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
                                         <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${p.type === 'refund' ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
@@ -547,32 +550,32 @@ export default function AdminOverview() {
                         <div className="p-5">
                             <div className="flex items-center gap-2 mb-4">
                                 <Server className="w-4 h-4 text-purple-400" />
-                                <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Infrastruttura</h2>
+                                <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{t('sa.mc.infrastructure')}</h2>
                             </div>
 
                             {/* Workspace status grid */}
                             <div className="grid grid-cols-2 gap-2 mb-4">
                                 <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/15 text-center">
                                     <p className="text-2xl font-black text-emerald-400 tabular-nums">{fmtN(s.workspaces.active)}</p>
-                                    <p className="text-[8px] text-emerald-400/60 uppercase tracking-widest font-bold">Attivi</p>
+                                    <p className="text-[8px] text-emerald-400/60 uppercase tracking-widest font-bold">{t('sa.mc.activeItems')}</p>
                                 </div>
                                 <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/15 text-center">
                                     <p className="text-2xl font-black text-amber-400 tabular-nums">{fmtN(s.workspaces.suspended)}</p>
-                                    <p className="text-[8px] text-amber-400/60 uppercase tracking-widest font-bold">Sospesi</p>
+                                    <p className="text-[8px] text-amber-400/60 uppercase tracking-widest font-bold">{t('sa.mc.suspended')}</p>
                                 </div>
                             </div>
 
                             {/* Metrics */}
                             <div className="space-y-2 mb-4">
                                 <ProgressBar value={s.workspaces.totalSeatsUsed} max={s.workspaces.totalSeatsAllocated}
-                                    label="Occupazione Accessi" color={seatsPct > 80 ? 'bg-red-500' : seatsPct > 50 ? 'bg-amber-500' : 'bg-cyan-500'} />
+                                    label={t('sa.mc.seatOccupancy')} color={seatsPct > 80 ? 'bg-red-500' : seatsPct > 50 ? 'bg-amber-500' : 'bg-cyan-500'} />
                             </div>
 
                             <div className="space-y-0.5">
-                                <MiniStat icon={Globe} label="Uffici totali" value={s.workspaces.totalSpaces} color="text-purple-300" />
-                                <MiniStat icon={LayoutGrid} label="Piani Premium" value={s.workspaces.paidWorkspaces} color="text-amber-300" />
-                                <MiniStat icon={Zap} label="Attivi (24h)" value={s.workspaces.activeInPeriod} color="text-emerald-400" />
-                                <MiniStat icon={Building2} label="Nuovi (7gg)" value={s.workspaces.recentNew} color="text-blue-300" />
+                                <MiniStat icon={Globe} label={t('sa.mc.totalOffices')} value={s.workspaces.totalSpaces} color="text-purple-300" />
+                                <MiniStat icon={LayoutGrid} label={t('sa.mc.premiumPlans')} value={s.workspaces.paidWorkspaces} color="text-amber-300" />
+                                <MiniStat icon={Zap} label={t('sa.mc.active24h')} value={s.workspaces.activeInPeriod} color="text-emerald-400" />
+                                <MiniStat icon={Building2} label={t('sa.mc.new7d')} value={s.workspaces.recentNew} color="text-blue-300" />
                             </div>
                         </div>
                     </GlassCard>
@@ -608,7 +611,7 @@ export default function AdminOverview() {
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
                                         <TrendingUp className="w-4 h-4 text-cyan-400" />
-                                        <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Crescita Piattaforma</h2>
+                                        <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{t('sa.mc.platformGrowth')}</h2>
                                     </div>
                                     <div className="flex items-center gap-1 p-1 rounded-xl border border-white/[0.06]" style={{ background: 'rgba(8,12,28,0.6)' }}>
                                         {(['both', 'clients', 'mrr'] as const).map(v => (
@@ -617,7 +620,7 @@ export default function AdminOverview() {
                                                         ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25'
                                                         : 'text-slate-500 hover:text-slate-300 border border-transparent'
                                                     }`}>
-                                                {v === 'both' ? 'Tutto' : v === 'clients' ? 'Clienti' : 'MRR'}
+                                                {v === 'both' ? t('sa.mc.both') : v === 'clients' ? t('sa.mc.clientsLabel') : t('sa.mc.mrr')}
                                             </button>
                                         ))}
                                     </div>
@@ -628,13 +631,13 @@ export default function AdminOverview() {
                                     {(growthView === 'both' || growthView === 'clients') && (
                                         <div className="flex items-center gap-1.5">
                                             <span className="w-3 h-0.5 rounded-full bg-cyan-400" />
-                                            <span className="text-[10px] text-cyan-400 font-medium">Clienti (cumulativo)</span>
+                                            <span className="text-[10px] text-cyan-400 font-medium">{t('sa.mc.clientsCumulative')}</span>
                                         </div>
                                     )}
                                     {(growthView === 'both' || growthView === 'mrr') && (
                                         <div className="flex items-center gap-1.5">
                                             <span className="w-3 h-0.5 rounded-full bg-emerald-400" />
-                                            <span className="text-[10px] text-emerald-400 font-medium">MRR (€)</span>
+                                            <span className="text-[10px] text-emerald-400 font-medium">{t('sa.mc.mrrChart')}</span>
                                         </div>
                                     )}
                                 </div>
@@ -722,7 +725,7 @@ export default function AdminOverview() {
                                                         <text x={xScale(i)} y={PT + 10} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">{d.label}</text>
                                                         {(growthView === 'both' || growthView === 'clients') && (
                                                             <text x={xScale(i)} y={PT + 24} textAnchor="middle" fill="#06b6d4" fontSize="10" fontWeight="bold">
-                                                                {fmtN(d.clients)} clienti (+{fmtN(d.newClients)})
+                                                                {fmtN(d.clients)} {t('sa.mc.clientsTooltip')} (+{fmtN(d.newClients)})
                                                             </text>
                                                         )}
                                                         {(growthView === 'both' || growthView === 'mrr') && (
@@ -738,7 +741,7 @@ export default function AdminOverview() {
                                         {/* Axis labels */}
                                         {(growthView === 'both' || growthView === 'clients') && (
                                             <text x={12} y={PT + cH / 2} fill="#06b6d4" fontSize="9" fontWeight="bold"
-                                                textAnchor="middle" transform={`rotate(-90, 12, ${PT + cH / 2})`} opacity="0.5">CLIENTI</text>
+                                                textAnchor="middle" transform={`rotate(-90, 12, ${PT + cH / 2})`} opacity="0.5">{t('sa.mc.clients')}</text>
                                         )}
                                         {(growthView === 'both' || growthView === 'mrr') && (
                                             <text x={W - 12} y={PT + cH / 2} fill="#10b981" fontSize="9" fontWeight="bold"
@@ -750,19 +753,19 @@ export default function AdminOverview() {
                                 {/* Summary row */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-3 border-t border-white/[0.05]">
                                     <div className="text-center">
-                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">Clienti Totali</p>
+                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">{t('sa.mc.totalClients')}</p>
                                         <p className="text-lg font-black text-cyan-400 tabular-nums">{fmtN(gd[gd.length - 1]?.clients || 0)}</p>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">Nuovi (ultimo mese)</p>
+                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">{t('sa.mc.newLastMonth')}</p>
                                         <p className="text-lg font-black text-cyan-300 tabular-nums">+{fmtN(gd[gd.length - 1]?.newClients || 0)}</p>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">MRR Attuale</p>
+                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">{t('sa.mc.currentMrr')}</p>
                                         <p className="text-lg font-black text-emerald-400 tabular-nums">{fmtC(gd[gd.length - 1]?.mrr || 0)}</p>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">Workspace Attivi</p>
+                                        <p className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">{t('sa.mc.activeWorkspaces')}</p>
                                         <p className="text-lg font-black text-purple-400 tabular-nums">{fmtN(gd[gd.length - 1]?.workspaces || 0)}</p>
                                     </div>
                                 </div>
@@ -782,22 +785,22 @@ export default function AdminOverview() {
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-2">
                                     <Headphones className="w-4 h-4 text-amber-400" />
-                                    <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Centro Assistenza</h2>
+                                    <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{t('sa.mc.supportCenter')}</h2>
                                 </div>
-                                <span className="text-[9px] text-slate-600 tabular-nums">{fmtN(s.tickets.total)} totali</span>
+                                <span className="text-[9px] text-slate-600 tabular-nums">{fmtN(s.tickets.total)} {t('sa.mc.total')}</span>
                             </div>
 
                             {/* Ticket stats row */}
                             <div className="grid grid-cols-4 gap-2 mb-4">
                                 {[
-                                    { l: 'Aperti', v: s.tickets.open, c: 'text-red-400', bg: 'bg-red-500/10 border-red-500/15' },
-                                    { l: 'In Corso', v: s.tickets.in_progress, c: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/15' },
-                                    { l: 'Risolti', v: s.tickets.resolved, c: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/15' },
-                                    { l: 'Chiusi', v: s.tickets.closed, c: 'text-slate-400', bg: 'bg-slate-500/10 border-slate-500/15' },
-                                ].map(t => (
-                                    <div key={t.l} className={`p-2 rounded-xl border text-center ${t.bg}`}>
-                                        <p className={`text-lg font-black tabular-nums ${t.c}`}>{fmtN(t.v)}</p>
-                                        <p className="text-[7px] text-slate-500 uppercase tracking-widest font-bold">{t.l}</p>
+                                    { l: t('sa.mc.openTickets'), v: s.tickets.open, c: 'text-red-400', bg: 'bg-red-500/10 border-red-500/15' },
+                                    { l: t('sa.mc.inProgressTickets'), v: s.tickets.in_progress, c: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/15' },
+                                    { l: t('sa.mc.resolvedTickets'), v: s.tickets.resolved, c: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/15' },
+                                    { l: t('sa.mc.closedTickets'), v: s.tickets.closed, c: 'text-slate-400', bg: 'bg-slate-500/10 border-slate-500/15' },
+                                ].map(st => (
+                                    <div key={st.l} className={`p-2 rounded-xl border text-center ${st.bg}`}>
+                                        <p className={`text-lg font-black tabular-nums ${st.c}`}>{fmtN(st.v)}</p>
+                                        <p className="text-[7px] text-slate-500 uppercase tracking-widest font-bold">{st.l}</p>
                                     </div>
                                 ))}
                             </div>
@@ -805,16 +808,16 @@ export default function AdminOverview() {
                             {/* Recent tickets */}
                             {s.recentTickets.length > 0 && (
                                 <div className="space-y-1">
-                                    <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold mb-2">Ticket Attivi</p>
-                                    {s.recentTickets.map((t: any) => (
-                                        <div key={t.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
-                                            <StatusDot status={t.priority === 'high' || t.priority === 'critical' ? 'critical' : t.status === 'open' ? 'warn' : 'ok'} />
+                                    <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold mb-2">{t('sa.mc.activeTickets')}</p>
+                                    {s.recentTickets.map((tk: any) => (
+                                        <div key={tk.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                                            <StatusDot status={tk.priority === 'high' || tk.priority === 'critical' ? 'critical' : tk.status === 'open' ? 'warn' : 'ok'} />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[11px] text-slate-300 truncate">{t.subject}</p>
-                                                <p className="text-[9px] text-slate-600">{t.workspace_name}</p>
+                                                <p className="text-[11px] text-slate-300 truncate">{tk.subject}</p>
+                                                <p className="text-[9px] text-slate-600">{tk.workspace_name}</p>
                                             </div>
-                                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${t.status === 'open' ? 'bg-red-500/10 text-red-300' : 'bg-amber-500/10 text-amber-300'}`}>
-                                                {t.status === 'open' ? 'Aperto' : 'In Corso'}
+                                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${tk.status === 'open' ? 'bg-red-500/10 text-red-300' : 'bg-amber-500/10 text-amber-300'}`}>
+                                                {tk.status === 'open' ? t('sa.mc.ticketOpen') : t('sa.mc.ticketInProgress')}
                                             </span>
                                         </div>
                                     ))}
@@ -823,7 +826,7 @@ export default function AdminOverview() {
                             {s.recentTickets.length === 0 && ticketsActive === 0 && (
                                 <div className="flex flex-col items-center py-4 gap-2">
                                     <CheckCircle2 className="w-8 h-8 text-emerald-400/50" />
-                                    <p className="text-[11px] text-emerald-400/60">Nessun ticket aperto</p>
+                                    <p className="text-[11px] text-emerald-400/60">{t('sa.mc.noOpenTickets')}</p>
                                 </div>
                             )}
                         </div>
@@ -834,7 +837,7 @@ export default function AdminOverview() {
                         <div className="p-5">
                             <div className="flex items-center gap-2 mb-4">
                                 <BarChart3 className="w-4 h-4 text-indigo-400" />
-                                <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Distribuzione Piani</h2>
+                                <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{t('sa.mc.planDistribution')}</h2>
                             </div>
 
                             {/* Visual bars */}
@@ -863,7 +866,7 @@ export default function AdminOverview() {
 
                             <div className="mt-4 pt-3 border-t border-white/[0.05]">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">Conversione Premium</span>
+                                    <span className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">{t('sa.mc.premiumConversion')}</span>
                                     <span className="text-sm font-black text-amber-300 tabular-nums">
                                         {s.workspaces.total > 0 ? Math.round((s.workspaces.paidWorkspaces / s.workspaces.total) * 100) : 0}%
                                     </span>
@@ -880,7 +883,7 @@ export default function AdminOverview() {
                         <div className="p-5">
                             <div className="flex items-center gap-2 mb-4">
                                 <Gauge className="w-4 h-4" style={{ color: monitorOk ? '#34d399' : '#f87171' }} />
-                                <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">System Health</h2>
+                                <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{t('sa.mc.systemHealth')}</h2>
                             </div>
 
                             {monitorOk ? (
@@ -894,17 +897,17 @@ export default function AdminOverview() {
                                         </div>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-sm font-bold text-emerald-400">Tutti i sistemi OK</p>
-                                        <p className="text-[10px] text-slate-600 mt-1">Nessun bug, ban o anomalia</p>
+                                        <p className="text-sm font-bold text-emerald-400">{t('sa.mc.allSystemsOk')}</p>
+                                        <p className="text-[10px] text-slate-600 mt-1">{t('sa.mc.noBugsOrBans')}</p>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="space-y-0.5">
-                                    <MiniStat icon={Bug} label="Bug Aperti" value={s.monitoring.openBugs}
+                                    <MiniStat icon={Bug} label={t('sa.mc.openBugs')} value={s.monitoring.openBugs}
                                         color={s.monitoring.openBugs > 0 ? 'text-amber-300' : 'text-emerald-400'} />
-                                    <MiniStat icon={AlertTriangle} label="Bug Critici" value={s.monitoring.criticalBugs}
+                                    <MiniStat icon={AlertTriangle} label={t('sa.mc.criticalBugs')} value={s.monitoring.criticalBugs}
                                         color={s.monitoring.criticalBugs > 0 ? 'text-red-400' : 'text-emerald-400'} />
-                                    <MiniStat icon={Ban} label="Ban Attivi" value={s.monitoring.activeBans}
+                                    <MiniStat icon={Ban} label={t('sa.mc.activeBans')} value={s.monitoring.activeBans}
                                         color={s.monitoring.activeBans > 0 ? 'text-amber-300' : 'text-emerald-400'} />
                                 </div>
                             )}

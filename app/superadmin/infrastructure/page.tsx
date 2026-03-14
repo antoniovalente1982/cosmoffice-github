@@ -6,6 +6,7 @@ import {
     Check, Users, Wifi, Cpu, ChevronDown, ChevronUp, TrendingUp,
     Sliders, Calculator, Mail,
 } from 'lucide-react';
+import { useT } from '../../../lib/i18n';
 
 // ═══════════════════════════════════════════════════════════════
 // PRICING DATA — from official pricing pages
@@ -167,6 +168,7 @@ export default function InfrastructurePage() {
     const [workDays, setWorkDays] = useState(22);
     const [videoPct, setVideoPct] = useState(30); // % time in video call
     const [expandedService, setExpandedService] = useState<string | null>(null);
+    const { t } = useT();
 
     // ─── COST CALCULATIONS ──────────────────────────────────
     const costs = useMemo(() => {
@@ -236,7 +238,7 @@ export default function InfrastructurePage() {
 
         function calcResend(plan: typeof RESEND_PLANS[0]) {
             if (plan.overagePerK === 0 && resendEmails > plan.emailsPerMonth) {
-                return { cost: -1, note: `Max ${plan.emailsPerMonth.toLocaleString()} email/mese` };
+                return { cost: -1, note: `Max ${plan.emailsPerMonth.toLocaleString()} email{t('sa.infra.perMonth')}` };
             }
             const overage = Math.max(0, resendEmails - plan.emailsPerMonth);
             const overageCost = overage > 0 ? (overage / 1000) * plan.overagePerK : 0;
@@ -280,10 +282,10 @@ export default function InfrastructurePage() {
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center">
                         <Server className="w-4 h-4 text-white" />
                     </div>
-                    Infrastruttura & Costi
+                    {t('sa.infrastructure.title')}
                 </h1>
                 <p className="text-sm text-slate-400 mt-1">
-                    Tutti i servizi esterni, piani, limiti, e simulatore costi per scalare Cosmoffice
+                    {t('sa.infrastructure.subtitle')}
                 </p>
             </div>
 
@@ -291,7 +293,7 @@ export default function InfrastructurePage() {
             <div className="rounded-2xl border border-amber-500/30 p-4 flex items-start gap-3" style={{ background: 'rgba(245, 158, 11, 0.06)' }}>
                 <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                 <div>
-                    <p className="text-sm font-semibold text-amber-300">Stime approssimative</p>
+                    <p className="text-sm font-semibold text-amber-300">{t('sa.infra.approxEstimates')}</p>
                     <p className="text-xs text-slate-400 mt-0.5">
                         Tariffe copiate dai siti ufficiali il 06/03/2026. I <strong className="text-white">costi reali</strong> vanno verificati nella dashboard di ogni servizio.
                     </p>
@@ -302,14 +304,14 @@ export default function InfrastructurePage() {
             <div className="rounded-2xl border border-purple-500/20 p-1" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.05), rgba(236,72,153,0.05))' }}>
                 <div className="flex items-center gap-2 px-4 py-2">
                     <Calculator className="w-4 h-4 text-purple-400" />
-                    <span className="text-xs font-bold text-purple-300 uppercase tracking-widest">Simulatore Costi</span>
+                    <span className="text-xs font-bold text-purple-300 uppercase tracking-widest">{t('sa.infra.simulator')}</span>
                 </div>
 
                 {/* Sliders */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 pt-0">
-                    <SliderInput label="Utenti attivi" value={users} min={1} max={500} step={1} unit="" onChange={setUsers}
+                    <SliderInput label={t('sa.infra.activeUsers')} value={users} min={1} max={500} step={1} unit="" onChange={setUsers}
                         icon={<Users className="w-3.5 h-3.5 text-purple-400" />} />
-                    <SliderInput label="Ore/giorno per utente" value={hoursPerDay} min={1} max={12} step={1} unit="h" onChange={setHoursPerDay}
+                    <SliderInput label={t('sa.infra.hoursPerDay')} value={hoursPerDay} min={1} max={12} step={1} unit="h" onChange={setHoursPerDay}
                         icon={<Cpu className="w-3.5 h-3.5 text-cyan-400" />} />
                     <SliderInput label="Giorni lavorativi/mese" value={workDays} min={10} max={30} step={1} unit="gg" onChange={setWorkDays}
                         icon={<TrendingUp className="w-3.5 h-3.5 text-emerald-400" />} />
@@ -320,25 +322,25 @@ export default function InfrastructurePage() {
                 {/* Result Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 pt-0">
                     <div className="md:col-span-1 rounded-xl border border-purple-500/20 p-4 bg-black/20 text-center">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Costo Totale Mensile</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">{t('sa.infra.totalMonthlyCost')}</p>
                         <p className="text-3xl font-bold text-white">
                             {bestCombo.total < 0 ? 'N/D' : formatCost(bestCombo.total)}
                         </p>
                         <p className="text-[10px] text-slate-500 mt-0.5">piani minimi necessari</p>
                     </div>
                     <div className="rounded-xl border border-white/5 p-4 bg-black/20 text-center">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Costo per Utente</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">{t('sa.infra.costPerUser')}</p>
                         <p className="text-3xl font-bold text-emerald-300">
                             {perUserCost < 0 ? 'N/D' : formatCost(perUserCost)}
                         </p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">/utente/mese</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">/utente{t('sa.infra.perMonth')}</p>
                     </div>
                     <div className="rounded-xl border border-white/5 p-4 bg-black/20 text-center">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">LiveKit Minutes</p>
                         <p className="text-3xl font-bold text-cyan-300">
                             {costs.livekitMinutes.toLocaleString()}
                         </p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">connection-min/mese</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{t('sa.infra.connMinMonth')}</p>
                     </div>
                 </div>
 
@@ -387,7 +389,7 @@ export default function InfrastructurePage() {
             <ServiceSection
                 name="LiveKit" color="cyan" icon={<Video className="w-5 h-5" />}
                 description="WebRTC — Videochiamate, audio, screen sharing"
-                role="Gestisce tutte le chiamate audio/video e condivisione schermo. Addebita per connection-minute (1 utente connesso = 1 min). Non distingue audio/video/screen."
+                role={t('sa.infra.livekitRole')}
                 dashboardUrl="https://cloud.livekit.io"
                 lastVerified="06/03/2026"
                 expanded={expandedService === 'livekit'}
@@ -419,7 +421,7 @@ export default function InfrastructurePage() {
             <ServiceSection
                 name="Supabase" color="emerald" icon={<Database className="w-5 h-5" />}
                 description="Database PostgreSQL, Auth, Storage, Realtime"
-                role="Database utenti, stanze, workspace, messaggi. Autenticazione (login/signup). Storage per avatar. Realtime per notifiche e sincronizzazione."
+                role={t('sa.infra.supabaseRole')}
                 dashboardUrl="https://supabase.com/dashboard"
                 lastVerified="06/03/2026"
                 expanded={expandedService === 'supabase'}
@@ -437,15 +439,15 @@ export default function InfrastructurePage() {
                     return (
                         <div className="space-y-1.5">
                             <PlanRow label="Database" value={p.dbSize >= 1000 ? `${p.dbSize / 1000} GB` : `${p.dbSize} MB`} />
-                            <PlanRow label="Bandwidth" value={`${p.bandwidth} GB/mese`} />
+                            <PlanRow label="Bandwidth" value={`${p.bandwidth} GB{t('sa.infra.perMonth')}`} />
                             <PlanRow label="Storage" value={`${p.storage} GB`} />
                             <PlanRow label="Auth MAUs" value={p.maus.toLocaleString()} />
                             <PlanRow label="Edge Functions" value={`${(p.edgeFunctions / 1000).toLocaleString()}K invocazioni`} />
                             <PlanRow label="Progetti" value={String(p.projects)} />
-                            <PlanRow label="Pausa inattività" value={p.pauseOnInactive ? '⚠️ Dopo 1 settimana' : '✓ Mai'} />
+                            <PlanRow label="Pausa inattività" value={p.pauseOnInactive ? '⚠️ Dopo 1 settimana' : t('sa.infra.never')} />
                             {p.overage.dbPerGB && (
                                 <div className="border-t border-white/5 pt-1 mt-1">
-                                    <p className="text-[9px] text-slate-500 font-semibold uppercase mb-1">Overage</p>
+                                    <p className="text-[9px] text-slate-500 font-semibold uppercase mb-1">{t('sa.infra.overage')}</p>
                                     <PlanRow label="DB extra" value={`$${p.overage.dbPerGB}/GB`} />
                                     <PlanRow label="Bandwidth extra" value={`$${p.overage.bandwidthPerGB}/GB`} />
                                     <PlanRow label="Storage extra" value={`$${p.overage.storagePerGB}/GB`} />
@@ -478,14 +480,14 @@ export default function InfrastructurePage() {
                     const p = plan as typeof VERCEL_PLANS[0];
                     return (
                         <div className="space-y-1.5">
-                            <PlanRow label="Bandwidth" value={p.bandwidth === Infinity ? 'Custom' : `${p.bandwidth >= 1000 ? `${p.bandwidth / 1000} TB` : `${p.bandwidth} GB`}/mese`} />
-                            <PlanRow label="Serverless inv." value={p.serverlessInvocations === Infinity ? 'Custom' : `${(p.serverlessInvocations / 1_000_000).toFixed(0)}M/mese`} />
-                            <PlanRow label="Edge requests" value={p.edgeRequests === Infinity ? 'Custom' : `${(p.edgeRequests / 1_000_000).toFixed(0)}M/mese`} />
-                            <PlanRow label="CPU time" value={p.cpuHours === Infinity ? 'Custom' : `${p.cpuHours} ore/mese`} />
-                            <PlanRow label="Limite" value={p.hardLimit ? 'Hard limit ⛔' : p.cost === -1 ? 'SLA 99.99%' : 'Overage fatturato'} />
+                            <PlanRow label="Bandwidth" value={p.bandwidth === Infinity ? 'Custom' : `${p.bandwidth >= 1000 ? `${p.bandwidth / 1000} TB` : `${p.bandwidth} GB`}{t('sa.infra.perMonth')}`} />
+                            <PlanRow label="Serverless inv." value={p.serverlessInvocations === Infinity ? 'Custom' : `${(p.serverlessInvocations / 1_000_000).toFixed(0)}M{t('sa.infra.perMonth')}`} />
+                            <PlanRow label="Edge requests" value={p.edgeRequests === Infinity ? 'Custom' : `${(p.edgeRequests / 1_000_000).toFixed(0)}M{t('sa.infra.perMonth')}`} />
+                            <PlanRow label="CPU time" value={p.cpuHours === Infinity ? 'Custom' : `${p.cpuHours} ore{t('sa.infra.perMonth')}`} />
+                            <PlanRow label="Limite" value={p.hardLimit ? t('sa.infra.hardLimit') : p.cost === -1 ? 'SLA 99.99%' : 'Overage fatturato'} />
                             {Object.keys(p.overage).length > 0 && (
                                 <div className="border-t border-white/5 pt-1 mt-1">
-                                    <p className="text-[9px] text-slate-500 font-semibold uppercase mb-1">Overage</p>
+                                    <p className="text-[9px] text-slate-500 font-semibold uppercase mb-1">{t('sa.infra.overage')}</p>
                                     {p.overage.bandwidthPerGB && <PlanRow label="Bandwidth extra" value={`$${p.overage.bandwidthPerGB}/GB`} />}
                                     {p.overage.serverlessPerM && <PlanRow label="Serverless extra" value={`$${p.overage.serverlessPerM}/1M inv.`} />}
                                     {p.overage.edgePerM && <PlanRow label="Edge extra" value={`$${p.overage.edgePerM}/1M req.`} />}
@@ -501,7 +503,7 @@ export default function InfrastructurePage() {
             <ServiceSection
                 name="PartyKit" color="amber" icon={<Wifi className="w-5 h-5" />}
                 description="WebSocket real-time — Sincronizzazione avatar e collaborazione"
-                role="Sincronizza in tempo reale: posizioni avatar, stati utenti, whiteboard, chat. Ogni utente mantiene una connessione WebSocket persistente."
+                role={t('sa.infra.partykitRole')}
                 dashboardUrl="https://partykit.io/dashboard"
                 lastVerified="06/03/2026"
                 expanded={expandedService === 'partykit'}
@@ -530,8 +532,8 @@ export default function InfrastructurePage() {
             {/* ─── 5. RESEND ──────────────────────────────────── */}
             <ServiceSection
                 name="Resend" color="purple" icon={<Mail className="w-5 h-5" />}
-                description="Email transazionali — Inviti, notifiche, reset password"
-                role="Invia email transazionali: inviti workspace, notifiche di sistema, reset password, conferme. Dominio top-level con DKIM/SPF verificato."
+                description={t('sa.infra.emailDesc')}
+                role={t('sa.infra.emailRole')}
                 dashboardUrl="https://resend.com/overview"
                 lastVerified="07/03/2026"
                 expanded={expandedService === 'resend'}
@@ -548,12 +550,12 @@ export default function InfrastructurePage() {
                     const p = plan as typeof RESEND_PLANS[0];
                     return (
                         <div className="space-y-1.5">
-                            <PlanRow label="Email/mese" value={p.emailsPerMonth.toLocaleString()} />
+                            <PlanRow label="Email{t('sa.infra.perMonth')}" value={p.emailsPerMonth.toLocaleString()} />
                             <PlanRow label="Limite giornaliero" value={p.dailyLimit === Infinity ? 'Nessuno ✓' : `${p.dailyLimit} email/giorno`} />
                             <PlanRow label="Domini" value={String(p.domains)} />
                             <PlanRow label="Data retention" value={p.dataRetention} />
-                            <PlanRow label="Overage" value={p.overagePerK === 0 ? 'Hard limit ⛔' : `$${p.overagePerK}/1K email`} />
-                            <SimResult result={result} simMinutes={costs.resendEmails} label="email/mese stimate" />
+                            <PlanRow label="Overage" value={p.overagePerK === 0 ? t('sa.infra.hardLimit') : `$${p.overagePerK}/1K email`} />
+                            <SimResult result={result} simMinutes={costs.resendEmails} label="email{t('sa.infra.perMonth')} stimate" />
                         </div>
                     );
                 }}
@@ -614,7 +616,7 @@ function ServiceCostCard({ name, color, icon, planName, cost, note, url }: {
                 <p className="text-sm font-bold text-red-400">⛔ {note}</p>
             ) : (
                 <>
-                    <p className="text-lg font-bold text-white">{formatCost(cost)}<span className="text-[10px] text-slate-500">/mese</span></p>
+                    <p className="text-lg font-bold text-white">{formatCost(cost)}<span className="text-[10px] text-slate-500">{t('sa.infra.perMonth')}</span></p>
                     <p className="text-[10px] text-slate-500">{planName} • {note}</p>
                 </>
             )}
@@ -654,7 +656,7 @@ function ServiceSection({ name, color, icon, description, role, dashboardUrl, la
             {expanded && (
                 <div className="border-t border-white/5">
                     <div className="px-5 py-3 bg-white/[0.02] border-b border-white/5">
-                        <p className="text-xs text-slate-400"><strong className="text-white">Ruolo in Cosmoffice:</strong> {role}</p>
+                        <p className="text-xs text-slate-400"><strong className="text-white">{t('sa.infra.roleInCosm')}</strong> {role}</p>
                     </div>
                     <div className={`grid grid-cols-1 md:grid-cols-${simResults.length} gap-0 divide-y md:divide-y-0 md:divide-x divide-white/5`}>
                         {simResults.map(({ plan, cost, note }) => (
@@ -662,15 +664,15 @@ function ServiceSection({ name, color, icon, description, role, dashboardUrl, la
                                 <div className="flex items-center justify-between mb-2">
                                     <h4 className="text-base font-bold text-white">{plan.name}</h4>
                                     {cost < 0 ? (
-                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">NON BASTA</span>
+                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">{t('sa.infra.notEnough')}</span>
                                     ) : cost === simResults.find(r => r.cost >= 0)?.cost ? (
                                         <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                                            <Check className="w-3 h-3" /> CONSIGLIATO
+                                            <Check className="w-3 h-3" /> {t('sa.infra.recommended')}
                                         </span>
                                     ) : null}
                                 </div>
                                 <p className="text-xl font-bold text-white mb-3">
-                                    {plan.cost === -1 ? 'Custom' : plan.cost === 0 ? 'Gratis' : `$${plan.cost}/mese`}
+                                    {plan.cost === -1 ? 'Custom' : plan.cost === 0 ? 'Gratis' : `$${plan.cost}{t('sa.infra.perMonth')}`}
                                 </p>
                                 {renderPlan(plan, { cost, note })}
                             </div>
@@ -683,7 +685,7 @@ function ServiceSection({ name, color, icon, description, role, dashboardUrl, la
                         </div>
                         <a href={dashboardUrl} target="_blank" rel="noopener noreferrer"
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-${color}-500/20 text-${color}-300 border border-${color}-500/30 hover:bg-${color}-500/30 transition-all shrink-0`}>
-                            <ExternalLink className="w-3 h-3" /> Apri Dashboard
+                            <ExternalLink className="w-3 h-3" /> {t('sa.infra.openDashboard')}
                         </a>
                     </div>
                 </div>
@@ -706,7 +708,7 @@ function SimResult({ result, simMinutes, label }: { result: { cost: number; note
         <div className="border-t border-white/5 pt-2 mt-2">
             <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-500 flex items-center gap-1">
-                    <Sliders className="w-3 h-3" /> Simulazione
+                    <Sliders className="w-3 h-3" /> {t('sa.infra.simulation')}
                 </span>
                 <span className="text-[10px] text-slate-500">{typeof simMinutes === 'number' ? simMinutes.toLocaleString() : simMinutes} {label}</span>
             </div>
@@ -714,7 +716,7 @@ function SimResult({ result, simMinutes, label }: { result: { cost: number; note
                 <p className="text-xs font-semibold text-red-400 mt-1">⛔ {result.note}</p>
             ) : (
                 <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-emerald-400 font-semibold">{formatCost(result.cost)}/mese</span>
+                    <span className="text-xs text-emerald-400 font-semibold">{formatCost(result.cost)}{t('sa.infra.perMonth')}</span>
                     <span className="text-[10px] text-slate-500">{result.note}</span>
                 </div>
             )}

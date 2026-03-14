@@ -5,6 +5,7 @@ import {
     BarChart3, Clock, Users, Activity, TrendingUp,
     Building2, RefreshCw, Calendar, Loader2, AlertCircle
 } from 'lucide-react';
+import { useT } from '../../../lib/i18n';
 
 interface AnalyticsData {
     totalEvents: number;
@@ -23,6 +24,7 @@ export default function AnalyticsPage() {
     const [days, setDays] = useState(7);
     const [roomNames, setRoomNames] = useState<Record<string, string>>({});
     const [userNames, setUserNames] = useState<Record<string, string>>({});
+    const { t } = useT();
 
     const fetchAnalytics = useCallback(async () => {
         setLoading(true);
@@ -96,8 +98,8 @@ export default function AnalyticsPage() {
                         <BarChart3 className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-white">Presence Analytics</h1>
-                        <p className="text-xs text-slate-500">Analisi comportamentale degli spazi virtuali</p>
+                        <h1 className="text-xl font-bold text-white">{t('sa.analytics.title')}</h1>
+                        <p className="text-xs text-slate-500">{t('sa.analytics.subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -124,7 +126,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
                     <AlertCircle className="w-5 h-5" />
                     <div>
-                        <p className="text-sm font-bold">Errore</p>
+                        <p className="text-sm font-bold">{t('common.error')}</p>
                         <p className="text-xs text-red-400/70">{error}</p>
                     </div>
                 </div>
@@ -208,14 +210,14 @@ export default function AnalyticsPage() {
                                                     background: 'linear-gradient(to top, #10b981, #14b8a6)',
                                                     minHeight: 4,
                                                 }}
-                                                title={`${day.date} — ${day.count} utenti`}
+                                                title={`${day.date} — ${day.count} {t('sa.analytics.usersTooltip')}`}
                                             />
                                         </div>
                                     ))}
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center h-32 text-slate-600 text-xs">
-                                    Nessun dato nel periodo selezionato
+                                    {t('sa.analytics.noData')}
                                 </div>
                             )}
                         </div>
@@ -255,7 +257,7 @@ export default function AnalyticsPage() {
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center h-32 text-slate-600 text-xs">
-                                    Nessun dato di utilizzo stanze
+                                    {t('sa.analytics.noData2')}
                                 </div>
                             )}
                         </div>
@@ -297,7 +299,7 @@ export default function AnalyticsPage() {
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center h-32 text-slate-600 text-xs">
-                                    Nessun dato di collaborazione
+                                    {t('sa.analytics.noData2')}
                                 </div>
                             )}
                         </div>
@@ -306,7 +308,7 @@ export default function AnalyticsPage() {
                     {data.totalEvents === 0 && (
                         <div className="text-center py-8 rounded-2xl border border-dashed border-white/10">
                             <BarChart3 className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-                            <p className="text-sm font-bold text-slate-500">Nessun evento ancora registrato</p>
+                            <p className="text-sm font-bold text-slate-500">{t('sa.analytics.noEventsYet')}</p>
                             <p className="text-xs text-slate-600 mt-1">
                                 I dati appariranno automaticamente quando gli utenti navigano nell&apos;ufficio virtuale
                             </p>
