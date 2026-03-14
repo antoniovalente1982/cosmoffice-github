@@ -29,6 +29,9 @@ import {
     X,
     BarChart3,
     Calculator,
+    Zap,
+    ArrowRightLeft,
+    ShieldCheck,
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import CurrencySelector from '../../components/CurrencySelector';
@@ -46,6 +49,8 @@ const navSections: NavSection[] = [
         label: 'Gestione Clienti',
         items: [
             { href: '/superadmin/customers', label: 'Clienti & Spazi', icon: BookUser },
+            { href: '/superadmin/transfer', label: 'Trasferimento Owner', icon: ArrowRightLeft },
+            { href: '/superadmin/email', label: 'Email Clienti', icon: Mail },
         ],
     },
     {
@@ -53,12 +58,15 @@ const navSections: NavSection[] = [
         items: [
             { href: '/superadmin/revenue', label: 'Revenue & Pagamenti', icon: Receipt },
             { href: '/superadmin/infrastructure', label: 'Simulatore Costi', icon: Calculator },
+            { href: '/superadmin/livekit', label: 'Monitor LiveKit', icon: Zap },
         ],
     },
     {
         label: 'Piattaforma',
         items: [
             { href: '/superadmin/analytics', label: 'Statistiche & Sistema', icon: Server },
+            { href: '/superadmin/audit', label: 'Audit Log', icon: ScrollText },
+            { href: '/superadmin/security', label: 'Sicurezza RLS', icon: ShieldCheck },
         ],
     },
     {

@@ -35,18 +35,18 @@
 | `/superadmin/login` | `app/superadmin/login/page.tsx` | Login dedicato superadmin |
 | `/superadmin/analytics` | `app/superadmin/analytics/page.tsx` | Analytics avanzate utenti e workspace |
 | `/superadmin/audit` | `app/superadmin/audit/page.tsx` | Log audit trail di tutte le azioni |
-| `/superadmin/bugs` | `app/superadmin/bugs/page.tsx` | Gestione bug report |
+
 | `/superadmin/customers` | `app/superadmin/customers/page.tsx` | Lista clienti/workspace con dettagli |
 | `/superadmin/livekit` | `app/superadmin/livekit/page.tsx` | Monitor WebRTC LiveKit in tempo reale |
 | `/superadmin/email` | `app/superadmin/email/page.tsx` | Invio email ai clienti (Resend) |
-| `/superadmin/fix-roles` | `app/superadmin/fix-roles/page.tsx` | Tool per fix ruoli corrotti |
+
 | `/superadmin/infrastructure` | `app/superadmin/infrastructure/page.tsx` | Stato infrastruttura (Supabase, Vercel, PartyKit) |
-| `/superadmin/payments` | `app/superadmin/payments/page.tsx` | Gestione pagamenti e ricevute |
+
 | `/superadmin/revenue` | `app/superadmin/revenue/page.tsx` | Dashboard ricavi e MRR |
 | `/superadmin/security` | `app/superadmin/security/page.tsx` | Audit sicurezza e RLS |
 | `/superadmin/support` | `app/superadmin/support/page.tsx` | Gestione ticket supporto |
 | `/superadmin/transfer` | `app/superadmin/transfer/page.tsx` | Trasferimento ownership workspace |
-| `/superadmin/upgrade-requests` | `app/superadmin/upgrade-requests/page.tsx` | Richieste upgrade piano |
+
 
 ---
 
