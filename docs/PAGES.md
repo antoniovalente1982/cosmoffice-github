@@ -37,7 +37,7 @@
 | `/superadmin/audit` | `app/superadmin/audit/page.tsx` | Log audit trail di tutte le azioni |
 | `/superadmin/bugs` | `app/superadmin/bugs/page.tsx` | Gestione bug report |
 | `/superadmin/customers` | `app/superadmin/customers/page.tsx` | Lista clienti/workspace con dettagli |
-| `/superadmin/daily` | `app/superadmin/daily/page.tsx` | Report giornaliero automatico |
+| `/superadmin/livekit` | `app/superadmin/livekit/page.tsx` | Monitor WebRTC LiveKit in tempo reale |
 | `/superadmin/email` | `app/superadmin/email/page.tsx` | Invio email ai clienti (Resend) |
 | `/superadmin/fix-roles` | `app/superadmin/fix-roles/page.tsx` | Tool per fix ruoli corrotti |
 | `/superadmin/infrastructure` | `app/superadmin/infrastructure/page.tsx` | Stato infrastruttura (Supabase, Vercel, PartyKit) |
@@ -94,7 +94,7 @@
 | `/api/admin/workspaces` | GET/PATCH | Lista e gestione workspace | `workspaces`, `workspace_members` |
 | `/api/admin/bugs` | GET/PATCH | Gestione bug report | `bug_reports` |
 | `/api/admin/audit` | GET | Log audit trail | `workspace_audit_logs` |
-| `/api/admin/daily` | GET | Report giornaliero | multi-tabella |
+
 | `/api/admin/security` | GET | Check sicurezza RLS | meta-query |
 | `/api/admin/support-tickets` | GET/POST/PATCH/DELETE | CRUD ticket supporto | `support_tickets`, `ticket_messages` |
 | `/api/admin/transfer` | POST | Trasferisci ownership | `workspace_members`, `admin_transfers` |
