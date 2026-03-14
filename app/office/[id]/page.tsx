@@ -7,6 +7,7 @@ import { createClient } from '../../../utils/supabase/client';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useT } from '../../../lib/i18n';
+import { showToast } from '@/lib/errorHandler';
 import { motion } from 'framer-motion';
 import {
     Users,
@@ -51,6 +52,8 @@ const DayNightCycle = dynamic(() => import('../../../components/office/DayNightC
 const NotificationBell = dynamic(() => import('../../../components/office/NotificationBell'), { ssr: false });
 const UserManagement = null; // Integrated into TeamList
 const SupportCenter = dynamic(() => import('../../../components/office/SupportCenter'), { ssr: false });
+const OnboardingTour = dynamic(() => import('../../../components/office/OnboardingTour').then(mod => mod.OnboardingTour), { ssr: false });
+const TrialBanner = dynamic(() => import('../../../components/billing/TrialBanner').then(mod => mod.TrialBanner), { ssr: false });
 
 import { useAvatarStore } from '../../../stores/avatarStore';
 import { useMediaStore } from '../../../stores/mediaStore';
@@ -393,7 +396,7 @@ export default function OfficePage() {
 
             if (!membership || membership.removed_at) {
                 clearInterval(interval);
-                alert(t('office.toast.kickedFromWorkspace'));
+                showToast(t('office.toast.kickedFromWorkspace'), 'warning');
                 router.push('/');
             }
         }, 10000); // check every 10 seconds
@@ -553,6 +556,9 @@ export default function OfficePage() {
             {/* LiveKitManager singleton — manages WebRTC call lifecycle */}
             <LiveKitManager spaceId={spaceId} />
 
+            {/* Onboarding tour for first-time visitors */}
+            <OnboardingTour />
+
             {/* Mobile sidebar overlay backdrop */}
             {isSidebarOpen && (
                 <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsSidebarOpen(false)} />
@@ -707,6 +713,9 @@ export default function OfficePage() {
                         <NotificationBell />
                     </div>
                 </motion.header>
+
+                {/* Trial countdown banner — only visible during trial */}
+                {workspaceId && <TrialBanner workspaceId={workspaceId} />}
 
                 {/* Office Stage (Konva Environment) */}
                 <motion.div

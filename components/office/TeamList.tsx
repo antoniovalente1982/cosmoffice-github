@@ -12,6 +12,7 @@ import {
 import { Button } from '../ui/button';
 import { useCallStore } from '../../stores/callStore';
 import { useT } from '../../lib/i18n';
+import { handleError } from '@/lib/errorHandler';
 
 const supabase = createClient();
 
@@ -136,13 +137,13 @@ export function TeamList({ spaceId, workspaceId, role, canInvite, invitableRoles
             const { data, error } = await supabase.rpc('kick_workspace_member', {
                 p_workspace_id: workspaceId, p_target_user_id: userId,
             });
-            if (error) alert(t('team.kickError') + error.message);
+            if (error) handleError(error, 'TeamList.handleKick', 'warning', { userMessage: t('team.kickError') + error.message });
             else {
                 const result = data as any;
                 if (result?.success) setMembers(prev => prev.filter(m => m.user_id !== userId));
-                else alert(result?.error || t('team.unknownError'));
+                else handleError(result?.error || t('team.unknownError'), 'TeamList.handleKick', 'warning');
             }
-        } catch (err: any) { alert(t('team.kickError') + err.message); }
+        } catch (err: any) { handleError(err, 'TeamList.handleKick', 'warning', { userMessage: t('team.kickError') + err.message }); }
         setKickingUserId(null);
     };
 

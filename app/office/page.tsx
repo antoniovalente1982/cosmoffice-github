@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useT } from '../../lib/i18n';
+import { handleError } from '@/lib/errorHandler';
 import { LanguageSelector } from '../../components/ui/LanguageSelector';
 import {
     Plus,
@@ -324,7 +325,7 @@ export default function DashboardPage() {
             setSpaceMenuOpen(null);
         } catch (err: any) {
             console.error('Error deleting space:', err);
-            alert(t('dashboard.deleteError') + err.message);
+            handleError(err, 'DashboardPage.handleDeleteSpace', 'warning', { userMessage: t('dashboard.deleteError') + err.message });
         }
     };
 
@@ -345,7 +346,7 @@ export default function DashboardPage() {
             setEditName('');
         } catch (err: any) {
             console.error('Error updating space:', err);
-            alert(t('dashboard.updateError') + err.message);
+            handleError(err, 'DashboardPage.handleUpdateSpace', 'warning', { userMessage: t('dashboard.updateError') + err.message });
         }
     };
 

@@ -9,6 +9,7 @@ import {
     Search, MailPlus
 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { handleError } from '@/lib/errorHandler';
 
 const supabase = createClient();
 
@@ -132,17 +133,17 @@ export default function UserManagement({ workspaceId, isOpen, onClose }: UserMan
                 p_target_user_id: userId,
             });
             if (error) {
-                alert('Errore: ' + error.message);
+                handleError(error, 'UserManagement.handleRemove', 'warning');
             } else {
                 const result = data as any;
                 if (result?.success) {
                     setMembers(prev => prev.filter(m => m.user_id !== userId));
                 } else {
-                    alert(result?.error || 'Errore sconosciuto');
+                    handleError(result?.error || 'Errore sconosciuto', 'UserManagement.handleRemove', 'warning');
                 }
             }
         } catch (err: any) {
-            alert('Errore: ' + err.message);
+            handleError(err, 'UserManagement.handleRemove', 'warning');
         }
         setRemovingUserId(null);
     };

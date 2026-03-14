@@ -5,6 +5,7 @@ import {
     CreditCard, Users, Crown, Loader2, ExternalLink, Activity,
     CheckCircle2,
 } from 'lucide-react';
+import { handleError } from '@/lib/errorHandler';
 
 interface PlanStatus {
     plan: { key: string; name: string; monthlyPricePerUserEur: number };
@@ -45,8 +46,8 @@ export default function WorkspaceBilling({ workspaceId }: { workspaceId: string 
             });
             const data = await res.json();
             if (data.url) window.location.href = data.url;
-            else alert(data.error || 'Errore');
-        } catch { alert('Errore di rete'); }
+            else handleError(data.error || 'Errore', 'WorkspaceBilling.handlePortal', 'warning');
+        } catch (err) { handleError(err, 'WorkspaceBilling.handlePortal', 'warning', { userMessage: 'Errore di rete' }); }
         setPortalLoading(false);
     };
 

@@ -783,18 +783,37 @@ export function useAvatarSync({ workspaceId, userId, userName, email, avatarUrl,
             }
         }, 15000);
 
-        // BUG-6 FIX: Periodic state sync (every 15s, offset from heartbeat)
-        // Requests full state from server and reconciles local peer list
-        const syncInterval = setInterval(() => {
+        // BUG-6 FIX: Periodic state sync — smart backoff based on tab visibility
+        // Active tab: 30s interval. Hidden tab: 60s interval. Immediate sync on refocus.
+        const SYNC_ACTIVE_MS = 30000;
+        const SYNC_HIDDEN_MS = 60000;
+        let currentSyncMs = SYNC_ACTIVE_MS;
+
+        const doSync = () => {
             if (socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({ type: 'request_sync' }));
             }
-        }, 15000);
+        };
+
+        let syncInterval = setInterval(doSync, currentSyncMs);
+
+        const handleVisibilityChange = () => {
+            const newMs = document.hidden ? SYNC_HIDDEN_MS : SYNC_ACTIVE_MS;
+            if (newMs !== currentSyncMs) {
+                currentSyncMs = newMs;
+                clearInterval(syncInterval);
+                syncInterval = setInterval(doSync, currentSyncMs);
+            }
+            // Immediate sync when tab becomes visible
+            if (!document.hidden) doSync();
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
             connectedRef.current = false;
             clearInterval(heartbeatInterval);
             clearInterval(syncInterval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             socket.close();
             socketRef.current = null;
             useCommsStore.getState().setPartykitSocket(null);

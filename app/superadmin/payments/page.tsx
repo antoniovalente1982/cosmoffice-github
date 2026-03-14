@@ -293,7 +293,8 @@ export default function CashflowPage() {
 
     const handleMarkPaid = async (entry: ScheduleEntry) => {
         // TODO: integrate with actual payment tracking table
-        alert(`Pagamento ${fmt(entry.amount)} per ${entry.wsName} (${entry.dueDate}) segnato come pagato.\n\nNota: questa funzione verrà integrata con il sistema di registrazione pagamenti.`);
+        const { showToast } = await import('@/lib/errorHandler');
+        showToast(`Pagamento ${fmt(entry.amount)} per ${entry.wsName} (${entry.dueDate}) segnato come pagato. Nota: verrà integrato con il sistema di registrazione pagamenti.`, 'info');
     };
 
     if (loading) {
