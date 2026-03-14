@@ -90,28 +90,22 @@ export async function GET(req: NextRequest) {
         const uniqueUsers = uniqueUserIds.size;
         const totalUsers = totalProfiles;
 
-        // 1) Fetch all super admins to ensure they are prioritized and not double counted in workspaces
+        // 1) Fetch all super admins to ensure they are tracked
         const { data: saData } = await supabase.from('profiles').select('id').eq('is_super_admin', true);
         const superAdminIds = new Set((saData || []).map(p => p.id));
         const superAdmins = superAdminIds.size;
 
-        // 2) Enforce mutually exclusive roles globally per-user
-        const uniqueUserRoles = new Map<string, string>(); // user_id -> highest_role
+        // 2) Determine highest workspace role per-user (owner > admin > member > guest)
+        //    Super admins ALSO count in their workspace role (e.g., owner)
+        const uniqueUserRoles = new Map<string, string>(); // user_id -> highest workspace role
         const rolePriority: Record<string, number> = { 'owner': 1, 'admin': 2, 'member': 3, 'guest': 4 };
 
         for (const m of allMembers) {
             const userId = m.user_id;
-
-            // If they are a super admin, they are forever categorised as a super admin for stats
-            if (superAdminIds.has(userId)) {
-                uniqueUserRoles.set(userId, 'super_admin');
-                continue;
-            }
-
             const currentRole = (m.role || '').toLowerCase();
             const existingRole = uniqueUserRoles.get(userId);
 
-            // If no role assigned yet, or current role is higher priority than existing
+            // Always track the highest workspace role, even for super admins
             if (!existingRole || (rolePriority[currentRole] !== undefined && rolePriority[currentRole] < rolePriority[existingRole])) {
                 uniqueUserRoles.set(userId, currentRole);
             }
