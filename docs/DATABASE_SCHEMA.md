@@ -1,289 +1,333 @@
-# CosmoOffice — Database Schema v2
+# 🗄️ Cosmoffice — Database Schema
 
-> **Ultimo aggiornamento**: 2026-02-28  
-> **Source of truth TypeScript**: `lib/supabase/database.types.ts`  
-> **Source of truth SQL**: `supabase/schema_v2_complete.sql` + migrations applicate
-
----
-
-## Architettura
-
-Il database è progettato su **Supabase (PostgreSQL)** con:
-- **Multi-tenancy**: ogni azienda ha il proprio `workspace`
-- **RBAC**: 4 ruoli gerarchici `owner > admin > member > guest`
-- **Soft delete**: le entità non vengono mai cancellate fisicamente (campo `deleted_at`)
-- **Audit trail**: tutte le azioni importanti loggate su `workspace_audit_logs`
-- **Realtime**: Supabase Realtime su tabelle chiave per presence e chat
+> **Ultimo aggiornamento**: 2026-03-14
+> **Database**: Supabase PostgreSQL 17 (progetto `tcbqsmjmhuebfdijiaag`)
+> **Region**: `eu-west-1`
+> **Migrazioni applicate**: 45 (gestite direttamente su Supabase)
 
 ---
 
-## Tipi Enumerati
+## Panoramica
 
-| Tipo | Valori |
-|---|---|
-| `WorkspaceRole` | `owner`, `admin`, `member`, `guest` |
-| `UserStatus` | `online`, `away`, `busy`, `offline`, `invisible` |
-| `RoomType` | `open`, `meeting`, `focus`, `break`, `reception`, `private` |
-| `MessageType` | `text`, `image`, `file`, `system`, `join`, `leave`, `call_start`, `call_end` |
-| `ConversationType` | `room`, `channel`, `direct` |
-| `NotificationType` | `mention`, `invite`, `room_enter`, `message`, `system`, `kick`, `ban`, `mute` |
-| `InviteType` | `email`, `link` |
-
-> ⚠️ **Nota**: nel DB PostgreSQL l'ENUM `workspace_role` include ancora `viewer`. Nell'applicazione TypeScript è stato rimosso. La migration `migration_remove_viewer_role.sql` converte i `viewer` esistenti in `guest`.
+- **30 tabelle** con RLS abilitato su tutte
+- **Multi-tenancy** via `workspace_id` + RLS policies
+- **RBAC**: `owner > admin > member > guest`
+- **Soft delete**: campo `removed_at` / `deleted_at` dove applicabile
+- **Audit trail**: `workspace_audit_logs` per ogni azione importante
 
 ---
 
-## Tabelle
+## Modello Relazionale
 
-### 🔒 Livello 1 — Auth & Profiles
+```
+profiles (12 rows)
+  └─── workspace_members (12) ─── workspaces (2)
+         │                           ├── spaces (2)
+         │                           │     ├── rooms (18)
+         │                           │     │     ├── room_participants (0)
+         │                           │     │     ├── room_connections (3)
+         │                           │     │     ├── furniture (0)
+         │                           │     │     ├── whiteboard_strokes (0)
+         │                           │     │     ├── messages (2)
+         │                           │     │     ├── room_kicks (0)
+         │                           │     │     └── room_mutes (0)
+         │                           │     └── space_chat_messages (0)
+         │                           ├── workspace_invitations (5)
+         │                           ├── workspace_bans (0)
+         │                           ├── workspace_audit_logs (36)
+         │                           ├── conversations (0)
+         │                           │     └── conversation_members (0)
+         │                           └── billing_events (0)
+         └── user_presence (0)
 
-#### `profiles`
-Profilo utente, collegato 1:1 a `auth.users` via trigger.
-
-| Colonna | Tipo | Default | Note |
-|---|---|---|---|
-| `id` | UUID PK | — | FK → `auth.users(id)` ON DELETE CASCADE |
-| `email` | TEXT UNIQUE | — | |
-| `full_name` | TEXT | null | |
-| `display_name` | TEXT | null | Nome visualizzato |
-| `avatar_url` | TEXT | null | |
-| `timezone` | TEXT | `Europe/Rome` | |
-| `locale` | TEXT | `it` | |
-| `status` | TEXT | `offline` | online/away/busy/offline/invisible |
-| `last_seen_at` | TIMESTAMPTZ | NOW() | |
-| `preferences` | JSONB | `{}` | UI preferences |
-| `deleted_at` | TIMESTAMPTZ | null | Soft delete |
-| `deleted_by` | UUID | null | FK → profiles |
-| `created_at` | TIMESTAMPTZ | NOW() | |
-| `updated_at` | TIMESTAMPTZ | NOW() | Auto via trigger |
+Tabelle standalone:
+  login_events (51)
+  admin_transfers (0)
+  platform_metrics (0)
+  platform_settings (1)
+  owner_registration_tokens (1)
+  support_tickets (2) ─── ticket_messages (0)
+  bug_reports (4)
+  payments (0)
+  invoices (0)
+  upgrade_requests (0)
+  presence_events (6560)
+  message_attachments (1)
+```
 
 ---
 
-### 🏢 Livello 2 — Workspaces
+## Tabelle per Area
 
-#### `workspaces`
-L'unità organizzativa principale (tenant).
+### 🔒 Auth & Profili
 
-| Colonna | Tipo | Default | Note |
-|---|---|---|---|
-| `id` | UUID PK | uuid_generate_v4() | |
-| `name` | TEXT | — | |
-| `slug` | TEXT UNIQUE | — | |
-| `description` | TEXT | null | |
-| `logo_url` | TEXT | null | |
-| `plan` | TEXT | `free` | free/starter/pro/enterprise |
-| `plan_expires_at` | TIMESTAMPTZ | null | |
-| `max_members` | INT | 10 | |
-| `max_spaces` | INT | 3 | |
-| `max_rooms_per_space` | INT | 10 | |
-| `storage_quota_bytes` | BIGINT | 1073741824 (1GB) | |
-| `settings` | JSONB | `{...}` | allow_guest_invites, theme, ecc. |
-| `branding` | JSONB | `{}` | White-label enterprise |
-| `deleted_at/by` | — | — | Soft delete |
-| `created_at/updated_at` | — | — | |
-| `created_by` | UUID | null | FK → profiles |
-
-#### `workspace_members`
-Relazione N:N utenti↔workspace.
-
-| Colonna | Tipo | Default | Note |
-|---|---|---|---|
-| `id` | UUID PK | | |
-| `workspace_id` | UUID | — | FK → workspaces |
-| `user_id` | UUID | — | FK → profiles |
-| `role` | TEXT | `member` | owner/admin/member/guest |
-| `permissions` | JSONB | `{}` | Override specifici |
-| `invited_by` | UUID | null | FK → profiles |
-| `invited_at` | TIMESTAMPTZ | null | |
-| `joined_at` | TIMESTAMPTZ | NOW() | |
-| `last_active_at` | TIMESTAMPTZ | null | |
-| `removed_at/by` | — | null | Soft remove |
-| `remove_reason` | TEXT | null | |
-| `is_suspended` | BOOLEAN | false | |
-| `suspended_at/by` | — | null | |
-| `suspend_reason` | TEXT | null | |
-| `suspend_expires_at` | TIMESTAMPTZ | null | |
-
-**UNIQUE**: `(workspace_id, user_id)`
-
-#### `workspace_role_permissions`
-Permessi granulari per ogni ruolo in ogni workspace.
-
-25 flag booleani tra cui: `can_manage_workspace_settings`, `can_invite_members`, `can_remove_members`, `can_kick_from_rooms`, `can_mute_in_rooms`, `can_delete_any_message`, `can_moderate_chat`, ecc.
-
-**UNIQUE**: `(workspace_id, role)`
-
-#### `workspace_bans`
-Ban utenti con scope workspace/space/room.
+#### `profiles` (12 rows)
+Collegata 1:1 a `auth.users` via trigger `handle_new_user()`.
 
 | Colonna | Tipo | Note |
-|---|---|---|
-| `ban_type` | TEXT | workspace/space/room |
-| `space_id`, `room_id` | UUID | Se ban limitato |
-| `expires_at` | TIMESTAMPTZ | null = permanente |
-| `revoked_at/by`, `revoke_reason` | — | Se revocato |
-
-#### `workspace_audit_logs`
-Trail di tutte le azioni (`member.invited`, `user.banned`, `user.role_changed`, ecc.)
+|---------|------|------|
+| `id` | UUID PK | FK → `auth.users(id)` |
+| `email` | TEXT | |
+| `full_name` | TEXT | |
+| `display_name` | TEXT | Nome visualizzato |
+| `avatar_url` | TEXT | |
+| `status` | TEXT | `online/away/busy/offline` |
+| `language` | TEXT | Default `it`. Valori: `it`, `en`, `es` |
+| `timezone` | TEXT | Default `Europe/Rome` |
+| `is_super_admin` | BOOL | Default `false` |
+| `is_support_staff` | BOOL | Default `false` |
+| `max_workspaces` | INT | Default `1` |
+| `company_name` | TEXT | Dati fatturazione |
+| `vat_number`, `fiscal_code`, `sdi_code`, `pec` | TEXT | Fatturazione IT |
+| `billing_address/city/zip/country` | TEXT | Indirizzo fatturazione |
+| `suspended_at`, `suspended_by` | — | Sospensione account |
+| `last_seen`, `created_at`, `updated_at` | TIMESTAMPTZ | |
 
 ---
 
-### 🏠 Livello 3 — Spaces
+### 🏢 Workspaces
 
-#### `spaces`
+#### `workspaces` (2 rows)
+Tenant principale. Ogni azienda = 1 workspace.
+
+| Colonna | Tipo | Note |
+|---------|------|------|
+| `id` | UUID PK | |
+| `name` | TEXT | |
+| `slug` | TEXT UNIQUE | URL-friendly |
+| `plan` | TEXT | Default `free` |
+| `max_capacity` | INT | Default `3` (posti totali) |
+| `max_spaces` | INT | Default `1` |
+| `max_rooms_per_space` | INT | Default `5` |
+| `max_guests` | INT | Default `0` |
+| `storage_quota_bytes` | BIGINT | Default 1GB |
+| `price_per_seat` | INT | Centesimi €/posto |
+| `billing_cycle` | TEXT | `monthly` o `annual` |
+| `trial_ends_at` | TIMESTAMPTZ | Fine trial |
+| `stripe_customer_id` | TEXT | |
+| `stripe_subscription_id` | TEXT | |
+| `stripe_subscription_status` | TEXT | Default `none` |
+| `payment_status` | TEXT | Default `none` |
+| `monthly_amount_cents` | INT | |
+| `branding`, `settings` | JSONB | Personalizzazione |
+| `logo_url` | TEXT | |
+| `suspended_at/by`, `deleted_at/by` | — | |
+| `plan_activated_by/at` | — | Chi ha attivato il piano |
+
+#### `workspace_members` (12 rows)
+N:N utenti ↔ workspace.
+
+| Colonna | Tipo | Note |
+|---------|------|------|
+| `id` | UUID PK | |
+| `workspace_id` | UUID FK → workspaces | |
+| `user_id` | UUID FK → profiles | |
+| `role` | TEXT | `owner/admin/member/guest` |
+| `joined_at` | TIMESTAMPTZ | Default `now()` |
+| `last_active_at` | TIMESTAMPTZ | |
+| `invited_by/at` | — | Chi ha invitato |
+| `removed_at/by`, `remove_reason` | — | Soft remove |
+| `is_suspended`, `suspended_at/by` | — | |
+| `suspend_reason`, `suspend_expires_at` | — | |
+| `permissions` | JSONB | Override specifici |
+| `invitation_id` | UUID FK → workspace_invitations | |
+
+#### `workspace_invitations` (5 rows)
+Due modalità: **email** (1 uso) e **link** (multiuso).
+
+| Colonna | Tipo | Note |
+|---------|------|------|
+| `id` | UUID PK | |
+| `workspace_id` | UUID FK → workspaces | |
+| `email` | TEXT | NULL per inviti link |
+| `token` | TEXT UNIQUE | Segreto nell'URL |
+| `invite_type` | TEXT | `email` o `link` |
+| `role` | TEXT | Ruolo assegnato |
+| `max_uses` | INT | NULL = illimitato |
+| `use_count` | INT | Default `0` |
+| `label` | TEXT | Etichetta descrittiva |
+| `destination_room_id` | UUID FK → rooms | Stanza di destinazione |
+| `expires_at` | TIMESTAMPTZ | NULL = mai |
+| `accepted_at/by`, `revoked_at/by` | — | |
+
+#### `workspace_bans` (0 rows)
+Ban utenti da workspace con possibile scadenza.
+
+#### `workspace_audit_logs` (36 rows)
+Audit trail: `action`, `entity_type`, `entity_id`, `metadata` JSONB.
+
+---
+
+### 🏠 Spaces & Rooms
+
+#### `spaces` (2 rows)
 Ufficio virtuale dentro un workspace.
 
-Campi chiave: `visibility` (public/private/invitation_only), `layout_data` (JSONB con grid_size, background, zoom), `settings` (JSONB con max_participants, enable_chat/video/screen_share, chat_history_days).
+| Colonna | Tipo | Note |
+|---------|------|------|
+| `id` | UUID PK | |
+| `workspace_id` | UUID FK | |
+| `name`, `description` | TEXT | |
+| `max_capacity` | INT | Default `50` |
+| `layout_data` | JSONB | Dimensioni, background, zoom |
+| `settings` | JSONB | Configurazione |
+| `visibility` | TEXT | Default `private` |
+| `slug` | TEXT | |
+| `archived_at/by`, `deleted_at/by`, `created_by` | — | |
 
-#### `space_members`
-Accesso granulare per space. Permessi: `can_create_rooms`, `can_delete_rooms`, `can_moderate_chat`, `can_manage_furniture`.
-
----
-
-### 🚪 Livello 4 — Rooms
-
-#### `rooms`
+#### `rooms` (18 rows)
 Stanze dentro uno Space.
 
-Campi chiave: `type` (open/meeting/focus/break/reception/private), posizione (`x/y/width/height/z_index`), `capacity`, `is_secret`, `is_locked`, `who_can_enter`, `who_can_moderate`.
+| Colonna | Tipo | Note |
+|---------|------|------|
+| `id` | UUID PK | |
+| `space_id` | UUID FK → spaces | |
+| `name` | TEXT | |
+| `type` | TEXT | `open/meeting/focus/break/reception` |
+| `shape` | TEXT | `rect` o `circle` |
+| `x`, `y`, `width`, `height` | INT | Posizione/dimensione su canvas |
+| `z_index` | INT | Ordine rendering |
+| `capacity` | INT | Default `10` |
+| `color` | TEXT | Default `#1e293b` |
+| `department` | TEXT | Es. "Marketing" |
+| `icon` | TEXT | |
+| `background_image_url` | TEXT | |
+| `is_locked` | BOOL | |
+| `who_can_enter` | TEXT | `owner/admin/member/guest` |
+| `who_can_moderate` | TEXT | `owner/admin/member/guest` |
 
-#### `room_connections`
-Connessioni tra stanze: `type` (door/portal/stairs/elevator), coordinate `x_a/y_a` → `x_b/y_b`.
-
-#### `furniture`
-Mobili/oggetti. `is_interactable`, `interaction_type` (link/embed/app/whiteboard), `interaction_data` (JSONB).
-
----
-
-### 👁️ Livello 5 — Presence
-
-#### `room_participants`
-Chi è in quale stanza **adesso**. Posizione avatar, stato media (audio/video/screen_sharing), stato moderazione (is_kicked/is_muted).
-
-**UNIQUE**: `(room_id, user_id)`
-
-#### `user_presence`
-Presence globale per workspace: `status`, `status_message`, `platform` (web/desktop/mobile).
-
-**PK**: `user_id` (una sola presenza per utente)
-
----
-
-### 💬 Livello 6 — Chat
-
-#### `conversations`
-Container unificato: `type` = **room** (chat stanza), **channel** (canale workspace), **direct** (DM).
-
-Vincoli SQL:
-- DM richiede `user_a_id` + `user_b_id`
-- Room richiede `room_id`
-- Channel richiede `name`
-
-#### `conversation_members`
-Partecipanti con `notification_settings` (mute, mentions_only).
-
-#### `messages`
-Contenuto: `type` (text/image/file/system/...), `reactions` (JSON denormalizzato), `reply_to_id`, threading (`thread_parent_id`, `reply_count`), `agent_id/agent_name` per AI.
-
-#### `message_attachments`
-File allegati con `storage_path`, `thumbnail_url`, dimensioni.
-
----
-
-### ✉️ Livello 7 — Invitations & Requests
-
-#### `workspace_invitations`
-**Due modalità**: email (specifico per utente) e link (multiuso).
+#### `room_connections` (3 rows)
+Connessioni visive tra stanze.
 
 | Colonna | Tipo | Note |
-|---|---|---|
-| `email` | TEXT | **nullable** — null per link invites |
-| `invite_type` | TEXT | `email` o `link` |
-| `token` | TEXT UNIQUE | UUID segreto |
-| `max_uses` | INT | null = illimitato (solo per link) |
-| `use_count` | INT | 0 | contatore |
-| `label` | TEXT | Etichetta descrittiva |
-| `expires_at` | TIMESTAMPTZ | null = mai |
-| `accepted_at/by` | — | Per email invites |
-| `revoked_at/by` | — | |
+|---------|------|------|
+| `room_a_id`, `room_b_id` | UUID FK → rooms | |
+| `space_id` | UUID FK → spaces | |
+| `type` | TEXT | `door/portal/stairs/elevator/link` |
+| `label`, `color` | TEXT | Styling |
+| `cp_offset_x/y` | FLOAT | Control point per curva Bézier |
 
-**UNIQUE INDEX**: `(workspace_id, email)` WHERE email IS NOT NULL AND revoked_at IS NULL AND accepted_at IS NULL
-
-#### `workspace_join_requests`
-Richieste di accesso con `status` (pending/approved/rejected).
+#### `furniture` (0 rows)
+Mobili/oggetti in stanza: `type`, `label`, posizione, `rotation`, `settings` JSONB.
 
 ---
 
-### ⚖️ Livello 8 — Moderazione
+### 👁️ Presenza
 
-#### `room_kicks`
-Storico kick: `reason`, `can_reenter`, `banned_until`.
+#### `room_participants` (0 rows)
+Chi è in quale stanza **adesso**. Posizione avatar, stato media.
 
-#### `room_mutes`
-Storico mute: `mute_type` (chat/audio/video/all), `expires_at`, `unmuted_at/by`.
+| Colonne principali | Note |
+|---|---|
+| `room_id`, `user_id` | FK |
+| `x`, `y`, `direction` | Posizione avatar |
+| `audio_enabled`, `video_enabled`, `screen_sharing` | Stato media |
+| `hand_raised` | Bool |
+| `is_kicked/is_muted` | Moderazione |
+
+#### `user_presence` (0 rows)
+Stato online per workspace. **PK**: `user_id`.
+
+#### `presence_events` (6560 rows)
+Log storico posizioni avatar per analytics.
 
 ---
 
-### 🤖 Livello 9 — AI & Notifiche
+### 💬 Chat
 
-#### `ai_agents`
-Agenti AI per workspace con `system_prompt`, `capabilities`, `allowed_spaces/rooms`.
+#### `conversations` (0 rows)
+Container: `type` = `room` | `channel` | `direct`.
 
-#### `notifications`
-`type` (mention/invite/system/kick/ban/mute), `action_url`, `is_read`.
+#### `conversation_members` (0 rows)
+Partecipanti con `notification_settings` JSONB.
+
+#### `messages` (2 rows)
+Messaggi: `content`, `type` (text/image/file/system).
+
+#### `space_chat_messages` (0 rows)
+Chat globale space/stanza: `sender_id`, `sender_name`, `content`, `room_id`.
+
+#### `message_attachments` (1 row)
+File allegati: `file_name`, `mime_type`, `storage_path`, `public_url`.
+
+#### `whiteboard_strokes` (0 rows)
+Dati lavagna: `stroke_data` JSONB, `user_id`, `room_id`.
 
 ---
 
-## Triggers
+### ⚖️ Moderazione
 
-| Trigger | Tabella | Funzione | Azione |
-|---|---|---|---|
-| `on_auth_user_created` | `auth.users` | `handle_new_user()` | Crea profilo automaticamente |
-| `on_workspace_created` | `workspaces` | `handle_new_workspace()` | Aggiunge owner come membro + crea permessi default |
-| `on_workspace_create_permissions` | `workspaces` | `handle_workspace_permissions()` | Crea `workspace_role_permissions` per 4 ruoli |
-| `*_updated_at` | profiles, workspaces, spaces, rooms, furniture, ai_agents | `update_updated_at()` | Auto-aggiorna `updated_at` |
+#### `room_kicks` (0 rows) — `reason`, `can_reenter`, `banned_until`
+#### `room_mutes` (0 rows) — `mute_type`, `expires_at`, `unmuted_at/by`
+
+---
+
+### 💳 Billing
+
+#### `billing_events` (0 rows)
+Log eventi billing: `plan_upgrade/downgrade`, `payment`, `refund`, `trial_start/end`.
+
+#### `payments` (0 rows)
+Pagamenti registrati con `receipt_number`, `receipt_data` JSONB.
+
+#### `invoices` (0 rows)
+Fatture: `seats`, `price_per_seat_cents`, `total_cents`, `seller/buyer_snapshot` JSONB.
+
+---
+
+### 🛡️ Piattaforma
+
+#### `platform_settings` (1 row) — Configurazione globale `key/value` JSONB
+#### `platform_metrics` (0 rows) — Metriche giornaliere piattaforma
+#### `owner_registration_tokens` (1 row) — Token speciali per registrazione owner
+#### `login_events` (51 rows) — Log login/logout/signup/failed
+#### `admin_transfers` (0 rows) — Storico trasferimenti superadmin
+
+---
+
+### 🎫 Supporto
+
+#### `support_tickets` (2 rows) — Ticket con `category`, `priority`, `status`
+#### `ticket_messages` (0 rows) — Messaggi dentro un ticket
+#### `bug_reports` (4 rows) — Segnalazioni bug con `severity`, `screenshot_url`
+#### `upgrade_requests` (0 rows) — Richieste upgrade da utenti
 
 ---
 
 ## Funzioni SQL (RPC)
 
-### Helper di autorizzazione
+### Autorizzazione
 | Funzione | Scopo |
-|---|---|
-| `is_workspace_member(workspace_id)` | Verificha appartenenza |
+|----------|-------|
+| `is_workspace_member(workspace_id)` | Verifica appartenenza |
 | `is_workspace_admin(workspace_id)` | Admin o owner |
 | `is_workspace_owner(workspace_id)` | Solo owner |
-| `can_access_space(space_id)` | Accesso allo space |
-| `is_space_admin(space_id)` | Admin dello space |
-| `can_enter_room(room_id)` | Check ruolo base |
-| `can_enter_room_v2(room_id)` | Check completo: ban + suspension + ruolo |
-| `has_workspace_permission(workspace_id, permission)` | Check permesso granulare |
+| `can_enter_room(room_id)` | Check ruolo per stanza |
 | `can_moderate_user(workspace_id, target_user_id)` | Gerarchia ruoli |
-| `is_user_banned(workspace_id, user_id?)` | Ban attivo |
-| `is_user_muted(room_id, mute_type?)` | Mute attivo |
 
 ### Moderazione
 | Funzione | Azione |
-|---|---|
-| `kick_user_from_room(room_id, user_id, reason?, duration?)` | Kick + log + notifica |
-| `ban_user_from_workspace(workspace_id, user_id, reason?, expires?)` | Ban + remove + notifica |
-| `unban_user_from_workspace(workspace_id, user_id, reason?)` | Revoca ban |
-| `mute_user_in_room(room_id, user_id, type?, duration?)` | Mute |
-| `unmute_user_in_room(room_id, user_id, type?)` | Unmute |
-| `change_user_role(workspace_id, user_id, new_role)` | Cambio ruolo + audit |
+|----------|--------|
+| `kick_user_from_room(...)` | Kick + audit + notifica |
+| `ban_user_from_workspace(...)` | Ban + remove |
+| `mute_user_in_room(...)` | Mute temporaneo |
 
 ### Inviti
 | Funzione | Azione |
-|---|---|
-| `get_invite_info(token)` | Info invito da token (SECURITY DEFINER) |
-| `accept_invite_link(token)` | Accetta invito email o link (SECURITY DEFINER) |
+|----------|--------|
+| `get_invite_info(token)` | Info invito (SECURITY DEFINER) |
+| `accept_invite_link(token)` | Accetta invito |
 
-### Utility
-| Funzione | Azione |
-|---|---|
-| `log_workspace_action(...)` | Audit trail |
-| `soft_delete(table, id, deleted_by)` | Soft delete generico |
-| `create_default_role_permissions(workspace_id)` | Permessi default per 4 ruoli |
+---
+
+## Trigger Attivi
+
+| Trigger | Tabella | Azione |
+|---------|---------|--------|
+| `on_auth_user_created` | `auth.users` | Crea profilo in `profiles` |
+| `on_workspace_created` | `workspaces` | Aggiunge owner come membro |
+| `track_login_event` | `auth.users` | Log in `login_events` |
+| `*_updated_at` | Multiple | Auto-update `updated_at` |
 
 ---
 
@@ -291,89 +335,12 @@ Agenti AI per workspace con `system_prompt`, `capabilities`, `allowed_spaces/roo
 
 Tabelle con **Supabase Realtime** attivo:
 
-| Tabella | REPLICA IDENTITY | Uso |
-|---|---|---|
-| `room_participants` | FULL | Presence in stanza |
-| `messages` | FULL | Chat real-time |
-| `user_presence` | FULL | Stato online |
-| `rooms` | DEFAULT | Aggiornamenti stanze |
-| `room_connections` | DEFAULT | Connessioni |
-| `furniture` | DEFAULT | Mobili |
-| `conversations` | DEFAULT | Conversazioni |
-| `notifications` | DEFAULT | Notifiche |
-
----
-
-## Edge Functions
-
-| Funzione | Endpoint | Azione |
-|---|---|---|
-| `manage-member` | POST | ban, unban, kick, mute, unmute, change_role, remove |
-| `join-workspace` | POST | Accetta invito o richiesta accesso |
-| `cleanup-presence` | POST | Heartbeat + cleanup utenti inattivi (>5 min) |
-
----
-
-## Flussi Principali
-
-### 1. Registrazione → Profilo
-```
-auth.users INSERT → trigger → INSERT profiles
-```
-
-### 2. Creazione Workspace
-```
-INSERT workspaces → trigger → INSERT workspace_members (owner)
-                             → INSERT workspace_role_permissions (4 ruoli)
-```
-
-### 3. Invito via Link
-```
-INSERT workspace_invitations (invite_type='link')
-→ Utente apre /invite/{token}
-→ get_invite_info(token) → mostra info
-→ accept_invite_link(token) → INSERT/UPDATE workspace_members
-                              → UPDATE workspace_invitations (use_count++)
-```
-
-### 4. Presence
-```
-Frontend usePresence → Supabase Realtime Presence Channel
-→ .track() ogni 200ms (dead-zone 2px)
-+ cleanup-presence edge fn → UPSERT user_presence + cleanup inattivi
-```
-
-### 5. Moderazione
-```
-Frontend useEdgeFunctions → manage-member edge fn
-→ Verifica gerarchia ruoli → Azione atomica + audit + notifica
-```
-
----
-
-## Gerarchia Ruoli RBAC
-
-```
-Owner (4) > Admin (3) > Member (2) > Guest (1)
-```
-
-- **Owner**: tutti i permessi, unico che può eliminare il workspace
-- **Admin**: tutto tranne eliminare workspace e gestire billing
-- **Member**: uso base, nessun permesso di gestione
-- **Guest**: accesso limitato, solo osservazione
-
----
-
-## Migration Applicate (in ordine)
-
-1. `schema_v2_complete.sql` — Schema base completo
-2. `migration_cleanup_v2.sql` — Drop legacy v1, RLS su tutte le tabelle
-3. `migration_rbac_moderation.sql` — RBAC, ban, kick, mute
-4. `migration_furniture.sql` — Tabella furniture
-5. `migration_rooms_policies.sql` — RLS rooms  
-6. `migration_storage_buckets.sql` — Storage Supabase
-7. `migration_invite_links.sql` — Inviti via link (multiuso)
-8. `migration_remove_viewer_role.sql` — Rimozione ruolo viewer
-9. `migration_cleanup_unused_features.sql` — Drop tabelle legacy (chat v1, badges, analytics v1)
-10. `FIX_INVITI.sql` — Fix colonne mancanti + policy inviti
-11. `RUN_THIS_invite_links.sql` — Setup completo invite links (consolidato)
+| Tabella | Uso |
+|---------|-----|
+| `room_participants` | Presenza in stanza |
+| `messages` | Chat real-time |
+| `user_presence` | Stato online |
+| `rooms` | Aggiornamenti stanze |
+| `room_connections` | Connessioni |
+| `space_chat_messages` | Chat space |
+| `whiteboard_strokes` | Lavagna |
