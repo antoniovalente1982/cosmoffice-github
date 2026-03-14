@@ -36,7 +36,6 @@ import {
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import CurrencySelector from '../../components/CurrencySelector';
-import { LanguageSelector } from '../../components/ui/LanguageSelector';
 
 interface NavItem { href: string; label: string; icon: any; external?: boolean; badgeKey?: string; }
 interface NavSection { label?: string; items: NavItem[]; }
@@ -366,10 +365,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                         <LogOut className="w-4 h-4" />
                         Esci
                     </button>
-                    <div className="flex items-center gap-2">
-                        <CurrencySelector />
-                        <LanguageSelector compact />
-                    </div>
+                    <CurrencySelector />
                 </div>
             </aside>
 
