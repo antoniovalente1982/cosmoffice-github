@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ScrollText, ChevronLeft, ChevronRight, User, AlertTriangle, Clock } from 'lucide-react';
+import { useT } from '../../../lib/i18n';
 
 interface AuditLog {
     id: string; action: string; entity_type: string; entity_id: string; metadata: any; ip_address: string; created_at: string;
@@ -25,6 +26,7 @@ export default function AuditPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
+    const { t } = useT();
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -45,8 +47,8 @@ export default function AuditPage() {
     return (
         <div className="p-8 space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-white">Audit Log</h1>
-                <p className="text-sm text-slate-400 mt-1">Storico completo di tutte le azioni nel sistema</p>
+                <h1 className="text-2xl font-bold text-white">{t('sa.audit.title')}</h1>
+                <p className="text-sm text-slate-400 mt-1">{t('sa.audit.subtitle')}</p>
             </div>
 
             {error && (
@@ -59,19 +61,19 @@ export default function AuditPage() {
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-white/5 text-slate-400 text-xs uppercase tracking-wider">
-                            <th className="text-left p-3 font-semibold">Data</th>
-                            <th className="text-left p-3 font-semibold">Azione</th>
-                            <th className="text-left p-3 font-semibold">Attore</th>
-                            <th className="text-left p-3 font-semibold">Entità</th>
+                            <th className="text-left p-3 font-semibold">{t('sa.audit.timestamp')}</th>
+                            <th className="text-left p-3 font-semibold">{t('sa.audit.action')}</th>
+                            <th className="text-left p-3 font-semibold">{t('sa.audit.user')}</th>
+                            <th className="text-left p-3 font-semibold">{t('sa.audit.target')}</th>
                             <th className="text-left p-3 font-semibold">Workspace</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan={5} className="text-center p-8 text-slate-500">Caricamento...</td></tr>
+                            <tr><td colSpan={5} className="text-center p-8 text-slate-500">{t('common.loading')}</td></tr>
                         ) : logs.length === 0 ? (
                             <tr><td colSpan={5} className="text-center p-8 text-slate-500">
-                                <ScrollText className="w-8 h-8 mx-auto mb-2 opacity-30" />Nessun log trovato
+                                <ScrollText className="w-8 h-8 mx-auto mb-2 opacity-30" />{t('sa.audit.noLogs')}
                             </td></tr>
                         ) : logs.map(log => (
                             <tr key={log.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">

@@ -4,11 +4,13 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Mail, Lock, ArrowLeft, AlertCircle, ShieldAlert, Crown } from 'lucide-react';
 import { superadminLogin } from './actions';
+import { useT } from '../../../lib/i18n';
 import '../../auth.css';
 
 function SuperAdminLoginForm() {
     const [isPending, startTransition] = useTransition();
     const [errorMsg, setErrorMsg] = useState('');
+    const { t } = useT();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -42,7 +44,7 @@ function SuperAdminLoginForm() {
                     <h1 style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                         Super Admin
                     </h1>
-                    <p>Accesso riservato al pannello di gestione piattaforma</p>
+                    <p>{t('sa.login.subtitle')}</p>
                 </div>
 
                 <div style={{
@@ -57,13 +59,13 @@ function SuperAdminLoginForm() {
                 }}>
                     <ShieldAlert style={{ width: 16, height: 16, color: '#f59e0b', flexShrink: 0 }} />
                     <span style={{ fontSize: 11, color: 'rgba(245, 158, 11, 0.8)', fontWeight: 600, letterSpacing: '0.03em' }}>
-                        Area riservata — Solo personale autorizzato
+                        {t('sa.login.restricted')}
                     </span>
                 </div>
 
                 <form onSubmit={handleSubmit} className="auth-form">
                     <div className="auth-field">
-                        <label>Email</label>
+                        <label>{t('sa.login.email')}</label>
                         <div className="auth-input-wrap">
                             <Mail className="auth-input-icon" />
                             <input type="email" name="email" placeholder="admin@cosmoffice.com" required />
@@ -71,7 +73,7 @@ function SuperAdminLoginForm() {
                     </div>
 
                     <div className="auth-field">
-                        <label>Password</label>
+                        <label>{t('sa.login.password')}</label>
                         <div className="auth-input-wrap">
                             <Lock className="auth-input-icon" />
                             <input type="password" name="password" placeholder="••••••••" required />
@@ -94,13 +96,13 @@ function SuperAdminLoginForm() {
                             boxShadow: isPending ? undefined : '0 0 20px rgba(245, 158, 11, 0.3)',
                         }}
                     >
-                        <span>{isPending ? 'Verifica in corso...' : 'Accedi al Pannello'}</span>
+                        <span>{isPending ? t('sa.login.verifying') : t('sa.login.submit')}</span>
                         {!isPending && <ArrowLeft className="w-4 h-4 rotate-180" />}
                     </button>
                 </form>
 
                 <div className="auth-footer" style={{ opacity: 0.5 }}>
-                    <Link href="/">← Torna al sito</Link>
+                    <Link href="/">{t('sa.login.backToSite')}</Link>
                 </div>
             </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Shield, ShieldAlert, ShieldX, Clock, Globe, AlertTriangle, User } from 'lucide-react';
+import { useT } from '../../../lib/i18n';
 
 interface SecurityOverview {
     failedLogins24h: number;
@@ -33,6 +34,7 @@ export default function SecurityPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'overview' | 'logins' | 'bans'>('overview');
+    const { t } = useT();
 
     useEffect(() => {
         fetch('/api/admin/security?section=overview')
@@ -56,8 +58,8 @@ export default function SecurityPage() {
     return (
         <div className="p-8 space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-white">Sicurezza</h1>
-                <p className="text-sm text-slate-400 mt-1">Accessi, ban attivi, e attività sospette</p>
+                <h1 className="text-2xl font-bold text-white">{t('sa.security.title')}</h1>
+                <p className="text-sm text-slate-400 mt-1">{t('sa.security.subtitle')}</p>
             </div>
 
             {/* Security KPIs */}
