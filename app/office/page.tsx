@@ -24,6 +24,8 @@ import {
     DoorOpen,
     AlertTriangle,
     ArrowUpCircle,
+    Mail,
+    HelpCircle,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -736,12 +738,46 @@ export default function DashboardPage() {
                 </div>
 
                 {workspaces.length === 0 && !loading && (
-                    <div className="text-center py-20 glass rounded-3xl border-white/5">
-                        <Building2 className="w-16 h-16 text-slate-700 mx-auto mb-4" />
-                        <h2 className="text-xl font-bold text-slate-200">{t('dashboard.noWorkspaces')}</h2>
-                        <p className="text-slate-500 mb-8">{t('dashboard.noWorkspacesDesc')}</p>
-                        <Button size="lg" onClick={() => setIsCreatingWorkspace(true)}>{t('dashboard.getStarted')}</Button>
-                    </div>
+                    isWorkspaceCreator ? (
+                        <div className="text-center py-20 glass rounded-3xl border-white/5">
+                            <Building2 className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+                            <h2 className="text-xl font-bold text-slate-200">{t('dashboard.noWorkspaces')}</h2>
+                            <p className="text-slate-500 mb-8">{t('dashboard.noWorkspacesDesc')}</p>
+                            <Button size="lg" onClick={() => setIsCreatingWorkspace(true)}>{t('dashboard.getStarted')}</Button>
+                        </div>
+                    ) : (
+                        <div className="text-center py-16 glass rounded-3xl border-white/5">
+                            <div className="w-20 h-20 rounded-2xl bg-slate-800/80 flex items-center justify-center mx-auto mb-6">
+                                <Building2 className="w-10 h-10 text-slate-500" />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-200 mb-3">Non sei membro di nessun ufficio</h2>
+                            <p className="text-slate-400 max-w-md mx-auto mb-8 text-sm leading-relaxed">
+                                Il tuo account non è attualmente associato a nessun ufficio virtuale.
+                                Se sei stato invitato, chiedi al tuo amministratore di inviarti un nuovo link di accesso.
+                            </p>
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                                <a href="mailto:info@cosmoffice.io" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 text-sm font-medium hover:bg-primary-500/20 transition-colors">
+                                    <Mail className="w-4 h-4" />
+                                    Contatta Cosmoffice
+                                </a>
+                                <button
+                                    onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-sm font-medium hover:bg-white/10 transition-colors"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    Esci
+                                </button>
+                            </div>
+                            <div className="mt-8 p-4 rounded-xl bg-slate-800/40 border border-white/5 max-w-sm mx-auto">
+                                <div className="flex items-start gap-3">
+                                    <HelpCircle className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
+                                    <p className="text-xs text-slate-500 text-left">
+                                        Se vuoi creare il tuo ufficio virtuale, contatta il team Cosmoffice per ottenere un account Owner con il tuo spazio personale.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )
                 )}
             </div>
 

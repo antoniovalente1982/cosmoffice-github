@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '../../../utils/supabase/server'
+import { createAdminClient } from '../../../utils/supabase/admin'
 
 export async function registerOwner(formData: FormData) {
     const supabase = createClient()
@@ -41,7 +42,9 @@ export async function registerOwner(formData: FormData) {
         return { error: `Questo link è riservato all'email ${tokenData.email}. Usa l'email corretta.` }
     }
 
-    // 2. Create user account
+    // 2. Create or upgrade user account
+    let userId: string
+
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -56,23 +59,43 @@ export async function registerOwner(formData: FormData) {
     })
 
     if (signUpError) {
-        return { error: signUpError.message }
+        // If the user already exists, try to sign them in and upgrade to owner
+        if (signUpError.message.toLowerCase().includes('already registered') ||
+            signUpError.message.toLowerCase().includes('already been registered')) {
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
+
+            if (signInError) {
+                return { error: 'Account già esistente. Inserisci la password corretta per il tuo account.' }
+            }
+
+            if (!signInData?.user?.id) {
+                return { error: 'Errore nell\'accesso all\'account esistente.' }
+            }
+
+            userId = signInData.user.id
+        } else {
+            return { error: signUpError.message }
+        }
+    } else {
+        if (!signUpData?.user?.id) {
+            return { error: 'Errore nella creazione dell\'account.' }
+        }
+        userId = signUpData.user.id
     }
 
-    if (!signUpData?.user?.id) {
-        return { error: 'Errore nella creazione dell\'account.' }
-    }
-
-    const userId = signUpData.user.id
-
-    // 3. Update profile with owner data
-    await supabase
+    // 3. Update profile with owner data (works for both new and existing users)
+    const adminClient = createAdminClient()
+    await adminClient
         .from('profiles')
         .update({
+            full_name,
             phone,
             company_name,
             vat_number,
-            max_workspaces: tokenData.max_workspaces || 1,
+            max_workspaces: (tokenData.max_workspaces || 1),
             is_workspace_creator: true,
         })
         .eq('id', userId)
