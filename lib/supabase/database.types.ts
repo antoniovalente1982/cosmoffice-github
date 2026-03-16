@@ -43,6 +43,7 @@ export interface Profile {
   vat_number: string | null;
   phone: string | null;
   is_support_staff: boolean;
+  is_super_admin: boolean;
   deleted_at: string | null;
   deleted_by: string | null;
   created_at: string;
@@ -587,7 +588,7 @@ export interface Database {
       };
       room_participants: {
         Row: RoomParticipant;
-        Insert: Omit<RoomParticipant, 'id' | 'joined_at'>;
+        Insert: Omit<RoomParticipant, 'id' | 'joined_at' | 'last_activity_at' | 'direction' | 'audio_enabled' | 'video_enabled' | 'screen_sharing' | 'hand_raised' | 'is_kicked' | 'kicked_at' | 'kicked_by' | 'kick_reason' | 'is_muted' | 'muted_at' | 'muted_by' | 'mute_expires_at'>;
         Update: Partial<Omit<RoomParticipant, 'id' | 'room_id' | 'user_id'>>;
       };
       room_kicks: {
@@ -617,7 +618,7 @@ export interface Database {
       };
       messages: {
         Row: Message;
-        Insert: Omit<Message, 'id' | 'created_at' | 'reply_count'>;
+        Insert: Omit<Message, 'id' | 'created_at' | 'reply_count' | 'type' | 'formatted_content' | 'reactions' | 'edited_at' | 'edited_by' | 'deleted_at' | 'deleted_by' | 'thread_parent_id' | 'agent_id' | 'agent_name'>;
         Update: Partial<Omit<Message, 'id' | 'created_at'>>;
       };
       message_attachments: {
@@ -647,7 +648,7 @@ export interface Database {
       };
       user_presence: {
         Row: UserPresence;
-        Insert: Omit<UserPresence, 'last_seen_at'>;
+        Insert: Omit<UserPresence, 'last_seen_at' | 'client_version' | 'platform'>;
         Update: Partial<UserPresence>;
       };
       workspace_audit_logs: {

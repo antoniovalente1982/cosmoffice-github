@@ -297,7 +297,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                     {(isSupportStaff
                         ? [{
                             items: [
-                                { href: '/superadmin/support', label: 'Assistenza', icon: Headphones, badgeKey: 'support' },
+                                { href: '/superadmin/support', label: t('sa.nav.assistance'), icon: Headphones, badgeKey: 'support' },
                             ]
                         }]
                         : navSections
