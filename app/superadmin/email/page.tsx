@@ -9,6 +9,7 @@ import {
 import { useT } from '../../../lib/i18n';
 
 function CopyButton({ text }: { text: string }) {
+    const { t } = useT();
     const [copied, setCopied] = useState(false);
     return (
         <button
@@ -35,11 +36,11 @@ const dnsRecords = [
 ];
 
 const emailTemplates = [
-    { id: 'confirm_signup', nameKey: 'sa.email.confirmSignup', descKey: 'sa.email.confirmSignupDesc', icon: '📧' },
-    { id: 'reset_password', nameKey: 'sa.email.resetPassword', descKey: 'sa.email.resetPasswordDesc', icon: '🔑' },
-    { id: 'magic_link', name: 'Magic Link', description: 'Login senza password', icon: '✨' },
-    { id: 'invite', nameKey: 'sa.email.invite', descKey: 'sa.email.inviteDesc', icon: '📨' },
-    { id: 'email_change', nameKey: 'sa.email.emailChange', descKey: 'sa.email.emailChangeDesc', icon: '📬' },
+    { id: 'confirm_signup', nameKey: 'sa.email.confirmSignup', descKey: 'sa.email.confirmSignupDesc', name: 'Confirm Signup', description: 'Email di conferma registrazione', icon: '📧' },
+    { id: 'reset_password', nameKey: 'sa.email.resetPassword', descKey: 'sa.email.resetPasswordDesc', name: 'Reset Password', description: 'Email di reset password', icon: '🔑' },
+    { id: 'magic_link', nameKey: 'sa.email.magicLink', descKey: 'sa.email.magicLinkDesc', name: 'Magic Link', description: 'Login senza password', icon: '✨' },
+    { id: 'invite', nameKey: 'sa.email.invite', descKey: 'sa.email.inviteDesc', name: 'Invite', description: 'Invito al workspace', icon: '📨' },
+    { id: 'email_change', nameKey: 'sa.email.emailChange', descKey: 'sa.email.emailChangeDesc', name: 'Email Change', description: 'Cambio indirizzo email', icon: '📬' },
 ];
 
 export default function EmailConfigPage() {
@@ -212,8 +213,8 @@ export default function EmailConfigPage() {
                         <div key={tmpl.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
                             <span className="text-xl">{tmpl.icon}</span>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white">{tmpl.name}</p>
-                                <p className="text-[11px] text-slate-500">{tmpl.description}</p>
+                                <p className="text-sm font-medium text-white">{tmpl.nameKey ? t(tmpl.nameKey as any) : tmpl.name}</p>
+                                <p className="text-[11px] text-slate-500">{tmpl.descKey ? t(tmpl.descKey as any) : tmpl.description}</p>
                             </div>
                             <a
                                 href="https://supabase.com/dashboard/project/_/auth/templates"

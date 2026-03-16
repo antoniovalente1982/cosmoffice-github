@@ -605,6 +605,7 @@ function ServiceCostCard({ name, color, icon, planName, cost, note, url }: {
     name: string; color: string; icon: React.ReactNode;
     planName: string; cost: number; note: string; url: string;
 }) {
+    const { t } = useT();
     const isOverLimit = cost < 0;
     return (
         <div className={`rounded-xl border p-3 bg-black/20 ${isOverLimit ? 'border-red-500/30' : 'border-white/5'}`}>
@@ -634,6 +635,7 @@ function ServiceSection({ name, color, icon, description, role, dashboardUrl, la
     notes: string[];
     renderPlan: (plan: any, result: { cost: number; note: string }) => React.ReactNode;
 }) {
+    const { t } = useT();
     return (
         <div className="rounded-2xl border border-white/5 overflow-hidden" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
             <button onClick={onToggle} className="w-full p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors text-left">
@@ -704,6 +706,7 @@ function PlanRow({ label, value }: { label: string; value: string }) {
 }
 
 function SimResult({ result, simMinutes, label }: { result: { cost: number; note: string }; simMinutes: number; label: string }) {
+    const { t } = useT();
     return (
         <div className="border-t border-white/5 pt-2 mt-2">
             <div className="flex items-center justify-between text-xs">
