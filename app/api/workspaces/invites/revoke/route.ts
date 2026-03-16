@@ -31,29 +31,30 @@ export async function POST(request: NextRequest) {
 
         const adminClient = createAdminClient();
 
-        // 1. Find all members that used this invitation (could be multiple if max_uses was > 1)
+        // 1. Only remove ANONYMOUS GUEST members that used this invitation
+        // Registered users (admin, member) who already joined should STAY in the workspace
         const { data: membersUsingInvite } = await adminClient
             .from('workspace_members')
-            .select('user_id')
+            .select('user_id, role')
             .eq('invitation_id', inviteId);
 
         if (membersUsingInvite && membersUsingInvite.length > 0) {
-            const userIds = membersUsingInvite.map(m => m.user_id);
+            for (const member of membersUsingInvite) {
+                const { data: { user: targetUser } } = await adminClient.auth.admin.getUserById(member.user_id);
 
-            for (const uid of userIds) {
-                const { data: { user: targetUser } } = await adminClient.auth.admin.getUserById(uid);
+                // Only remove anonymous/guest users — registered users keep their membership
+                if (targetUser?.is_anonymous) {
+                    // Hard delete from workspace_members (free the seat)
+                    await adminClient
+                        .from('workspace_members')
+                        .delete()
+                        .eq('user_id', member.user_id)
+                        .eq('workspace_id', workspaceId);
 
-                // Hard delete from workspace_members (free the seat)
-                await adminClient
-                    .from('workspace_members')
-                    .delete()
-                    .eq('user_id', uid)
-                    .eq('workspace_id', workspaceId);
-
-                // For anonymous users, also delete the Auth account entirely
-                if (targetUser && targetUser.is_anonymous) {
-                    await adminClient.auth.admin.deleteUser(uid);
+                    // Delete the anonymous Auth account entirely
+                    await adminClient.auth.admin.deleteUser(member.user_id);
                 }
+                // Registered admin/member users are NOT removed — they stay in the workspace
             }
         }
 
