@@ -73,6 +73,7 @@ export async function registerOwner(formData: FormData) {
             company_name,
             vat_number,
             max_workspaces: tokenData.max_workspaces || 1,
+            is_workspace_creator: true,
         })
         .eq('id', userId)
 

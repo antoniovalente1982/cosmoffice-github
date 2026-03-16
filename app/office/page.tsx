@@ -55,6 +55,7 @@ export default function DashboardPage() {
     const [userRoles, setUserRoles] = useState<Record<string, string>>({});
     const [ownedWorkspaceCount, setOwnedWorkspaceCount] = useState(0);
     const [maxOwnedWorkspaces, setMaxOwnedWorkspaces] = useState(1);
+    const [isWorkspaceCreator, setIsWorkspaceCreator] = useState(false);
     const [upgradeSending, setUpgradeSending] = useState(false);
     const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null);
     // SuperAdmin access is now separate at /superadmin/login
@@ -68,13 +69,14 @@ export default function DashboardPage() {
             }
             setUser(user);
 
-            // Fetch max_workspaces from profile
+            // Fetch max_workspaces and creator flag from profile
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('max_workspaces')
+                .select('max_workspaces, is_workspace_creator')
                 .eq('id', user.id)
                 .single();
             if (profile?.max_workspaces) setMaxOwnedWorkspaces(profile.max_workspaces);
+            if (profile?.is_workspace_creator) setIsWorkspaceCreator(true);
 
             // Fetch workspaces from both memberships AND created workspaces to be safe
             const [membersRes, createdRes] = await Promise.all([
@@ -375,6 +377,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                         <LanguageSelector compact className="mr-1 sm:mr-2" />
+                        {isWorkspaceCreator && (
                         <Button variant="outline" className="gap-2" onClick={() => {
                             if (ownedWorkspaceCount >= maxOwnedWorkspaces) {
                                 setError(t('dashboard.limitReachedError', { max: String(maxOwnedWorkspaces) }));
@@ -385,6 +388,7 @@ export default function DashboardPage() {
                             <Plus className="w-4 h-4" />
                             <span className="hidden sm:inline">{t('dashboard.newWorkspace')}</span>
                         </Button>
+                        )}
                         {/* SuperAdmin access is now at /superadmin/login */}
                         <div className="hidden sm:block w-px h-6 bg-white/10 mx-2"></div>
                         <div className="flex items-center gap-3">
@@ -683,7 +687,7 @@ export default function DashboardPage() {
                         );
                     })}
 
-                    {ownedWorkspaceCount >= maxOwnedWorkspaces ? (
+                    {isWorkspaceCreator && (ownedWorkspaceCount >= maxOwnedWorkspaces ? (
                         <div className="transition-transform duration-150 hover:scale-[1.02]">
                             <Card className="p-6 h-full flex flex-col items-center justify-center border-dashed border-amber-500/20 bg-amber-500/5 transition-all min-h-[220px] group">
                                 <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
@@ -728,7 +732,7 @@ export default function DashboardPage() {
                                 <p className="text-slate-400 font-medium group-hover:text-slate-200">{t('dashboard.newSpace')}</p>
                             </Card>
                         </div>
-                    )}
+                    ))}
                 </div>
 
                 {workspaces.length === 0 && !loading && (

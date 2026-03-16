@@ -371,9 +371,10 @@ export async function POST(req: NextRequest) {
                         id: targetUserId,
                         email,
                         full_name: fullName,
+                        is_workspace_creator: true,
                     });
                 } else {
-                    await supabase.from('profiles').update({ full_name: fullName }).eq('id', targetUserId);
+                    await supabase.from('profiles').update({ full_name: fullName, is_workspace_creator: true }).eq('id', targetUserId);
                 }
 
                 // 3. Create Workspace
@@ -1087,7 +1088,12 @@ export async function POST(req: NextRequest) {
                 // Auto-increment max_workspaces if at limit (SuperAdmin override)
                 if (currentCount >= maxAllowed) {
                     await supabase.from('profiles')
-                        .update({ max_workspaces: currentCount + 1 })
+                        .update({ max_workspaces: currentCount + 1, is_workspace_creator: true })
+                        .eq('id', ownerId);
+                } else {
+                    // Ensure is_workspace_creator is set even if not at limit
+                    await supabase.from('profiles')
+                        .update({ is_workspace_creator: true })
                         .eq('id', ownerId);
                 }
 
@@ -1266,7 +1272,7 @@ export async function POST(req: NextRequest) {
 
                 const { error: mwError } = await supabase
                     .from('profiles')
-                    .update({ max_workspaces: val })
+                    .update({ max_workspaces: val, is_workspace_creator: true })
                     .eq('id', owner_id);
 
                 if (mwError) return NextResponse.json({ error: mwError.message }, { status: 500 });
