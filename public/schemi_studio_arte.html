@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schemi di Studio Arte - 3a Media</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>body{margin:0;background:#f8f9fa;}*{-webkit-tap-highlight-color:transparent;}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback } = React;
+
+
+const stepsInfo = [
+  { key: "capire", label: "Step 1 · Capire", icon: "💡", desc: "I concetti fondamentali" },
+  { key: "analizzare", label: "Step 2 · Analizzare", icon: "🔍", desc: "Opere, tecnica e dettagli" },
+  { key: "dominare", label: "Step 3 · Dominare", icon: "🧠", desc: "Collegamenti e interrogazione" },
+  { key: "quiz", label: "Step 4 · Verificare", icon: "🎯", desc: "Quiz e punteggio" },
+];
+
+const quizzes = {
+  ferro: [
+    { q: "Dopo il Neoclassicismo, gli stili \"neo\" (Neogotico ecc.) cosa copiano davvero?", opts: ["Tutta la struttura degli edifici antichi", "Solo gli elementi decorativi, la struttura resta uguale", "Solo i materiali da costruzione", "Le tecniche di costruzione romane"], correct: 1, explain: "Gli stili neo copiano SOLO la decorazione. Sotto, le strutture restano in pietra e mattoni come ai tempi dei Romani." },
+    { q: "Perché si parla di \"architettura degli ingegneri\"?", opts: ["Perché gli architetti non esistevano ancora", "Perché gli ingegneri costavano meno", "Perché sono gli ingegneri, non gli architetti, a introdurre il ferro", "Perché gli ingegneri disegnavano meglio"], correct: 2, explain: "A innovare sono gli ingegneri, non gli architetti tradizionali. A loro interessa che la struttura funzioni, non che sia decorata." },
+    { q: "Il Crystal Palace (1851) è rivoluzionario perché...", opts: ["È il più grande edificio in pietra mai costruito", "Ha la struttura portante in ferro a vista, prefabbricata, senza decorazioni", "È il primo edificio con riscaldamento centralizzato", "Utilizza per la prima volta il cemento armato"], correct: 1, explain: "Ferro prefabbricato + vetro, zero decorazioni. Per la prima volta la struttura portante è completamente a vista." },
+    { q: "Cos'è una \"galleria urbana\"?", opts: ["Un museo di arte moderna", "Una strada coperta da volte in ferro e vetro con negozi", "Un tunnel ferroviario sotto una città", "Un ponte pedonale in ferro"], correct: 1, explain: "Strade pedonali coperte con ferro e vetro, negozi ai lati. Proteggono dalla pioggia — i primi \"centri commerciali\" della storia!" },
+    { q: "Qual è l'esempio più famoso di architettura degli ingegneri?", opts: ["Il Colosseo restaurato", "La Galleria degli Uffizi", "La Torre Eiffel", "La Sagrada Familia"], correct: 2, explain: "La Torre Eiffel (1889) è l'apice dell'architettura degli ingegneri: puro ferro, niente decorazione, funzionalità al massimo." },
+    { q: "Metti in ordine cronologico: quale viene prima?", opts: ["Torre Eiffel (1889)", "Crystal Palace (1851)", "Galleria Vittorio Emanuele II (1865)"], correct: 1, explain: "Crystal Palace 1851 → Galleria V.E. II 1865 → Torre Eiffel 1889. È un'evoluzione progressiva!" },
+  ],
+  eiffel: [
+    { q: "Perché si costruisce la Torre Eiffel nel 1889?", opts: ["Per celebrare la vittoria in guerra", "Per il centenario della Rivoluzione francese e l'Esposizione Universale", "Come antenna per le comunicazioni", "Come monumento funebre per Eiffel"], correct: 1, explain: "1889: centenario della Rivoluzione francese → grande Esposizione Universale a Parigi." },
+    { q: "Gustave Eiffel di professione era...", opts: ["Un architetto famoso", "Un pittore che amava il ferro", "Un ingegnere specializzato in ponti", "Un politico appassionato di arte"], correct: 2, explain: "Eiffel era un INGEGNERE di ponti — non un architetto! È il concetto dell'\"architettura degli ingegneri\"." },
+    { q: "Quante travi metalliche ha la Torre?", opts: ["Circa 5.000", "Circa 18.000", "Circa 50.000", "Circa 100.000"], correct: 1, explain: "18.000 travi metalliche prefabbricate + circa 5 milioni di bulloni." },
+    { q: "Perché gli intellettuali parigini odiavano la Torre?", opts: ["Era troppo costosa", "Era troppo bassa rispetto alle aspettative", "Era troppo alta e nuda, senza decorazioni — la definivano \"inutile e mostruosa\"", "Era stata costruita da uno straniero"], correct: 2, explain: "Troppo alta, troppo nuda, troppo diversa dall'architettura tradizionale decorata. La chiamarono \"inutile e mostruosa\"." },
+    { q: "Come si salva la Torre dalla demolizione?", opts: ["I parigini fanno una petizione per salvarla", "Eiffel ci mette una stazione radio che diventa indispensabile per la WWI", "Viene comprata da un ricco collezionista", "Diventa subito un'attrazione turistica redditizia"], correct: 1, explain: "Eiffel installa una stazione radio (con Marconi). Con la Prima Guerra Mondiale diventa antenna indispensabile → nessuno osa più demolirla." },
+    { q: "Per quanti anni la Torre Eiffel fu il monumento più alto del mondo?", opts: ["10 anni", "20 anni", "40 anni", "100 anni"], correct: 2, explain: "Per 40 anni (1889–1930), fino al Chrysler Building di New York." },
+  ],
+  vangogh: [
+    { q: "Qual è la differenza fondamentale tra Van Gogh e gli Impressionisti?", opts: ["Van Gogh usa solo colori scuri", "Gli Impressionisti dipingono la realtà esterna, Van Gogh dipinge i suoi stati d'animo interiori", "Van Gogh non usa mai il pennello", "Gli Impressionisti deformano di più la realtà"], correct: 1, explain: "Gli Impressionisti catturano la luce e la realtà esterna. Van Gogh usa gli stessi strumenti (pennellata spessa, colori luminosi) ma per esprimere il suo mondo interiore." },
+    { q: "Quali sono i due strumenti espressivi principali di Van Gogh?", opts: ["Prospettiva perfetta e colori realistici", "Deformazione degli oggetti e colori innaturali", "Disegno preciso e sfumature delicate", "Geometria e linee dritte"], correct: 1, explain: "Deformazione degli oggetti + colori innaturali = i due strumenti con cui Van Gogh esprime le sue emozioni sulla tela." },
+    { q: "Ne 'La stanza ad Arles', cosa c'è di strano nonostante i colori sereni?", opts: ["C'è un fantasma nella stanza", "La prospettiva è instabile: le sedie sembrano viste da un punto diverso dal letto", "I colori sono tutti sbagliati", "La stanza è dipinta al contrario"], correct: 1, explain: "Anche in un momento di serenità, Van Gogh non riesce a dipingere in modo \"normale\": la prospettiva è deformata." },
+    { q: "La Chiesa di Auvers-sur-Oise rappresenta...", opts: ["Un momento di gioia per Van Gogh", "Il periodo più sereno della sua vita", "Il punto più estremo del suo disagio: colori irreali, visione da incubo", "Un esperimento tecnico senza significato emotivo"], correct: 2, explain: "È l'opera della follia: colori totalmente irreali, muri che ondeggiano, cielo dal blu al nero. Corrisponde al periodo del suo disagio più grave." },
+    { q: "Quanti dipinti vendette Van Gogh in vita?", opts: ["Nessuno", "Uno solo", "Una decina", "Centinaia"], correct: 1, explain: "Su circa 1000 dipinti, ne vendette UNO SOLO. Fu scoperto e apprezzato solo dopo la morte." },
+    { q: "Van Gogh anticipa quale corrente artistica?", opts: ["Il Cubismo", "L'Impressionismo", "L'Espressionismo", "Il Futurismo"], correct: 2, explain: "L'Espressionismo: corrente artistica che ha come scopo la rappresentazione del mondo interiore dell'artista." },
+    { q: "Qual è il colore preferito di Van Gogh?", opts: ["Il blu", "Il rosso", "Il giallo", "Il verde"], correct: 2, explain: "Il giallo intenso è il colore preferito di Van Gogh, dominante nei Girasoli." },
+  ],
+  cezanne: [
+    { q: "Completa la frase di Cézanne: \"Bisogna trattare la natura secondo...\"", opts: ["...il cuore e l'anima", "...il cilindro, la sfera e il cono", "...la luce e l'ombra", "...il punto e la linea"], correct: 1, explain: "\"Il cilindro, la sfera e il cono\" — la realtà va semplificata in forme geometriche solide." },
+    { q: "Qual è la differenza tra Cézanne e gli Impressionisti nella pennellata?", opts: ["Cézanne usa pennellate identiche", "Impressionisti: pennellate rapide e accostate. Cézanne: larghe chiazze di colore con spessa linea di contorno", "Cézanne non usa il pennello", "Non c'è nessuna differenza"], correct: 1, explain: "Impressionisti → pennellate rapide e accostate. Cézanne → larghe chiazze di colore delimitate da una spessa linea di contorno." },
+    { q: "Ne 'I Giocatori di Carte', le figure sembrano...", opts: ["Molto realistiche e dettagliate", "Fantasmi trasparenti", "Blocchi monolitici e forme geometriche (cilindri)", "Figure in movimento"], correct: 2, explain: "Le figure sembrano solidi geometrici: quello di sinistra ha corpo e cappello a forma di cilindro. È la teoria di Cézanne in pratica." },
+    { q: "Perché Cézanne dipinge la Montagna Sainte Victoire 50+ volte?", opts: ["Per catturare la luce diversa come Monet", "Per studiare la FORMA della montagna", "Perché non aveva altri soggetti", "Per venderle ai turisti"], correct: 1, explain: "NON per la luce (quello lo faceva Monet). Cézanne la dipinge per studiare la FORMA e frammentarla in geometrie." },
+    { q: "Cézanne è il ponte verso quale movimento artistico?", opts: ["L'Espressionismo", "Il Futurismo", "Il Cubismo di Picasso", "L'Art Nouveau"], correct: 2, explain: "Senza Cézanne, Picasso non avrebbe creato il Cubismo. Cézanne è il PONTE tra Impressionismo e arte del '900." },
+    { q: "Van Gogh e Cézanne sono entrambi Post-Impressionisti. Qual è la differenza?", opts: ["Nessuna, fanno la stessa cosa", "Van Gogh cerca le EMOZIONI, Cézanne cerca la GEOMETRIA", "Van Gogh è più geometrico, Cézanne è più emotivo", "Uno dipinge paesaggi, l'altro ritratti"], correct: 1, explain: "Van Gogh deforma per esprimere emozioni (cuore). Cézanne semplifica per trovare la geometria (mente). Opposti!" },
+  ],
+  klimt: [
+    { q: "Art Nouveau e Secessione Viennese sono...", opts: ["Due movimenti completamente diversi", "Lo STESSO movimento: Art Nouveau in Francia, Secessione Viennese in Austria", "Uno è più antico dell'altro", "Uno è per la pittura, l'altro per la scultura"], correct: 1, explain: "Stesso movimento, nomi diversi! Art Nouveau = nome francese. Secessione Viennese = nome austriaco. Domanda trabocchetto classica!" },
+    { q: "Qual è la vera grande novità dell'Art Nouveau?", opts: ["Usa solo colori pastello", "Si applica a OGNI forma di produzione artistica (arte totale)", "Dipinge solo paesaggi", "È il primo movimento solo per la scultura"], correct: 1, explain: "L'\"arte totale\": si applica a pittura, architettura, scultura, arredamento, gioielli, grafica. L'arte entra nella vita di tutti i giorni." },
+    { q: "Quali sono le 3 caratteristiche dell'Art Nouveau?", opts: ["Linea retta, tridimensionalità, minimalismo", "Linea curva, bidimensionalità, decorativismo", "Colori scuri, profondità, realismo", "Geometria, astrazione, movimento"], correct: 1, explain: "1) Linea curva, 2) Bidimensionalità (niente profondità), 3) Decorativismo (ornamento ricco e prezioso)." },
+    { q: "L'Albero della Vita di Klimt è stato creato per...", opts: ["Un museo di Vienna", "La sala da pranzo di Palazzo Stoclet a Bruxelles", "La cattedrale di San Pietro", "Una mostra temporanea a Parigi"], correct: 1, explain: "È un pannello decorativo per Palazzo Stoclet a Bruxelles — non un quadro da museo. È arte applicata a un ambiente reale (arte totale!)." },
+    { q: "Nell'Albero della Vita, le figure a sinistra e a destra rappresentano...", opts: ["Due stagioni diverse", "L'attesa (sinistra) e l'abbraccio (destra)", "Due divinità greche", "Il giorno e la notte"], correct: 1, explain: "A sinistra: donna che simboleggia l'attesa. A destra: coppia nel momento dell'abbraccio." },
+    { q: "Confronto finale: Van Gogh, Cézanne e Klimt superano l'Impressionismo in che direzioni?", opts: ["Tutti e tre nella stessa direzione", "Van Gogh = emozione, Cézanne = geometria, Klimt = decorazione", "Van Gogh = geometria, Cézanne = decorazione, Klimt = emozione", "Nessuno supera davvero l'Impressionismo"], correct: 1, explain: "Van Gogh: arte = EMOZIONE. Cézanne: arte = GEOMETRIA. Klimt: arte = DECORAZIONE. Tre direzioni diverse dallo stesso punto di partenza!" },
+  ],
+};
+
+const topicsData = [
+  {
+    id: "ferro", emoji: "🏗️", title: "L'Età del Ferro", sub: "Architettura degli ingegneri", accent: "#E67E22",
+    capire: [
+      { t: "head", v: "Cosa succede nell'Ottocento?" },
+      { t: "p", v: "L'architettura è bloccata. Dopo il Neoclassicismo nessuno inventa niente di nuovo: si copiano stili del passato (Neogotico, Neoromanico, Neoegizio). Ma è solo decorazione — sotto, le strutture sono sempre in pietra e mattoni, come ai tempi dei Romani." },
+      { t: "head", v: "Arriva la Rivoluzione Industriale" },
+      { t: "p", v: "Con le fabbriche e le ferrovie serve un materiale nuovo: il ferro. Prima si usa per i ponti ferroviari, poi qualcuno pensa: perché non costruirci anche gli edifici?" },
+      { t: "key", v: "Nasce l'\"architettura degli ingegneri\" — non sono gli architetti a innovare, ma gli ingegneri, perché a loro interessa che funzioni, non che sia bello." },
+      { t: "head", v: "Il Crystal Palace — il primo edificio moderno" },
+      { t: "p", v: "Londra, 1851. Per la prima Esposizione Universale si costruisce il Crystal Palace: struttura portante in ferro prefabbricato e modulare, pareti di vetro. Zero decorazioni: niente colonne, timpani, capitelli. È semplice e razionale." },
+      { t: "key", v: "È la prima volta nella storia che la struttura portante è completamente a vista. L'edificio non finge di essere qualcos'altro." },
+      { t: "head", v: "Il ferro si diffonde in Europa" },
+      { t: "p", v: "Da lì in poi, ferro e vetro vengono usati ovunque: stazioni ferroviarie e gallerie urbane (strade coperte con negozi, come la Galleria Vittorio Emanuele II a Milano, 1865)." },
+      { t: "result", v: "L'apice di tutto questo? La Torre Eiffel, 1889 — l'esempio più famoso di architettura degli ingegneri." },
+    ],
+    analizzare: [
+      { t: "head", v: "Perché il Crystal Palace è rivoluzionario" },
+      { t: "p", v: "Non è solo fatto di ferro. È prefabbricato: i pezzi si producono in fabbrica e si montano sul posto, come un gigantesco Lego. Questo concetto è modernissimo — anticipa l'architettura industriale del Novecento." },
+      { t: "p", v: "Inoltre, per la prima volta scompaiono TUTTI gli elementi decorativi classici. L'edificio è onesto: mostra com'è fatto, senza maschere." },
+      { t: "head", v: "Lo scontro vecchio vs nuovo" },
+      { t: "key", v: "Il tema centrale di tutto l'argomento è questo: decorazione vs funzionalità. Gli stili \"neo\" decorano, l'architettura degli ingegneri funziona. È uno scontro che attraversa tutto l'Ottocento." },
+      { t: "head", v: "Le gallerie urbane" },
+      { t: "p", v: "Sono strade pedonali coperte da volte in ferro e vetro, con negozi ai lati. Servono a proteggere i pedoni dalla pioggia. In pratica sono i primi \"centri commerciali\" della storia — e sono fatti con la tecnologia del ferro." },
+    ],
+    dominare: [
+      { t: "head", v: "Il filo logico per l'interrogazione" },
+      { t: "key", v: "Architettura ferma → Rivoluzione Industriale → ferro per i ponti → ferro per gli edifici → Crystal Palace (1851) → stazioni e gallerie → Torre Eiffel (1889). È un'evoluzione progressiva, raccontala così." },
+      { t: "head", v: "Collegamenti da fare" },
+      { t: "p", v: "Crystal Palace → Torre Eiffel: stessa logica (ferro, prefabbricazione, niente decorazione), ma la Torre la porta all'estremo." },
+      { t: "p", v: "Galleria Vittorio Emanuele II → esempio italiano, se te lo chiedono sai rispondere (Milano, 1865, Giuseppe Mengoni)." },
+      { t: "p", v: "\"Architettura degli ingegneri\" → ricorda sempre che sono INGEGNERI, non architetti. È il punto chiave." },
+      { t: "warn", v: "Attenzione: gli stili neo (Neogotico ecc.) copiano SOLO la decorazione. Se ti chiedono \"cos'hanno di nuovo?\" la risposta è: niente di strutturale, solo facciata." },
+    ],
+  },
+  {
+    id: "eiffel", emoji: "🗼", title: "Gustave Eiffel", sub: "Digione 1832 – Parigi 1923", accent: "#E74C3C",
+    capire: [
+      { t: "head", v: "Perché si costruisce la Torre?" },
+      { t: "p", v: "1889: Parigi celebra il centenario della Rivoluzione francese con una grande Esposizione Universale. Gustave Eiffel, ingegnere specializzato in ponti (non architetto!), progetta una torre gigantesca come simbolo dell'evento." },
+      { t: "head", v: "I numeri della Torre" },
+      { t: "key", v: "18.000 travi metalliche prefabbricate + circa 5 milioni di bulloni. Altezza: 324 metri. Costruita in meno di 2 anni." },
+      { t: "p", v: "La struttura è fatta da 4 piloni angolari ricurvi che si uniscono in un'unica punta, collegati da 3 piattaforme orizzontali. Per 40 anni sarà il monumento più alto del mondo." },
+      { t: "head", v: "Tutti la odiano" },
+      { t: "p", v: "Gli intellettuali parigini la definiscono \"inutile e mostruosa\". Perché? È troppo alta, troppo nuda, troppo diversa. Non ha decorazioni, è puro ferro a vista — l'esatto opposto dell'architettura tradizionale." },
+      { t: "head", v: "Doveva essere demolita" },
+      { t: "p", v: "La manutenzione è un incubo: 60 tonnellate di vernice per proteggerla dalla ruggine, operai appesi come scalatori. Si decide di abbatterla dopo 20 anni." },
+      { t: "head", v: "Come si salva" },
+      { t: "key", v: "Eiffel ha un'idea geniale: installa una stazione radio in cima, con la collaborazione di Guglielmo Marconi. La Torre diventa un'antenna per le telecomunicazioni." },
+      { t: "p", v: "Quando scoppia la Prima Guerra Mondiale, quell'antenna è indispensabile per le comunicazioni militari. Nessuno osa più abbatterla." },
+      { t: "result", v: "Da sfregio a capolavoro: la Torre diventa il simbolo del progresso e della bellezza dell'essenzialità." },
+    ],
+    analizzare: [
+      { t: "head", v: "La Torre e l'architettura degli ingegneri" },
+      { t: "p", v: "La Torre Eiffel è il figlio estremo del Crystal Palace. Stessa idea: ferro, prefabbricazione, niente decorazione. Ma portata al limite — 324 metri di pura struttura." },
+      { t: "key", v: "Eiffel è un ingegnere di ponti, non un architetto. Questo è lo stesso concetto dell'\"architettura degli ingegneri\": chi innova sono i tecnici, non gli artisti tradizionali." },
+      { t: "head", v: "Perché le polemiche sono importanti" },
+      { t: "p", v: "Le critiche degli intellettuali mostrano lo scontro tra passato e futuro. Per loro l'architettura deve essere decorata e classica. La Torre è l'opposto: essenziale, funzionale, nuda. È lo stesso conflitto che c'era già con il Crystal Palace." },
+      { t: "head", v: "L'ispirazione artistica" },
+      { t: "p", v: "Dopo le polemiche iniziali, tanti pittori cominciano a dipingerla. Non è leggendaria come la Torre di Babele, ma ha qualcosa di nuovo: il fascino del progresso e della bellezza essenziale — una bellezza che viene dalla struttura, non dalla decorazione." },
+    ],
+    dominare: [
+      { t: "head", v: "Schema per l'interrogazione" },
+      { t: "key", v: "Perché (centenario 1889) → Chi (Eiffel, ingegnere) → Come (18.000 travi, 5M bulloni, 324m, 2 anni) → Polemiche (\"inutile e mostruosa\") → Rischio demolizione → Salvezza (radio + Marconi + WWI) → Da sfregio a simbolo." },
+      { t: "head", v: "Il collegamento con l'argomento precedente" },
+      { t: "p", v: "Se ti chiedono di Eiffel, parti dall'architettura degli ingegneri. Dì: \"La Torre Eiffel è l'esempio più famoso dell'architettura degli ingegneri, nata con il Crystal Palace nel 1851.\" Poi vai avanti con i dettagli." },
+      { t: "warn", v: "Ricorda: fu superata in altezza dal Chrysler Building di New York nel 1930, dopo 40 anni di record." },
+      { t: "p", v: "Frase finale perfetta: \"La Torre Eiffel dimostra che la bellezza può nascere dalla funzionalità, non per forza dalla decorazione.\"" },
+    ],
+  },
+  {
+    id: "vangogh", emoji: "🌻", title: "Vincent van Gogh", sub: "Zundert 1853 – Auvers-sur-Oise 1890", accent: "#D4A017",
+    capire: [
+      { t: "head", v: "Chi è Van Gogh" },
+      { t: "p", v: "Pittore olandese. Oggi è uno dei più famosi al mondo, le sue opere valgono fortune. Ma la sua vita fu infelice, vissuta tra solitudine e follia." },
+      { t: "p", v: "Non nasce pittore: prima fa il predicatore religioso. Scopre la pittura intorno al 1880 e studia da autodidatta. Nel 1886 si trasferisce a Parigi dove incontra l'Impressionismo." },
+      { t: "head", v: "Cosa prende dall'Impressionismo" },
+      { t: "p", v: "Due cose: la pennellata spessa e i colori luminosi. Ma li usa in modo completamente diverso dagli Impressionisti." },
+      { t: "key", v: "Differenza fondamentale: gli Impressionisti dipingono la realtà esterna (la luce, i paesaggi). Van Gogh dipinge la realtà interiore — i suoi stati d'animo, le sue emozioni. Altera quello che vede per esprimere quello che sente." },
+      { t: "head", v: "I due strumenti di Van Gogh" },
+      { t: "key", v: "1) Deformazione degli oggetti — le cose non hanno la forma \"giusta\", sono storte, ondulate, esagerate. 2) Colori innaturali — usa colori che non corrispondono alla realtà per trasmettere emozioni." },
+      { t: "head", v: "Cosa anticipa" },
+      { t: "result", v: "Con questi strumenti, Van Gogh anticipa l'Espressionismo: una corrente artistica il cui scopo è rappresentare il mondo interiore dell'artista, non quello esterno." },
+    ],
+    analizzare: [
+      { t: "head", v: "La stanza ad Arles" },
+      { t: "p", v: "Qui Van Gogh esprime un raro momento di serenità. Dipinge la sua camera con colori chiari e riposanti. Ma anche in un momento tranquillo, non riesce a essere \"normale\": la prospettiva è instabile — le sedie sembrano viste da un punto diverso dal letto. La deformazione c'è sempre." },
+      { t: "head", v: "I Girasoli" },
+      { t: "p", v: "I fiori sono contorti, innaturali. Prevale il giallo intenso (il suo colore preferito) su sfondo celeste. Non sono girasoli realistici — trasmettono la sua inquietudine." },
+      { t: "head", v: "L'Autoritratto del 1889" },
+      { t: "p", v: "Van Gogh fece 43 autoritratti. In questo si dipinge con lo sguardo duro e il volto scavato. Lo sfondo ondeggia, è azzurro come la giacca, e spicca il colore arancione della barba. Non cerca il realismo: vuole mostrare la sua anima, non la sua faccia." },
+      { t: "head", v: "La Chiesa di Auvers-sur-Oise — il punto più estremo" },
+      { t: "key", v: "Questa è l'opera della follia. I colori sono totalmente irreali. I tetti e i muri ondeggiano come se l'edificio stesse per crollare. Il cielo passa dal blu al nero. È una visione da incubo." },
+      { t: "p", v: "Corrisponde al periodo in cui il disagio psichico di Van Gogh si aggrava. L'arte e la vita in Van Gogh sono inseparabili." },
+      { t: "head", v: "Un dato impressionante" },
+      { t: "result", v: "Dipinse circa 1000 quadri. In vita riuscì a venderne UNO SOLO. Fu scoperto e apprezzato solo dopo la morte." },
+    ],
+    dominare: [
+      { t: "head", v: "Il filo conduttore" },
+      { t: "key", v: "In Van Gogh c'è un'escalation: dalla serenità della Stanza ad Arles → l'inquietudine dei Girasoli → la durezza dell'Autoritratto → l'incubo della Chiesa di Auvers. Racconta le opere in quest'ordine." },
+      { t: "head", v: "La frase chiave da dire" },
+      { t: "p", v: "\"Van Gogh non dipinge quello che vede, ma quello che sente. Usa la deformazione e i colori innaturali per trasferire sulla tela i suoi stati d'animo.\"" },
+      { t: "head", v: "Confronto con Cézanne" },
+      { t: "p", v: "Entrambi Post-Impressionisti, ma opposti. Van Gogh cerca le EMOZIONI, Cézanne cerca la GEOMETRIA. Van Gogh deforma per sentire, Cézanne semplifica per capire." },
+      { t: "head", v: "Confronto con gli Impressionisti" },
+      { t: "p", v: "Stessi strumenti (pennellata spessa, colori luminosi) ma scopo diverso. Impressionisti: realtà esterna. Van Gogh: mondo interiore." },
+      { t: "warn", v: "L'Espressionismo è la corrente che Van Gogh anticipa. Scopo: rappresentazione del mondo interiore. Artisti: Munch, Kirchner." },
+    ],
+  },
+  {
+    id: "cezanne", emoji: "🍎", title: "Paul Cézanne", sub: "Aix-en-Provence 1839 – 1906", accent: "#27AE60",
+    capire: [
+      { t: "head", v: "L'idea di Cézanne in una frase" },
+      { t: "key", v: "\"Bisogna trattare la natura secondo il cilindro, la sfera e il cono.\" La realtà va semplificata in forme geometriche solide." },
+      { t: "p", v: "Per Cézanne dipingere non significa copiare quello che si vede. Significa prendere la realtà e rielaborarla con la mente, riducendola alle sue forme essenziali." },
+      { t: "head", v: "Da dove parte" },
+      { t: "p", v: "Viene dall'Impressionismo, ma lo supera. Gli Impressionisti usano pennellate rapide e accostate. Cézanne invece usa larghe chiazze di colore delimitate da una spessa linea di contorno." },
+      { t: "key", v: "Effetto: le figure nei suoi quadri sembrano solidi geometrici — cilindri, sfere, coni. Non sono persone \"reali\", sono forme." },
+      { t: "head", v: "Due fasi del suo lavoro" },
+      { t: "p", v: "Prima fase: semplifica le forme (es. I giocatori di carte). Seconda fase (ultimi 10 anni): frammenta le forme in sfaccettature aguzze, il paesaggio perde profondità, le figure si disgregano nello sfondo." },
+      { t: "result", v: "Dopo la sua morte, un giovanissimo Picasso raccoglie la sua eredità e crea il Cubismo. Cézanne è il ponte tra l'Impressionismo e l'arte del Novecento." },
+    ],
+    analizzare: [
+      { t: "head", v: "I Giocatori di Carte — analisi completa" },
+      { t: "p", v: "SOGGETTO: scena di genere banale. Due uomini con giacca e cappello seduti simmetricamente a un tavolino, carte in mano. Una bottiglia segna il centro, uno specchio chiude lo sfondo." },
+      { t: "p", v: "STILE: larghe chiazze di colore con spessa linea di contorno. I due uomini sembrano blocchi monolitici — quello di sinistra ha corpo e cappello a forma di cilindro." },
+      { t: "key", v: "SIGNIFICATO: non bisogna copiare la realtà, ma trasformarla in forme geometriche semplici. È la teoria di Cézanne messa in pratica." },
+      { t: "head", v: "La Montagna Sainte Victoire — l'ossessione" },
+      { t: "p", v: "Negli ultimi 10 anni di vita, Cézanne la dipinge oltre 50 volte. Non per la luce (come Monet a Rouen) — per studiare la FORMA." },
+      { t: "p", v: "Semplifica, poi frammenta in sfaccettature aguzze. Il paesaggio perde tridimensionalità, le figure si disgregano nello sfondo." },
+      { t: "key", v: "Questa frammentazione è il passo decisivo verso il Cubismo. Cézanne sta già \"rompendo\" la realtà in pezzi geometrici." },
+    ],
+    dominare: [
+      { t: "head", v: "La struttura dell'interrogazione" },
+      { t: "key", v: "Frase-motto (cilindro, sfera, cono) → tecnica (chiazze + contorno) → I giocatori di carte → evoluzione con Sainte Victoire → Cubismo." },
+      { t: "head", v: "Confronto Van Gogh vs Cézanne" },
+      { t: "p", v: "Entrambi Post-Impressionisti, obiettivi opposti. Van Gogh: EMOZIONI. Cézanne: GEOMETRIA. Uno col cuore, l'altro con la mente." },
+      { t: "head", v: "Confronto Cézanne vs Monet" },
+      { t: "p", v: "Entrambi ripetono lo stesso soggetto (cattedrale/montagna). Motivo opposto: Monet vuole la LUCE che cambia, Cézanne la FORMA che resta." },
+      { t: "warn", v: "Cézanne è il PONTE tra Impressionismo e arte del '900. Senza di lui, niente Cubismo. Questa è LA risposta se chiedono perché è importante." },
+      { t: "p", v: "Frase finale: \"Cézanne ha insegnato che la realtà non va copiata, ma ricostruita con la mente attraverso le forme geometriche. Questa idea ha aperto la strada al Cubismo di Picasso.\"" },
+    ],
+  },
+  {
+    id: "klimt", emoji: "✨", title: "Gustav Klimt", sub: "Vienna 1862 – 1918", accent: "#8E44AD",
+    capire: [
+      { t: "head", v: "Cos'è l'Art Nouveau" },
+      { t: "p", v: "Un modo radicalmente nuovo di concepire l'arte. Il nome viene dal francese e significa \"arte nuova\". In Austria lo stesso movimento si chiama Secessione Viennese." },
+      { t: "key", v: "La grande novità: si applica a OGNI forma di produzione artistica — architettura, pittura, scultura, arredamento, gioielli, grafica. Tutto con lo stesso stile. È il concetto di \"arte totale\": l'arte non è solo quadri, entra in ogni oggetto della vita quotidiana." },
+      { t: "head", v: "Le 3 caratteristiche da ricordare" },
+      { t: "p", v: "1. Linea curva → domina ogni composizione, tutto è sinuoso e ondulato." },
+      { t: "p", v: "2. Bidimensionalità → niente profondità, niente prospettiva tradizionale." },
+      { t: "p", v: "3. Decorativismo → gusto per l'ornamento ricco, prezioso, quasi ossessivo." },
+      { t: "result", v: "Gustav Klimt incarna perfettamente queste tre caratteristiche. Le sue opere sono piatte, decoratissime e dominate dalla linea curva." },
+    ],
+    analizzare: [
+      { t: "head", v: "L'Albero della Vita — l'opera simbolo" },
+      { t: "p", v: "È un pannello decorativo per la sala da pranzo di Palazzo Stoclet a Bruxelles. Non è un quadro da museo — è arte applicata a un ambiente reale (ecco l'\"arte totale\")." },
+      { t: "p", v: "Completamente bidimensionale, basato sulla linea curva a spirale. Nessun realismo: l'albero è pura decorazione, le figure sono simboli." },
+      { t: "key", v: "A sinistra: donna che simboleggia l'attesa. A destra: coppia nel momento dell'abbraccio. Temi universali: amore, rinascita, energia vitale." },
+      { t: "p", v: "Non comunica con il realismo ma con la bellezza della decorazione. Lo scopo è il piacere estetico puro." },
+      { t: "result", v: "Klimt dimostra che l'arte può emozionare anche senza rappresentare la realtà, usando solo la bellezza della linea e della decorazione." },
+    ],
+    dominare: [
+      { t: "head", v: "Klimt vs Van Gogh vs Cézanne" },
+      { t: "key", v: "Tutti superano l'Impressionismo in direzioni diverse. Van Gogh: EMOZIONE. Cézanne: GEOMETRIA. Klimt: DECORAZIONE. Tre strade, stesso punto di partenza." },
+      { t: "head", v: "Il concetto di \"arte totale\"" },
+      { t: "p", v: "La vera novità non è solo \"linea curva e decorazione\". È che l'arte esce dai quadri e si applica a TUTTO: edifici, mobili, lampade, gioielli, manifesti." },
+      { t: "head", v: "L'Albero della Vita in 30 secondi" },
+      { t: "p", v: "\"Pannello per Palazzo Stoclet a Bruxelles. Bidimensionale, basato sulla spirale. Figure simboliche: attesa a sinistra, abbraccio a destra. Comunica amore e rinascita con la pura bellezza decorativa.\"" },
+      { t: "warn", v: "Secessione Viennese = Art Nouveau con nome austriaco. NON sono due cose diverse! Domanda trabocchetto classica." },
+      { t: "p", v: "Frase finale: \"Klimt ha dimostrato che l'arte può emozionare senza rappresentare la realtà, usando solo la bellezza della linea curva e della decorazione.\"" },
+    ],
+  },
+];
+
+function QuizSection({ topicId, accent }) {
+  const qs = quizzes[topicId];
+  const [current, setCurrent] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [showResult, setShowResult] = useState(false);
+  const [score, setScore] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [finished, setFinished] = useState(false);
+
+  const reset = useCallback(() => {
+    setCurrent(0); setSelected(null); setShowResult(false);
+    setScore(0); setAnswers([]); setFinished(false);
+  }, []);
+
+  if (finished) {
+    const pct = Math.round((score / qs.length) * 100);
+    const grade = pct >= 90 ? { emoji: "🏆", text: "ECCEZIONALE!", sub: "Sei prontissimo per l'interrogazione!" }
+      : pct >= 70 ? { emoji: "💪", text: "BRAVO!", sub: "Quasi perfetto, rileggi dove hai sbagliato." }
+      : pct >= 50 ? { emoji: "📖", text: "BUONO MA...", sub: "Rileggi gli step 1-3, poi rifai il quiz." }
+      : { emoji: "🔄", text: "DA RIPASSARE", sub: "Torna agli step e studia con calma, poi riprova!" };
+    return (
+      <div style={{ textAlign: "center", padding: "20px 0" }}>
+        <div style={{ fontSize: "56px", marginBottom: "8px" }}>{grade.emoji}</div>
+        <div style={{ fontSize: "24px", fontWeight: "800", color: accent }}>{grade.text}</div>
+        <div style={{ fontSize: "14px", color: "#666", marginTop: "4px", marginBottom: "16px" }}>{grade.sub}</div>
+        <div style={{
+          display: "inline-block", background: accent + "12", borderRadius: "16px",
+          padding: "16px 32px", marginBottom: "20px",
+        }}>
+          <div style={{ fontSize: "40px", fontWeight: "800", color: accent }}>{score}/{qs.length}</div>
+          <div style={{ fontSize: "13px", color: "#888" }}>risposte corrette</div>
+        </div>
+        {/* Review wrong answers */}
+        {answers.some(a => !a.correct) && (
+          <div style={{ textAlign: "left", marginTop: "16px" }}>
+            <div style={{ fontSize: "14px", fontWeight: "700", color: "#E74C3C", marginBottom: "10px" }}>
+              Dove hai sbagliato:
+            </div>
+            {answers.filter(a => !a.correct).map((a, i) => (
+              <div key={i} style={{
+                background: "#FFF5F5", border: "1px solid #FED7D7", borderRadius: "10px",
+                padding: "12px", marginBottom: "8px", fontSize: "13px", lineHeight: "1.6",
+              }}>
+                <div style={{ fontWeight: "700", color: "#333", marginBottom: "4px" }}>❌ {a.question}</div>
+                <div style={{ color: "#E74C3C" }}>Hai risposto: {a.yourAnswer}</div>
+                <div style={{ color: "#27AE60", fontWeight: "600" }}>Risposta giusta: {a.correctAnswer}</div>
+                <div style={{ color: "#666", marginTop: "4px", fontStyle: "italic" }}>{a.explain}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={reset} style={{
+          marginTop: "16px", padding: "14px 32px", borderRadius: "50px",
+          background: accent, color: "#fff", border: "none",
+          fontSize: "15px", fontWeight: "700", cursor: "pointer",
+          boxShadow: `0 4px 16px ${accent}44`,
+        }}>🔄 Rifai il quiz</button>
+      </div>
+    );
+  }
+
+  const question = qs[current];
+  const isCorrect = selected === question.correct;
+
+  const handleSelect = (idx) => {
+    if (showResult) return;
+    setSelected(idx);
+    setShowResult(true);
+    if (idx === question.correct) setScore(s => s + 1);
+    setAnswers(prev => [...prev, {
+      question: question.q,
+      correct: idx === question.correct,
+      yourAnswer: question.opts[idx],
+      correctAnswer: question.opts[question.correct],
+      explain: question.explain,
+    }]);
+  };
+
+  const nextQ = () => {
+    if (current + 1 >= qs.length) { setFinished(true); return; }
+    setCurrent(c => c + 1); setSelected(null); setShowResult(false);
+  };
+
+  return (
+    <div>
+      {/* Progress bar */}
+      <div style={{ display: "flex", gap: "4px", marginBottom: "16px" }}>
+        {qs.map((_, i) => (
+          <div key={i} style={{
+            flex: 1, height: "5px", borderRadius: "3px",
+            background: i < current ? accent : i === current ? accent + "55" : "#eee",
+            transition: "background 0.3s",
+          }} />
+        ))}
+      </div>
+      <div style={{ fontSize: "12px", color: "#999", marginBottom: "12px", fontWeight: "600" }}>
+        Domanda {current + 1} di {qs.length} · Punteggio: {score}/{current}
+      </div>
+
+      {/* Question */}
+      <div style={{
+        fontSize: "16px", fontWeight: "700", color: "#1a1a2e",
+        lineHeight: "1.5", marginBottom: "16px",
+      }}>
+        {question.q}
+      </div>
+
+      {/* Options */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {question.opts.map((opt, idx) => {
+          let bg = "#fff", border = "#e8e8e8", color = "#333", fw = "500";
+          if (showResult) {
+            if (idx === question.correct) { bg = "#E8F8EF"; border = "#27AE60"; color = "#1B7A3D"; fw = "700"; }
+            else if (idx === selected && !isCorrect) { bg = "#FFF5F5"; border = "#E74C3C"; color = "#C53030"; fw = "600"; }
+            else { bg = "#f9f9f9"; color = "#aaa"; }
+          } else if (idx === selected) {
+            bg = accent + "15"; border = accent;
+          }
+          return (
+            <button key={idx} onClick={() => handleSelect(idx)} style={{
+              padding: "12px 16px", borderRadius: "12px",
+              border: `2px solid ${border}`, background: bg, color,
+              fontSize: "14px", fontWeight: fw, textAlign: "left",
+              cursor: showResult ? "default" : "pointer",
+              transition: "all 0.2s", lineHeight: "1.5",
+              display: "flex", alignItems: "center", gap: "10px",
+            }}>
+              <span style={{
+                width: "28px", height: "28px", borderRadius: "8px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: showResult && idx === question.correct ? "#27AE60" : showResult && idx === selected && !isCorrect ? "#E74C3C" : "#f0f0f0",
+                color: showResult && (idx === question.correct || (idx === selected && !isCorrect)) ? "#fff" : "#888",
+                fontSize: "13px", fontWeight: "800", flexShrink: 0,
+              }}>
+                {showResult && idx === question.correct ? "✓" : showResult && idx === selected && !isCorrect ? "✗" : String.fromCharCode(65 + idx)}
+              </span>
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Explanation */}
+      {showResult && (
+        <div style={{
+          marginTop: "14px", padding: "14px",
+          background: isCorrect ? "#E8F8EF" : "#FFF5F5",
+          borderRadius: "12px", fontSize: "13px", lineHeight: "1.6",
+          border: `1px solid ${isCorrect ? "#A7E8C0" : "#FED7D7"}`,
+          animation: "slideDown 0.3s ease",
+        }}>
+          <span style={{ fontWeight: "800", color: isCorrect ? "#27AE60" : "#E74C3C" }}>
+            {isCorrect ? "✅ Esatto! " : "❌ Non proprio. "}
+          </span>
+          <span style={{ color: "#555" }}>{question.explain}</span>
+        </div>
+      )}
+
+      {showResult && (
+        <button onClick={nextQ} style={{
+          marginTop: "14px", width: "100%", padding: "14px",
+          borderRadius: "12px", background: accent, color: "#fff",
+          border: "none", fontSize: "15px", fontWeight: "700",
+          cursor: "pointer", boxShadow: `0 4px 14px ${accent}33`,
+        }}>
+          {current + 1 >= qs.length ? "🏆 Vedi risultato" : "Prossima domanda →"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [topicIdx, setTopicIdx] = useState(0);
+  const [openSteps, setOpenSteps] = useState({ capire: true, analizzare: false, dominare: false, quiz: false });
+  const [quizKeys, setQuizKeys] = useState({});
+
+  const topic = topicsData[topicIdx];
+  const toggleStep = (key) => setOpenSteps(prev => ({ ...prev, [key]: !prev[key] }));
+  const completedCount = Object.values(openSteps).filter(Boolean).length;
+
+  const renderBlock = (b, i) => {
+    if (b.t === "head") return <div key={i} style={{ fontSize: "15px", fontWeight: "800", color: topic.accent, marginTop: i === 0 ? 0 : "18px", marginBottom: "6px" }}>{b.v}</div>;
+    if (b.t === "key") return <div key={i} style={{ background: topic.accent + "12", border: `2px solid ${topic.accent}40`, borderRadius: "10px", padding: "12px 14px", margin: "6px 0", fontSize: "14px", lineHeight: "1.65", fontWeight: "600" }}>{b.v}</div>;
+    if (b.t === "result") return <div key={i} style={{ background: `linear-gradient(135deg, ${topic.accent}, ${topic.accent}cc)`, borderRadius: "10px", padding: "14px 16px", margin: "10px 0 4px", fontSize: "14px", lineHeight: "1.6", fontWeight: "700", color: "#fff" }}>⭐ {b.v}</div>;
+    if (b.t === "warn") return <div key={i} style={{ background: "#FFF3CD", border: "1px solid #F0D060", borderRadius: "10px", padding: "12px 14px", margin: "6px 0", fontSize: "13px", lineHeight: "1.6", color: "#6B5A00" }}>⚠️ {b.v}</div>;
+    return <div key={i} style={{ fontSize: "14px", lineHeight: "1.7", color: "#333", margin: "5px 0" }}>{b.v}</div>;
+  };
+
+  return (
+    <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", maxWidth: "700px", margin: "0 auto", padding: "20px 16px", color: "#1a1a2e" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <style>{`
+        @keyframes slideDown { from { opacity:0; max-height:0; } to { opacity:1; max-height:8000px; } }
+        @keyframes pop { 0% { transform:scale(0.97); opacity:0; } 100% { transform:scale(1); opacity:1; } }
+        * { box-sizing: border-box; }
+      `}</style>
+
+      <div style={{ textAlign: "center", marginBottom: "24px" }}>
+        <div style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "3px", color: "#999", textTransform: "uppercase" }}>Arte · 3ª media</div>
+        <div style={{ fontSize: "28px", fontWeight: "800", marginTop: "4px" }}>Schemi di Studio</div>
+      </div>
+
+      <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "6px", marginBottom: "20px", WebkitOverflowScrolling: "touch" }}>
+        {topicsData.map((tp, i) => {
+          const active = topicIdx === i;
+          return (
+            <button key={tp.id} onClick={() => {
+              setTopicIdx(i);
+              setOpenSteps({ capire: true, analizzare: false, dominare: false, quiz: false });
+              setQuizKeys(prev => ({ ...prev, [tp.id]: (prev[tp.id] || 0) + 1 }));
+            }} style={{
+              flex: "0 0 auto", display: "flex", alignItems: "center", gap: "6px",
+              padding: "8px 14px", borderRadius: "50px",
+              border: active ? `2px solid ${tp.accent}` : "2px solid #eee",
+              background: active ? tp.accent : "#fff",
+              color: active ? "#fff" : "#666",
+              fontSize: "13px", fontWeight: "700", cursor: "pointer",
+              transition: "all 0.25s ease",
+              boxShadow: active ? `0 4px 14px ${tp.accent}33` : "none",
+            }}>
+              <span style={{ fontSize: "16px" }}>{tp.emoji}</span>{tp.title}
+            </button>
+          );
+        })}
+      </div>
+
+      <div key={topic.id} style={{ animation: "pop 0.3s ease" }}>
+        <div style={{ background: topic.accent + "0a", borderRadius: "16px", padding: "20px", borderLeft: `5px solid ${topic.accent}`, marginBottom: "8px" }}>
+          <div style={{ fontSize: "24px", fontWeight: "800", color: topic.accent }}>{topic.emoji} {topic.title}</div>
+          <div style={{ fontSize: "13px", color: "#888", marginTop: "2px" }}>{topic.sub}</div>
+          <div style={{ display: "flex", gap: "6px", marginTop: "14px", alignItems: "center" }}>
+            <div style={{ flex: 1, height: "6px", borderRadius: "3px", background: "#eee", overflow: "hidden" }}>
+              <div style={{ width: `${(completedCount / 4) * 100}%`, height: "100%", borderRadius: "3px", background: `linear-gradient(90deg, ${topic.accent}, ${topic.accent}aa)`, transition: "width 0.4s ease" }} />
+            </div>
+            <span style={{ fontSize: "12px", fontWeight: "700", color: topic.accent }}>{completedCount}/4</span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
+          {stepsInfo.map((step) => {
+            const isOpen = openSteps[step.key];
+            const isQuiz = step.key === "quiz";
+            return (
+              <div key={step.key} style={{
+                borderRadius: "14px", overflow: "hidden",
+                border: isOpen ? `2px solid ${topic.accent}40` : "2px solid #eee",
+                background: "#fff", transition: "border-color 0.3s ease",
+              }}>
+                <button onClick={() => toggleStep(step.key)} style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: "12px",
+                  padding: "14px 16px", cursor: "pointer",
+                  background: isOpen ? topic.accent + "08" : "transparent",
+                  border: "none", textAlign: "left", transition: "background 0.2s ease",
+                }}>
+                  <span style={{
+                    fontSize: "24px", width: "40px", height: "40px",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: isOpen ? topic.accent : "#eee",
+                    borderRadius: "10px", transition: "all 0.3s ease",
+                  }}>{step.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: isOpen ? topic.accent : "#444" }}>{step.label}</div>
+                    <div style={{ fontSize: "12px", color: "#999" }}>{step.desc}</div>
+                  </div>
+                  <span style={{ fontSize: "20px", color: topic.accent, transform: isOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.3s ease", opacity: 0.6 }}>▼</span>
+                </button>
+                {isOpen && (
+                  <div style={{ padding: "4px 18px 18px", animation: "slideDown 0.35s ease", overflow: "hidden" }}>
+                    <div style={{ width: "40px", height: "3px", borderRadius: "2px", background: topic.accent + "30", marginBottom: "14px" }} />
+                    {isQuiz ? (
+                      <QuizSection key={`${topic.id}-${quizKeys[topic.id] || 0}`} topicId={topic.id} accent={topic.accent} />
+                    ) : (
+                      topic[step.key].map((b, i) => renderBlock(b, i))
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ textAlign: "center", margin: "20px 0 8px", fontSize: "12px", color: "#aaa", lineHeight: "1.5" }}>
+          Studia gli step 1→2→3, poi mettiti alla prova con il quiz 🎯
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
