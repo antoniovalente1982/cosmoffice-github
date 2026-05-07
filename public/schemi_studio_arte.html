@@ -7,7 +7,22 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<style>body{margin:0;background:#f8f9fa;}*{-webkit-tap-highlight-color:transparent;}</style>
+<style>
+  body { margin: 0; background: #f8f9fa; -webkit-text-size-adjust: 100%; }
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  html { font-size: 16px; }
+  @media (max-width: 480px) {
+    html { font-size: 15px; }
+  }
+  @media print {
+    body { background: #fff !important; }
+    .no-print { display: none !important; }
+    .print-expand { display: block !important; padding: 4px 18px 18px !important; }
+    .step-card { border: 1px solid #ccc !important; break-inside: avoid; page-break-inside: avoid; margin-bottom: 12px !important; }
+    .topic-header { break-after: avoid; page-break-after: avoid; }
+    @page { margin: 1.5cm; size: A4; }
+  }
+</style>
 </head>
 <body>
 <div id="root"></div>
@@ -438,14 +453,32 @@ function App() {
         @keyframes slideDown { from { opacity:0; max-height:0; } to { opacity:1; max-height:8000px; } }
         @keyframes pop { 0% { transform:scale(0.97); opacity:0; } 100% { transform:scale(1); opacity:1; } }
         * { box-sizing: border-box; }
+        @media (max-width: 480px) {
+          .topic-pills { flex-wrap: wrap !important; }
+          .topic-pill { flex: 1 1 auto !important; justify-content: center !important; min-width: 0 !important; font-size: 12px !important; padding: 10px 12px !important; }
+          .topic-pill span { font-size: 14px !important; }
+          .step-btn { padding: 16px !important; gap: 10px !important; }
+          .step-icon { width: 36px !important; height: 36px !important; font-size: 20px !important; }
+          .quiz-opt { padding: 14px !important; font-size: 15px !important; min-height: 48px; }
+        }
       `}</style>
 
       <div style={{ textAlign: "center", marginBottom: "24px" }}>
         <div style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "3px", color: "#999", textTransform: "uppercase" }}>Arte · 3ª media</div>
         <div style={{ fontSize: "28px", fontWeight: "800", marginTop: "4px" }}>Schemi di Studio</div>
+        <button className="no-print" onClick={() => {
+          setOpenSteps({ capire: true, analizzare: true, dominare: true, quiz: false });
+          setTimeout(() => window.print(), 400);
+        }} style={{
+          marginTop: "12px", padding: "10px 24px", borderRadius: "50px",
+          background: "linear-gradient(135deg, #4A90D9, #357ABD)", color: "#fff",
+          border: "none", fontSize: "14px", fontWeight: "700", cursor: "pointer",
+          boxShadow: "0 3px 12px rgba(74,144,217,0.3)", display: "inline-flex",
+          alignItems: "center", gap: "8px",
+        }}>🖨️ Stampa / Salva PDF</button>
       </div>
 
-      <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "6px", marginBottom: "20px", WebkitOverflowScrolling: "touch" }}>
+      <div className="topic-pills no-print" style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "6px", marginBottom: "20px", WebkitOverflowScrolling: "touch" }}>
         {topicsData.map((tp, i) => {
           const active = topicIdx === i;
           return (
@@ -454,7 +487,7 @@ function App() {
               setOpenSteps({ capire: true, analizzare: false, dominare: false, quiz: false });
               setQuizKeys(prev => ({ ...prev, [tp.id]: (prev[tp.id] || 0) + 1 }));
             }} style={{
-              flex: "0 0 auto", display: "flex", alignItems: "center", gap: "6px",
+              flex: "0 0 auto", display: "flex", alignItems: "center", gap: "6px", minWidth: 0,
               padding: "8px 14px", borderRadius: "50px",
               border: active ? `2px solid ${tp.accent}` : "2px solid #eee",
               background: active ? tp.accent : "#fff",
@@ -486,12 +519,12 @@ function App() {
             const isOpen = openSteps[step.key];
             const isQuiz = step.key === "quiz";
             return (
-              <div key={step.key} style={{
+              <div key={step.key} className="step-card" style={{
                 borderRadius: "14px", overflow: "hidden",
                 border: isOpen ? `2px solid ${topic.accent}40` : "2px solid #eee",
                 background: "#fff", transition: "border-color 0.3s ease",
               }}>
-                <button onClick={() => toggleStep(step.key)} style={{
+                <button className="step-btn no-print" onClick={() => toggleStep(step.key)} style={{
                   width: "100%", display: "flex", alignItems: "center", gap: "12px",
                   padding: "14px 16px", cursor: "pointer",
                   background: isOpen ? topic.accent + "08" : "transparent",
@@ -510,7 +543,7 @@ function App() {
                   <span style={{ fontSize: "20px", color: topic.accent, transform: isOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.3s ease", opacity: 0.6 }}>▼</span>
                 </button>
                 {isOpen && (
-                  <div style={{ padding: "4px 18px 18px", animation: "slideDown 0.35s ease", overflow: "hidden" }}>
+                  <div className="print-expand" style={{ padding: "4px 18px 18px", animation: "slideDown 0.35s ease", overflow: "hidden" }}>
                     <div style={{ width: "40px", height: "3px", borderRadius: "2px", background: topic.accent + "30", marginBottom: "14px" }} />
                     {isQuiz ? (
                       <QuizSection key={`${topic.id}-${quizKeys[topic.id] || 0}`} topicId={topic.id} accent={topic.accent} />
