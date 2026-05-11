@@ -2,14 +2,14 @@
 
 const VISION_OPTIONS = [
   { value: 'grande_opportunita', emoji: '🌟', label: 'Una grande opportunità per tutti' },
-  { value: 'opportunita', emoji: '👍', label: 'Un\'opportunità, con le giuste competenze' },
+  { value: 'opportunita', emoji: '👍', label: "Un'opportunità, con le giuste competenze" },
   { value: 'neutro', emoji: '⚖️', label: 'Dipende da come verrà gestita' },
   { value: 'minaccia', emoji: '⚠️', label: 'Un potenziale rischio per il mio lavoro' },
   { value: 'grande_minaccia', emoji: '🔴', label: 'Una minaccia seria — ho paura di essere sostituito' },
 ];
 
 const EXPECTATIONS = [
-  'Capire cosa sia davvero l\'AI',
+  "Capire cosa sia davvero l'AI",
   'Imparare ad usare strumenti AI pratici',
   'Superare la paura del cambiamento',
   'Trovare motivazione e ispirazione',
@@ -42,12 +42,11 @@ export default function StepVision({ data, onChange }: Props) {
         <label className="arco-label">L&apos;AI nel tuo settore è... *</label>
         <div className="arco-radio-group">
           {VISION_OPTIONS.map(o => (
-            <label key={o.value} className={`arco-radio-card ${data.ai_opportunity_or_threat === o.value ? 'selected' : ''}`}>
-              <input type="radio" name="ai_vision" value={o.value} onChange={() => set('ai_opportunity_or_threat', o.value)} />
+            <div key={o.value} className={`arco-radio-card ${data.ai_opportunity_or_threat === o.value ? 'selected' : ''}`} onClick={() => set('ai_opportunity_or_threat', o.value)}>
               <span className="arco-radio-dot" />
               <span className="arco-radio-emoji">{o.emoji}</span>
               <span>{o.label}</span>
-            </label>
+            </div>
           ))}
         </div>
       </div>

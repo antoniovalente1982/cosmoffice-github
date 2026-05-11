@@ -1,7 +1,7 @@
 'use client';
 
 const CHANGE_OPTIONS = [
-  { value: 'entusiasta', emoji: '🚀', label: 'Entusiasta — Non vedo l\'ora!' },
+  { value: 'entusiasta', emoji: '🚀', label: "Entusiasta — Non vedo l'ora!" },
   { value: 'curioso', emoji: '🤔', label: 'Curioso — Aperto a scoprire' },
   { value: 'neutro', emoji: '😐', label: 'Neutro — Dipende dal contesto' },
   { value: 'preoccupato', emoji: '😟', label: 'Preoccupato — Mi genera ansia' },
@@ -31,12 +31,11 @@ export default function StepChange({ data, onChange }: Props) {
         <label className="arco-label">Quando pensi al &quot;cambiamento&quot; in ambito lavorativo, come ti senti? *</label>
         <div className="arco-radio-group">
           {CHANGE_OPTIONS.map(o => (
-            <label key={o.value} className={`arco-radio-card ${data.change_attitude === o.value ? 'selected' : ''}`}>
-              <input type="radio" name="change_attitude" value={o.value} onChange={() => set('change_attitude', o.value)} />
+            <div key={o.value} className={`arco-radio-card ${data.change_attitude === o.value ? 'selected' : ''}`} onClick={() => set('change_attitude', o.value)}>
               <span className="arco-radio-dot" />
               <span className="arco-radio-emoji">{o.emoji}</span>
               <span>{o.label}</span>
-            </label>
+            </div>
           ))}
         </div>
       </div>
@@ -50,12 +49,11 @@ export default function StepChange({ data, onChange }: Props) {
         <label className="arco-label">Come sono state le tue esperienze passate con i cambiamenti aziendali? *</label>
         <div className="arco-radio-group">
           {PAST_EXP.map(o => (
-            <label key={o.value} className={`arco-radio-card ${data.change_past_experience === o.value ? 'selected' : ''}`}>
-              <input type="radio" name="change_past_experience" value={o.value} onChange={() => set('change_past_experience', o.value)} />
+            <div key={o.value} className={`arco-radio-card ${data.change_past_experience === o.value ? 'selected' : ''}`} onClick={() => set('change_past_experience', o.value)}>
               <span className="arco-radio-dot" />
               <span className="arco-radio-emoji">{o.emoji}</span>
               <span>{o.label}</span>
-            </label>
+            </div>
           ))}
         </div>
       </div>
