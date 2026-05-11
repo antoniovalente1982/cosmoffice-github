@@ -71,10 +71,9 @@ export default function StepVision({ data, onChange }: Props) {
         <label className="arco-label">Cosa ti aspetti dal workshop? <span className="arco-label-hint">(seleziona tutte le opzioni che vuoi)</span></label>
         <div className="arco-chip-group">
           {EXPECTATIONS.map(exp => (
-            <label key={exp} className={`arco-chip ${(data.event_expectations || []).includes(exp) ? 'selected' : ''}`} onClick={() => toggleExp(exp)}>
-              <input type="checkbox" />
+            <div key={exp} className={`arco-chip ${(data.event_expectations || []).includes(exp) ? 'selected' : ''}`} onClick={() => toggleExp(exp)}>
               {exp}
-            </label>
+            </div>
           ))}
         </div>
       </div>

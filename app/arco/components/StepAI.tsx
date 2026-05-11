@@ -66,10 +66,9 @@ export default function StepAI({ data, onChange }: Props) {
         <label className="arco-label">Quali strumenti AI hai usato? <span className="arco-label-hint">(seleziona tutti quelli che conosci)</span></label>
         <div className="arco-chip-group">
           {AI_TOOLS.map(t => (
-            <label key={t} className={`arco-chip ${(data.ai_tools_used || []).includes(t) ? 'selected' : ''}`} onClick={() => toggleTool(t)}>
-              <input type="checkbox" />
+            <div key={t} className={`arco-chip ${(data.ai_tools_used || []).includes(t) ? 'selected' : ''}`} onClick={() => toggleTool(t)}>
               {t}
-            </label>
+            </div>
           ))}
         </div>
       </div>
