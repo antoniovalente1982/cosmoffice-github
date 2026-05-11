@@ -31,4 +31,25 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+next-env.d.tsapp/api/admin
+app/api/auth
+app/api/bug-report
+app/api/livekit
+app/api/stripe
+app/api/support-ticket
+app/api/support
+app/api/upgrade-request
+app/api/webhooks
+app/api/workspaces
+app/auth.css
+app/auth
+app/invite
+app/landing.css
+app/login
+app/logo-showcase
+app/office
+app/pricing
+app/register
+app/set-password
+app/signup
+app/superadmin
