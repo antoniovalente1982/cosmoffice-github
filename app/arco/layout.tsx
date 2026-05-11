@@ -1,7 +1,7 @@
 import './arco.css';
 
 export const metadata = {
-  title: 'ARCO Group — Questionario Workshop Sardegna',
+  title: 'ARCO Group — Questionario',
   description: 'Registrazione e questionario di pre-assessment per il workshop di crescita personale e AI — ARCO Group',
 };
 

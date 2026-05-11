@@ -59,7 +59,7 @@ export default function ArcoSurveyPage() {
         <div className="arco-section arco-success arco-animate-in">
           <div className="arco-success-icon">✅</div>
           <h2>Grazie mille!</h2>
-          <p>Le tue risposte sono state registrate con successo. Ci vediamo presto in Sardegna! 🏝️</p>
+          <p>Le tue risposte sono state registrate con successo. Grazie! ✨</p>
         </div>
       </div>
     </div>
@@ -71,7 +71,6 @@ export default function ArcoSurveyPage() {
       <header className="arco-header">
         <div className="arco-logo-text"><span>A</span>RCO <span>G</span>roup</div>
         <div className="arco-header-subtitle">Questionario pre-incontro</div>
-        <div className="arco-header-event">📍 Sardegna — 2 giorni insieme</div>
       </header>
 
       <div className="arco-container">
