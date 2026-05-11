@@ -107,6 +107,22 @@ export default function StepAI({ data, onChange }: Props) {
         <label className="arco-label">Se la usi per lavoro, raccontaci come <span className="arco-label-hint">(opzionale)</span></label>
         <textarea className="arco-textarea" placeholder="Es: uso ChatGPT per preparare email commerciali, sintetizzare verbali..." value={data.ai_work_examples || ''} onChange={e => set('ai_work_examples', e.target.value)} />
       </div>
+
+      <div className="arco-field">
+        <label className="arco-label">Hai mai sentito parlare di &quot;LLM&quot; (Large Language Models)? <span className="arco-label-hint">(opzionale)</span></label>
+        <div className="arco-radio-group">
+          {[
+            { value: 'mai_sentiti', label: 'No, mai sentiti nominare' },
+            { value: 'sentiti_non_so', label: 'Li ho sentiti ma non so bene cosa siano' },
+            { value: 'conosco', label: 'Sì, so a grandi linee come funzionano' },
+          ].map(o => (
+            <div key={o.value} className={`arco-radio-card ${data.llm_knowledge === o.value ? 'selected' : ''}`} onClick={() => set('llm_knowledge', o.value)}>
+              <span className="arco-radio-dot" />
+              <span>{o.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

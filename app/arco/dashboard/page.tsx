@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 const LABELS: Record<string, Record<string, string>> = {
   ai_knowledge_level: { mai_sentito: '❓ Non lo conosce', sentito_mai_usato: '👂 Sentito parlare', uso_base: '🔰 Uso base', uso_regolare: '⚡ Uso regolare', uso_avanzato: '🧠 Avanzato' },
   ai_frequency: { mai: 'Mai', raramente: 'Raramente', settimanale: 'Settimanale', quotidiano: 'Quotidiano', sempre: 'Sempre' },
+  llm_knowledge: { mai_sentiti: '❌ Mai sentiti', sentiti_non_so: '🤔 Sentiti ma non so', conosco: '✅ So cosa sono' },
 };
 
 function countField(responses: any[], field: string) {
@@ -95,6 +96,7 @@ function PersonDetail({ participant, response, onBack }: { participant: any; res
             <h3 className="arco-section-title">🤖 Esperienza AI</h3>
             <DetailRow label="Livello" value={LABELS.ai_knowledge_level[response.ai_knowledge_level]} type="badge" />
             <DetailRow label="Frequenza utilizzo" value={LABELS.ai_frequency[response.ai_frequency]} type="badge" />
+            <DetailRow label="Conoscenza LLM" value={response.llm_knowledge ? LABELS.llm_knowledge[response.llm_knowledge] : null} type="badge" />
             <DetailRow label="Strumenti usati" value={response.ai_tools_used?.length ? response.ai_tools_used : null} type="chips" />
             <DetailRow label="Casi d'uso" value={response.ai_use_cases?.length ? response.ai_use_cases : null} type="chips" />
             <DetailRow label="Come la usa per lavoro" value={response.ai_work_examples} />
@@ -189,6 +191,7 @@ export default function DashboardPage() {
         {tab === 'ai' && (
           <div className="arco-animate-in">
             <div className="arco-section"><h3 className="arco-section-title">Livello conoscenza AI</h3><BarChart data={countField(responses, 'ai_knowledge_level')} labelMap={LABELS.ai_knowledge_level} total={responses.length || 1} /></div>
+            <div className="arco-section"><h3 className="arco-section-title">Conoscenza LLM</h3><BarChart data={countField(responses, 'llm_knowledge')} labelMap={LABELS.llm_knowledge} total={responses.length || 1} /></div>
             <div className="arco-section"><h3 className="arco-section-title">Frequenza utilizzo</h3><BarChart data={countField(responses, 'ai_frequency')} labelMap={LABELS.ai_frequency} total={responses.length || 1} /></div>
             <div className="arco-section"><h3 className="arco-section-title">Strumenti AI conosciuti</h3>{(() => { const t: Record<string, number> = {}; responses.forEach(r => (r.ai_tools_used || []).forEach((x: string) => { t[x] = (t[x] || 0) + 1; })); return <BarChart data={t} total={responses.length || 1} />; })()}</div>
             <div className="arco-section"><h3 className="arco-section-title">Casi d&apos;uso AI</h3>{(() => { const u: Record<string, number> = {}; responses.forEach(r => (r.ai_use_cases || []).forEach((x: string) => { u[x] = (u[x] || 0) + 1; })); return <BarChart data={u} total={responses.length || 1} />; })()}</div>
