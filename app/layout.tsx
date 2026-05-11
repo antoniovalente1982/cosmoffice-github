@@ -1,26 +1,19 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Cosmoffice - Your Office in the Cosmos',
-  description: 'The next generation virtual office platform for remote teams. Move, meet, and collaborate in a spatial workspace that feels like a real office.',
-  keywords: ['virtual office', 'remote work', 'collaboration', 'video conferencing', 'spatial workspace', 'team collaboration'],
-  icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/favicon.svg',
-  },
+  title: 'ARCO Group — Workshop Sardegna',
+  description: 'Questionario di pre-assessment per il workshop di crescita personale e AI — ARCO Group',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="it" className="dark">
-      <body className={`${inter.variable} font-sans antialiased bg-dark-bg text-slate-50 min-h-screen`}>
-        <Providers>{children}</Providers>
+    <html lang="it">
+      <body className={`${inter.variable}`} style={{ margin: 0, padding: 0 }}>
+        {children}
       </body>
     </html>
   );
