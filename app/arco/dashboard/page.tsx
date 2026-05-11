@@ -3,12 +3,9 @@
 import { useState, useEffect, useMemo } from 'react';
 
 const LABELS: Record<string, Record<string, string>> = {
-  change_attitude: { entusiasta: '🚀 Entusiasta', curioso: '🤔 Curioso', neutro: '😐 Neutro', preoccupato: '😟 Preoccupato', resistente: '🛑 Resistente' },
   ai_knowledge_level: { mai_sentito: '❓ Non lo conosce', sentito_mai_usato: '👂 Sentito parlare', uso_base: '🔰 Uso base', uso_regolare: '⚡ Uso regolare', uso_avanzato: '🧠 Avanzato' },
   ai_frequency: { mai: 'Mai', raramente: 'Raramente', settimanale: 'Settimanale', quotidiano: 'Quotidiano', sempre: 'Sempre' },
-  ai_opportunity_or_threat: { grande_opportunita: '🌟 Grande opportunità', opportunita: '👍 Opportunità', neutro: '⚖️ Neutro', minaccia: '⚠️ Minaccia', grande_minaccia: '🔴 Grande minaccia' },
   coding_experience: { nessuna: 'Nessuna', base_html: 'HTML base', qualche_linguaggio: 'Qualche linguaggio', programmatore: 'Programmatore', esperto: 'Esperto' },
-  change_past_experience: { molto_positiva: '🌟 Molto positiva', positiva: '👍 Positiva', neutra: '➖ Neutra', negativa: '👎 Negativa', molto_negativa: '💔 Molto negativa' },
 };
 
 function countField(responses: any[], field: string) {
@@ -31,9 +28,7 @@ function BarChart({ data, labelMap, total }: { data: Record<string, number>; lab
       {entries.map(([key, count]) => (
         <div className="arco-bar-row" key={key}>
           <span className="arco-bar-label">{labelMap?.[key] || key}</span>
-          <div className="arco-bar-track">
-            <div className="arco-bar-fill" style={{ width: `${Math.max((count / total) * 100, 12)}%` }}>{Math.round((count / total) * 100)}%</div>
-          </div>
+          <div className="arco-bar-track"><div className="arco-bar-fill" style={{ width: `${Math.max((count / total) * 100, 12)}%` }}>{Math.round((count / total) * 100)}%</div></div>
           <span className="arco-bar-count">{count}</span>
         </div>
       ))}
@@ -41,16 +36,8 @@ function BarChart({ data, labelMap, total }: { data: Record<string, number>; lab
   );
 }
 
-function ToolsChart({ responses }: { responses: any[] }) {
-  const toolCounts: Record<string, number> = {};
-  responses.forEach(r => (r.ai_tools_used || []).forEach((t: string) => { toolCounts[t] = (toolCounts[t] || 0) + 1; }));
-  return <BarChart data={toolCounts} total={responses.length || 1} />;
-}
-
 function FreeTextList({ responses, field }: { responses: any[]; field: string }) {
-  const texts = responses
-    .map(r => ({ text: r[field], name: `${r.participant?.first_name || ''} ${r.participant?.last_name || ''}`.trim(), role: r.participant?.role_title || '', dept: r.participant?.department || '', pid: r.participant?.id }))
-    .filter(t => t.text?.trim());
+  const texts = responses.map(r => ({ text: r[field], name: `${r.participant?.first_name || ''} ${r.participant?.last_name || ''}`.trim(), role: r.participant?.role_title || '', dept: r.participant?.department || '' })).filter(t => t.text?.trim());
   if (!texts.length) return <p style={{ color: 'var(--arco-text-dim)', fontSize: '0.9rem', padding: '1rem 0' }}>Nessuna risposta ancora</p>;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -59,7 +46,7 @@ function FreeTextList({ responses, field }: { responses: any[]; field: string })
           <p style={{ fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '0.5rem', color: 'var(--arco-text)' }}>&ldquo;{t.text}&rdquo;</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--arco-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: 'white', flexShrink: 0 }}>{(t.name[0] || '?')}</div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--arco-red-light)', fontWeight: 600 }}>{t.name}</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--arco-accent)', fontWeight: 600 }}>{t.name}</span>
             <span style={{ fontSize: '0.75rem', color: 'var(--arco-text-dim)' }}>· {t.role} · {t.dept}</span>
           </div>
         </div>
@@ -68,18 +55,15 @@ function FreeTextList({ responses, field }: { responses: any[]; field: string })
   );
 }
 
-/* ---- DETAIL: Scheda persona ---- */
 function DetailRow({ label, value, type }: { label: string; value: any; type?: 'text' | 'badge' | 'score' | 'chips' | 'bool' }) {
   if (value === null || value === undefined || value === '') return null;
-
   const renderValue = () => {
-    if (type === 'score') return <span style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: "'Space Grotesk', sans-serif", color: 'var(--arco-red)' }}>{value}<span style={{ fontSize: '0.8rem', color: 'var(--arco-text-dim)' }}>/10</span></span>;
+    if (type === 'score') return <span style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: "'Space Grotesk', sans-serif", color: 'var(--arco-accent)' }}>{value}<span style={{ fontSize: '0.8rem', color: 'var(--arco-text-dim)' }}>/10</span></span>;
     if (type === 'badge') return <span className="arco-badge arco-badge-red" style={{ fontSize: '0.85rem', padding: '0.3rem 0.8rem' }}>{value}</span>;
     if (type === 'chips') return <div className="arco-chip-group">{(value as string[]).map((v: string) => <span key={v} className="arco-chip selected" style={{ cursor: 'default', pointerEvents: 'none' }}>{v}</span>)}</div>;
     if (type === 'bool') return <span style={{ fontSize: '1.1rem' }}>{value ? '✅ Sì' : '❌ No'}</span>;
     return <p style={{ fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--arco-text)' }}>{value}</p>;
   };
-
   return (
     <div style={{ padding: '0.85rem 0', borderBottom: '1px solid var(--arco-border)' }}>
       <div style={{ fontSize: '0.8rem', color: 'var(--arco-text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>{label}</div>
@@ -89,67 +73,44 @@ function DetailRow({ label, value, type }: { label: string; value: any; type?: '
 }
 
 function PersonDetail({ participant, response, onBack }: { participant: any; response: any; onBack: () => void }) {
-  const fullName = `${participant.first_name} ${participant.last_name}`;
   return (
     <div className="arco-animate-in">
-      {/* Back button */}
       <button className="arco-btn arco-btn-secondary" onClick={onBack} style={{ marginBottom: '1.5rem' }}>← Torna alla lista</button>
-
-      {/* Person header */}
       <div className="arco-section" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'var(--arco-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 800, color: 'white', flexShrink: 0 }}>
-          {participant.first_name?.[0]}{participant.last_name?.[0]}
-        </div>
+        <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'var(--arco-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 800, color: 'white', flexShrink: 0 }}>{participant.first_name?.[0]}{participant.last_name?.[0]}</div>
         <div>
-          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{fullName}</h2>
+          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{participant.first_name} {participant.last_name}</h2>
           <p style={{ color: 'var(--arco-text-muted)', fontSize: '0.9rem', margin: '0.25rem 0' }}>{participant.role_title} — {participant.department}</p>
-          <p style={{ color: 'var(--arco-text-dim)', fontSize: '0.8rem' }}>{participant.email} {participant.phone ? `· ${participant.phone}` : ''}</p>
+          <p style={{ color: 'var(--arco-text-dim)', fontSize: '0.8rem' }}>{participant.email}</p>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
             {participant.age_range && <span className="arco-badge arco-badge-red">{participant.age_range} anni</span>}
             {participant.years_in_company && <span className="arco-badge arco-badge-yellow">{participant.years_in_company} anni in azienda</span>}
           </div>
         </div>
       </div>
-
       {!response ? (
-        <div className="arco-section" style={{ textAlign: 'center', padding: '3rem' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div>
-          <p style={{ color: 'var(--arco-text-muted)' }}>{fullName} non ha ancora completato il questionario.</p>
-        </div>
+        <div className="arco-section" style={{ textAlign: 'center', padding: '3rem' }}><div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div><p style={{ color: 'var(--arco-text-muted)' }}>Non ha ancora completato il questionario.</p></div>
       ) : (
         <>
-          {/* Sezione Cambiamento */}
           <div className="arco-section">
-            <h3 className="arco-section-title">🔄 Rapporto con il cambiamento</h3>
-            <DetailRow label="Attitudine" value={LABELS.change_attitude[response.change_attitude]} type="badge" />
-            <DetailRow label="Apertura al nuovo" value={response.change_openness} type="score" />
-            <DetailRow label="Esperienze passate" value={LABELS.change_past_experience[response.change_past_experience]} type="badge" />
-            <DetailRow label="Paura più grande" value={response.change_biggest_fear} />
-          </div>
-
-          {/* Sezione AI */}
-          <div className="arco-section">
-            <h3 className="arco-section-title">🤖 Conoscenza AI</h3>
+            <h3 className="arco-section-title">🤖 Esperienza AI</h3>
             <DetailRow label="Livello" value={LABELS.ai_knowledge_level[response.ai_knowledge_level]} type="badge" />
             <DetailRow label="Frequenza utilizzo" value={LABELS.ai_frequency[response.ai_frequency]} type="badge" />
             <DetailRow label="Strumenti usati" value={response.ai_tools_used?.length ? response.ai_tools_used : null} type="chips" />
-            <DetailRow label="Usa AI per lavoro" value={response.ai_work_usage} type="bool" />
-            <DetailRow label="Come la usa" value={response.ai_work_examples} />
+            <DetailRow label="Casi d'uso" value={response.ai_use_cases?.length ? response.ai_use_cases : null} type="chips" />
+            <DetailRow label="Come la usa per lavoro" value={response.ai_work_examples} />
             <DetailRow label="Conosce Vibe Coding" value={response.knows_vibe_coding} type="bool" />
             <DetailRow label="Esperienza coding" value={LABELS.coding_experience[response.coding_experience]} type="badge" />
             <DetailRow label="Vuole creare tool senza codice" value={response.interested_in_building_tools} type="bool" />
           </div>
-
-          {/* Sezione Visione */}
           <div className="arco-section">
-            <h3 className="arco-section-title">🔮 Visione e aspettative</h3>
-            <DetailRow label="AI è..." value={LABELS.ai_opportunity_or_threat[response.ai_opportunity_or_threat]} type="badge" />
-            <DetailRow label="Entusiasmo workshop" value={response.excitement_level} type="score" />
+            <h3 className="arco-section-title">💡 Curiosità e aspettative</h3>
+            <DetailRow label="Livello curiosità" value={response.excitement_level} type="score" />
             <DetailRow label="Cosa automatizzerebbe" value={response.what_would_automate} />
             <DetailRow label="Attività che ruba più tempo" value={response.biggest_time_waster} />
             <DetailRow label="Superpotere desiderato" value={response.dream_superpower} />
-            <DetailRow label="Aspettative dal workshop" value={response.event_expectations?.length ? response.event_expectations : null} type="chips" />
-            <DetailRow label="Domande per Antonio" value={response.specific_questions} />
+            <DetailRow label="Cosa lo incuriosisce" value={response.event_expectations?.length ? response.event_expectations : null} type="chips" />
+            <DetailRow label="Domande" value={response.specific_questions} />
           </div>
         </>
       )}
@@ -157,7 +118,7 @@ function PersonDetail({ participant, response, onBack }: { participant: any; res
   );
 }
 
-type TabKey = 'overview' | 'change' | 'ai' | 'vision' | 'participants' | 'freetext';
+type TabKey = 'overview' | 'ai' | 'freetext' | 'participants';
 
 export default function DashboardPage() {
   const [participants, setParticipants] = useState<any[]>([]);
@@ -169,7 +130,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetch('/api/arco/dashboard')
-      .then(r => { if (!r.ok) throw new Error(`API error: ${r.status}`); return r.json(); })
+      .then(r => { if (!r.ok) throw new Error(`Errore API: ${r.status}`); return r.json(); })
       .then(d => { setParticipants(d.participants || []); setResponses(d.responses || []); })
       .catch(e => { console.error(e); setError(e.message); })
       .finally(() => setLoading(false));
@@ -179,82 +140,54 @@ export default function DashboardPage() {
   const total = participants.length;
   const rate = total ? Math.round((completed / total) * 100) : 0;
 
-  const deptCounts = useMemo(() => {
-    const c: Record<string, number> = {};
-    participants.forEach(p => { c[p.department] = (c[p.department] || 0) + 1; });
-    return c;
-  }, [participants]);
+  const deptCounts = useMemo(() => { const c: Record<string, number> = {}; participants.forEach(p => { if (p.department) c[p.department] = (c[p.department] || 0) + 1; }); return c; }, [participants]);
 
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'overview', label: '📊 Overview' },
-    { key: 'change', label: '🔄 Cambiamento' },
     { key: 'ai', label: '🤖 AI' },
-    { key: 'vision', label: '🔮 Visione' },
     { key: 'freetext', label: '💬 Risposte' },
     { key: 'participants', label: '👥 Persone' },
   ];
 
-  const openPerson = (id: string) => { setSelectedPerson(id); setTab('participants'); };
-
-  // Header component
   const Header = () => (
     <header className="arco-header">
       <div className="arco-logo-text"><span>A</span>RCO <span>G</span>roup</div>
-      <div className="arco-header-subtitle">Dashboard Analytics — Workshop Sardegna</div>
+      <div className="arco-header-subtitle">Dashboard Analytics</div>
     </header>
   );
 
-  if (loading) return (<><Header /><div className="arco-container wide" style={{ textAlign: 'center', paddingTop: '4rem' }}><div className="arco-spinner" /><p style={{ color: 'var(--arco-text-muted)', marginTop: '1rem' }}>Caricamento dati...</p></div></>);
-  if (error) return (<><Header /><div className="arco-container wide" style={{ textAlign: 'center', paddingTop: '4rem' }}><div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div><h2>Errore</h2><p style={{ color: 'var(--arco-text-muted)' }}>{error}</p><button className="arco-btn arco-btn-primary" style={{ marginTop: '1.5rem' }} onClick={() => window.location.reload()}>🔄 Riprova</button></div></>);
+  if (loading) return (<div className="arco-page"><div className="arco-bg-pattern" /><Header /><div className="arco-container wide" style={{ textAlign: 'center', paddingTop: '4rem' }}><div className="arco-spinner" /><p style={{ color: 'var(--arco-text-muted)', marginTop: '1rem' }}>Caricamento dati...</p></div></div>);
+  if (error) return (<div className="arco-page"><div className="arco-bg-pattern" /><Header /><div className="arco-container wide" style={{ textAlign: 'center', paddingTop: '4rem' }}><div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div><h2>Errore</h2><p style={{ color: 'var(--arco-text-muted)' }}>{error}</p><button className="arco-btn arco-btn-primary" style={{ marginTop: '1.5rem' }} onClick={() => window.location.reload()}>🔄 Riprova</button></div></div>);
 
-  // --- Person detail view ---
   if (selectedPerson) {
     const p = participants.find(x => x.id === selectedPerson);
     const r = responses.find(x => x.participant_id === selectedPerson);
     if (!p) { setSelectedPerson(null); return null; }
-    return (
-      <>
-        <Header />
-        <div className="arco-container wide">
-          <PersonDetail participant={p} response={r} onBack={() => setSelectedPerson(null)} />
-        </div>
-      </>
-    );
+    return (<div className="arco-page"><div className="arco-bg-pattern" /><Header /><div className="arco-container wide"><PersonDetail participant={p} response={r} onBack={() => setSelectedPerson(null)} /></div></div>);
   }
 
   return (
-    <>
+    <div className="arco-page">
+      <div className="arco-bg-pattern" />
       <Header />
       <div className="arco-container wide">
-        {/* KPI */}
         <div className="arco-dash-grid arco-animate-in">
-          <div className="arco-stat-card"><div className="arco-stat-label">Registrati</div><div className="arco-stat-value">{total}</div><div className="arco-stat-sub">su ~30-35 previsti</div></div>
-          <div className="arco-stat-card"><div className="arco-stat-label">Completati</div><div className="arco-stat-value">{completed}</div><div className="arco-stat-sub">{rate}% completion</div></div>
-          <div className="arco-stat-card"><div className="arco-stat-label">Apertura</div><div className="arco-stat-value">{avgField(responses, 'change_openness') || '—'}</div><div className="arco-stat-sub">media /10</div></div>
-          <div className="arco-stat-card"><div className="arco-stat-label">Entusiasmo</div><div className="arco-stat-value">{avgField(responses, 'excitement_level') || '—'}</div><div className="arco-stat-sub">media /10</div></div>
+          <div className="arco-stat-card"><div className="arco-stat-label">Registrati</div><div className="arco-stat-value">{total}</div><div className="arco-stat-sub">{rate}% completati</div></div>
+          <div className="arco-stat-card"><div className="arco-stat-label">Completati</div><div className="arco-stat-value">{completed}</div><div className="arco-stat-sub">su {total} registrati</div></div>
+          <div className="arco-stat-card"><div className="arco-stat-label">Curiosità media</div><div className="arco-stat-value">{avgField(responses, 'excitement_level') || '—'}</div><div className="arco-stat-sub">/10</div></div>
+          <div className="arco-stat-card"><div className="arco-stat-label">Conosce Vibe Coding</div><div className="arco-stat-value">{responses.filter(r => r.knows_vibe_coding).length}<span style={{ fontSize: '1rem', color: 'var(--arco-text-dim)' }}>/{responses.length}</span></div></div>
         </div>
 
-        {/* Tabs */}
         <div className="arco-tabs" style={{ overflowX: 'auto' }}>{TABS.map(t => (<button key={t.key} className={`arco-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>))}</div>
 
-        {/* OVERVIEW */}
         {tab === 'overview' && (
           <div className="arco-animate-in">
             <div className="arco-section"><h3 className="arco-section-title">Distribuzione per reparto</h3><BarChart data={deptCounts} total={total || 1} /></div>
             <div className="arco-dash-grid">
-              <div className="arco-stat-card"><div className="arco-stat-label">Conosce Vibe Coding</div><div className="arco-stat-value">{responses.filter(r => r.knows_vibe_coding).length}<span style={{ fontSize: '1rem', color: 'var(--arco-text-dim)' }}>/{responses.length}</span></div></div>
-              <div className="arco-stat-card"><div className="arco-stat-label">Usa AI per lavoro</div><div className="arco-stat-value">{responses.filter(r => r.ai_work_usage).length}<span style={{ fontSize: '1rem', color: 'var(--arco-text-dim)' }}>/{responses.length}</span></div></div>
+              <div className="arco-stat-card"><div className="arco-stat-label">Usa AI per lavoro</div><div className="arco-stat-value">{responses.filter(r => r.ai_work_usage || (r.ai_use_cases && !r.ai_use_cases.includes('Non lo uso per lavoro'))).length}<span style={{ fontSize: '1rem', color: 'var(--arco-text-dim)' }}>/{responses.length}</span></div></div>
               <div className="arco-stat-card"><div className="arco-stat-label">Vuole creare tool</div><div className="arco-stat-value">{responses.filter(r => r.interested_in_building_tools).length}<span style={{ fontSize: '1rem', color: 'var(--arco-text-dim)' }}>/{responses.length}</span></div></div>
-              <div className="arco-stat-card"><div className="arco-stat-label">Tempo medio</div><div className="arco-stat-value">{avgField(responses, 'completion_time_seconds') ? Math.round(avgField(responses, 'completion_time_seconds') / 60) + '\'' : '—'}</div></div>
             </div>
-          </div>
-        )}
-
-        {tab === 'change' && (
-          <div className="arco-animate-in">
-            <div className="arco-section"><h3 className="arco-section-title">Attitudine al cambiamento</h3><BarChart data={countField(responses, 'change_attitude')} labelMap={LABELS.change_attitude} total={responses.length || 1} /></div>
-            <div className="arco-section"><h3 className="arco-section-title">Esperienze passate</h3><BarChart data={countField(responses, 'change_past_experience')} labelMap={LABELS.change_past_experience} total={responses.length || 1} /></div>
-            <div className="arco-section"><h3 className="arco-section-title">😰 Paure legate al cambiamento</h3><FreeTextList responses={responses} field="change_biggest_fear" /></div>
+            <div className="arco-section"><h3 className="arco-section-title">📋 Cosa li incuriosisce di più</h3>{(() => { const e: Record<string, number> = {}; responses.forEach(r => (r.event_expectations || []).forEach((x: string) => { e[x] = (e[x] || 0) + 1; })); return <BarChart data={e} total={responses.length || 1} />; })()}</div>
           </div>
         )}
 
@@ -262,16 +195,10 @@ export default function DashboardPage() {
           <div className="arco-animate-in">
             <div className="arco-section"><h3 className="arco-section-title">Livello conoscenza AI</h3><BarChart data={countField(responses, 'ai_knowledge_level')} labelMap={LABELS.ai_knowledge_level} total={responses.length || 1} /></div>
             <div className="arco-section"><h3 className="arco-section-title">Frequenza utilizzo</h3><BarChart data={countField(responses, 'ai_frequency')} labelMap={LABELS.ai_frequency} total={responses.length || 1} /></div>
-            <div className="arco-section"><h3 className="arco-section-title">Strumenti AI utilizzati</h3><ToolsChart responses={responses} /></div>
+            <div className="arco-section"><h3 className="arco-section-title">Strumenti AI conosciuti</h3>{(() => { const t: Record<string, number> = {}; responses.forEach(r => (r.ai_tools_used || []).forEach((x: string) => { t[x] = (t[x] || 0) + 1; })); return <BarChart data={t} total={responses.length || 1} />; })()}</div>
+            <div className="arco-section"><h3 className="arco-section-title">Casi d&apos;uso AI</h3>{(() => { const u: Record<string, number> = {}; responses.forEach(r => (r.ai_use_cases || []).forEach((x: string) => { u[x] = (u[x] || 0) + 1; })); return <BarChart data={u} total={responses.length || 1} />; })()}</div>
             <div className="arco-section"><h3 className="arco-section-title">Esperienza coding</h3><BarChart data={countField(responses, 'coding_experience')} labelMap={LABELS.coding_experience} total={responses.length || 1} /></div>
             <div className="arco-section"><h3 className="arco-section-title">💼 Come usano AI al lavoro</h3><FreeTextList responses={responses} field="ai_work_examples" /></div>
-          </div>
-        )}
-
-        {tab === 'vision' && (
-          <div className="arco-animate-in">
-            <div className="arco-section"><h3 className="arco-section-title">AI: Opportunità o Minaccia?</h3><BarChart data={countField(responses, 'ai_opportunity_or_threat')} labelMap={LABELS.ai_opportunity_or_threat} total={responses.length || 1} /></div>
-            <div className="arco-section"><h3 className="arco-section-title">📋 Aspettative dal workshop</h3>{(() => { const e: Record<string, number> = {}; responses.forEach(r => (r.event_expectations || []).forEach((x: string) => { e[x] = (e[x] || 0) + 1; })); return <BarChart data={e} total={responses.length || 1} />; })()}</div>
           </div>
         )}
 
@@ -280,39 +207,29 @@ export default function DashboardPage() {
             <div className="arco-section"><h3 className="arco-section-title">🤖 Cosa automatizzerebbero</h3><FreeTextList responses={responses} field="what_would_automate" /></div>
             <div className="arco-section"><h3 className="arco-section-title">⏰ Attività che rubano più tempo</h3><FreeTextList responses={responses} field="biggest_time_waster" /></div>
             <div className="arco-section"><h3 className="arco-section-title">🦸 Superpotere desiderato</h3><FreeTextList responses={responses} field="dream_superpower" /></div>
-            <div className="arco-section"><h3 className="arco-section-title">❓ Domande per Antonio</h3><FreeTextList responses={responses} field="specific_questions" /></div>
+            <div className="arco-section"><h3 className="arco-section-title">❓ Domande</h3><FreeTextList responses={responses} field="specific_questions" /></div>
           </div>
         )}
 
         {tab === 'participants' && (
           <div className="arco-section arco-animate-in">
-            <h3 className="arco-section-title">Lista partecipanti ({total})</h3>
-            <p style={{ color: 'var(--arco-text-dim)', fontSize: '0.85rem', marginBottom: '1rem' }}>Clicca su una persona per vedere tutte le sue risposte</p>
-            <div style={{ marginTop: '0.5rem' }}>
-              {participants.map(p => (
-                <div className="arco-participant-row" key={p.id} onClick={() => openPerson(p.id)} style={{ cursor: 'pointer' }}>
-                  <div className="arco-participant-avatar">{(p.first_name?.[0] || '') + (p.last_name?.[0] || '')}</div>
-                  <div className="arco-participant-info">
-                    <div className="arco-participant-name">{p.first_name} {p.last_name}</div>
-                    <div className="arco-participant-role">{p.role_title} — {p.department}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--arco-text-dim)', marginTop: '2px' }}>{p.email}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                    <span className={`arco-badge ${p.survey_completed ? 'arco-badge-green' : 'arco-badge-yellow'}`}>{p.survey_completed ? '✅ Completato' : '⏳ In attesa'}</span>
-                    {p.age_range && <span style={{ fontSize: '0.7rem', color: 'var(--arco-text-dim)' }}>{p.age_range}</span>}
-                  </div>
+            <h3 className="arco-section-title">Partecipanti ({total})</h3>
+            <p style={{ color: 'var(--arco-text-dim)', fontSize: '0.85rem', marginBottom: '1rem' }}>Clicca su una persona per vedere le sue risposte</p>
+            {participants.map(p => (
+              <div className="arco-participant-row" key={p.id} onClick={() => setSelectedPerson(p.id)} style={{ cursor: 'pointer' }}>
+                <div className="arco-participant-avatar">{(p.first_name?.[0] || '') + (p.last_name?.[0] || '')}</div>
+                <div className="arco-participant-info">
+                  <div className="arco-participant-name">{p.first_name} {p.last_name}</div>
+                  <div className="arco-participant-role">{p.role_title} — {p.department}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--arco-text-dim)', marginTop: '2px' }}>{p.email}</div>
                 </div>
-              ))}
-              {!participants.length && (
-                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--arco-text-dim)' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
-                  <p>Nessun partecipante ancora registrato</p>
-                </div>
-              )}
-            </div>
+                <span className={`arco-badge ${p.survey_completed ? 'arco-badge-green' : 'arco-badge-yellow'}`}>{p.survey_completed ? '✅ Completato' : '⏳ In attesa'}</span>
+              </div>
+            ))}
+            {!participants.length && <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--arco-text-dim)' }}><div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div><p>Nessun partecipante registrato</p></div>}
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

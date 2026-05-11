@@ -2,151 +2,108 @@
 
 import { useState, useRef } from 'react';
 import StepRegistration from './components/StepRegistration';
-import StepChange from './components/StepChange';
 import StepAI from './components/StepAI';
 import StepVision from './components/StepVision';
 
-const STEPS = ['Registrazione', 'Cambiamento', 'AI & Tech', 'Visione & Aspettative'];
+const STEP_NAMES = ['Chi sei', 'AI', 'Curiosità'];
 
 export default function ArcoSurveyPage() {
   const [step, setStep] = useState(0);
-  const [participant, setParticipant] = useState<any>({});
-  const [responses, setResponses] = useState<any>({ change_openness: 5, excitement_level: 5 });
+  const [data, setData] = useState<Record<string, any>>({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const startTime = useRef(Date.now());
 
-  const progress = ((step + 1) / STEPS.length) * 100;
+  const totalSteps = 3;
+  const progress = ((step + 1) / totalSteps) * 100;
 
-  const validateStep = (): string | null => {
-    if (step === 0) {
-      if (!participant.first_name?.trim()) return 'Inserisci il tuo nome';
-      if (!participant.last_name?.trim()) return 'Inserisci il tuo cognome';
-      if (!participant.email?.trim() || !participant.email.includes('@')) return 'Inserisci un\'email valida';
-      if (!participant.role_title?.trim()) return 'Inserisci il tuo ruolo';
-      if (!participant.department) return 'Seleziona il tuo reparto';
-    }
-    if (step === 1) {
-      if (!responses.change_attitude) return 'Seleziona come ti senti riguardo al cambiamento';
-      if (!responses.change_past_experience) return 'Seleziona la tua esperienza passata';
-    }
-    if (step === 2) {
-      if (!responses.ai_knowledge_level) return 'Seleziona il tuo livello di conoscenza AI';
-      if (!responses.ai_frequency) return 'Seleziona la frequenza di utilizzo';
-      if (!responses.coding_experience) return 'Seleziona la tua esperienza con il coding';
-    }
-    if (step === 3) {
-      if (!responses.ai_opportunity_or_threat) return 'Seleziona la tua visione dell\'AI';
-    }
-    return null;
+  const canNext = () => {
+    if (step === 0) return data.first_name?.trim() && data.last_name?.trim() && data.email?.trim() && data.department;
+    if (step === 1) return data.ai_knowledge_level && data.ai_frequency && data.coding_experience;
+    if (step === 2) return typeof data.excitement_level === 'number';
+    return true;
   };
-
-  const next = () => {
-    const err = validateStep();
-    if (err) { setError(err); return; }
-    setError('');
-    if (step < STEPS.length - 1) setStep(step + 1);
-  };
-
-  const prev = () => { setError(''); if (step > 0) setStep(step - 1); };
 
   const submit = async () => {
-    const err = validateStep();
-    if (err) { setError(err); return; }
-    setError('');
     setSubmitting(true);
-
-    const elapsed = Math.round((Date.now() - startTime.current) / 1000);
-
+    setError('');
     try {
+      const elapsed = Math.round((Date.now() - startTime.current) / 1000);
+      const { first_name, last_name, email, phone, role_title, department, years_in_company, age_range, ...responses } = data;
       const res = await fetch('/api/arco/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          participant,
+          participant: { first_name, last_name, email, phone, role_title, department, years_in_company, age_range },
           responses: { ...responses, completion_time_seconds: elapsed },
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Errore');
       setDone(true);
     } catch (e: any) {
-      setError(e.message || 'Errore durante il salvataggio');
+      setError(e.message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (done) {
-    return (
-      <>
-        <header className="arco-header">
-          <div className="arco-logo-text"><span>A</span>RCO <span>G</span>roup</div>
-        </header>
-        <div className="arco-container">
-          <div className="arco-success arco-animate-in">
-            <div className="arco-success-icon">✅</div>
-            <h2>Grazie, {participant.first_name}! 🎉</h2>
-            <p>Il tuo questionario è stato inviato con successo. Le tue risposte ci aiuteranno a creare un&apos;esperienza incredibile per il workshop in Sardegna.</p>
-            <p style={{ marginTop: '1.5rem', color: 'var(--arco-red-light)' }}>Ci vediamo a fine giugno! 🏝️</p>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <>
+  if (done) return (
+    <div className="arco-page">
+      <div className="arco-bg-pattern" />
       <header className="arco-header">
         <div className="arco-logo-text"><span>A</span>RCO <span>G</span>roup</div>
-        <div className="arco-header-subtitle">Workshop Sardegna — Giugno 2026</div>
-        <div className="arco-header-event">
-          🏝️ Crescita Personale &amp; AI — Il tuo superpotere
+      </header>
+      <div className="arco-container">
+        <div className="arco-section arco-success arco-animate-in">
+          <div className="arco-success-icon">✅</div>
+          <h2>Grazie mille!</h2>
+          <p>Le tue risposte sono state registrate con successo. Ci vediamo presto in Sardegna! 🏝️</p>
         </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="arco-page">
+      <div className="arco-bg-pattern" />
+      <header className="arco-header">
+        <div className="arco-logo-text"><span>A</span>RCO <span>G</span>roup</div>
+        <div className="arco-header-subtitle">Questionario pre-incontro</div>
+        <div className="arco-header-event">📍 Sardegna — 2 giorni insieme</div>
       </header>
 
       <div className="arco-container">
-        {/* Progress */}
         <div className="arco-progress-wrap">
-          <div className="arco-progress-bar">
-            <div className="arco-progress-fill" style={{ width: `${progress}%` }} />
-          </div>
+          <div className="arco-progress-bar"><div className="arco-progress-fill" style={{ width: `${progress}%` }} /></div>
           <div className="arco-progress-label">
-            <span>Step {step + 1} di {STEPS.length}</span>
-            <span>{STEPS[step]}</span>
+            <span>{STEP_NAMES[step]}</span>
+            <span>{step + 1} / {totalSteps}</span>
           </div>
         </div>
 
-        {/* Steps */}
-        {step === 0 && <StepRegistration data={participant} onChange={setParticipant} />}
-        {step === 1 && <StepChange data={responses} onChange={setResponses} />}
-        {step === 2 && <StepAI data={responses} onChange={setResponses} />}
-        {step === 3 && <StepVision data={responses} onChange={setResponses} />}
+        {step === 0 && <StepRegistration data={data} onChange={setData} />}
+        {step === 1 && <StepAI data={data} onChange={setData} />}
+        {step === 2 && <StepVision data={data} onChange={setData} />}
 
-        {/* Error */}
-        {error && (
-          <div style={{ padding: '0.85rem 1rem', background: 'rgba(227,30,36,0.1)', border: '1px solid rgba(227,30,36,0.3)', borderRadius: '10px', color: 'var(--arco-red-light)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-            ⚠️ {error}
+        {error && <p style={{ color: '#DC2626', textAlign: 'center', padding: '0.75rem', background: '#FEF2F2', borderRadius: '12px', fontSize: '0.9rem', margin: '0 0 1rem' }}>{error}</p>}
+
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
+          {step > 0 && <button className="arco-btn arco-btn-secondary" onClick={() => setStep(s => s - 1)}>← Indietro</button>}
+          <div style={{ marginLeft: 'auto' }}>
+            {step < totalSteps - 1 ? (
+              <button className="arco-btn arco-btn-primary" disabled={!canNext()} onClick={() => { setStep(s => s + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                Avanti →
+              </button>
+            ) : (
+              <button className="arco-btn arco-btn-primary arco-btn-block" disabled={!canNext() || submitting} onClick={submit}>
+                {submitting ? '⏳ Invio in corso...' : '✨ Invia le risposte'}
+              </button>
+            )}
           </div>
-        )}
-
-        {/* Navigation */}
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between' }}>
-          {step > 0 ? (
-            <button className="arco-btn arco-btn-secondary" onClick={prev}>← Indietro</button>
-          ) : <div />}
-
-          {step < STEPS.length - 1 ? (
-            <button className="arco-btn arco-btn-primary" onClick={next}>Avanti →</button>
-          ) : (
-            <button className="arco-btn arco-btn-primary" onClick={submit} disabled={submitting}>
-              {submitting ? '⏳ Invio in corso...' : '🚀 Invia questionario'}
-            </button>
-          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
