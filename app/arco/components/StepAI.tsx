@@ -18,7 +18,7 @@ const FREQ = [
 
 const AI_TOOLS = [
   'ChatGPT', 'Google Gemini', 'Claude', 'Microsoft Copilot', 'Siri / Alexa',
-  'Midjourney / DALL-E', 'Canva AI', 'Notion AI', 'Altro',
+  'Midjourney / DALL-E', 'Canva AI', 'Notion AI', 'Altro', 'Nessuno'
 ];
 
 const AI_USE_CASES = [
@@ -54,10 +54,10 @@ export default function StepAI({ data, onChange }: Props) {
     <div className="arco-section arco-animate-in">
       <div className="arco-section-number">2</div>
       <h2 className="arco-section-title">La tua esperienza con l&apos;AI</h2>
-      <p className="arco-section-desc">Aiutaci a capire il tuo livello attuale. I campi con l&apos;asterisco (*) sono obbligatori.</p>
+      <p className="arco-section-desc">Aiutaci a capire il tuo livello attuale. Tutti i campi sono obbligatori.</p>
 
       <div className="arco-field">
-        <label className="arco-label">Come descriveresti il tuo livello con l&apos;Intelligenza Artificiale? *</label>
+        <label className="arco-label">Come descriveresti il tuo livello con l&apos;Intelligenza Artificiale?</label>
         <div className="arco-radio-group">
           {AI_LEVELS.map(o => (
             <div key={o.value} className={`arco-radio-card ${data.ai_knowledge_level === o.value ? 'selected' : ''}`} onClick={() => set('ai_knowledge_level', o.value)}>
@@ -70,7 +70,7 @@ export default function StepAI({ data, onChange }: Props) {
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Quali strumenti AI conosci o hai provato? <span className="arco-label-hint">(opzionale, seleziona tutti)</span></label>
+        <label className="arco-label">Quali strumenti AI conosci o hai provato? <span className="arco-label-hint">(seleziona tutti)</span></label>
         <div className="arco-chip-group">
           {AI_TOOLS.map(t => (
             <div key={t} className={`arco-chip ${(data.ai_tools_used || []).includes(t) ? 'selected' : ''}`} onClick={() => toggleTool(t)}>
@@ -81,7 +81,7 @@ export default function StepAI({ data, onChange }: Props) {
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Con che frequenza usi strumenti di AI? *</label>
+        <label className="arco-label">Con che frequenza usi strumenti di AI?</label>
         <div className="arco-radio-group">
           {FREQ.map(o => (
             <div key={o.value} className={`arco-radio-card ${data.ai_frequency === o.value ? 'selected' : ''}`} onClick={() => set('ai_frequency', o.value)}>
@@ -93,7 +93,7 @@ export default function StepAI({ data, onChange }: Props) {
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Per cosa la usi (o la useresti)? <span className="arco-label-hint">(opzionale, seleziona tutte)</span></label>
+        <label className="arco-label">Per cosa la usi (o la useresti)? <span className="arco-label-hint">(seleziona tutte)</span></label>
         <div className="arco-chip-group">
           {AI_USE_CASES.map(uc => (
             <div key={uc} className={`arco-chip ${(data.ai_use_cases || []).includes(uc) ? 'selected' : ''}`} onClick={() => toggleUseCase(uc)}>
@@ -104,12 +104,12 @@ export default function StepAI({ data, onChange }: Props) {
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Se la usi per lavoro, raccontaci come <span className="arco-label-hint">(opzionale)</span></label>
+        <label className="arco-label">Se la usi per lavoro, raccontaci come <span className="arco-label-hint">(altrimenti scrivi "non la uso")</span></label>
         <textarea className="arco-textarea" placeholder="Es: uso ChatGPT per preparare email commerciali, sintetizzare verbali..." value={data.ai_work_examples || ''} onChange={e => set('ai_work_examples', e.target.value)} />
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Hai mai sentito parlare di &quot;LLM&quot; (Large Language Models)? <span className="arco-label-hint">(opzionale)</span></label>
+        <label className="arco-label">Hai mai sentito parlare di &quot;LLM&quot; (Large Language Models)?</label>
         <div className="arco-radio-group">
           {[
             { value: 'mai_sentiti', label: 'No, mai sentiti nominare' },

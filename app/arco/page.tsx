@@ -19,9 +19,9 @@ export default function ArcoSurveyPage() {
   const progress = ((step + 1) / totalSteps) * 100;
 
   const canNext = () => {
-    if (step === 0) return data.first_name?.trim() && data.last_name?.trim() && data.email?.trim() && data.department;
-    if (step === 1) return data.ai_knowledge_level && data.ai_frequency;
-    if (step === 2) return typeof data.excitement_level === 'number';
+    if (step === 0) return data.first_name?.trim() && data.last_name?.trim() && data.email?.trim() && data.department && data.role_title?.trim() && data.age_range && data.years_in_company !== null && data.years_in_company !== undefined;
+    if (step === 1) return data.ai_knowledge_level && data.ai_frequency && data.ai_tools_used?.length > 0 && data.ai_use_cases?.length > 0 && data.ai_work_examples?.trim() && data.llm_knowledge;
+    if (step === 2) return data.what_would_automate?.trim() && data.biggest_time_waster?.trim() && data.dream_superpower?.trim() && data.event_expectations?.length > 0 && data.specific_questions?.trim() && typeof data.excitement_level === 'number';
     return true;
   };
 
