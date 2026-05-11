@@ -429,12 +429,15 @@
 
 /* Responsive */
 @media (max-width: 640px) {
-  .arco-header { padding: 1.5rem 1rem; }
-  .arco-logo-text { font-size: 1.8rem; }
-  .arco-container { padding: 1.5rem 1rem 3rem; }
-  .arco-section { padding: 1.5rem; }
-  .arco-dash-grid { grid-template-columns: 1fr 1fr; }
-  .arco-bar-label { width: 100px; font-size: 0.75rem; }
+  .arco-header { padding: 1.25rem 1rem; }
+  .arco-logo-text { font-size: 1.6rem; }
+  .arco-container { padding: 1.25rem 0.75rem 3rem; }
+  .arco-section { padding: 1.25rem 1rem; border-radius: 12px; }
+  .arco-dash-grid { grid-template-columns: 1fr; }
+  .arco-bar-label { width: auto; font-size: 0.8rem; text-align: left; margin-bottom: 0.25rem; }
+  .arco-bar-row { flex-direction: column; align-items: stretch; gap: 0.15rem; margin-bottom: 0.5rem; }
+  .arco-chip { padding: 0.65rem 1.15rem; font-size: 0.85rem; }
+  .arco-radio-card { padding: 1rem; }
 }
 
 /* Animations */

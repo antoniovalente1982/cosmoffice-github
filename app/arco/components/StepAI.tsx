@@ -18,7 +18,9 @@ const FREQ = [
 
 const AI_TOOLS = [
   'ChatGPT', 'Google Gemini', 'Claude', 'Microsoft Copilot', 'Siri / Alexa',
-  'Midjourney / DALL-E', 'Canva AI', 'Notion AI', 'Altro', 'Nessuno'
+  'Midjourney / DALL-E', 'Canva AI', 'Notion AI', 'OpenAI', 'Antigravity',
+  'GitHub Copilot', 'Vercel v0', 'Supabase', 'DeepSeek', 'Hermes',
+  'Altro', 'Nessuno'
 ];
 
 const AI_USE_CASES = [
