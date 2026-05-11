@@ -126,7 +126,7 @@ export default function DashboardPage() {
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/arco/dashboard')
+    fetch('/api/arco/dashboard?t=' + Date.now(), { cache: 'no-store' })
       .then(r => { if (!r.ok) throw new Error(`Errore API: ${r.status}`); return r.json(); })
       .then(d => { setParticipants(d.participants || []); setResponses(d.responses || []); })
       .catch(e => { console.error(e); setError(e.message); })
