@@ -103,7 +103,6 @@ function PersonDetail({ participant, response, onBack }: { participant: any; res
           </div>
           <div className="arco-section">
             <h3 className="arco-section-title">💡 Curiosità e aspettative</h3>
-            <DetailRow label="Livello curiosità" value={response.excitement_level} type="score" />
             <DetailRow label="Cosa automatizzerebbe" value={response.what_would_automate} />
             <DetailRow label="Attività che ruba più tempo" value={response.biggest_time_waster} />
             <DetailRow label="Superpotere desiderato" value={response.dream_superpower} />
@@ -172,7 +171,6 @@ export default function DashboardPage() {
         <div className="arco-dash-grid arco-animate-in">
           <div className="arco-stat-card"><div className="arco-stat-label">Registrati</div><div className="arco-stat-value">{total}</div><div className="arco-stat-sub">{rate}% completati</div></div>
           <div className="arco-stat-card"><div className="arco-stat-label">Completati</div><div className="arco-stat-value">{completed}</div><div className="arco-stat-sub">su {total} registrati</div></div>
-          <div className="arco-stat-card"><div className="arco-stat-label">Curiosità media</div><div className="arco-stat-value">{avgField(responses, 'excitement_level') || '—'}</div><div className="arco-stat-sub">/10</div></div>
           <div className="arco-stat-card"><div className="arco-stat-label">Tempo medio compilazione</div><div className="arco-stat-value">{avgField(responses, 'completion_time_seconds') ? Math.round(avgField(responses, 'completion_time_seconds') / 60) + '\'' : '—'}</div></div>
         </div>
 

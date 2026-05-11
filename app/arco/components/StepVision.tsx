@@ -58,18 +58,6 @@ export default function StepVision({ data, onChange }: Props) {
         <label className="arco-label">C&apos;è qualcosa in particolare che vorresti chiedere o approfondire? <span className="arco-label-hint">(scrivi &quot;nessuna&quot; se non ne hai)</span></label>
         <textarea className="arco-textarea" placeholder="Qualsiasi curiosità o domanda..." value={data.specific_questions || ''} onChange={e => set('specific_questions', e.target.value)} />
       </div>
-
-      <div className="arco-field">
-        <label className="arco-label">Quanto sei curioso su questi temi?</label>
-        <div className="arco-slider-wrap">
-          <div className="arco-slider-value">{data.excitement_level || 5}</div>
-          <input type="range" className="arco-slider" min="1" max="10" value={data.excitement_level || 5} onChange={e => set('excitement_level', parseInt(e.target.value))} />
-          <div className="arco-slider-labels">
-            <span>1 — Poco</span>
-            <span>10 — Tantissimo! 🔥</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
