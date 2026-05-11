@@ -20,7 +20,7 @@ export default function ArcoSurveyPage() {
 
   const canNext = () => {
     if (step === 0) return data.first_name?.trim() && data.last_name?.trim() && data.email?.trim() && data.department;
-    if (step === 1) return data.ai_knowledge_level && data.ai_frequency && data.coding_experience;
+    if (step === 1) return data.ai_knowledge_level && data.ai_frequency;
     if (step === 2) return typeof data.excitement_level === 'number';
     return true;
   };

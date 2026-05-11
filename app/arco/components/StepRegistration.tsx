@@ -24,7 +24,7 @@ export default function StepRegistration({ data, onChange }: Props) {
     <div className="arco-section arco-animate-in">
       <div className="arco-section-number">1</div>
       <h2 className="arco-section-title">Chi sei</h2>
-      <p className="arco-section-desc">Iniziamo con qualche dato per conoscerti meglio.</p>
+      <p className="arco-section-desc">Iniziamo con qualche dato per conoscerti meglio. I campi contrassegnati con l&apos;asterisco (*) sono obbligatori.</p>
 
       <div className="arco-field" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div>
@@ -57,14 +57,14 @@ export default function StepRegistration({ data, onChange }: Props) {
 
       <div className="arco-field" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div>
-          <label className="arco-label">Fascia d&apos;età</label>
+          <label className="arco-label">Fascia d&apos;età <span className="arco-label-hint">(opzionale)</span></label>
           <select className="arco-select" value={data.age_range || ''} onChange={e => set('age_range', e.target.value)}>
             <option value="">Seleziona...</option>
             {AGE_RANGES.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
         <div>
-          <label className="arco-label">Anni in azienda</label>
+          <label className="arco-label">Anni in azienda <span className="arco-label-hint">(opzionale)</span></label>
           <input className="arco-input" type="number" min="0" max="50" placeholder="Es: 5" value={data.years_in_company || ''} onChange={e => set('years_in_company', parseInt(e.target.value) || null)} />
         </div>
       </div>

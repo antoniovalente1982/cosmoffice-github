@@ -18,15 +18,7 @@ const FREQ = [
 
 const AI_TOOLS = [
   'ChatGPT', 'Google Gemini', 'Claude', 'Microsoft Copilot', 'Siri / Alexa',
-  'Midjourney / DALL-E', 'Canva AI', 'Notion AI', 'GitHub Copilot', 'Altro',
-];
-
-const CODING = [
-  { value: 'nessuna', label: 'Nessuna esperienza' },
-  { value: 'base_html', label: "So cos'è HTML/CSS ma niente di più" },
-  { value: 'qualche_linguaggio', label: 'Ho provato qualche linguaggio' },
-  { value: 'programmatore', label: 'Programmo occasionalmente' },
-  { value: 'esperto', label: 'Sono un programmatore esperto' },
+  'Midjourney / DALL-E', 'Canva AI', 'Notion AI', 'Altro',
 ];
 
 const AI_USE_CASES = [
@@ -36,7 +28,6 @@ const AI_USE_CASES = [
   'Creare presentazioni',
   'Generare contenuti marketing',
   'Tradurre testi',
-  'Scrivere o correggere codice',
   'Cercare informazioni in modo rapido',
   'Brainstorming e generazione idee',
   'Non lo uso per lavoro',
@@ -63,7 +54,7 @@ export default function StepAI({ data, onChange }: Props) {
     <div className="arco-section arco-animate-in">
       <div className="arco-section-number">2</div>
       <h2 className="arco-section-title">La tua esperienza con l&apos;AI</h2>
-      <p className="arco-section-desc">Aiutaci a capire il tuo livello attuale. Non ci sono risposte giuste o sbagliate!</p>
+      <p className="arco-section-desc">Aiutaci a capire il tuo livello attuale. I campi con l&apos;asterisco (*) sono obbligatori.</p>
 
       <div className="arco-field">
         <label className="arco-label">Come descriveresti il tuo livello con l&apos;Intelligenza Artificiale? *</label>
@@ -79,7 +70,7 @@ export default function StepAI({ data, onChange }: Props) {
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Quali strumenti AI conosci o hai provato? <span className="arco-label-hint">(seleziona tutti)</span></label>
+        <label className="arco-label">Quali strumenti AI conosci o hai provato? <span className="arco-label-hint">(opzionale, seleziona tutti)</span></label>
         <div className="arco-chip-group">
           {AI_TOOLS.map(t => (
             <div key={t} className={`arco-chip ${(data.ai_tools_used || []).includes(t) ? 'selected' : ''}`} onClick={() => toggleTool(t)}>
@@ -102,7 +93,7 @@ export default function StepAI({ data, onChange }: Props) {
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Per cosa la usi (o la useresti)? <span className="arco-label-hint">(seleziona tutte)</span></label>
+        <label className="arco-label">Per cosa la usi (o la useresti)? <span className="arco-label-hint">(opzionale, seleziona tutte)</span></label>
         <div className="arco-chip-group">
           {AI_USE_CASES.map(uc => (
             <div key={uc} className={`arco-chip ${(data.ai_use_cases || []).includes(uc) ? 'selected' : ''}`} onClick={() => toggleUseCase(uc)}>
@@ -115,32 +106,6 @@ export default function StepAI({ data, onChange }: Props) {
       <div className="arco-field">
         <label className="arco-label">Se la usi per lavoro, raccontaci come <span className="arco-label-hint">(opzionale)</span></label>
         <textarea className="arco-textarea" placeholder="Es: uso ChatGPT per preparare email commerciali, sintetizzare verbali..." value={data.ai_work_examples || ''} onChange={e => set('ai_work_examples', e.target.value)} />
-      </div>
-
-      <div className="arco-field">
-        <div className="arco-toggle-row" onClick={() => set('knows_vibe_coding', !data.knows_vibe_coding)} style={{ cursor: 'pointer' }}>
-          <span className="arco-toggle-label">Hai mai sentito parlare di &quot;Vibe Coding&quot;?</span>
-          <div className={`arco-toggle ${data.knows_vibe_coding ? 'on' : ''}`}><div className="arco-toggle-knob" /></div>
-        </div>
-      </div>
-
-      <div className="arco-field">
-        <label className="arco-label">La tua esperienza con il coding/programmazione *</label>
-        <div className="arco-radio-group">
-          {CODING.map(o => (
-            <div key={o.value} className={`arco-radio-card ${data.coding_experience === o.value ? 'selected' : ''}`} onClick={() => set('coding_experience', o.value)}>
-              <span className="arco-radio-dot" />
-              <span>{o.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="arco-field">
-        <div className="arco-toggle-row" onClick={() => set('interested_in_building_tools', !data.interested_in_building_tools)} style={{ cursor: 'pointer' }}>
-          <span className="arco-toggle-label">Ti piacerebbe poter creare strumenti digitali senza saper programmare?</span>
-          <div className={`arco-toggle ${data.interested_in_building_tools ? 'on' : ''}`}><div className="arco-toggle-knob" /></div>
-        </div>
       </div>
     </div>
   );

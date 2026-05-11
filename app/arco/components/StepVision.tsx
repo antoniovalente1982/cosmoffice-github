@@ -5,7 +5,6 @@ const EXPECTATIONS = [
   'Imparare ad usare strumenti AI pratici',
   'Trovare ispirazione e nuove idee',
   'Scoprire come automatizzare attività ripetitive',
-  'Capire il Vibe Coding',
   'Avere una visione del futuro',
   'Confrontarmi con i colleghi',
   'Divertirmi e staccare dalla routine',
@@ -26,25 +25,25 @@ export default function StepVision({ data, onChange }: Props) {
     <div className="arco-section arco-animate-in">
       <div className="arco-section-number">3</div>
       <h2 className="arco-section-title">Ultime curiosità</h2>
-      <p className="arco-section-desc">Quasi finito! Queste risposte ci aiuteranno a rendere l&apos;esperienza ancora più utile per te.</p>
+      <p className="arco-section-desc">Quasi finito! Queste risposte ci aiuteranno a personalizzare l&apos;evento. I campi con l&apos;asterisco (*) sono obbligatori.</p>
 
       <div className="arco-field">
-        <label className="arco-label">Se potessi automatizzare una cosa del tuo lavoro, quale sarebbe?</label>
+        <label className="arco-label">Se potessi automatizzare una cosa del tuo lavoro, quale sarebbe? <span className="arco-label-hint">(opzionale)</span></label>
         <textarea className="arco-textarea" placeholder="Es: report settimanali, rispondere alle email, analisi dati..." value={data.what_would_automate || ''} onChange={e => set('what_would_automate', e.target.value)} />
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Qual è l&apos;attività che ti ruba più tempo durante la giornata?</label>
+        <label className="arco-label">Qual è l&apos;attività che ti ruba più tempo durante la giornata? <span className="arco-label-hint">(opzionale)</span></label>
         <textarea className="arco-textarea" placeholder="Es: riunioni, gestione email, compilare fogli Excel..." value={data.biggest_time_waster || ''} onChange={e => set('biggest_time_waster', e.target.value)} />
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Se l&apos;AI potesse darti un superpotere lavorativo, quale vorresti? 🦸</label>
+        <label className="arco-label">Se l&apos;AI potesse darti un superpotere lavorativo, quale vorresti? 🦸 <span className="arco-label-hint">(opzionale)</span></label>
         <textarea className="arco-textarea" placeholder="Sogna in grande! Es: capire al volo cosa pensano i clienti, creare presentazioni in 2 minuti..." value={data.dream_superpower || ''} onChange={e => set('dream_superpower', e.target.value)} />
       </div>
 
       <div className="arco-field">
-        <label className="arco-label">Cosa ti incuriosisce di più? <span className="arco-label-hint">(seleziona tutte)</span></label>
+        <label className="arco-label">Cosa ti incuriosisce di più? <span className="arco-label-hint">(opzionale, seleziona tutte)</span></label>
         <div className="arco-chip-group">
           {EXPECTATIONS.map(exp => (
             <div key={exp} className={`arco-chip ${(data.event_expectations || []).includes(exp) ? 'selected' : ''}`} onClick={() => toggleExp(exp)}>

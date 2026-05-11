@@ -5,7 +5,6 @@ import { useState, useEffect, useMemo } from 'react';
 const LABELS: Record<string, Record<string, string>> = {
   ai_knowledge_level: { mai_sentito: '❓ Non lo conosce', sentito_mai_usato: '👂 Sentito parlare', uso_base: '🔰 Uso base', uso_regolare: '⚡ Uso regolare', uso_avanzato: '🧠 Avanzato' },
   ai_frequency: { mai: 'Mai', raramente: 'Raramente', settimanale: 'Settimanale', quotidiano: 'Quotidiano', sempre: 'Sempre' },
-  coding_experience: { nessuna: 'Nessuna', base_html: 'HTML base', qualche_linguaggio: 'Qualche linguaggio', programmatore: 'Programmatore', esperto: 'Esperto' },
 };
 
 function countField(responses: any[], field: string) {
@@ -99,9 +98,6 @@ function PersonDetail({ participant, response, onBack }: { participant: any; res
             <DetailRow label="Strumenti usati" value={response.ai_tools_used?.length ? response.ai_tools_used : null} type="chips" />
             <DetailRow label="Casi d'uso" value={response.ai_use_cases?.length ? response.ai_use_cases : null} type="chips" />
             <DetailRow label="Come la usa per lavoro" value={response.ai_work_examples} />
-            <DetailRow label="Conosce Vibe Coding" value={response.knows_vibe_coding} type="bool" />
-            <DetailRow label="Esperienza coding" value={LABELS.coding_experience[response.coding_experience]} type="badge" />
-            <DetailRow label="Vuole creare tool senza codice" value={response.interested_in_building_tools} type="bool" />
           </div>
           <div className="arco-section">
             <h3 className="arco-section-title">💡 Curiosità e aspettative</h3>
@@ -175,7 +171,7 @@ export default function DashboardPage() {
           <div className="arco-stat-card"><div className="arco-stat-label">Registrati</div><div className="arco-stat-value">{total}</div><div className="arco-stat-sub">{rate}% completati</div></div>
           <div className="arco-stat-card"><div className="arco-stat-label">Completati</div><div className="arco-stat-value">{completed}</div><div className="arco-stat-sub">su {total} registrati</div></div>
           <div className="arco-stat-card"><div className="arco-stat-label">Curiosità media</div><div className="arco-stat-value">{avgField(responses, 'excitement_level') || '—'}</div><div className="arco-stat-sub">/10</div></div>
-          <div className="arco-stat-card"><div className="arco-stat-label">Conosce Vibe Coding</div><div className="arco-stat-value">{responses.filter(r => r.knows_vibe_coding).length}<span style={{ fontSize: '1rem', color: 'var(--arco-text-dim)' }}>/{responses.length}</span></div></div>
+          <div className="arco-stat-card"><div className="arco-stat-label">Tempo medio compilazione</div><div className="arco-stat-value">{avgField(responses, 'completion_time_seconds') ? Math.round(avgField(responses, 'completion_time_seconds') / 60) + '\'' : '—'}</div></div>
         </div>
 
         <div className="arco-tabs" style={{ overflowX: 'auto' }}>{TABS.map(t => (<button key={t.key} className={`arco-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>))}</div>
@@ -185,7 +181,6 @@ export default function DashboardPage() {
             <div className="arco-section"><h3 className="arco-section-title">Distribuzione per reparto</h3><BarChart data={deptCounts} total={total || 1} /></div>
             <div className="arco-dash-grid">
               <div className="arco-stat-card"><div className="arco-stat-label">Usa AI per lavoro</div><div className="arco-stat-value">{responses.filter(r => r.ai_work_usage || (r.ai_use_cases && !r.ai_use_cases.includes('Non lo uso per lavoro'))).length}<span style={{ fontSize: '1rem', color: 'var(--arco-text-dim)' }}>/{responses.length}</span></div></div>
-              <div className="arco-stat-card"><div className="arco-stat-label">Vuole creare tool</div><div className="arco-stat-value">{responses.filter(r => r.interested_in_building_tools).length}<span style={{ fontSize: '1rem', color: 'var(--arco-text-dim)' }}>/{responses.length}</span></div></div>
             </div>
             <div className="arco-section"><h3 className="arco-section-title">📋 Cosa li incuriosisce di più</h3>{(() => { const e: Record<string, number> = {}; responses.forEach(r => (r.event_expectations || []).forEach((x: string) => { e[x] = (e[x] || 0) + 1; })); return <BarChart data={e} total={responses.length || 1} />; })()}</div>
           </div>
@@ -197,7 +192,6 @@ export default function DashboardPage() {
             <div className="arco-section"><h3 className="arco-section-title">Frequenza utilizzo</h3><BarChart data={countField(responses, 'ai_frequency')} labelMap={LABELS.ai_frequency} total={responses.length || 1} /></div>
             <div className="arco-section"><h3 className="arco-section-title">Strumenti AI conosciuti</h3>{(() => { const t: Record<string, number> = {}; responses.forEach(r => (r.ai_tools_used || []).forEach((x: string) => { t[x] = (t[x] || 0) + 1; })); return <BarChart data={t} total={responses.length || 1} />; })()}</div>
             <div className="arco-section"><h3 className="arco-section-title">Casi d&apos;uso AI</h3>{(() => { const u: Record<string, number> = {}; responses.forEach(r => (r.ai_use_cases || []).forEach((x: string) => { u[x] = (u[x] || 0) + 1; })); return <BarChart data={u} total={responses.length || 1} />; })()}</div>
-            <div className="arco-section"><h3 className="arco-section-title">Esperienza coding</h3><BarChart data={countField(responses, 'coding_experience')} labelMap={LABELS.coding_experience} total={responses.length || 1} /></div>
             <div className="arco-section"><h3 className="arco-section-title">💼 Come usano AI al lavoro</h3><FreeTextList responses={responses} field="ai_work_examples" /></div>
           </div>
         )}
