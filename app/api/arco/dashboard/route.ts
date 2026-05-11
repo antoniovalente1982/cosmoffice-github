@@ -5,9 +5,14 @@ import { NextResponse } from 'next/server';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tcbqsmjmhuebfdijiaag.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY_LEGACY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjYnFzbWptaHVlYmZkaWppYWFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2ODM3NzcsImV4cCI6MjA4NzI1OTc3N30.qULTHRBQzxIlAY6dklpAKlrVsJBA-KuvxmmtcTEZ5rY';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: false },
+  global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
+});
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 export async function GET() {
   try {
