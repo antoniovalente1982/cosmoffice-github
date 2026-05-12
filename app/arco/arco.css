@@ -450,6 +450,7 @@
 .arco-tabs::-webkit-scrollbar { display: none; }
 
 .arco-tab {
+  display: flex; align-items: center; gap: 0.4rem;
   padding: 0.75rem 1.1rem; font-size: 0.85rem; font-weight: 600;
   color: var(--arco-text-muted);
   cursor: pointer; border-bottom: 2px solid transparent;
@@ -457,6 +458,9 @@
   background: none; border-top: none; border-left: none; border-right: none;
   font-family: inherit; white-space: nowrap;
 }
+
+.arco-tab-icon { font-size: 1rem; line-height: 1; }
+.arco-tab-label { }
 
 .arco-tab:hover { color: var(--arco-text); }
 .arco-tab.active { color: var(--arco-accent); border-bottom-color: var(--arco-accent); }
@@ -485,33 +489,56 @@
   .arco-chip { padding: 0.65rem 1.15rem; font-size: 0.85rem; }
   .arco-radio-card { padding: 1rem; }
 
-  /* Tabs: wrap into grid on mobile so all are visible */
+  /* Tabs: icon-only on mobile with label visible on active tab */
   .arco-tabs {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    display: flex;
+    justify-content: center;
+    gap: 0.35rem;
     overflow-x: visible;
-    gap: 0;
     border-bottom: none;
     background: var(--arco-bg-input);
-    border-radius: 12px;
-    padding: 4px;
+    border-radius: 14px;
+    padding: 5px;
     border: 1px solid var(--arco-border);
   }
 
   .arco-tab {
-    padding: 0.6rem 0.4rem;
-    font-size: 0.72rem;
-    text-align: center;
-    white-space: nowrap;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.55rem 0.7rem;
     border-bottom: none;
-    border-radius: 8px;
+    border-radius: 10px;
+    min-width: 0;
+  }
+
+  .arco-tab-icon { font-size: 1.2rem; }
+
+  /* Hide text labels by default on mobile */
+  .arco-tab-label {
+    font-size: 0;
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.25s ease;
+  }
+
+  /* Show label only on active tab */
+  .arco-tab.active .arco-tab-label {
+    font-size: 0.65rem;
+    max-width: 80px;
+    opacity: 1;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    font-weight: 700;
   }
 
   .arco-tab.active {
     background: var(--arco-bg-white);
     color: var(--arco-accent);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px rgba(79,70,229,0.12);
     border-bottom: none;
+    padding: 0.55rem 1rem;
   }
 
   .arco-scale-btn { width: 36px; height: 36px; font-size: 0.85rem; border-radius: 8px; }

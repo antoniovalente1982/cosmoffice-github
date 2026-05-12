@@ -146,12 +146,12 @@ export default function DashboardPage() {
 
   const deptCounts = useMemo(() => { const c: Record<string, number> = {}; participants.forEach(p => { if (p.department) c[p.department] = (c[p.department] || 0) + 1; }); return c; }, [participants]);
 
-  const TABS: { key: TabKey; label: string }[] = [
-    { key: 'overview', label: '📊 Overview' },
-    { key: 'ai', label: '🤖 AI' },
-    { key: 'mindset', label: '🔄 Mindset' },
-    { key: 'freetext', label: '💬 Risposte' },
-    { key: 'participants', label: '👥 Persone' },
+  const TABS: { key: TabKey; icon: string; label: string }[] = [
+    { key: 'overview', icon: '📊', label: 'Overview' },
+    { key: 'ai', icon: '🤖', label: 'AI' },
+    { key: 'mindset', icon: '🔄', label: 'Mindset' },
+    { key: 'freetext', icon: '💬', label: 'Risposte' },
+    { key: 'participants', icon: '👥', label: 'Persone' },
   ];
 
   const Header = () => (
@@ -182,7 +182,7 @@ export default function DashboardPage() {
           <div className="arco-stat-card"><div className="arco-stat-label">Tempo medio compilazione</div><div className="arco-stat-value">{avgField(responses, 'completion_time_seconds') ? Math.round(avgField(responses, 'completion_time_seconds') / 60) + '\'' : '—'}</div></div>
         </div>
 
-        <div className="arco-tabs">{TABS.map(t => (<button key={t.key} className={`arco-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>))}</div>
+        <div className="arco-tabs">{TABS.map(t => (<button key={t.key} className={`arco-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}><span className="arco-tab-icon">{t.icon}</span><span className="arco-tab-label">{t.label}</span></button>))}</div>
 
         {tab === 'overview' && (
           <div className="arco-animate-in">
