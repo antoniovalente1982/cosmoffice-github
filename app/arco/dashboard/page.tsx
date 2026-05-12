@@ -6,6 +6,7 @@ const LABELS: Record<string, Record<string, string>> = {
   ai_knowledge_level: { mai_sentito: '❓ Non lo conosce', sentito_mai_usato: '👂 Sentito parlare', uso_base: '🔰 Uso base', uso_regolare: '⚡ Uso regolare', uso_avanzato: '🧠 Avanzato' },
   ai_frequency: { mai: 'Mai', raramente: 'Raramente', settimanale: 'Settimanale', quotidiano: 'Quotidiano', sempre: 'Sempre' },
   llm_knowledge: { mai_sentiti: '❌ Mai sentiti', sentiti_non_so: '🤔 Sentiti ma non so', conosco: '✅ So cosa sono' },
+  change_attitude: { entusiasta: '🚀 Entusiasta', curioso: '🔍 Curioso', adattabile: '🔄 Adattabile', diffidente: '😟 Diffidente', resistente: '🛑 Resistente' },
 };
 
 function countField(responses: any[], field: string) {
@@ -102,6 +103,12 @@ function PersonDetail({ participant, response, onBack }: { participant: any; res
             <DetailRow label="Come la usa per lavoro" value={response.ai_work_examples} />
           </div>
           <div className="arco-section">
+            <h3 className="arco-section-title">🔄 Mindset — Approccio al cambiamento</h3>
+            <DetailRow label="Atteggiamento" value={response.change_attitude ? LABELS.change_attitude[response.change_attitude] : null} type="badge" />
+            <DetailRow label="Apertura all'AI (1-10)" value={response.change_openness} type="score" />
+            <DetailRow label="Preoccupazione principale" value={response.change_biggest_fear} />
+          </div>
+          <div className="arco-section">
             <h3 className="arco-section-title">💡 Curiosità e aspettative</h3>
             <DetailRow label="Cosa automatizzerebbe" value={response.what_would_automate} />
             <DetailRow label="Attività che ruba più tempo" value={response.biggest_time_waster} />
@@ -115,7 +122,7 @@ function PersonDetail({ participant, response, onBack }: { participant: any; res
   );
 }
 
-type TabKey = 'overview' | 'ai' | 'freetext' | 'participants';
+type TabKey = 'overview' | 'ai' | 'mindset' | 'freetext' | 'participants';
 
 export default function DashboardPage() {
   const [participants, setParticipants] = useState<any[]>([]);
@@ -142,6 +149,7 @@ export default function DashboardPage() {
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'overview', label: '📊 Overview' },
     { key: 'ai', label: '🤖 AI' },
+    { key: 'mindset', label: '🔄 Mindset' },
     { key: 'freetext', label: '💬 Risposte' },
     { key: 'participants', label: '👥 Persone' },
   ];
@@ -174,7 +182,7 @@ export default function DashboardPage() {
           <div className="arco-stat-card"><div className="arco-stat-label">Tempo medio compilazione</div><div className="arco-stat-value">{avgField(responses, 'completion_time_seconds') ? Math.round(avgField(responses, 'completion_time_seconds') / 60) + '\'' : '—'}</div></div>
         </div>
 
-        <div className="arco-tabs" style={{ overflowX: 'auto' }}>{TABS.map(t => (<button key={t.key} className={`arco-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>))}</div>
+        <div className="arco-tabs">{TABS.map(t => (<button key={t.key} className={`arco-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>))}</div>
 
         {tab === 'overview' && (
           <div className="arco-animate-in">
@@ -194,6 +202,34 @@ export default function DashboardPage() {
             <div className="arco-section"><h3 className="arco-section-title">Strumenti AI conosciuti</h3>{(() => { const t: Record<string, number> = {}; responses.forEach(r => (r.ai_tools_used || []).forEach((x: string) => { t[x] = (t[x] || 0) + 1; })); return <BarChart data={t} total={responses.length || 1} />; })()}</div>
             <div className="arco-section"><h3 className="arco-section-title">Casi d&apos;uso AI</h3>{(() => { const u: Record<string, number> = {}; responses.forEach(r => (r.ai_use_cases || []).forEach((x: string) => { u[x] = (u[x] || 0) + 1; })); return <BarChart data={u} total={responses.length || 1} />; })()}</div>
             <div className="arco-section"><h3 className="arco-section-title">💼 Come usano AI al lavoro</h3><FreeTextList responses={responses} field="ai_work_examples" /></div>
+          </div>
+        )}
+
+        {tab === 'mindset' && (
+          <div className="arco-animate-in">
+            <div className="arco-section"><h3 className="arco-section-title">Atteggiamento verso il cambiamento</h3><BarChart data={countField(responses, 'change_attitude')} labelMap={LABELS.change_attitude} total={responses.length || 1} /></div>
+            <div className="arco-section">
+              <h3 className="arco-section-title">Apertura all&apos;AI (media)</h3>
+              <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+                <div style={{ fontSize: '4rem', fontWeight: 800, fontFamily: "'Space Grotesk', sans-serif", color: 'var(--arco-accent)' }}>
+                  {avgField(responses, 'change_openness') || '—'}<span style={{ fontSize: '1.2rem', color: 'var(--arco-text-dim)' }}>/10</span>
+                </div>
+                <p style={{ color: 'var(--arco-text-muted)', fontSize: '0.85rem', marginTop: '0.5rem' }}>Punteggio medio di apertura all&apos;introduzione dell&apos;AI</p>
+              </div>
+              <div className="arco-bar-chart">
+                {[1,2,3,4,5,6,7,8,9,10].map(n => {
+                  const count = responses.filter(r => r.change_openness === n).length;
+                  return count > 0 ? (
+                    <div className="arco-bar-row" key={n}>
+                      <span className="arco-bar-label">{n}/10</span>
+                      <div className="arco-bar-track"><div className="arco-bar-fill" style={{ width: `${Math.max((count / (responses.length || 1)) * 100, 12)}%` }}>{Math.round((count / (responses.length || 1)) * 100)}%</div></div>
+                      <span className="arco-bar-count">{count}</span>
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            </div>
+            <div className="arco-section"><h3 className="arco-section-title">😰 Preoccupazioni principali</h3><FreeTextList responses={responses} field="change_biggest_fear" /></div>
           </div>
         )}
 

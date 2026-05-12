@@ -3,9 +3,10 @@
 import { useState, useRef } from 'react';
 import StepRegistration from './components/StepRegistration';
 import StepAI from './components/StepAI';
+import StepMindset from './components/StepMindset';
 import StepVision from './components/StepVision';
 
-const STEP_NAMES = ['Chi sei', 'AI', 'Curiosità'];
+const STEP_NAMES = ['Chi sei', 'AI', 'Mindset', 'Curiosità'];
 
 export default function ArcoSurveyPage() {
   const [step, setStep] = useState(0);
@@ -15,13 +16,14 @@ export default function ArcoSurveyPage() {
   const [error, setError] = useState('');
   const startTime = useRef(Date.now());
 
-  const totalSteps = 3;
+  const totalSteps = 4;
   const progress = ((step + 1) / totalSteps) * 100;
 
   const canNext = () => {
     if (step === 0) return data.first_name?.trim() && data.last_name?.trim() && data.email?.trim() && data.department && data.role_title?.trim() && data.age_range && data.years_in_company !== null && data.years_in_company !== undefined;
     if (step === 1) return data.ai_knowledge_level && data.ai_frequency && data.ai_tools_used?.length > 0 && data.ai_use_cases?.length > 0 && data.ai_work_examples?.trim() && data.llm_knowledge;
-    if (step === 2) return data.what_would_automate?.trim() && data.biggest_time_waster?.trim() && data.dream_superpower?.trim() && data.event_expectations?.length > 0 && data.specific_questions?.trim();
+    if (step === 2) return data.change_attitude && data.change_openness && data.change_biggest_fear?.trim();
+    if (step === 3) return data.what_would_automate?.trim() && data.biggest_time_waster?.trim() && data.dream_superpower?.trim() && data.event_expectations?.length > 0 && data.specific_questions?.trim();
     return true;
   };
 
@@ -84,7 +86,8 @@ export default function ArcoSurveyPage() {
 
         {step === 0 && <StepRegistration data={data} onChange={setData} />}
         {step === 1 && <StepAI data={data} onChange={setData} />}
-        {step === 2 && <StepVision data={data} onChange={setData} />}
+        {step === 2 && <StepMindset data={data} onChange={setData} />}
+        {step === 3 && <StepVision data={data} onChange={setData} />}
 
         {error && <p style={{ color: '#DC2626', textAlign: 'center', padding: '0.75rem', background: '#FEF2F2', borderRadius: '12px', fontSize: '0.9rem', margin: '0 0 1rem' }}>{error}</p>}
 

@@ -24,7 +24,7 @@ export default function StepVision({ data, onChange }: Props) {
 
   return (
     <div className="arco-section arco-animate-in">
-      <div className="arco-section-number">3</div>
+      <div className="arco-section-number">4</div>
       <h2 className="arco-section-title">Ultime curiosità</h2>
       <p className="arco-section-desc">Quasi finito! Queste risposte ci aiuteranno a personalizzare l&apos;evento. Tutti i campi sono obbligatori.</p>
 

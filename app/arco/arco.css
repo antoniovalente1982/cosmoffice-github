@@ -244,6 +244,45 @@
   font-weight: 600;
 }
 
+/* Scale 1-10 */
+.arco-scale-group {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;
+}
+
+.arco-scale-btn {
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--arco-bg-input);
+  border: 1.5px solid var(--arco-border);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem; font-weight: 700;
+  color: var(--arco-text-muted);
+  transition: var(--arco-transition);
+  user-select: none;
+}
+
+.arco-scale-btn:hover {
+  border-color: var(--arco-accent-light);
+  color: var(--arco-accent);
+  background: var(--arco-accent-bg);
+}
+
+.arco-scale-btn.selected {
+  background: var(--arco-accent);
+  border-color: var(--arco-accent);
+  color: white;
+  box-shadow: 0 2px 10px rgba(79,70,229,0.3);
+  transform: scale(1.1);
+}
+
+.arco-scale-labels {
+  display: flex; justify-content: space-between;
+  font-size: 0.78rem; color: var(--arco-text-dim);
+  margin-top: 0.5rem; padding: 0 0.25rem;
+}
+
 /* Slider */
 .arco-slider-wrap { display: flex; flex-direction: column; gap: 0.5rem; }
 .arco-slider-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--arco-text-muted); }
@@ -401,10 +440,17 @@
 .arco-badge-red { background: var(--arco-accent-bg); color: var(--arco-accent); }
 
 /* Tabs */
-.arco-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--arco-border); overflow-x: auto; }
+.arco-tabs {
+  display: flex; gap: 0; margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--arco-border);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; position: relative;
+}
+
+.arco-tabs::-webkit-scrollbar { display: none; }
 
 .arco-tab {
-  padding: 0.85rem 1.5rem; font-size: 0.9rem; font-weight: 600;
+  padding: 0.75rem 1.1rem; font-size: 0.85rem; font-weight: 600;
   color: var(--arco-text-muted);
   cursor: pointer; border-bottom: 2px solid transparent;
   transition: var(--arco-transition);
@@ -438,6 +484,38 @@
   .arco-bar-row { flex-direction: column; align-items: stretch; gap: 0.15rem; margin-bottom: 0.5rem; }
   .arco-chip { padding: 0.65rem 1.15rem; font-size: 0.85rem; }
   .arco-radio-card { padding: 1rem; }
+
+  /* Tabs: wrap into grid on mobile so all are visible */
+  .arco-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    overflow-x: visible;
+    gap: 0;
+    border-bottom: none;
+    background: var(--arco-bg-input);
+    border-radius: 12px;
+    padding: 4px;
+    border: 1px solid var(--arco-border);
+  }
+
+  .arco-tab {
+    padding: 0.6rem 0.4rem;
+    font-size: 0.72rem;
+    text-align: center;
+    white-space: nowrap;
+    border-bottom: none;
+    border-radius: 8px;
+  }
+
+  .arco-tab.active {
+    background: var(--arco-bg-white);
+    color: var(--arco-accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-bottom: none;
+  }
+
+  .arco-scale-btn { width: 36px; height: 36px; font-size: 0.85rem; border-radius: 8px; }
+  .arco-scale-group { gap: 0.3rem; }
 }
 
 /* Animations */
